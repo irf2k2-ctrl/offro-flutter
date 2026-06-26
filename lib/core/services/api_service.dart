@@ -480,6 +480,62 @@ class Api {
     } catch(_) { return []; }
   }
 
+  // ── Public Products / Product Cards ──
+  static Future<List> getPublicProducts({String? city}) async {
+    try {
+      final cityParam = (city != null && city.trim().isNotEmpty && city != "Detecting...")
+          ? "?city=${Uri.encodeComponent(city.trim())}" : "";
+      final raw = await _get("/gift-vouchers$cityParam");
+      if (raw is List) return raw;
+      if (raw is Map) {
+        if (raw["vouchers"] is List) return raw["vouchers"] as List;
+        if (raw["data"]    is List) return raw["data"]    as List;
+      }
+      return [];
+    } catch(_) { return []; }
+  }
+
+  static Future<List> fetchPublicProducts({String? city}) => getPublicProducts(city: city);
+
+  static Future<List> getProductCards({String? city}) => getPublicProducts(city: city);
+
+  // ── Admin / Promo Banners (public) ──
+  static Future<List> getAdminBanners() async {
+    try {
+      final raw = await _get("/promo-sliders");
+      return raw is List ? raw : [];
+    } catch(_) { return []; }
+  }
+
+  // ── Product Favorites ──
+  static Future<void> toggleProductFavorite(String token, String productId) async {
+    try { await _post("/user/product-favorites/$productId", {}, token: token); } catch(_) {}
+  }
+
+  static Future<bool> isProductFavorite(String token, String productId) async {
+    try {
+      final d = await _get("/user/product-favorites/$productId/check", token: token);
+      return d["is_favorite"] == true;
+    } catch(_) { return false; }
+  }
+
+  // ── Product Reviews ──
+  static Future<void> submitProductReview(
+      String token, String productId, double rating, String text) async {
+    try {
+      await _post("/products/$productId/review",
+          {"rating": rating, "text": text}, token: token);
+    } catch(e) { throw Exception(e.toString().replaceAll("Exception: ", "")); }
+  }
+
+  // ── User's own review for a store ──
+  static Future<Map<String,dynamic>?> getUserReview(String token, String storeId) async {
+    try {
+      final d = await _get("/stores/$storeId/my-review", token: token);
+      return d is Map ? Map<String,dynamic>.from(d) : null;
+    } catch(_) { return null; }
+  }
+
 }
 
 // ─────────────────────── PREFS ───────────────────────
