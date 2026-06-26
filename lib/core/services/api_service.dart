@@ -325,49 +325,46 @@ class Api {
   }
   // ── Public Products ──
   static Future<List> getPublicProducts({String city = ''}) async {
-    // Uses /products with city param — /products-public does not exist
-    final _gpCityParam = city.trim().isNotEmpty ? ("?city=" + Uri.encodeComponent(city.trim())) : "";
+    final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
-      final raw = await _get("/products" + _gpCityParam).timeout(const Duration(seconds: 10));
+      final raw = await _get("/gift-vouchers-public$cityParam").timeout(const Duration(seconds: 10));
       if (raw is List) return raw;
       if (raw is Map) {
-        for (final key in ["products", "data", "results", "items"]) {
-          if (raw[key] is List && (raw[key] as List).isNotEmpty) return raw[key] as List;
+        for (final key in ["vouchers", "data", "results", "items"]) {
+          if (raw[key] is List) return raw[key] as List;
         }
       }
     } catch (_) {}
     return [];
   }
-  /// Fetch all active products from the public /products endpoint
+
   static Future<List<Map<String,dynamic>>> fetchPublicProducts({String city = ''}) async {
-    final cacheKey = "public_products_" + city.trim().toLowerCase();
+    final cacheKey = "public_products_${city.trim().toLowerCase()}";
     if (_isCacheValid(cacheKey)) {
       final cached = _apiCache[cacheKey];
       if (cached is List && cached.isNotEmpty) return List<Map<String,dynamic>>.from(cached);
     }
-    final _fcpCityParam = city.trim().isNotEmpty ? ("?city=" + Uri.encodeComponent(city.trim())) : "";
-    for (final path in ["/products" + _fcpCityParam]) {
-      try {
-        final raw = await _get(path).timeout(const Duration(seconds: 10));
-        List items = [];
-        if (raw is List) {
-          items = raw;
-        } else if (raw is Map) {
-          for (final key in ["products", "data", "results", "items"]) {
-            if (raw[key] is List && (raw[key] as List).isNotEmpty) { items = raw[key]; break; }
-          }
+    final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
+    try {
+      final raw = await _get("/gift-vouchers-public$cityParam").timeout(const Duration(seconds: 10));
+      List items = [];
+      if (raw is List) {
+        items = raw;
+      } else if (raw is Map) {
+        for (final key in ["vouchers", "data", "results", "items"]) {
+          if (raw[key] is List && (raw[key] as List).isNotEmpty) { items = raw[key] as List; break; }
         }
-        if (items.isNotEmpty) {
-          final result = items
-              .map((e) => e is Map ? Map<String,dynamic>.from(e) : <String,dynamic>{})
-              .where((e) => e.isNotEmpty)
-              .toList();
-          _apiCache[cacheKey] = result;
-          _apiCacheTime[cacheKey] = DateTime.now();
-          return result;
-        }
-      } catch (_) { continue; }
-    }
+      }
+      if (items.isNotEmpty) {
+        final result = items
+            .map((e) => e is Map ? Map<String,dynamic>.from(e) : <String,dynamic>{})
+            .where((e) => e.isNotEmpty)
+            .toList();
+        _apiCache[cacheKey] = result;
+        _apiCacheTime[cacheKey] = DateTime.now();
+        return result;
+      }
+    } catch (_) {}
     return [];
   }
 
@@ -397,7 +394,7 @@ class Api {
 
   static Future<List<Map<String,dynamic>>> getAdminBanners() async {
     try {
-      final raw = await _get("/admin-banners").timeout(const Duration(seconds: 30));
+      final raw = await _get("/promo-sliders").timeout(const Duration(seconds: 15));
       if (raw is List) return raw.map((e) => Map<String,dynamic>.from(e as Map)).toList();
     } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getAdminBanners error: $e"); }
     return [];

@@ -2111,6 +2111,11 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   String? _selState; String? _selCity;
   List<String> _areas = []; bool _areasLoading = false;
   bool _locLoading = false; bool _locConfirmed = false;
+  final _mapsUrlCtrl = TextEditingController();
+  bool _mapsResolving = false;
+  bool _mapsApplied = false;
+  String _resolvedPlaceName = '';
+  String _resolvedAddress = '';
   final _about = TextEditingController();
   String? _openTime;   // e.g. "09:00"
   String? _closeTime;  // e.g. "22:00"
@@ -2145,6 +2150,40 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       if (mounted) setState(() {
         _locLoading = false;
         _msg = "Could not get location: ${e.toString().replaceAll('Exception: ','')}";
+      });
+    }
+  }
+
+  // ── Google Maps link resolution (inline Blinkit-style) ──
+  Future<void> _resolveMapsLink(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return;
+    setState(() {
+      _mapsResolving = true;
+      _mapsApplied = false;
+      _resolvedPlaceName = '';
+      _resolvedAddress = '';
+    });
+    final res = await Api.resolveMapsLink(trimmed);
+    if (!mounted) return;
+    if (res.containsKey('error') || res['lat'] == null || res['lng'] == null) {
+      setState(() {
+        _mapsResolving = false;
+        _resolvedPlaceName = '';
+        _resolvedAddress = '';
+        _msg = res['error']?.toString().isNotEmpty == true
+            ? res['error'].toString()
+            : 'Could not resolve this Maps link. Try the Share button → Copy Link in Google Maps.';
+      });
+    } else {
+      setState(() {
+        _mapsResolving = false;
+        _resolvedPlaceName = res['place_name']?.toString() ?? '';
+        _resolvedAddress   = res['address']?.toString() ?? '';
+        _lat.text = res['lat'].toString();
+        _lng.text = res['lng'].toString();
+        _mapsApplied  = true;
+        _locConfirmed = true;
       });
     }
   }
@@ -2190,7 +2229,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       }
     } catch (_) {}
   }
-  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose(); super.dispose(); }
+  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose(); super.dispose(); }
 
   Future<void> _loadCategories() async { _categories = await Api.fetchCategories(token: widget.token); if (mounted) setState((){}); }
 
@@ -2654,24 +2693,138 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: _locLoading ? null : _pickFromGoogleMaps,
-            icon: const Icon(Icons.map_outlined, size: 18),
-            label: const Text("Pick from Google Maps"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white, foregroundColor: kText,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          if (_locConfirmed) ...[
+          if (_locConfirmed && !_mapsApplied) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(color: kLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(8)),
-              child: Text("✅ GPS location captured",
-            style: const TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
+              child: const Text("✅ GPS location captured",
+                  style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
+            ),
+          ],
+          const SizedBox(height: 14),
+          // ── Blinkit-style Google Maps inline input ──────────────────
+          const Text("or paste Google Maps link",
+              style: TextStyle(color: kMuted, fontSize: 11, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 6),
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _mapsApplied
+                    ? const Color(0xFF1a6640)
+                    : _msg.contains('resolve') || _msg.contains('Could not')
+                        ? const Color(0xFFc0392b)
+                        : kBorder,
+              ),
+            ),
+            child: Row(children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: _mapsResolving
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))
+                    : Image.asset('assets/images/google_maps_pin.png',
+                        width: 22, height: 22,
+                        errorBuilder: (_, __, ___) =>
+                            const Icon(Icons.place, color: Color(0xFF4285F4), size: 22)),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _mapsUrlCtrl,
+                  style: const TextStyle(fontSize: 13, color: kText),
+                  decoration: const InputDecoration(
+                    hintText: 'Paste Google Maps link here',
+                    hintStyle: TextStyle(fontSize: 12, color: kMuted),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onSubmitted: (v) => _resolveMapsLink(v),
+                  onChanged: (v) {
+                    if (_mapsApplied) setState(() { _mapsApplied = false; _resolvedPlaceName = ''; _resolvedAddress = ''; });
+                  },
+                ),
+              ),
+              if (_mapsUrlCtrl.text.isNotEmpty)
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _mapsUrlCtrl.clear();
+                    _mapsApplied = false;
+                    _resolvedPlaceName = '';
+                    _resolvedAddress = '';
+                  }),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Icon(Icons.close_rounded, size: 18, color: kMuted),
+                  ),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 6),
+          // Resolve button
+          if (!_mapsApplied)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _mapsResolving ? null : () => _resolveMapsLink(_mapsUrlCtrl.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: _mapsResolving
+                    ? const SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text("Resolve Location", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+              ),
+            ),
+          // ── Preview card (shows after successful resolve) ──
+          if (_resolvedPlaceName.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .4)),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 6, offset: const Offset(0, 2))],
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF1a6640), size: 16),
+                  const SizedBox(width: 6),
+                  const Text("google.com",
+                      style: TextStyle(fontSize: 11, color: kMuted, fontWeight: FontWeight.w500)),
+                ]),
+                const SizedBox(height: 6),
+                Text(_resolvedPlaceName,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText)),
+                if (_resolvedAddress.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(_resolvedAddress,
+                      style: const TextStyle(fontSize: 12, color: kMuted)),
+                ],
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _mapsApplied ? null : () => _resolveMapsLink(_mapsUrlCtrl.text),
+                    icon: Icon(
+                      _mapsApplied ? Icons.check_rounded : Icons.location_on_rounded,
+                      size: 16),
+                    label: Text(
+                      _mapsApplied ? "✓ Location Applied" : "Apply Location",
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _mapsApplied ? const Color(0xFF1a6640) : kPrimary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ),
+              ]),
             ),
           ],
           const SizedBox(height: 10),
@@ -2681,7 +2834,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             Expanded(child: _field(_lng, "Longitude", Icons.gps_not_fixed, type: TextInputType.number)),
           ]),
           const SizedBox(height: 4),
-          const Text("Auto-filled by GPS or enter manually.", style: TextStyle(color: kMuted, fontSize: 11)),
+          const Text("Auto-filled by GPS or Google Maps, or enter manually.",
+              style: TextStyle(color: kMuted, fontSize: 11)),
         ]),
       ),
       const SizedBox(height: 16),
