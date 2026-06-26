@@ -6,9 +6,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
-import 'package:http/http.dart' as _httpPkg;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import '../../main.dart' show MyApp;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
@@ -39,41 +37,29 @@ class MerchantHomePage extends StatefulWidget {
 class _MerchantHomePageState extends State<MerchantHomePage> {
   List<Map<String,dynamic>> _stores   = [];
   List<Map<String,dynamic>> _banners  = [];
-  List<Map<String,dynamic>> _products = [];
-  bool _loading   = true;
-  bool _loadError = false; // FIX7: true = network error, don't show new-merchant flow
+  List<Map<String,dynamic>> _vouchers = [];
+  bool _loading = true;
 
   @override void initState() { super.initState(); _load(); }
 
-  Future<void> _load({int retryCount = 0}) async {
+  Future<void> _load() async {
     setState(()=>_loading=true);
     try {
-      // FIX7: Individual timeouts + retry on failure to prevent existing merchant showing as new
-      final storesFuture   = Api.getMerchantStores(widget.token).timeout(const Duration(seconds: 15));
-      final bannersFuture  = Api.getMerchantBanners(widget.token).timeout(const Duration(seconds: 10));
-      final productsFuture = Api.getMerchantProducts(widget.token).timeout(const Duration(seconds: 10));
-
-      final results = await Future.wait([storesFuture, bannersFuture, productsFuture]);
+      final results = await Future.wait([
+        Api.getMerchantStores(widget.token),
+        Api.getMerchantBanners(widget.token),
+        Api.getMerchantVouchers(widget.token),
+      ]);
       if (mounted) setState((){
         _stores   = List<Map<String,dynamic>>.from(results[0]);
         _banners  = List<Map<String,dynamic>>.from(results[1]);
-        _products = List<Map<String,dynamic>>.from(results[2]);
+        _vouchers = List<Map<String,dynamic>>.from(results[2]);
         _loading  = false;
-        _loadError = false;
       });
-    } catch(e) {
-      debugPrint('[MerchantHome] _load error (attempt ${retryCount+1}): $e');
-      // FIX7: retry once automatically before showing error/new-merchant flow
-      if (retryCount == 0 && mounted) {
-        await Future.delayed(const Duration(seconds: 2));
-        return _load(retryCount: 1);
-      }
-      if (mounted) setState(() { _loading = false; _loadError = true; });
-    }
+    } catch(_) { if(mounted) setState(()=>_loading=false); }
   }
 
-  // FIX7: never treat load-error as "new merchant" — only show onboarding if stores truly empty
-  bool get _hasEligibleStore => !_loadError && _stores.any((s)=>
+  bool get _hasEligibleStore => _stores.any((s)=>
     ["active","inactive","waiting_approval","paid"].contains(s["status"]));
 
   @override Widget build(BuildContext context) => Scaffold(
@@ -89,37 +75,12 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
     ),
     body: _loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
-      // FIX7: show retry instead of new-merchant flow when network failed
-      : (_loadError && _stores.isEmpty)
-          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.wifi_off_rounded, color: kMuted, size: 48),
-              const SizedBox(height: 16),
-              const Text("Couldn't load your dashboard", style: TextStyle(color: kText, fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              const Text("Check your connection and try again", style: TextStyle(color: kMuted, fontSize: 13)),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () => _load(),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text("Retry"),
-                style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
-              ),
-            ]))
       : RefreshIndicator(
           onRefresh:_load,
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFEEF7F2), Color(0xFFF9FBF9), Color(0xFFF4EFE8)],
-                stops: [0.0, 0.5, 1.0],
-              ),
-            ),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          child:SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding:const EdgeInsets.all(16),
+            child:Column(crossAxisAlignment:CrossAxisAlignment.stretch, children:[
 
               // ── Section cards ──
               _SectionCard(
@@ -158,7 +119,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
               ),
               const SizedBox(height:12),
 
-              // Product card — locked if no eligible store
+              // Voucher card — locked if no eligible store
               _SectionCard(
                 icon: Icons.local_activity_rounded,
                 color: _hasEligibleStore ? const Color(0xFF856404) : kMuted,
@@ -166,26 +127,51 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                 title: "My Products",
                 subtitle: !_hasEligibleStore
                   ? "🔒 Create a store first to unlock"
-                  : _products.isEmpty
+                  : _vouchers.isEmpty
                     ? "No products yet — add your first product"
                     : ((){
-                        final live=_products.where((v)=>(v['approval_status']??v['status']??'')=='approved').length;
-                        final pend=_products.where((v){final st=(v['approval_status']??v['status']??'').toString();return st=='pending'||st=='pending_approval';}).length;
+                        final live=_vouchers.where((v)=>(v['approval_status']??v['status']??'')=='approved').length;
+                        final pend=_vouchers.where((v){final st=(v['approval_status']??v['status']??'').toString();return st=='pending'||st=='pending_approval';}).length;
                         final parts=<String>[];if(live>0)parts.add("$live Live");if(pend>0)parts.add("$pend Pending");
-                        return "${_products.length} Product${_products.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
+                        return "${_vouchers.length} Voucher${_vouchers.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
                       })(),
                 onTap: _hasEligibleStore
-                  ? ()=>Navigator.push(context,_offroRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
+                  ? ()=>Navigator.push(context,_offroRoute(MerchantVouchersPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content:Text("Create an active store first to create products."),
                       backgroundColor:Colors.orange)),
               ),
 
+              const SizedBox(height:24),
 
+              // ── Quick stats ──
+              Container(
+                padding:const EdgeInsets.all(16),
+                decoration:BoxDecoration(
+                  color:Colors.white,
+                  borderRadius:BorderRadius.circular(14),
+                  border:Border.all(color:kBorder),
+                ),
+                child:Row(children:[
+                  _StatChip(label:"Stores",  value:"${_stores.length}",  color:kPrimary),
+                  const SizedBox(width:8),
+                  _StatChip(label:"Banners", value:"${_banners.length}", color:const Color(0xFFc0392b)),
+                  const SizedBox(width:8),
+                  _StatChip(label:"My Products",value:"${_vouchers.length}",color:const Color(0xFF856404)),
+                  const SizedBox(width:8),
+                  _StatChip(
+                    label:"Pending",
+                    value:"${(_banners+_vouchers).where((x){
+                      final st=(x['approval_status']??x['status']??'').toString();
+                      return st=='pending'||st=='pending_approval';
+                    }).length}",
+                    color:kMuted,
+                  ),
+                ]),
+              ),
             ]),
-            ),  // SingleChildScrollView
-          ),    // Container (gradient)
-        ),      // RefreshIndicator
+          ),
+        ),
   );
 }
 
@@ -194,61 +180,46 @@ class _SectionCard extends StatelessWidget {
   final String title, subtitle; final VoidCallback onTap;
   const _SectionCard({required this.icon, required this.color, required this.bgColor,
     required this.title, required this.subtitle, required this.onTap});
-
   @override Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: .22), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: .12), blurRadius: 20, offset: const Offset(0, 8)),
-          BoxShadow(color: color.withValues(alpha: .05), blurRadius: 6,  offset: const Offset(0, 2)),
-        ],
+      padding:const EdgeInsets.all(18),
+      decoration:BoxDecoration(
+        color:Colors.white,
+        borderRadius:BorderRadius.circular(16),
+        border:Border.all(color:kBorder),
+        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.04),blurRadius:8,offset:const Offset(0,3))],
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Top row: icon + arrow ──
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 56, height: 56,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: color.withValues(alpha: .12), blurRadius: 8, offset: const Offset(0, 3))],
-            ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text("Open", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-              const SizedBox(width: 4),
-              Icon(Icons.arrow_forward_rounded, color: color, size: 13),
-            ]),
-          ),
-        ]),
-        const SizedBox(height: 14),
-        // ── Title ──
-        Text(title,
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: color, letterSpacing: -0.3)),
-        const SizedBox(height: 6),
-        // ── Subtitle / stats ──
-        Text(subtitle,
-          style: const TextStyle(color: kMuted, fontSize: 13, height: 1.4),
-          maxLines: 2, overflow: TextOverflow.ellipsis),
+      child:Row(children:[
+        Container(
+          width:52, height:52,
+          decoration:BoxDecoration(color:bgColor, borderRadius:BorderRadius.circular(14)),
+          child:Icon(icon, color:color, size:26),
+        ),
+        const SizedBox(width:14),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(title, style:TextStyle(fontWeight:FontWeight.w800,fontSize:16,color:color)),
+          const SizedBox(height:3),
+          Text(subtitle, style:const TextStyle(color:kMuted,fontSize:12), maxLines:2, overflow:TextOverflow.ellipsis),
+        ])),
+        Icon(Icons.chevron_right_rounded, color:kMuted.withValues(alpha:.6)),
       ]),
     ),
   );
 }
 
-
+class _StatChip extends StatelessWidget {
+  final String label, value; final Color color;
+  const _StatChip({required this.label, required this.value, required this.color});
+  @override Widget build(BuildContext context) => Expanded(child:Container(
+    padding:const EdgeInsets.symmetric(vertical:10),
+    decoration:BoxDecoration(color:color.withValues(alpha:.08),borderRadius:BorderRadius.circular(10)),
+    child:Column(children:[
+      Text(value, style:TextStyle(fontWeight:FontWeight.w900,fontSize:18,color:color)),
+      Text(label,  style:const TextStyle(fontSize:10,color:kMuted)),
+    ]),
+  ));
+}
 
 // ══════════════════════════════════════════════════════════
 // MERCHANT BANNERS PAGE
@@ -284,6 +255,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
     body:_loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
       : Column(children:[
+          // ── Placement Preview ──
+          _BannerPlacementPreview(),
+          // ── List ──
           Expanded(child:_banners.isEmpty
             ? const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 Icon(Icons.view_carousel_outlined,size:64,color:kAccent),
@@ -376,44 +350,6 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             const SizedBox(height:4),
                             Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMuted,fontSize:11)),
                           ],
-                          const SizedBox(height:10),
-                          Row(mainAxisAlignment:MainAxisAlignment.end,children:[
-                            OutlinedButton.icon(
-                              onPressed:() async {
-                                final ctrl = TextEditingController(text:b["title"]??"");
-                                final newTitle = await showDialog<String>(context:context,builder:(_)=>AlertDialog(
-                                  title:const Text("Edit Banner Title",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
-                                  content:TextField(controller:ctrl,decoration:InputDecoration(
-                                    hintText:"Banner title",
-                                    border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                                    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)))),
-                                  actions:[
-                                    TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
-                                    ElevatedButton(
-                                      style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
-                                      onPressed:()=>Navigator.pop(context,ctrl.text.trim()),
-                                      child:const Text("Save",style:TextStyle(color:Colors.white))),
-                                  ],
-                                ));
-                                if (newTitle!=null && newTitle.isNotEmpty && newTitle!=b["title"]) {
-                                  try {
-                                    await Api.updateMerchantBanner(widget.token, b["_id"]??"", {"title": newTitle});
-                                    _load();
-                                  } catch(e) {
-                                    if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
-                                  }
-                                }
-                              },
-                              icon:const Icon(Icons.edit_rounded,size:14,color:kPrimary),
-                              label:const Text("Edit Title",style:TextStyle(color:kPrimary,fontSize:12)),
-                              style:OutlinedButton.styleFrom(
-                                side:const BorderSide(color:kPrimary),
-                                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-                                padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
-                                minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                            ),
-                          ]),
                         ])),
                       ]),
                     );
@@ -528,11 +464,6 @@ class _AddBannerState extends State<AddBannerPage> {
   String? _imgB64; bool _loading = false; String _msg = "";
   DateTime _fromDate = DateTime.now();
   Map<String,dynamic>? _pricing;
-  String? _selCity;
-  // ── Store selection ──
-  List<Map<String,dynamic>> _stores = [];
-  Map<String,dynamic>? _selectedBannerStore;
-  bool _storesLoading = false;
   // Discount code state
   String? _appliedCode; double _appliedDiscount = 0;
   String _discountMsg = ""; bool _discountOk = false; bool _applyingCode = false;
@@ -580,8 +511,6 @@ class _AddBannerState extends State<AddBannerPage> {
 
   Future<void> _proceed() async {
     if (_titleC.text.trim().isEmpty) { setState(()=>_msg="Banner title required"); return; }
-    if (_selectedBannerStore==null) { setState(()=>_msg="Please select a store"); return; }
-    if (_selCity==null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city"); return; }
     if (_imgB64==null) { setState(()=>_msg="Please upload a banner image"); return; }
     if (_days<1) { setState(()=>_msg="Enter number of days (minimum 1)"); return; }
     setState((){_loading=true; _msg="";});
@@ -603,9 +532,6 @@ class _AddBannerState extends State<AddBannerPage> {
             "order_id":  order["order_id"],
             "title":     _titleC.text.trim(),
             "image_url": _imgB64,
-            "city":      _selCity??"",
-            "store_id":  (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
-            "store_name":(_selectedBannerStore?["store_name"] ?? "").toString(),
           });
           if (mounted) {
             Navigator.pop(context);
@@ -630,34 +556,10 @@ class _AddBannerState extends State<AddBannerPage> {
   @override void initState() {
     super.initState();
     _loadPricing();
-    _loadBannerStores();
     _daysC.addListener(()=>setState((){}));
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPayError);
-  }
-
-  Future<void> _loadBannerStores() async {
-    if (!mounted) return;
-    setState(() => _storesLoading = true);
-    try {
-      final list = await Api.getMerchantStores(widget.token);
-      if (mounted) setState(() {
-        _stores = List<Map<String,dynamic>>.from(list);
-        if (_stores.length == 1) _onBannerStoreSelected(_stores.first);
-        _storesLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _storesLoading = false);
-    }
-  }
-
-  void _onBannerStoreSelected(Map<String,dynamic> store) {
-    final city = (store["city"] ?? "").toString().trim();
-    setState(() {
-      _selectedBannerStore = store;
-      if (city.isNotEmpty) _selCity = city;
-    });
   }
 
   Future<void> _applyDiscountCode() async {
@@ -717,22 +619,18 @@ class _AddBannerState extends State<AddBannerPage> {
         "order_id":           captured!["order_id"],
         "title":              _titleC.text.trim(),
         "image_url":          _imgB64,
-        "city":               _selCity??"",
-        "store_id":           (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
-        "store_name":         (_selectedBannerStore?["store_name"] ?? "").toString(),
         "razorpay_payment_id": res.paymentId,
         "razorpay_order_id":  res.orderId,
         "razorpay_signature": res.signature,
       });
       if (mounted) {
-        // FIX 3: Capture navigator before pushReplacement so onDone works after context deactivated
-        final nav = Navigator.of(context);
+        // TASK 5: Navigate to PaymentSuccessScreen after banner payment
         final invoiceNo = result["invoice_no"]?.toString() ?? result["message"]?.toString() ?? "";
-        nav.pushReplacement(MaterialPageRoute(
+        Navigator.pushReplacement(context, MaterialPageRoute(
           builder: (_) => PaymentSuccessScreen(
             storeName: _titleC.text.trim(),
             invoiceNo: invoiceNo,
-            onDone: () => nav.popUntil((r) => r.isFirst),
+            onDone: () => Navigator.pop(context),
           ),
         ));
       }
@@ -786,6 +684,10 @@ class _AddBannerState extends State<AddBannerPage> {
     appBar:AppBar(title:const Text("Create Banner"),backgroundColor: Colors.white, foregroundColor: kText),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
 
+      // Placement preview — always visible
+      _BannerPlacementPreview(),
+      const SizedBox(height:16),
+
       // Title field
       Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -799,52 +701,6 @@ class _AddBannerState extends State<AddBannerPage> {
           )),
         ])),
       const SizedBox(height:12),
-
-      // ── Store selection (auto-fills city) ──
-      if (_storesLoading)
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Center(child: SizedBox(width: 20, height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))),
-        )
-      else
-        DropdownButtonFormField<Map<String,dynamic>>(
-          isExpanded: true,
-          value: _selectedBannerStore,
-          hint: const Text("Select Store *"),
-          items: _stores.map((s) => DropdownMenuItem<Map<String,dynamic>>(
-            value: s,
-            child: Text(s["store_name"]?.toString() ?? "Unnamed Store",
-              overflow: TextOverflow.ellipsis),
-          )).toList(),
-          onChanged: (s) { if (s != null) _onBannerStoreSelected(s); },
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
-            filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
-      const SizedBox(height: 12),
-
-      // ── City (auto-filled from store) ──
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF4F9F6),
-          border: Border.all(color: kBorder),
-          borderRadius: BorderRadius.circular(12)),
-        child: Row(children: [
-          const Icon(Icons.location_city, color: kMuted, size: 20),
-          const SizedBox(width: 12),
-          Expanded(child: Text(
-            (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
-            style: TextStyle(
-              color: (_selCity != null && _selCity!.isNotEmpty) ? kText : kMuted,
-              fontSize: 15))),
-          if (_selCity != null && _selCity!.isNotEmpty)
-            const Icon(Icons.check_circle, color: kPrimary, size: 18),
-        ]),
-      ),
-      const SizedBox(height: 12),
 
       // Image upload
       GestureDetector(
@@ -1011,22 +867,22 @@ class _AddBannerState extends State<AddBannerPage> {
 }
 
 // ══════════════════════════════════════════════════════════
-// MERCHANT PRODUCTS PAGE
+// MERCHANT VOUCHERS PAGE
 // ══════════════════════════════════════════════════════════
 
-class MerchantProductsPage extends StatefulWidget {
+class MerchantVouchersPage extends StatefulWidget {
   final String token;
-  const MerchantProductsPage({super.key, required this.token});
-  @override State<MerchantProductsPage> createState() => _MerchantProductsState();
+  const MerchantVouchersPage({super.key, required this.token});
+  @override State<MerchantVouchersPage> createState() => _MerchantVouchersState();
 }
-class _MerchantProductsState extends State<MerchantProductsPage> {
-  List<Map<String,dynamic>> _products = []; bool _loading = true;
+class _MerchantVouchersState extends State<MerchantVouchersPage> {
+  List<Map<String,dynamic>> _vouchers = []; bool _loading = true;
 
   @override void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
     setState(()=>_loading=true);
-    _products = List<Map<String,dynamic>>.from(await Api.getMerchantProducts(widget.token));
+    _vouchers = List<Map<String,dynamic>>.from(await Api.getMerchantVouchers(widget.token));
     if (mounted) setState(()=>_loading=false);
   }
 
@@ -1039,12 +895,13 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     floatingActionButton:FloatingActionButton.extended(
       backgroundColor: Colors.white, foregroundColor: kText,
       icon:const Icon(Icons.add), label:const Text("New Product"),
-      onPressed:()=>Navigator.push(context,_offroRoute(AddProductPage(token:widget.token))).then((_)=>_load()),
+      onPressed:()=>Navigator.push(context,_offroRoute(AddVoucherPage(token:widget.token))).then((_)=>_load()),
     ),
     body:_loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
       : Column(children:[
-          Expanded(child:_products.isEmpty
+          _VoucherPlacementPreview(),
+          Expanded(child:_vouchers.isEmpty
             ? const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 Icon(Icons.local_activity_outlined,size:64,color:kAccent),
                 SizedBox(height:12),
@@ -1056,9 +913,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 onRefresh:_load,
                 child:ListView.builder(
                   padding:const EdgeInsets.all(14),
-                  itemCount:_products.length,
+                  itemCount:_vouchers.length,
                   itemBuilder:(_,i){
-                    final v = _products[i];
+                    final v = _vouchers[i];
                     // TASK 14: read approval_status as primary, fallback to status
                     // TASK 4: expired check for products
                     String status = (v["approval_status"]??"").isNotEmpty ? (v["approval_status"]??"pending_approval") : (v["status"]??"pending_approval");
@@ -1075,7 +932,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                       "pending_approval" => (const Color(0xFF856404),"⏳ Awaiting Approval"),
                       _ => (kMuted,"📝 Pending"),
                     };
-                    return Stack(children:[Card(elevation:2,margin:const EdgeInsets.only(bottom:14),
+                    return Card(elevation:2,margin:const EdgeInsets.only(bottom:14),
                       shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
                       child:ListTile(
                         contentPadding:const EdgeInsets.fromLTRB(12,10,12,10),
@@ -1087,133 +944,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                           Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
                             decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(10)),
                             child:Text(sl,style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w600))),
-                          // FIX 13: Duration / validity info
-                          Builder(builder:(_) {
-                            final endRaw = v["end_date"]?.toString() ?? "";
-                            final days   = v["duration_days"]??v["duration"];
-                            if (endRaw.isNotEmpty) {
-                              try {
-                                final end = DateTime.parse(endRaw);
-                                final diff = end.difference(DateTime.now()).inDays;
-                                final label = diff > 0
-                                    ? "Valid until ${end.day.toString().padLeft(2,'0')}-${end.month.toString().padLeft(2,'0')}-${end.year}"
-                                    : "Expired";
-                                return Padding(
-                                  padding: const EdgeInsets.only(top:4),
-                                  child: Row(mainAxisSize:MainAxisSize.min, children:[
-                                    Icon(diff>0?Icons.calendar_today_rounded:Icons.event_busy_rounded,
-                                      size:11, color: diff>0?kMuted:Colors.red),
-                                    const SizedBox(width:4),
-                                    Text(label, style:TextStyle(
-                                      fontSize:10, color:diff>0?kMuted:Colors.red,
-                                      fontWeight:FontWeight.w600)),
-                                  ]),
-                                );
-                              } catch(_) {}
-                            }
-                            if (days != null) {
-                              return Padding(
-                                padding: const EdgeInsets.only(top:4),
-                                child: Row(mainAxisSize:MainAxisSize.min, children:[
-                                  const Icon(Icons.timelapse_rounded, size:11, color:kMuted),
-                                  const SizedBox(width:4),
-                                  Text("Duration: $days days",
-                                    style:const TextStyle(fontSize:10,color:kMuted,fontWeight:FontWeight.w600)),
-                                ]),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          }),
                         ]),
                         trailing:Text("₹${v['amount']??0}",style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary)),
-                      ),
-                    ),
-                    // Edit button overlay
-                    Positioned(bottom:8,right:8,
-                      child:OutlinedButton.icon(
-                        onPressed:() async {
-                          final tCtrl = TextEditingController(text:v["title"]??"");
-                          final oCtrl = TextEditingController(text:v["offer_text"]??"");
-                          final opCtrl= TextEditingController(text:(v["original_price"]??v["original_amount"]??"").toString());
-                          final prCtrl= TextEditingController(text:(v["price"]??v["offer_price"]??v["amount"]??"").toString());
-                          final saved = await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>AlertDialog(
-                            title:const Text("Edit Product",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
-                            content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-                              _EditField(ctrl:tCtrl,label:"Title"),
-                              const SizedBox(height:10),
-                              _EditField(ctrl:oCtrl,label:"Offer Text"),
-                              const SizedBox(height:10),
-                              _EditField(ctrl:opCtrl,label:"Original Price",type:TextInputType.number),
-                              const SizedBox(height:10),
-                              _EditField(ctrl:prCtrl,label:"Offer Price",type:TextInputType.number),
-                            ])),
-                            actions:[
-                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
-                              ElevatedButton(
-                                style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
-                                onPressed:(){
-                                  final _opVal = double.tryParse(opCtrl.text.trim());
-                                  final _prVal = double.tryParse(prCtrl.text.trim());
-                                  Navigator.pop(context, <String,dynamic>{
-                                    "title": tCtrl.text.trim(),
-                                    "offer_text": oCtrl.text.trim(),
-                                    if (_opVal != null) "original_price": _opVal,
-                                    if (_prVal != null) "price": _prVal,
-                                    if (_prVal != null) "amount": _prVal,
-                                  });
-                                },
-                                child:const Text("Save",style:TextStyle(color:Colors.white))),
-                            ],
-                          ));
-                          if (saved != null && saved.isNotEmpty) {
-                            try {
-                              // Extract _id safely — could be Map {"\$oid":"..."} or plain string
-                              final _rawId = v["_id"];
-                              final _productId = (_rawId is Map)
-                                ? (_rawId["\$oid"] ?? _rawId["oid"] ?? "").toString()
-                                : (_rawId ?? "").toString();
-                              if (_productId.isEmpty) throw Exception("Product ID missing — cannot update");
-                              await Api.updateMerchantProduct(widget.token, _productId, saved);
-                              _load();
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content:Text("Product updated!"),backgroundColor:Color(0xFF1a6640)));
-                            } catch(e) {
-                              if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content:Text("Error: ${e.toString().replaceAll('Exception: ','')}"),backgroundColor:Colors.red));
-                            }
-                          }
-                        },
-                        icon:const Icon(Icons.edit_rounded,size:13,color:kPrimary),
-                        label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:11)),
-                        style:OutlinedButton.styleFrom(
-                          side:const BorderSide(color:kPrimary),
-                          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-                          padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
-                          minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                      ),
-                    ),
-                  ]);
+                      ));
                   },
                 ),
               )),
         ]),
   );
-}
-
-// ── Inline edit field helper ──
-class _EditField extends StatelessWidget {
-  final TextEditingController ctrl;
-  final String label;
-  final TextInputType type;
-  const _EditField({required this.ctrl, required this.label, this.type = TextInputType.text});
-  @override Widget build(BuildContext context) => TextField(
-    controller: ctrl, keyboardType: type,
-    decoration: InputDecoration(
-      labelText: label, isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-    ));
 }
 
 // ── Product image thumbnail — handles both URL and base64 ──
@@ -1249,9 +987,9 @@ class _ProductThumb extends StatelessWidget {
   }
 }
 
-// ── Product placement preview widget ──
-class _ProductPlacementPreview extends StatelessWidget {
-  const _ProductPlacementPreview();
+// ── Voucher placement preview widget ──
+class _VoucherPlacementPreview extends StatelessWidget {
+  const _VoucherPlacementPreview();
   @override Widget build(BuildContext context) => Container(
     margin:const EdgeInsets.fromLTRB(14,14,14,0),
     padding:const EdgeInsets.all(12),
@@ -1278,7 +1016,7 @@ class _ProductPlacementPreview extends StatelessWidget {
             child:const Center(child:Text("Product preview unavailable",style:TextStyle(color:kMuted,fontSize:12)))),
         ),
       ),
-      // Simulated Product Zone preview — hidden
+      // Simulated Voucher Zone preview — hidden
       if(false) Container(
         decoration:BoxDecoration(border:Border.all(color:kBorder),borderRadius:BorderRadius.circular(10)),
         child:Column(children:[
@@ -1289,7 +1027,7 @@ class _ProductPlacementPreview extends StatelessWidget {
           child:const Text("🎟️ Discover Products",style:TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.w800))),
           Container(height:56,padding:const EdgeInsets.symmetric(vertical:4,horizontal:6),
             child:Row(children:[
-              // Fake product cards
+              // Fake voucher cards
               ...List.generate(2,(_)=>Container(
                 width:52,margin:const EdgeInsets.only(right:6),
                 decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
@@ -1325,15 +1063,15 @@ class _ProductPlacementPreview extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════
-// ADD PRODUCT PAGE — with checkout flow
+// ADD VOUCHER PAGE — with checkout flow
 // ══════════════════════════════════════════════════════════
 
-class AddProductPage extends StatefulWidget {
+class AddVoucherPage extends StatefulWidget {
   final String token;
-  const AddProductPage({super.key, required this.token});
-  @override State<AddProductPage> createState() => _AddProductState();
+  const AddVoucherPage({super.key, required this.token});
+  @override State<AddVoucherPage> createState() => _AddVoucherState();
 }
-class _AddProductState extends State<AddProductPage> {
+class _AddVoucherState extends State<AddVoucherPage> {
   final _titleC          = TextEditingController();
   final _offerC          = TextEditingController();
   final _priceC          = TextEditingController();
@@ -1343,11 +1081,6 @@ class _AddProductState extends State<AddProductPage> {
   String? _logoB64; bool _loading=false; String _msg="";
   DateTime _fromDate = DateTime.now();
   Map<String,dynamic>? _pricing;
-  String? _selCity;
-  // ── Store selection ──
-  List<Map<String,dynamic>> _stores = [];
-  Map<String,dynamic>? _selectedStore;
-  bool _storesLoading = false;
   late Razorpay _razorpay;
   Map<String,dynamic>? _pendingOrder;
   // Item 6: code-based discount
@@ -1360,39 +1093,15 @@ class _AddProductState extends State<AddProductPage> {
   @override void initState() {
     super.initState();
     _loadPricing();
-    _loadStores();
     _daysC.addListener(()=>setState((){}));
     _razorpay=Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS,_onPaySuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,  _onPayError);
   }
-
-  Future<void> _loadStores() async {
-    if (!mounted) return;
-    setState(() => _storesLoading = true);
-    try {
-      final list = await Api.getMerchantStores(widget.token);
-      if (mounted) setState(() {
-        _stores = List<Map<String,dynamic>>.from(list);
-        if (_stores.length == 1) _onStoreSelected(_stores.first);
-        _storesLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _storesLoading = false);
-    }
-  }
-
-  void _onStoreSelected(Map<String,dynamic> store) {
-    final city = (store["city"] ?? "").toString().trim();
-    setState(() {
-      _selectedStore = store;
-      if (city.isNotEmpty) _selCity = city;
-    });
-  }
   @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_daysC.dispose();_discountVC.dispose(); _razorpay.clear(); super.dispose(); }
 
   Future<void> _loadPricing() async {
-    try{ final p=await Api.getProductPricing(widget.token); if(mounted) setState(()=>_pricing=Map<String,dynamic>.from(p)); }catch(_){}
+    try{ final p=await Api.getVoucherPricing(widget.token); if(mounted) setState(()=>_pricing=Map<String,dynamic>.from(p)); }catch(_){}
   }
 
   int get _days => int.tryParse(_daysC.text.trim()) ?? 0;
@@ -1427,7 +1136,7 @@ class _AddProductState extends State<AddProductPage> {
   }
 
 
-  // Item 6: Apply discount code — product
+  // Item 6: Apply discount code — voucher/product
   Future<void> _applyVDiscountCode() async {
     final code = _discountVC.text.trim().toUpperCase();
     if (code.isEmpty) { setState((){ _discountVMsg="Enter a code"; _discountVOk=false; }); return; }
@@ -1456,29 +1165,24 @@ class _AddProductState extends State<AddProductPage> {
 
   Future<void> _proceed() async {
     if(_titleC.text.trim().isEmpty){setState(()=>_msg="Product title required");return;}
-    if(_selectedStore==null){setState(()=>_msg="Please select a store for this product");return;}
-    if(_selCity==null||_selCity!.trim().isEmpty){setState(()=>_msg="Please select a city for this product");return;}
     if(_days<1){setState(()=>_msg="Enter number of days (minimum 1)");return;}
     setState((){_loading=true;_msg="";});
     try{
-      final order=await Api.createProductOrder(widget.token,{"days":_days,"from_date":_fromDateStr,"discount_code":_appliedVCode});
+      final order=await Api.createVoucherOrder(widget.token,{"days":_days,"from_date":_fromDateStr,"discount_code":_appliedVCode});
       if(!mounted)return;
       final payMode=order["pay_mode"]??"manual";
       final amtPaise=(order["amount_paise"] as num?)?.toInt()??0;
 
       if(payMode=="manual"||amtPaise<=0){
-        final confirmed=await _showProductSummaryDialog(order,manual:true);
+        final confirmed=await _showVoucherSummaryDialog(order,manual:true);
         if(confirmed==true&&mounted){
-          final res=await Api.activateFreeProduct(widget.token,{
+          final res=await Api.activateFreeVoucher(widget.token,{
             "order_id":       order["order_id"],
             "title":          _titleC.text.trim(),
             "offer_text":     _offerC.text.trim(),
             "logo_url":       _logoB64??"",
             "price":          _priceC.text.trim(),
             "original_price": _originalPriceC.text.trim(),
-            "store_id":       (_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString(),
-            "store_name":     (_selectedStore?["store_name"] ?? "").toString(),
-            "city":           _selCity ?? "",
           });
           if(mounted){
             Navigator.pop(context);
@@ -1488,7 +1192,7 @@ class _AddProductState extends State<AddProductPage> {
           }
         }
       } else {
-        final confirmed=await _showProductSummaryDialog(order,manual:false);
+        final confirmed=await _showVoucherSummaryDialog(order,manual:false);
         if(confirmed==true&&mounted) _openRazorpay(order);
       }
     }catch(e){setState(()=>_msg=e.toString().replaceAll("Exception:","").trim());}
@@ -1524,27 +1228,23 @@ class _AddProductState extends State<AddProductPage> {
     final captured=_pendingOrder;
     _pendingOrder=null;   // T1/T4: clear immediately to prevent double-fire
     try{
-      final result=await Api.verifyProductPayment(widget.token,{
+      final result=await Api.verifyVoucherPayment(widget.token,{
         "order_id":           captured!["order_id"],
         "title":              _titleC.text.trim(),
         "offer_text":         _offerC.text.trim(),
         "logo_url":           _logoB64??"",
-        "city":               _selCity??"",
-        "store_id":           (_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString(),
-        "store_name":         (_selectedStore?["store_name"] ?? "").toString(),
         "razorpay_payment_id":res.paymentId,
         "razorpay_order_id":  res.orderId,
         "razorpay_signature": res.signature,
       });
       if(mounted){
-        // FIX 3: Capture navigator before pushReplacement so onDone works after context deactivated
-        final nav = Navigator.of(context);
+        // TASK 5: Navigate to PaymentSuccessScreen after product payment
         final invoiceNo = result["invoice_no"]?.toString() ?? result["message"]?.toString() ?? "";
-        nav.pushReplacement(MaterialPageRoute(
+        Navigator.pushReplacement(context, MaterialPageRoute(
           builder: (_) => PaymentSuccessScreen(
             storeName: _titleC.text.trim(),
             invoiceNo: invoiceNo,
-            onDone: () => nav.popUntil((r) => r.isFirst),
+            onDone: () => Navigator.pop(context),
           ),
         ));
       }
@@ -1555,7 +1255,7 @@ class _AddProductState extends State<AddProductPage> {
     if(mounted)setState(()=>_msg="Payment failed: ${res.message??'Unknown error'}");
   }
 
-  Future<bool?> _showProductSummaryDialog(Map order,{required bool manual})=>
+  Future<bool?> _showVoucherSummaryDialog(Map order,{required bool manual})=>
     showDialog<bool>(context:context,builder:(_)=>AlertDialog(
       title:const Text("Product Order Summary",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -1596,6 +1296,9 @@ class _AddProductState extends State<AddProductPage> {
     backgroundColor:kBg,
     appBar:AppBar(title:const Text("Create Product"),backgroundColor: Colors.white, foregroundColor: kText),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      _VoucherPlacementPreview(),
+      const SizedBox(height:16),
+
       // Fields
       _field(_titleC,"Product Title *","e.g. Raj Store ₹50 Off",Icons.confirmation_number),
       const SizedBox(height:12),
@@ -1614,52 +1317,6 @@ class _AddProductState extends State<AddProductPage> {
         child:Text("Discount is auto-calculated from prices",
           style:TextStyle(color:kMuted,fontSize:11)),
       ),
-
-      // ── Store selection (mandatory, above city) ──
-      if (_storesLoading)
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Center(child: SizedBox(width: 20, height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))),
-        )
-      else
-        DropdownButtonFormField<Map<String,dynamic>>(
-          isExpanded: true,
-          value: _selectedStore,
-          hint: const Text("Select Store *"),
-          items: _stores.map((s) => DropdownMenuItem<Map<String,dynamic>>(
-            value: s,
-            child: Text(s["store_name"]?.toString() ?? "Unnamed Store",
-              overflow: TextOverflow.ellipsis),
-          )).toList(),
-          onChanged: (s) { if (s != null) _onStoreSelected(s); },
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
-            filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
-      const SizedBox(height: 12),
-
-      // ── City (auto-filled from store, read-only) ──
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF4F9F6),
-          border: Border.all(color: kBorder),
-          borderRadius: BorderRadius.circular(12)),
-        child: Row(children: [
-          const Icon(Icons.location_city, color: kMuted, size: 20),
-          const SizedBox(width: 12),
-          Expanded(child: Text(
-            (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
-            style: TextStyle(
-              color: (_selCity != null && _selCity!.isNotEmpty) ? kText : kMuted,
-              fontSize: 15))),
-          if (_selCity != null && _selCity!.isNotEmpty)
-            const Icon(Icons.check_circle, color: kPrimary, size: 18),
-        ]),
-      ),
-      const SizedBox(height: 12),
 
       // Logo upload
       GestureDetector(
@@ -1863,7 +1520,7 @@ String _fmtDateTime(String? raw) {
     final mi  = dt.minute.toString().padLeft(2,"0");
     final ampm = h >= 12 ? "PM" : "AM";
     h = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-    return "$d $mo $yr | ${h.toString().padLeft(2,'0')}:$mi $ampm";
+    return "\$d \$mo \$yr | \${h.toString().padLeft(2,'0')}:\$mi \$ampm";
   } catch (_) { return raw; }
 }
 
@@ -1988,7 +1645,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
               Row(children:[
                 if (status=="draft"||status=="inactive") Expanded(child:ElevatedButton.icon(
                   icon:const Icon(Icons.payment,size:16), label:const Text("Subscribe"),
-                  style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                  style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
                   onPressed:()=>Navigator.push(context,_offroRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
                 if (status=="waiting_approval") Expanded(child:Container(
                   padding:const EdgeInsets.symmetric(vertical:8),
@@ -2038,14 +1695,6 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 // ─────────── Add/Edit Store Page ───────────
 
 // ─────────────────────── INDIA STATES & CITIES ───────────────────────
-// Flat city list for banner/product city targeting
-List<String> get _allCities {
-  final set = <String>{};
-  for (final cities in kIndiaCities.values) set.addAll(cities);
-  final list = set.toList()..sort();
-  return list;
-}
-
 const Map<String,List<String>> kIndiaCities = {
   "Andhra Pradesh": ["Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Rajahmundry","Tirupati","Kakinada","Kadapa","Anantapur"],
   "Arunachal Pradesh": ["Itanagar","Naharlagun","Pasighat"],
@@ -2112,24 +1761,15 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   List<String> _areas = []; bool _areasLoading = false;
   bool _locLoading = false; bool _locConfirmed = false;
   final _about = TextEditingController();
-  String? _openTime;   // e.g. "09:00"
-  String? _closeTime;  // e.g. "22:00"
 
-  // 30-min interval time slots for dropdowns
-  static List<Map<String,String>> _timeSlots() {
-    final slots = <Map<String,String>>[];
-    for (int h = 0; h < 24; h++) {
-      for (int m = 0; m < 60; m += 30) {
-        final val = "${h.toString().padLeft(2,'0')}:${m.toString().padLeft(2,'0')}";
-        final suffix = h >= 12 ? "PM" : "AM";
-        final h12    = h > 12 ? h - 12 : (h == 0 ? 12 : h);
-        final mStr   = m > 0 ? ":${m.toString().padLeft(2,'0')}" : ":00";
-        final label  = "$h12$mStr $suffix";
-        slots.add({"value": val, "label": label});
-      }
-    }
-    return slots;
-  }
+  // ── Google Maps link resolution ──
+  final _mapsUrlCtrl = TextEditingController();
+  bool _mapsResolving = false;
+  String? _mapsError;
+  String? _resolvedPlaceName;
+  double? _resolvedLat;
+  double? _resolvedLng;
+  bool _mapsApplied = false;
 
   Future<void> _captureGpsLocation() async {
     setState(() { _locLoading = true; _locConfirmed = false; });
@@ -2176,8 +1816,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     if ((s["image"]??'').isNotEmpty) _imgB64 = s["image"];
     if ((s["image2"]??'').isNotEmpty) _img2B64 = s["image2"];
     _about.text = s["about"]??"";
-    _openTime  = s["open_time"]?.toString();
-    _closeTime = s["close_time"]?.toString();
   }
 
   Future<void> _fetchFullStoreDetail() async {
@@ -2190,349 +1828,43 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       }
     } catch (_) {}
   }
-  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose(); super.dispose(); }
+  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose(); super.dispose(); }
 
-  Future<void> _loadCategories() async { _categories = await Api.fetchCategories(token: widget.token); if (mounted) setState((){}); }
-
-  /// Google Maps location picker — premium dialog with URL paste & coordinate extraction.
-  /// Supports all Google Maps URL formats including short links (maps.app.goo.gl).
-  Future<void> _pickFromGoogleMaps() async {
-    double? _parsedLat;
-    double? _parsedLng;
-    String _parseError = "";
-    String _pastedText = "";
-    bool _isProcessing = false;
-
-    // ── Enhanced URL parser — covers all Google Maps URL variants ──
-    // Handles: @lat,lng  |  ?q=lat,lng  |  ll=lat,lng  |  /place/@lat,lng
-    // Also handles: manual "lat,lng" or "lat lng" coordinate entry
-    Future<bool> _tryParse(String input, void Function(double, double) onSuccess) async {
-      final raw = input.trim();
-      if (raw.isEmpty) return false;
-
-      // ── Coord patterns: relaxed to 1+ decimal digits to catch all Google formats ──
-      // ── Step 1: Direct coordinate input (bare "lat,lng" typed by user) ──
-      final bareCoord = RegExp(r'^\s*(-?\d{1,3}\.\d{4,})\s*,\s*(-?\d{1,3}\.\d{4,})\s*$');
-      final bcm = bareCoord.firstMatch(raw);
-      if (bcm != null) {
-        final la = double.tryParse(bcm.group(1)!);
-        final ln = double.tryParse(bcm.group(2)!);
-        if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
-            && la != 0.0 && ln != 0.0) {
-          onSuccess(la, ln);
-          return true;
-        }
-      }
-
-      // ── Step 2: Direct Maps URL — safe coord extraction ──
-      // ONLY @lat,lng and ?q=lat,lng patterns — never loose patterns.
-      bool _safeExtractCoords(String url) {
-        for (final pat in [
-          RegExp(r'@(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})'),
-          RegExp(r'[?&]q=(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})'),
-        ]) {
-          final m = pat.firstMatch(url);
-          if (m != null) {
-            final la = double.tryParse(m.group(1)!);
-            final ln = double.tryParse(m.group(2)!);
-            if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
-                && la != 0.0 && ln != 0.0) {
-              onSuccess(la, ln);
-              return true;
-            }
-          }
-        }
-        return false;
-      }
-      if (_safeExtractCoords(raw)) return true;
-
-      // ── Step 3: Handle Google Maps URLs — resolve via backend ──
-      // Flutter's http package cannot reliably follow maps.app.goo.gl redirects on
-      // Android. Delegate ALL Google Maps resolution to the backend which uses
-      // Python urllib (full redirect chain, Nominatim fallback).
-      final isGoogleUrl = raw.contains('goo.gl') || raw.contains('maps.app')
-          || raw.contains('google.com/maps') || raw.contains('maps.google');
-      if (!isGoogleUrl) return false;
-
-      try {
-        final resolveResp = await _httpPkg.post(
-          Uri.parse(kBaseUrl + '/merchant/resolve-maps'),
-          headers: {'Content-Type': 'application/json'},
-          body: '{"url":"' + raw.replaceAll('"', '\"') + '"}',
-        ).timeout(const Duration(seconds: 15));
-
-        if (resolveResp.statusCode == 200) {
-          final latM = RegExp(r'"lat"\s*:\s*([-\d.]+)').firstMatch(resolveResp.body);
-          final lngM = RegExp(r'"lng"\s*:\s*([-\d.]+)').firstMatch(resolveResp.body);
-          if (latM != null && lngM != null) {
-            final la = double.tryParse(latM.group(1)!);
-            final ln = double.tryParse(lngM.group(1)!);
-            if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
-                && la != 0.0 && ln != 0.0) {
-              onSuccess(la, ln);
-              return true;
-            }
-          }
-        }
-      } catch (_) {}
-      return false;
+  Future<void> _resolveMapsLink(String url) async {
+    if (url.trim().isEmpty) {
+      setState(() { _resolvedPlaceName=null; _resolvedLat=null; _resolvedLng=null; _mapsError=null; _mapsApplied=false; });
+      return;
     }
-
-    await showDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx2, setD) {
-              return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-          child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header with Google branding ──
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1a73e8),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                ),
-                child: Row(children: [
-                  // Google Maps "G" logo badge
-                  Container(
-                    width: 38, height: 38,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Text("G",
-                        style: TextStyle(color: Color(0xFF1a73e8), fontSize: 22, fontWeight: FontWeight.w900)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Google Maps", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-                      Text("Paste a shared Maps link to set location", style: TextStyle(color: Colors.white70, fontSize: 11.5)),
-                    ],
-                  )),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(ctx),
-                    child: const Icon(Icons.close_rounded, color: Colors.white70, size: 22),
-                  ),
-                ]),
-              ),
-
-              // ── Body ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Step-by-step instructions
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFe8f0fe),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _mapsStep("1", "Open Google Maps app on your phone"),
-                        const SizedBox(height: 6),
-                        _mapsStep("2", "Search for your store or drop a pin"),
-                        const SizedBox(height: 6),
-                        _mapsStep("3", "Tap Share → Copy link (then paste full link here)"),
-                        const SizedBox(height: 6),
-                        _mapsStep("4", "Paste it below and tap Apply"),
-                      ]),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Paste field
-                    const Text("Paste Maps Link or Coordinates",
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF444444))),
-                    const SizedBox(height: 6),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _parseError.isNotEmpty
-                          ? const Color(0xFFc0392b)
-                          : _parsedLat != null
-                            ? const Color(0xFF1a6640)
-                            : const Color(0xFFCCCCCC)),
-                      ),
-                      child: TextField(
-                        autofocus: false,
-                        maxLines: 2,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
-                        onChanged: (v) async {
-                          _pastedText = v;
-                          final ok = await _tryParse(v, (la, ln) {
-                            _parsedLat = la;
-                            _parsedLng = ln;
-                            _parseError = "";
-                          });
-                          if (!ok && v.trim().isNotEmpty) {
-                            _parsedLat = null;
-                            _parsedLng = null;
-                            _parseError = "Could not extract coordinates from this link.";
-                          } else if (v.trim().isEmpty) {
-                            _parsedLat = null;
-                            _parsedLng = null;
-                            _parseError = "";
-                          }
-                          setD(() {});
-                        },
-                        decoration: const InputDecoration(
-                          hintText: "Paste full share link or type: 12.9716, 77.5946",
-                          hintStyle: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          border: InputBorder.none,
-                          prefixIcon: Icon(Icons.link_rounded, color: Color(0xFF1a73e8), size: 20),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Result feedback
-                    if (_parsedLat != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFe6f4ea),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .3)),
-                        ),
-                        child: Row(children: [
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF1a6640), size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text("Location detected!", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1a6640))),
-                              Text(
-                                "Lat: ${_parsedLat!.toStringAsFixed(6)}  |  Lng: ${_parsedLng!.toStringAsFixed(6)}",
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF555555)),
-                              ),
-                            ],
-                          )),
-                        ]),
-                      )
-                    else if (_parseError.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFfce8e6),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFc0392b).withValues(alpha: .3)),
-                        ),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            const Icon(Icons.error_outline_rounded, color: Color(0xFFc0392b), size: 16),
-                            const SizedBox(width: 6),
-                            const Text("Could not extract coordinates",
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFc0392b))),
-                          ]),
-                          const SizedBox(height: 4),
-                          const Text(
-                            "Make sure you copy the link using the Share button in Google Maps — not the address bar URL.",
-                            style: TextStyle(fontSize: 11, color: Color(0xFF888888), height: 1.4)),
-                        ]),
-                      )
-                    else
-                      const Text(
-                        "You can also type coordinates directly: e.g. 12.9716, 77.5946",
-                        style: TextStyle(fontSize: 11, color: Color(0xFF888888)),
-                      ),
-                  ],
-                ),
-              ),
-
-              // ── Action buttons ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                child: Row(children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        // Open Google Maps app to let user find location
-                        final uri = Uri.parse("https://maps.google.com/?q=my+location");
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                      label: const Text("Open Maps"),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1a73e8),
-                        side: const BorderSide(color: Color(0xFF1a73e8)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _parsedLat == null ? null : () {
-                        if (mounted) setState(() {
-                          _lat.text     = _parsedLat!.toStringAsFixed(7);
-                          _lng.text     = _parsedLng!.toStringAsFixed(7);
-                          _locConfirmed = true;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text("Apply Location"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _parsedLat != null
-                          ? const Color(0xFF1a73e8)
-                          : const Color(0xFFCCCCCC),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        disabledBackgroundColor: const Color(0xFFE0E0E0),
-                        disabledForegroundColor: const Color(0xFF999999),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ]),
-              ),
-            ],
-          ), // Column
-          ), // SingleChildScrollView
-        );  // Dialog/return
-        }, // StatefulBuilder builder fn
-      ),  // StatefulBuilder widget
-    );  // showDialog
+    setState(() { _mapsResolving=true; _mapsError=null; _resolvedPlaceName=null; _resolvedLat=null; _resolvedLng=null; _mapsApplied=false; });
+    try {
+      final res = await Api.resolveMapsLink(url.trim());
+      if (!mounted) return;
+      if (res['error'] != null) {
+        setState(() { _mapsError=res['error'].toString(); _mapsResolving=false; });
+        return;
+      }
+      setState(() {
+        _resolvedLat  = (res['lat']  as num?)?.toDouble();
+        _resolvedLng  = (res['lng']  as num?)?.toDouble();
+        _resolvedPlaceName = res['place_name']?.toString() ?? '';
+        _mapsResolving = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() { _mapsError='Network error. Check your connection.'; _mapsResolving=false; });
+    }
   }
 
-  // Helper: numbered step row for maps instructions
-  static Widget _mapsStep(String num, String text) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Container(
-        width: 20, height: 20,
-        decoration: const BoxDecoration(color: Color(0xFF1a73e8), shape: BoxShape.circle),
-        child: Center(child: Text(num,
-          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800))),
-      ),
-      const SizedBox(width: 8),
-      Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF333333), height: 1.4))),
-    ],
-  );
+  void _applyMapsLocation() {
+    if (_resolvedLat==null || _resolvedLng==null) return;
+    setState(() {
+      _lat.text = _resolvedLat!.toStringAsFixed(6);
+      _lng.text = _resolvedLng!.toStringAsFixed(6);
+      _mapsApplied  = true;
+      _locConfirmed = false;
+    });
+  }
 
+  Future<void> _loadCategories() async { _categories = await Api.fetchCategories(); if (mounted) setState((){}); }
 
   Future<void> _loadAreas(String city) async {
     if (city.trim().isEmpty) { setState(() { _areas = []; }); return; }
@@ -2571,7 +1903,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) { setState(()=>_msg="Store name required"); return; }
-    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city to continue"); return; }
     setState(()=>_loading=true); _msg="";
     final data = {
       "store_name":_name.text.trim(),"category":_category,
@@ -2579,8 +1910,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       "address":_addr.text.trim(),"phone":_phone.text.trim(),
       "lat":_lat.text.trim(),"lng":_lng.text.trim(),
       "about":_about.text.trim(),
-      if(_openTime!=null)"open_time":_openTime!,
-      if(_closeTime!=null)"close_time":_closeTime!,
       if(_imgB64!=null)"image":_imgB64,
       if(_img2B64!=null)"image2":_img2B64,
     };
@@ -2644,17 +1973,19 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       const SizedBox(height:12),
       _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
       const SizedBox(height:12),
-      // GPS location capture
+      // ── Store Location ──────────────────────────────────────────────────
       Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13)),
           const SizedBox(height: 10),
+
+          // ── GPS button ──
           ElevatedButton.icon(
             onPressed: _locLoading ? null : _captureGpsLocation,
             icon: _locLoading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
                 : const Icon(Icons.gps_fixed, size: 18),
             label: Text(_locLoading ? "Detecting..." : "Use Current Location"),
             style: ElevatedButton.styleFrom(
@@ -2663,26 +1994,178 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
-          const SizedBox(height: 8),
-          ElevatedButton.icon(
-            onPressed: _locLoading ? null : _pickFromGoogleMaps,
-            icon: const Icon(Icons.map_outlined, size: 18),
-            label: const Text("Pick from Google Maps"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white, foregroundColor: kText,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+
+          const SizedBox(height: 12),
+          Row(children: const [
+            Expanded(child: Divider()),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 8),
+              child: Text("or paste Google Maps link", style: TextStyle(color: kMuted, fontSize: 11)),
             ),
+            Expanded(child: Divider()),
+          ]),
+          const SizedBox(height: 12),
+
+          // ── Google Maps link input ──
+          TextField(
+            controller: _mapsUrlCtrl,
+            keyboardType: TextInputType.url,
+            decoration: InputDecoration(
+              hintText: 'Paste Google Maps link here',
+              hintStyle: const TextStyle(color: kMuted, fontSize: 13),
+              prefixIcon: const Padding(
+                padding: EdgeInsets.all(11),
+                child: Icon(Icons.location_on, color: Color(0xFF4285F4), size: 22),
+              ),
+              suffixIcon: _mapsUrlCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18, color: kMuted),
+                      onPressed: () {
+                        _mapsUrlCtrl.clear();
+                        setState(() {
+                          _resolvedPlaceName=null; _resolvedLat=null; _resolvedLng=null;
+                          _mapsError=null; _mapsApplied=false;
+                        });
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFFF7FAF8),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: kBorder)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kPrimary, width: 1.5)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+            onChanged: (v) => setState(() {
+              _resolvedPlaceName=null; _resolvedLat=null; _resolvedLng=null;
+              _mapsError=null; _mapsApplied=false;
+            }),
+            onSubmitted: (v) => _resolveMapsLink(v),
           ),
-          if (_locConfirmed) ...[
+
+          // ── Resolve button ──
+          if (_mapsUrlCtrl.text.trim().isNotEmpty && _resolvedPlaceName==null && _mapsError==null && !_mapsResolving) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 42,
+              child: ElevatedButton(
+                onPressed: () => _resolveMapsLink(_mapsUrlCtrl.text),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4285F4),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                child: const Text("Get Location", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              ),
+            ),
+          ],
+
+          // ── Resolving spinner ──
+          if (_mapsResolving) ...[
+            const SizedBox(height: 14),
+            const Center(child: Column(children: [
+              CircularProgressIndicator(strokeWidth: 2, color: kPrimary),
+              SizedBox(height: 8),
+              Text("Resolving location...", style: TextStyle(color: kMuted, fontSize: 12)),
+            ])),
+          ],
+
+          // ── Error state ──
+          if (_mapsError != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDE8E6),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF5C6C2)),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.error_outline, color: Color(0xFFB33A2D), size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text(_mapsError!, style: const TextStyle(color: Color(0xFFB33A2D), fontSize: 12))),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => _resolveMapsLink(_mapsUrlCtrl.text),
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text("Retry", style: TextStyle(fontSize: 13)),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: kPrimary,
+                side: const BorderSide(color: kPrimary),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+
+          // ── Location preview card (Blinkit-style) ──
+          if (_resolvedLat != null && _resolvedLng != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7FAF8),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kBorder),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+                  child: Text("google.com", style: TextStyle(color: kMuted, fontSize: 11)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 2, 12, 2),
+                  child: Text(
+                    (_resolvedPlaceName != null && _resolvedPlaceName!.isNotEmpty)
+                        ? _resolvedPlaceName!
+                        : 'Pinned Location',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kText),
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+                  child: Text(
+                    "${_resolvedLat!.toStringAsFixed(6)}, ${_resolvedLng!.toStringAsFixed(6)}",
+                    style: const TextStyle(color: kMuted, fontSize: 11),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                  child: ElevatedButton(
+                    onPressed: _mapsApplied ? null : _applyMapsLocation,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _mapsApplied ? Colors.grey.shade400 : kPrimary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 11),
+                    ),
+                    child: Text(
+                      _mapsApplied ? "✓ Location Applied" : "Apply Location",
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                  ),
+                ),
+              ]),
+            ),
+          ],
+
+          // ── Success banner ──
+          if (_locConfirmed || _mapsApplied) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: kLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(8)),
-              child: Text("✅ GPS location captured",
-            style: const TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
+              decoration: BoxDecoration(color: Color(0xFFD1F0E0), borderRadius: BorderRadius.circular(8)),
+              child: Text(
+                _locConfirmed ? "✅ GPS location captured" : "✅ Location applied from Google Maps",
+                style: const TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
+
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _field(_lat, "Latitude", Icons.gps_fixed, type: TextInputType.number)),
@@ -2690,7 +2173,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             Expanded(child: _field(_lng, "Longitude", Icons.gps_not_fixed, type: TextInputType.number)),
           ]),
           const SizedBox(height: 4),
-          const Text("Auto-filled by GPS or enter manually.", style: TextStyle(color: kMuted, fontSize: 11)),
+          const Text("Auto-filled by GPS or Google Maps, or enter manually.", style: TextStyle(color: kMuted, fontSize: 11)),
         ]),
       ),
       const SizedBox(height: 16),
@@ -2713,39 +2196,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               ])
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMuted,fontSize:12))]))),
       const SizedBox(height:12),
-      // ── Opening & Closing Time ──────────────────────────────────────
-      const SizedBox(height:12),
-      const Text("Store Timings [Optional]",
-        style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 8),
-      Row(children: [
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: _openTime,
-            isExpanded: true,
-            items: _timeSlots().map((t) => DropdownMenuItem<String>(
-              value: t["value"],
-              child: Text(t["label"]!, style: const TextStyle(fontSize: 13)))).toList(),
-            onChanged: (v) => setState(() => _openTime = v),
-            decoration: _dec("Opening Time", Icons.access_time_rounded),
-            hint: const Text("Open at", style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: _closeTime,
-            isExpanded: true,
-            items: _timeSlots().map((t) => DropdownMenuItem<String>(
-              value: t["value"],
-              child: Text(t["label"]!, style: const TextStyle(fontSize: 13)))).toList(),
-            onChanged: (v) => setState(() => _closeTime = v),
-            decoration: _dec("Closing Time", Icons.access_time_filled_rounded),
-            hint: const Text("Close at", style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
-          ),
-        ),
-      ]),
-      const SizedBox(height:16),
       // About field
       TextField(controller:_about, maxLines:4, keyboardType:TextInputType.multiline,
         decoration:_dec("About this store (description shown to customers)",Icons.info_outline).copyWith(
@@ -2824,7 +2274,7 @@ class _SubscribeState extends State<SubscribePage> {
         'prefill': {
           'contact': order["merchant_phone"] ?? "",
         },
-        'image': 'https://offro-backend-production.up.railway.app/static/offro_logo.png',
+        'image': '$kBaseUrl/static/offro_logo.png',
         'theme': {'color': '#3E5F55'},
       };
       _razorpay.open(opts);
@@ -3277,45 +2727,14 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
 }
 
 // ─────────── Merchant Activity Page (FIX 7) ───────────
-
-// Humanize raw transaction type/description codes → readable text
-String _humanizeActivity(String raw) {
-  const _map = {
-    "account_created":        "Account registered",
-    "store_created":          "New store created",
-    "store_updated":          "Store profile updated",
-    "store_approved":         "Store approved",
-    "store_rejected":         "Store rejected",
-    "subscription":           "Store subscription activated",
-    "subscription_free":      "Free subscription activated",
-    "subscription_paid":      "Subscription payment received",
-    "banner":                 "Banner submitted",
-    "banner_approved":        "Banner approved",
-    "banner_rejected":        "Banner rejected",
-    "banner_paid":            "Banner payment received",
-    "product":                "Product submitted",
-    "product_approved":       "Product approved",
-    "product_rejected":       "Product rejected",
-    "product_paid":           "Product payment received",
-    "payment":                "Payment received",
-    "free":                   "Free plan activated",
-    "profile_updated":        "Profile updated",
-    "qr_reset":               "QR code regenerated",
-  };
-  final key = raw.trim().toLowerCase().replaceAll(' ', '_');
-  // If it's already a human-readable string (contains spaces or title case), return as-is
-  if (raw.contains(' ') && !raw.contains('_')) return raw;
-  return _map[key] ?? raw.replaceAll('_', ' ').split(' ').map((w) => w.isEmpty ? '' : '\${w[0].toUpperCase()}\${w.substring(1)}').join(' ');
-}
-
 class MerchantTxnPage extends StatefulWidget {
   final String token; const MerchantTxnPage({super.key,required this.token});
   @override State<MerchantTxnPage> createState() => _TxnState();
 }
 class _TxnState extends State<MerchantTxnPage> {
-  List _txns=[]; List _banners=[]; List _products=[];
+  List _txns=[]; List _banners=[]; List _vouchers=[];
   bool _loading=true;
-  int _tab=0; // 0=All, 1=Banners, 2=Products, 3=Payments
+  int _tab=0; // 0=All, 1=Banners, 2=Vouchers, 3=Payments
   @override void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
@@ -3323,12 +2742,12 @@ class _TxnState extends State<MerchantTxnPage> {
     final results = await Future.wait([
       Api.getMerchantTransactions(widget.token),
       Api.getMerchantBanners(widget.token),
-      Api.getMerchantProducts(widget.token),
+      Api.getMerchantVouchers(widget.token),
     ]);
     if(mounted) setState((){
       _txns    = results[0];
       _banners = results[1];
-      _products= results[2];
+      _vouchers= results[2];
       _loading = false;
     });
   }
@@ -3339,7 +2758,7 @@ class _TxnState extends State<MerchantTxnPage> {
     for(final t in _txns) {
       events.add({
         "type":"payment","icon":Icons.payment,"color":kPrimary,
-        "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??"Payment"),
+        "title":t["description"]??t["plan"]??"Payment",
         "subtitle":"₹${t['amount']??0}",
         "date":t["date"]??t["created_at"]??"",
         "amount":t["amount"]??0,
@@ -3364,8 +2783,8 @@ class _TxnState extends State<MerchantTxnPage> {
         "end_date":b["end_date"]??"",
       });
     }
-    // Product events
-    for(final v in _products) {
+    // Voucher events
+    for(final v in _vouchers) {
       final st=(v["approval_status"]??v["status"]??"pending").toString();
       final (Color sc,IconData si) = switch(st){
         "approved"   => (const Color(0xFF1a6640), Icons.check_circle_outline),
@@ -3373,7 +2792,7 @@ class _TxnState extends State<MerchantTxnPage> {
         _ => (const Color(0xFF856404), Icons.hourglass_top_rounded),
       };
       events.add({
-        "type":"product","icon":Icons.local_activity_outlined,"color":const Color(0xFF8e44ad),
+        "type":"voucher","icon":Icons.local_activity_outlined,"color":const Color(0xFF8e44ad),
         "title":"Product: ${v['title']??'Untitled'}",
         "subtitle":st=="approved"?"✅ Approved — Live":st=="rejected"?"❌ Rejected":"⏳ Pending Approval",
         "subtitle_color":sc,"status_icon":si,
@@ -3393,7 +2812,7 @@ class _TxnState extends State<MerchantTxnPage> {
   List<Map> get _filtered {
     if(_tab==0) return _allActivity;
     if(_tab==1) return _allActivity.where((e)=>e["type"]=="banner").toList();
-    if(_tab==2) return _allActivity.where((e)=>e["type"]=="product").toList();
+    if(_tab==2) return _allActivity.where((e)=>e["type"]=="voucher").toList();
     return _allActivity.where((e)=>e["type"]=="payment").toList();
   }
 
@@ -3771,7 +3190,7 @@ class _AddDealState extends State<AddDealPage> {
     super.initState();
     _selectedStoreId = widget.storeId;
     _selectedStoreName = widget.storeName;
-    Api.fetchCategories(token: widget.token).then((v) { if (mounted) setState(() => _categories = v as List); });
+    Api.fetchCategories().then((v) { if (mounted) setState(() => _categories = v as List); });
   }
   @override void dispose() { _title.dispose(); _desc.dispose(); _disc.dispose(); super.dispose(); }
 

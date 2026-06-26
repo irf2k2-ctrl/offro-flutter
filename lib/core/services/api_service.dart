@@ -56,7 +56,7 @@ class Api {
       _apiCache.remove(k);
       _apiCacheTime.remove(k);
     }
-    if (kDebugMode) debugPrint("[OFFRO] clearCategoryCache: removed cache for '$categoryName'");
+    debugPrint("[OFFRO] clearCategoryCache: removed cache for '$categoryName'");
   }
 
   static Future<dynamic> _put(String path, Map body, {String? token}) async {
@@ -102,7 +102,7 @@ class Api {
 
 
   static Future<void> updateCity(String token, String city) async {
-    try { await _put("/user/city", {"city": city}, token: token); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    try { await _put("/user/city", {"city": city}, token: token); } catch (_) {}
   }
   static Future<Map<String,dynamic>> getWallet(String token) async {
     try { return Map<String,dynamic>.from(await _get("/user/wallet", token: token)); } catch (_) { return {}; }
@@ -141,6 +141,20 @@ class Api {
       return d is Map ? Map<String,dynamic>.from(d) : null;
     } catch (_) { return null; }
   }
+
+  static Future<Map<String,dynamic>> resolveMapsLink(String url) async {
+    try {
+      final encoded = Uri.encodeQueryComponent(url);
+      final r = await http.get(
+        Uri.parse("$kBaseUrl/resolve-maps-link?url=$encoded"),
+      ).timeout(const Duration(seconds: 15));
+      final d = json.decode(r.body);
+      if (d is Map) return Map<String,dynamic>.from(d);
+      return {"error": "Unexpected response from server."};
+    } catch (e) {
+      return {"error": "Network error. Please check your connection and try again."};
+    }
+  }
   static Future<Map<String,dynamic>> createMerchantStore(String token, Map<String,dynamic> data) =>
       _post("/merchant/stores", data, token: token);
   static Future<Map<String,dynamic>> updateMerchantStore(String token, String sid, Map<String,dynamic> data) async {
@@ -176,7 +190,7 @@ class Api {
     try {
       final r = await http.delete(Uri.parse("$kBaseUrl/merchant/deals/$dealId"), headers: _h(token)).timeout(const Duration(seconds: 20));
       if (r.statusCode >= 400) { final d = jsonDecode(r.body); throw Exception(d["detail"] ?? "Error"); }
-    } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    } catch (_) {}
   }
 
   // ── Public ──
@@ -195,12 +209,12 @@ class Api {
     // FIX: category must be in cache key — without it all categories return the same cached list
     final String _catSfx = (category != null && category != 'All' && category!.isNotEmpty)
         ? ':${category!.toLowerCase()}' : '';
-    final cacheKey = "stores:${cleanCity?.toLowerCase() ?? 'all'}$_catSfx";
-    if (kDebugMode) debugPrint("[OFFRO] fetchStores URL: $kBaseUrl$url");
-    if (kDebugMode) debugPrint("[OFFRO] city param: $cleanCity | cacheKey: $cacheKey");
+    final cacheKey = "stores:\${cleanCity?.toLowerCase() ?? 'all'}\$_catSfx";
+    debugPrint("[OFFRO] fetchStores URL: $kBaseUrl$url");
+    debugPrint("[OFFRO] city param: $cleanCity | cacheKey: $cacheKey");
     if (_isCacheValid(cacheKey)) {
       final cached = List.from(_apiCache[cacheKey]);
-      if (kDebugMode) debugPrint("[OFFRO] fetchStores: returning ${cached.length} stores from cache");
+      debugPrint("[OFFRO] fetchStores: returning ${cached.length} stores from cache");
       return cached;
     }
     // FIX 2: Do NOT catch here — throw errors so _loadAll can set correct error state
@@ -213,7 +227,7 @@ class Api {
     } else {
       result = [];
     }
-    if (kDebugMode) debugPrint("[OFFRO] fetchStores: got ${result.length} stores from API");
+    debugPrint("[OFFRO] fetchStores: got ${result.length} stores from API");
     // FIX 3: NEVER cache empty results — empty may be a transient failure
     if (result.isNotEmpty) {
       _apiCache[cacheKey] = result;
@@ -221,49 +235,31 @@ class Api {
     }
     return result;
   }
-  static Future<List<dynamic>> fetchCategories({String? token}) async {
-    final cacheKey = token != null ? "categories_auth" : "categories";
-    // Only use cache if it has actual data (not empty)
-    if (_isCacheValid(cacheKey)) {
-      final cached = List<dynamic>.from(_apiCache[cacheKey]);
-      if (cached.isNotEmpty) return cached;
+  static Future<List<dynamic>> fetchCategories() async {
+    const cacheKey = "categories";
+    if (_isCacheValid(cacheKey)) return List<dynamic>.from(_apiCache[cacheKey]);
+    try {
+      final raw = await _get("/categories");
+      final result = (raw as List).map((e) {
+        if (e is Map) return Map<String,dynamic>.from(e);
+        // old flat-string fallback
+        return <String,dynamic>{"name":e.toString(),"icon":"🏪","image_url":"","subtitle":""};
+      }).toList();
+      _apiCache[cacheKey] = result;
+      _apiCacheTime[cacheKey] = DateTime.now();
+      return result;
+    } catch (_) {
+      return [
+        {"name":"Grocery","icon":"🛒","image_url":"","subtitle":"Fresh & daily"},
+        {"name":"Restaurant","icon":"🍽️","image_url":"","subtitle":"500+ places"},
+        {"name":"Pharmacy","icon":"💊","image_url":"","subtitle":"Health essentials"},
+        {"name":"Electronics","icon":"📱","image_url":"","subtitle":"Trending gadgets"},
+        {"name":"Fashion","icon":"👗","image_url":"","subtitle":"New arrivals"},
+        {"name":"Bakery","icon":"🎂","image_url":"","subtitle":"Fresh baked daily"},
+        {"name":"Salon","icon":"💇","image_url":"","subtitle":"Look your best"},
+      ];
     }
-    // Try authenticated merchant endpoint first (if token provided), then public fallbacks
-    final paths = token != null
-        ? ["/merchant/categories", "/public/categories", "/public-categories"]
-        : ["/public/categories", "/public-categories"];
-    for (final path in paths) {
-      try {
-        final raw = await _get(path, token: token).timeout(const Duration(seconds: 10));
-        List<dynamic> result = [];
-        if (raw is List) {
-          result = raw.map((e) {
-            if (e is Map) return Map<String,dynamic>.from(e);
-            return <String,dynamic>{"name":e.toString(),"icon":"🏪","image_url":"","subtitle":""};
-          }).toList();
-        }
-        if (result.isNotEmpty) {
-          _apiCache[cacheKey] = result;
-          _apiCacheTime[cacheKey] = DateTime.now();
-          return result;
-        }
-      } catch (_) { continue; }
-    }
-    return _defaultCategories();
   }
-
-  static List<Map<String,dynamic>> _defaultCategories() => [
-    {"name":"Grocery","icon":"🛒","image_url":"","subtitle":"Fresh & daily"},
-    {"name":"Restaurant","icon":"🍽️","image_url":"","subtitle":"500+ places"},
-    {"name":"Pharmacy","icon":"💊","image_url":"","subtitle":"Health essentials"},
-    {"name":"Electronics","icon":"📱","image_url":"","subtitle":"Trending gadgets"},
-    {"name":"Fashion","icon":"👗","image_url":"","subtitle":"New arrivals"},
-    {"name":"Bakery","icon":"🎂","image_url":"","subtitle":"Fresh baked daily"},
-    {"name":"Salon","icon":"💇","image_url":"","subtitle":"Look your best"},
-    {"name":"Cafe","icon":"☕","image_url":"","subtitle":"Coffee & snacks"},
-    {"name":"Fitness","icon":"🏋️","image_url":"","subtitle":"Gyms & wellness"},
-    {"name":"Stationery","icon":"📚","image_url":"","subtitle":"Books & supplies"},
-  ];
 
   /// Fetch predefined areas for a given city from /areas
   static Future<List<String>> fetchAreas(String city) async {
@@ -273,7 +269,7 @@ class Api {
       final areas = (raw["areas"] as List? ?? []).map((e) => e.toString()).toList();
       return areas;
     } catch (e) {
-      if (kDebugMode) debugPrint("[OFFRO] fetchAreas error: $e");
+      debugPrint("[OFFRO] fetchAreas error: $e");
       return [];
     }
   }
@@ -308,54 +304,20 @@ class Api {
   static Future<String> getAboutUs() async {
     try { final d = await _get("/about"); return d["content"] ?? ""; } catch (_) { return ""; }
   }
-  // ── Public Products ──
-  static Future<List> getPublicProducts({String city = ''}) async {
-    // Uses /products with city param — /products-public does not exist
-    final _gpCityParam = city.trim().isNotEmpty ? ("?city=" + Uri.encodeComponent(city.trim())) : "";
+  // ── Gift Vouchers ──
+  static Future<List> getGiftVouchers() async {
     try {
-      final raw = await _get("/products" + _gpCityParam).timeout(const Duration(seconds: 10));
+      final raw = await _get("/gift-vouchers-public");
+      // FIX 4: backend may return {"vouchers": [...]} or directly a list
       if (raw is List) return raw;
       if (raw is Map) {
-        for (final key in ["products", "data", "results", "items"]) {
-          if (raw[key] is List && (raw[key] as List).isNotEmpty) return raw[key] as List;
-        }
+        if (raw["vouchers"] is List) return raw["vouchers"] as List;
+        if (raw["data"] is List) return raw["data"] as List;
+        if (raw["results"] is List) return raw["results"] as List;
       }
-    } catch (_) {}
-    return [];
+      return [];
+    } catch(_) { return []; }
   }
-  /// Fetch all active products from the public /products endpoint
-  static Future<List<Map<String,dynamic>>> fetchPublicProducts({String city = ''}) async {
-    final cacheKey = "public_products_" + city.trim().toLowerCase();
-    if (_isCacheValid(cacheKey)) {
-      final cached = _apiCache[cacheKey];
-      if (cached is List && cached.isNotEmpty) return List<Map<String,dynamic>>.from(cached);
-    }
-    final _fcpCityParam = city.trim().isNotEmpty ? ("?city=" + Uri.encodeComponent(city.trim())) : "";
-    for (final path in ["/products" + _fcpCityParam]) {
-      try {
-        final raw = await _get(path).timeout(const Duration(seconds: 10));
-        List items = [];
-        if (raw is List) {
-          items = raw;
-        } else if (raw is Map) {
-          for (final key in ["products", "data", "results", "items"]) {
-            if (raw[key] is List && (raw[key] as List).isNotEmpty) { items = raw[key]; break; }
-          }
-        }
-        if (items.isNotEmpty) {
-          final result = items
-              .map((e) => e is Map ? Map<String,dynamic>.from(e) : <String,dynamic>{})
-              .where((e) => e.isNotEmpty)
-              .toList();
-          _apiCache[cacheKey] = result;
-          _apiCacheTime[cacheKey] = DateTime.now();
-          return result;
-        }
-      } catch (_) { continue; }
-    }
-    return [];
-  }
-
   static Future<List> getSliders() async {
     try { return await _get("/promo-sliders"); } catch(_) { return []; }
   }
@@ -367,25 +329,17 @@ class Api {
   /// Fetch default fallback images — tries /admin/default-images then /default-images
   /// Returns a map with keys: city_image_url, store_image_url, product_image_url, etc.
   static Future<Map<String,dynamic>> getDefaultImages() async {
-    for (final path in ["/default-images", "/admin/default-images", "/admin/default-images"]) {
+    for (final path in ["/default-images", "/admin/default-images", "/admin/defaults"]) {
       try {
         final raw = await _get(path).timeout(const Duration(seconds: 8));
         if (raw is Map && raw.isNotEmpty) {
-          if (kDebugMode) debugPrint("[OFFRO] getDefaultImages from $path: ${raw.keys.toList()}");
+          debugPrint("[OFFRO] getDefaultImages from $path: ${raw.keys.toList()}");
           return Map<String,dynamic>.from(raw);
         }
       } catch (_) { continue; }
     }
-    if (kDebugMode) debugPrint("[OFFRO] getDefaultImages: all endpoints failed");
+    debugPrint("[OFFRO] getDefaultImages: all endpoints failed");
     return {};
-  }
-
-  static Future<List<Map<String,dynamic>>> getAdminBanners() async {
-    try {
-      final raw = await _get("/admin-banners").timeout(const Duration(seconds: 30));
-      if (raw is List) return raw.map((e) => Map<String,dynamic>.from(e as Map)).toList();
-    } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getAdminBanners error: $e"); }
-    return [];
   }
 
   static Future<Map<String,dynamic>> validateDiscount(String code) =>
@@ -418,14 +372,14 @@ class Api {
         headers:{"Content-Type":"application/json"},
         body:json.encode({"token":fcmToken,"phone":phone,"user_id":userId}),
       ).timeout(const Duration(seconds: 10));
-      if (kDebugMode) debugPrint('[FCM] registerFcmToken → ${resp.statusCode}: ${resp.body}');
+      debugPrint('[FCM] registerFcmToken → ${resp.statusCode}: ${resp.body}');
       if (resp.statusCode == 200) {
-        if (kDebugMode) debugPrint('[FCM] ✅ Token saved in DB for phone=$phone userId=$userId');
+        debugPrint('[FCM] ✅ Token saved in DB for phone=$phone userId=$userId');
       } else {
-        if (kDebugMode) debugPrint('[FCM] ⚠️ Token registration failed: ${resp.statusCode} ${resp.body}');
+        debugPrint('[FCM] ⚠️ Token registration failed: ${resp.statusCode} ${resp.body}');
       }
     } catch(e) {
-      if (kDebugMode) debugPrint('[FCM] ⚠️ registerFcmToken error: $e');
+      debugPrint('[FCM] ⚠️ registerFcmToken error: $e');
     }  // silent fail — never block login flow
   }
 
@@ -435,7 +389,7 @@ class Api {
       String token, String storeId, double rating, String text, {String userName = ""}) async {
     try {
       return Map<String,dynamic>.from(await _post(
-        "/stores/$storeId/review",
+        "/stores/\$storeId/review",
         {"rating": rating, "text": text, "user_name": userName},
         token: token,
       ));
@@ -446,41 +400,16 @@ class Api {
 
   static Future<Map<String,dynamic>> getReviews(String storeId, {int limit = 10, int skip = 0}) async {
     try {
-      final d = await _get("/stores/$storeId/reviews?limit=$limit&skip=$skip");
+      final d = await _get("/stores/\$storeId/reviews?limit=\$limit&skip=\$skip");
       return d is Map ? Map<String,dynamic>.from(d) : {"reviews": [], "total": 0};
     } catch (_) {
       return {"reviews": [], "total": 0};
     }
   }
 
-  // ── Product Reviews ──
-  static Future<Map<String,dynamic>> submitProductReview(
-      String token, String productId, double rating, String text, {String userName = ""}) async {
-    try {
-      return Map<String,dynamic>.from(await _post(
-        "/products/$productId/review",
-        {"rating": rating, "text": text, "user_name": userName},
-        token: token));
-    } catch (e) {
-      return {"error": e.toString()};
-    }
-  }
-
-  // ── Product Favorites ──
-  static Future<void> toggleProductFavorite(String token, String productId) async {
-    try { await _post("/user/product-favorites/$productId", {}, token: token); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-  }
-
-  static Future<bool> isProductFavorite(String token, String productId) async {
-    try {
-      final d = await _get("/user/product-favorites/$productId/check", token: token);
-      return d["is_favorite"] == true;
-    } catch (_) { return false; }
-  }
-
   // ── Favorites ──
   static Future<void> toggleFavorite(String token, String storeId) async {
-    try { await _post("/user/favorites/$storeId", {}, token: token); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    try { await _post("/user/favorites/$storeId", {}, token: token); } catch(_) {}
   }
   static Future<List> getFavorites(String token) async {
     try { return await _get("/user/favorites", token: token); } catch(_) { return []; }
@@ -517,15 +446,31 @@ class Api {
   static Future<Map<String,dynamic>> activateFreeBanner(String token, Map body) =>
     _post("/merchant/banners/activate-free", body, token: token);
 
+  // ══════════════════════════════════════════════
+  // MERCHANT VOUCHERS
+  // ══════════════════════════════════════════════
 
-
-  static Future<Map<String,dynamic>> updateMerchantBanner(String token, String bannerId, Map<String,dynamic> data) async {
-    try { return Map<String,dynamic>.from(await _put("/merchant/banners/$bannerId", data, token: token)); }
-    catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
+  static Future<List> getMerchantVouchers(String token) async {
+    try {
+      final r = await _get("/merchant/vouchers", token: token);
+      return r is List ? r : [];
+    } catch(_) { return []; }
   }
 
+  static Future<Map<String,dynamic>> getVoucherPricing(String token) async =>
+    Map<String,dynamic>.from(await _get("/merchant/vouchers/pricing", token: token));
+
+  static Future<Map<String,dynamic>> createVoucherOrder(String token, Map body) =>
+    _post("/merchant/vouchers/order", body, token: token);
+
+  static Future<Map<String,dynamic>> verifyVoucherPayment(String token, Map body) =>
+    _post("/merchant/vouchers/verify", body, token: token);
+
+  static Future<Map<String,dynamic>> activateFreeVoucher(String token, Map body) =>
+    _post("/merchant/vouchers/activate-free", body, token: token);
+
   // ══════════════════════════════════════════════
-  // FULL INVOICES (banner + product + store)
+  // FULL INVOICES (banner + voucher + store)
   // ══════════════════════════════════════════════
 
   static Future<List> getFullInvoices(String token) async {
@@ -534,47 +479,6 @@ class Api {
       return r is List ? r : [];
     } catch(_) { return []; }
   }
-
-  // ── Product/Merchant methods ──────────────────────────────────────
-
-  static Future<List> getMerchantProducts(String token) async {
-    try {
-      final r = await _get("/merchant/products", token: token);
-      return r is List ? r : [];
-    } catch(_) { return []; }
-  }
-
-  static Future<Map<String,dynamic>> updateMerchantProduct(String token, String productId, Map<String,dynamic> data) async {
-    try { return Map<String,dynamic>.from(await _put("/merchant/products/$productId", data, token: token)); }
-    catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
-  }
-
-  static Future<Map<String,dynamic>> getProductPricing(String token) async =>
-    Map<String,dynamic>.from(await _get("/merchant/products/pricing", token: token));
-
-  static Future<Map<String,dynamic>> createProductOrder(String token, Map body) =>
-    _post("/merchant/products/order", body, token: token);
-
-  static Future<Map<String,dynamic>> activateFreeProduct(String token, Map body) =>
-    _post("/merchant/products/activate-free", body, token: token);
-
-  static Future<Map<String,dynamic>> verifyProductPayment(String token, Map body) =>
-    _post("/merchant/products/verify", body, token: token);
-
-  static Future<List> getProductCards({String city = ''}) async {
-    // Delegates to getPublicProducts — /products-public does not exist
-    return getPublicProducts(city: city);
-  }
-
-  static Future<Map<String,dynamic>> getUserReview(String token, String storeId) async {
-    try {
-      final d = await _get("/stores/$storeId/user-review", token: token);
-      return d is Map ? Map<String,dynamic>.from(d) : {"review": null};
-    } catch (_) {
-      return {"review": null};
-    }
-  }
-
 
 }
 
