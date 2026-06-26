@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1013219872602",
+    "project_id": "offro-e1d3c",
+    "storage_bucket": "offro-e1d3c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1013219872602:android:9125c77175778523bb6d63",
+        "android_client_info": {
+          "package_name": "com.offro.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAFgW6Li-cLr-LiOuFGuR7aBfQtKzHXPZc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

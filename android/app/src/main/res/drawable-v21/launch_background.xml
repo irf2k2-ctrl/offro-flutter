@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Solid white background, no logo. The Dart SplashScreen handles all branding. -->
+    <item android:drawable="@android:color/white" />
+</layer-list>

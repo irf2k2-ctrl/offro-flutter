@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- android/app/src/main/res/values/colors.xml -->
+<resources>
+    <!-- FIX 5: OFFRO cream background — matches Flutter kBg color -->
+    <!-- NOTE: ic_launcher_background is defined in ic_launcher_background.xml — do NOT add it here -->
+    <color name="splash_bg">#FDFBF6</color>
+</resources>

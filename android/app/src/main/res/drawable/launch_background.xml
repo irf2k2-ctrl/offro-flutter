@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- android/app/src/main/res/drawable/launch_background.xml -->
+<!-- Pure white background — NO icon, NO logo. Flutter draws its own splash screen. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <color android:color="#FFFFFF" />
+    </item>
+</layer-list>
