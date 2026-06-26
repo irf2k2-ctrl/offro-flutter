@@ -141,6 +141,21 @@ class Api {
       return d is Map ? Map<String,dynamic>.from(d) : null;
     } catch (_) { return null; }
   }
+
+  static Future<Map<String,dynamic>> resolveMapsLink(String url) async {
+    try {
+      final encoded = Uri.encodeQueryComponent(url);
+      final r = await http.get(
+        Uri.parse("$kBaseUrl/resolve-maps-link?url=$encoded"),
+      ).timeout(const Duration(seconds: 15));
+      final d = json.decode(r.body);
+      if (d is Map) return Map<String,dynamic>.from(d);
+      return {"error": "Unexpected response from server."};
+    } catch (e) {
+      return {"error": "Network error. Please check your connection and try again."};
+    }
+  }
+
   static Future<Map<String,dynamic>> createMerchantStore(String token, Map<String,dynamic> data) =>
       _post("/merchant/stores", data, token: token);
   static Future<Map<String,dynamic>> updateMerchantStore(String token, String sid, Map<String,dynamic> data) async {

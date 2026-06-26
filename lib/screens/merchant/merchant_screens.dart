@@ -6,7 +6,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
-import 'package:http/http.dart' as _httpPkg;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../main.dart' show MyApp;
@@ -2255,23 +2255,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       if (!isGoogleUrl) return false;
 
       try {
-        final resolveResp = await _httpPkg.post(
-          Uri.parse(kBaseUrl + '/merchant/resolve-maps'),
-          headers: {'Content-Type': 'application/json'},
-          body: '{"url":"' + raw.replaceAll('"', '\"') + '"}',
-        ).timeout(const Duration(seconds: 15));
-
-        if (resolveResp.statusCode == 200) {
-          final latM = RegExp(r'"lat"\s*:\s*([-\d.]+)').firstMatch(resolveResp.body);
-          final lngM = RegExp(r'"lng"\s*:\s*([-\d.]+)').firstMatch(resolveResp.body);
-          if (latM != null && lngM != null) {
-            final la = double.tryParse(latM.group(1)!);
-            final ln = double.tryParse(lngM.group(1)!);
-            if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
-                && la != 0.0 && ln != 0.0) {
-              onSuccess(la, ln);
-              return true;
-            }
+        final res = await Api.resolveMapsLink(raw);
+        if (!res.containsKey('error')) {
+          final la = double.tryParse(res['lat']?.toString() ?? '');
+          final ln = double.tryParse(res['lng']?.toString() ?? '');
+          if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
+              && la != 0.0 && ln != 0.0) {
+            onSuccess(la, ln);
+            return true;
           }
         }
       } catch (_) {}
