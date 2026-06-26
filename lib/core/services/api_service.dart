@@ -394,7 +394,7 @@ class Api {
 
   static Future<List<Map<String,dynamic>>> getAdminBanners() async {
     try {
-      final raw = await _get("/promo-sliders").timeout(const Duration(seconds: 15));
+      final raw = await _get("/admin-banners").timeout(const Duration(seconds: 15));
       if (raw is List) return raw.map((e) => Map<String,dynamic>.from(e as Map)).toList();
     } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getAdminBanners error: $e"); }
     return [];
