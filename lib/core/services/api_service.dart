@@ -529,11 +529,11 @@ class Api {
   }
 
   // ── User's own review for a store ──
-  static Future<Map<String,dynamic>?> getUserReview(String token, String storeId) async {
+  static Future<Map<String,dynamic>> getUserReview(String token, String storeId) async {
     try {
       final d = await _get("/stores/$storeId/my-review", token: token);
-      return d is Map ? Map<String,dynamic>.from(d) : null;
-    } catch(_) { return null; }
+      return d is Map ? Map<String,dynamic>.from(d) : {};
+    } catch(_) { return {}; }
   }
 
 }
