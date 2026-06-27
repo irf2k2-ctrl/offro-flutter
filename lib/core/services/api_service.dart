@@ -325,20 +325,17 @@ class Api {
   }
   // ── Public Products ──
   static Future<List> getPublicProducts({String city = ''}) async {
+    // Reads from Admin Dashboard → Products module (gift_vouchers + products collections)
     final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
       final raw = await _get("/gift-vouchers-public$cityParam").timeout(const Duration(seconds: 10));
       if (raw is List) return raw;
-      if (raw is Map) {
-        for (final key in ["vouchers", "data", "results", "items"]) {
-          if (raw[key] is List) return raw[key] as List;
-        }
-      }
     } catch (_) {}
     return [];
   }
 
   static Future<List<Map<String,dynamic>>> fetchPublicProducts({String city = ''}) async {
+    // Reads from Admin Dashboard → Products module (gift_vouchers + products collections)
     final cacheKey = "public_products_${city.trim().toLowerCase()}";
     if (_isCacheValid(cacheKey)) {
       final cached = _apiCache[cacheKey];
@@ -347,14 +344,7 @@ class Api {
     final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
       final raw = await _get("/gift-vouchers-public$cityParam").timeout(const Duration(seconds: 10));
-      List items = [];
-      if (raw is List) {
-        items = raw;
-      } else if (raw is Map) {
-        for (final key in ["vouchers", "data", "results", "items"]) {
-          if (raw[key] is List && (raw[key] as List).isNotEmpty) { items = raw[key] as List; break; }
-        }
-      }
+      List items = raw is List ? raw : [];
       if (items.isNotEmpty) {
         final result = items
             .map((e) => e is Map ? Map<String,dynamic>.from(e) : <String,dynamic>{})
@@ -393,9 +383,10 @@ class Api {
   }
 
   static Future<List<Map<String,dynamic>>> getAdminBanners() async {
+    // Reads from Admin Dashboard → Banners module (db.banners collection)
     try {
       final raw = await _get("/admin-banners").timeout(const Duration(seconds: 15));
-      if (raw is List) return raw.map((e) => Map<String,dynamic>.from(e as Map)).toList();
+      if (raw is List) return (raw as List).map((e) => Map<String,dynamic>.from(e as Map)).toList();
     } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getAdminBanners error: $e"); }
     return [];
   }
