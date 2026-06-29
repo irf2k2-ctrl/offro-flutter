@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/fav_state.dart';
 import 'widgets/store_header.dart';
 import 'widgets/store_highlights.dart';
 import 'widgets/store_offers_section.dart';
@@ -103,6 +104,7 @@ class _StoreDetailPageState extends State<StoreDetailPage>
             _store['is_new_in_town'] = true;
           }
           _isFav    = isFav;
+          FavState.instance.setStore(id, isFav);
           _walletPts = (wallet['points'] as num?)?.toInt() ?? 0;
           _loading  = false;
         });
@@ -139,10 +141,12 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     if (id.isEmpty || widget.token.isEmpty) return;
     final prev = _isFav;
     setState(() => _isFav = !_isFav);
+    FavState.instance.toggleStore(id);
     try {
       await Api.toggleFavorite(widget.token, id);
     } catch (_) {
       if (mounted) setState(() => _isFav = prev);
+      FavState.instance.toggleStore(id);
     }
   }
 

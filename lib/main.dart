@@ -20,6 +20,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
 import 'core/services/api_service.dart';
+import 'core/services/fav_state.dart';
 import 'core/services/prefs_service.dart';
 import 'core/services/fcm_service.dart';
 import 'screens/splash/splash_screen.dart';
@@ -893,6 +894,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadFavStores(); // load fav store ids for home screen hearts
     // Sync badge with real-time notifier (updates from FCM foreground messages)
     _unreadNotifier.addListener(_onUnreadChanged);
+    FavState.instance.addListener(_onFavChanged);
     // FIX 1: scroll listener for FAB visibility
     double _lastScrollOffset = 0;
     _scrollCtrl.addListener(() {
@@ -948,6 +950,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
       if (mounted) setState(() => _favStoreIds.addAll(ids));
+      FavState.instance.initStores(ids);
     } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
   }
 
@@ -1067,7 +1070,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         resolvedCityImg = resolvedCityImgs.isNotEmpty ? resolvedCityImgs[0] : "";
         if (kDebugMode) debugPrint("[OFFRO] Hero imgs loaded: \${resolvedCityImgs.length}");
         // Load no-service config (handle String or List from backend)
-        final nsImgs = defaults["no_service"];
+        final nsImgs = defaults["no_service_url"];
         String _nsUrl = "";
         if (nsImgs is List && (nsImgs as List).isNotEmpty) {
           _nsUrl = (nsImgs as List).last.toString().trim();
@@ -1758,7 +1761,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _catTimer=Timer(const Duration(seconds:5),(){});
   }
 
+  void _onFavChanged() { if (mounted) setState(() {}); }
+
   @override void dispose() {
+    FavState.instance.removeListener(_onFavChanged);
     _unreadNotifier.removeListener(_onUnreadChanged);
     WidgetsBinding.instance.removeObserver(this);
     _catTimer?.cancel(); _sliderTimer?.cancel(); _heroRotateTimer?.cancel(); _sliderPc.dispose();
@@ -5207,10 +5213,12 @@ class _DiscoverProductsSection extends StatelessWidget {
                                 if (pid.isEmpty || token.isEmpty) return;
                                 final next = !_pFav;
                                 setH(() { v["_isFav"] = next; _pFav = next; });
+                                FavState.instance.toggleProduct(pid);
                                 try {
                                   await Api.toggleProductFavorite(token, pid);
                                 } catch (_) {
                                   setH(() { v["_isFav"] = !next; _pFav = !next; });
+                                  FavState.instance.toggleProduct(pid);
                                 }
                               },
                               child: Container(
@@ -6121,22 +6129,25 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
               else
                 const SizedBox(width: 4),
 
-              // FIX 7: live heart — red if in favStoreIds
+              // FIX 7: live heart — real-time sync via FavState
               GestureDetector(
                 onTap: () async {
                   final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
                   if (id.isEmpty || widget.token.isEmpty) return;
+                  FavState.instance.toggleStore(id);
                   try {
                     await Api.toggleFavorite(widget.token, id);
                     widget.onFavChanged();
-                  } catch (_) {}
+                  } catch (_) {
+                    FavState.instance.toggleStore(id);
+                  }
                 },
                 child: Icon(
-                  widget.favStoreIds.contains(
+                  FavState.instance.hasStore(
                     s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
-                  color: widget.favStoreIds.contains(
+                  color: FavState.instance.hasStore(
                     s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
                       ? const Color(0xFFe74c3c)
                       : const Color(0xFF9e9e9e),
@@ -6396,6 +6407,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
     if (pid.isEmpty) return;
     final fav = await Api.isProductFavorite(widget.token, pid);
+    FavState.instance.setProduct(pid, fav);
     if (mounted) setState(() => _isFav = fav);
   }
 
@@ -6545,6 +6557,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               onTap: () async {
                 final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
                 setState(() => _isFav = !_isFav); // optimistic
+                FavState.instance.toggleProduct(pid);
                 if (widget.token.isNotEmpty && pid.isNotEmpty) {
                   await Api.toggleProductFavorite(widget.token, pid);
                 }

@@ -2602,6 +2602,9 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) { setState(()=>_msg="Store name required"); return; }
     if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city to continue"); return; }
+    final _phoneVal = _phone.text.trim();
+    if (_phoneVal.isEmpty) { setState(()=>_msg="Mobile number is required"); return; }
+    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg="Enter a valid 10-digit mobile number (starts with 6–9)"); return; }
     setState(()=>_loading=true); _msg="";
     final data = {
       "store_name":_name.text.trim(),"category":_category,
