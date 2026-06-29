@@ -1044,6 +1044,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       ]);
       // ── Hero images: fetch arrays from /default-images, rotate every 2 min ──
       List<String> resolvedCityImgs = [];
+      String _mbFallbackUrl = "";
       try {
         final defaults = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
         if (kDebugMode) debugPrint("[OFFRO] /default-images keys: \${defaults.keys.toList()}");
@@ -1082,6 +1083,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
           if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
         });
+        _mbFallbackUrl = (defaults["merchant_banner"] ?? "").toString().trim();
       } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getDefaultImages error: $e"); }
 
       final cats = cats2;
@@ -1097,6 +1099,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           final sCity = (s["city"] ?? "").toString().trim().toLowerCase();
           return sCity.isEmpty || sCity == c.toLowerCase().trim();
         }).toList();
+      }
+      // Issue 4: Fallback — when no active banners exist for the city, show the default merchant banner
+      if (slides.isEmpty && _mbFallbackUrl.startsWith("http")) {
+        slides = [{"id": "default", "title": "", "subtitle": "", "image": _mbFallbackUrl, "image_url": _mbFallbackUrl, "link_url": "", "bg_color": "", "sort_order": 0, "city": ""}];
       }
       // Retry admin banners once if empty (large base64 image can timeout)
       if (adminBannerList.isEmpty) {
