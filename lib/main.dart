@@ -952,6 +952,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) setState(() => _favStoreIds.addAll(ids));
       FavState.instance.initStores(ids);
     } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    try {
+      final pids = await Api.getProductFavorites(widget.token);
+      FavState.instance.initProducts(pids);
+    } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
   }
 
   void _incrementUnread() async {
@@ -4092,18 +4096,13 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
 
   Future<void> _load() async {
     try {
-      // Try city-filtered first, fall back to all deals if empty
-      dynamic raw = await Api.get("/deals/all?city=" + Uri.encodeComponent(widget.city));
-      List<Map<String,dynamic>> list = (raw is List)
+      final endpoint = widget.city.isNotEmpty
+          ? "/deals/all?city=" + Uri.encodeComponent(widget.city)
+          : "/deals/all";
+      final dynamic raw = await Api.get(endpoint);
+      final List<Map<String,dynamic>> list = (raw is List)
           ? List<Map<String,dynamic>>.from(raw.map((e) => Map<String,dynamic>.from(e as Map)))
           : <Map<String,dynamic>>[];
-      // If city returned nothing, fetch all deals (city might not match exactly)
-      if (list.isEmpty && widget.city.isNotEmpty) {
-        raw = await Api.get("/deals/all");
-        list = (raw is List)
-            ? List<Map<String,dynamic>>.from(raw.map((e) => Map<String,dynamic>.from(e as Map)))
-            : <Map<String,dynamic>>[];
-      }
       if (mounted) setState(() { _deals = list; _loading = false; });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
@@ -5206,7 +5205,8 @@ class _DiscoverProductsSection extends StatelessWidget {
                       Positioned(top: 6, right: 6,
                         child: StatefulBuilder(
                           builder: (ctx2, setH) {
-                            bool _pFav = v["_isFav"] == true;
+                            final _pid0 = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
+                            bool _pFav = FavState.instance.hasProduct(_pid0) || v["_isFav"] == true;
                             return GestureDetector(
                               onTap: () async {
                                 final pid = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";

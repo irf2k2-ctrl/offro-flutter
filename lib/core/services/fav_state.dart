@@ -10,7 +10,7 @@ class FavState extends ChangeNotifier {
   final Set<String> _storeIds   = {};
   final Set<String> _productIds = {};
 
-  // ── Store favourites ──────────────────────────────────────────────────────
+  // Store favourites
   bool hasStore(String id) => _storeIds.contains(id);
 
   /// Replace entire store favourite set (called after API load).
@@ -19,7 +19,7 @@ class FavState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Optimistic toggle — call before API, revert on error if needed.
+  /// Optimistic toggle - call before API, revert on error if needed.
   void toggleStore(String id) {
     if (_storeIds.contains(id)) { _storeIds.remove(id); } else { _storeIds.add(id); }
     notifyListeners();
@@ -32,8 +32,14 @@ class FavState extends ChangeNotifier {
     if (had != _storeIds.contains(id)) notifyListeners();
   }
 
-  // ── Product favourites ────────────────────────────────────────────────────
+  // Product favourites
   bool hasProduct(String id) => _productIds.contains(id);
+
+  /// Replace entire product favourite set (called after API load).
+  void initProducts(Iterable<String> ids) {
+    _productIds..clear()..addAll(ids);
+    notifyListeners();
+  }
 
   void toggleProduct(String id) {
     if (_productIds.contains(id)) { _productIds.remove(id); } else { _productIds.add(id); }

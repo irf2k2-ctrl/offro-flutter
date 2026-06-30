@@ -470,6 +470,14 @@ class Api {
   }
 
   // ── Product Favorites ──
+  static Future<List<String>> getProductFavorites(String token) async {
+    try {
+      final d = await _get("/user/product-favorites", token: token);
+      if (d is List) return d.map((e) => e.toString()).toList();
+      return [];
+    } catch (_) { return []; }
+  }
+
   static Future<void> toggleProductFavorite(String token, String productId) async {
     try { await _post("/user/product-favorites/$productId", {}, token: token); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
   }
