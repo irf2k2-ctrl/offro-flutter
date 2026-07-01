@@ -604,6 +604,107 @@ class Api {
     }
   }
 
+  // ── Phase 2: Product Management ──────────────────────────────────────────
+
+  static Future<Map<String,dynamic>> setProductAvailability(
+      String token, String pid, bool available) async {
+    return Map<String,dynamic>.from(
+        await _put("/merchant/products/$pid/availability", {"available": available}, token: token));
+  }
+
+  static Future<List<Map<String,dynamic>>> searchMerchantProducts(
+      String token, {String q = "", String productType = "", String status = ""}) async {
+    try {
+      final params = <String>[];
+      if (q.isNotEmpty) params.add("q=${Uri.encodeComponent(q)}");
+      if (productType.isNotEmpty) params.add("product_type=$productType");
+      if (status.isNotEmpty) params.add("status=$status");
+      final qs = params.isEmpty ? "" : "?${params.join('&')}";
+      final d = await _get("/merchant/products/search$qs", token: token);
+      return d is List ? List<Map<String,dynamic>>.from(d.map((e) => Map<String,dynamic>.from(e))) : [];
+    } catch (_) { return []; }
+  }
+
+  static Future<Map<String,dynamic>> upgradeProductOrder(
+      String token, String pid, Map<String,dynamic> data) async {
+    return Map<String,dynamic>.from(
+        await _post("/merchant/products/$pid/upgrade", data, token: token));
+  }
+
+  static Future<Map<String,dynamic>> verifyUpgradePayment(
+      String token, String pid, Map<String,dynamic> paymentData) async {
+    return Map<String,dynamic>.from(
+        await _post("/merchant/products/$pid/upgrade/verify", paymentData, token: token));
+  }
+
+  static Future<Map<String,dynamic>> renewProductOrder(
+      String token, String pid, Map<String,dynamic> data) async {
+    return Map<String,dynamic>.from(
+        await _post("/merchant/products/$pid/renew", data, token: token));
+  }
+
+  static Future<Map<String,dynamic>> verifyRenewalPayment(
+      String token, String pid, Map<String,dynamic> paymentData) async {
+    return Map<String,dynamic>.from(
+        await _post("/merchant/products/$pid/renew/verify", paymentData, token: token));
+  }
+
+  static Future<Map<String,dynamic>> bulkProductAction(
+      String token, List<String> ids, String action) async {
+    return Map<String,dynamic>.from(
+        await _post("/merchant/products/bulk-action", {"ids": ids, "action": action}, token: token));
+  }
+
+  static Future<Map<String,dynamic>> checkProductExpiry(String token) async {
+    try {
+      final d = await _get("/merchant/products/expiry-check", token: token);
+      return {"items": d is List ? d : []};
+    } catch (_) { return {"items": []}; }
+  }
+
+  static Future<Map<String,dynamic>> getProductAnalytics(
+      String token, String pid) async {
+    try {
+      final d = await _get("/merchant/products/$pid/analytics", token: token);
+      return d is Map ? Map<String,dynamic>.from(d) : {};
+    } catch (_) { return {}; }
+  }
+
+  static Future<List<Map<String,dynamic>>> getProductHistory(
+      String token, String pid) async {
+    try {
+      final d = await _get("/merchant/products/$pid/history", token: token);
+      return d is List ? List<Map<String,dynamic>>.from(d.map((e) => Map<String,dynamic>.from(e))) : [];
+    } catch (_) { return []; }
+  }
+
+  static Future<void> trackProductEvent(String productId, String event) async {
+    try {
+      await _post("/products/$productId/track", {"event": event});
+    } catch (_) {}
+  }
+
+  static Future<List<Map<String,dynamic>>> getSimilarProducts(
+      String pid, {int limit = 6}) async {
+    try {
+      final d = await _get("/products/$pid/similar?limit=$limit");
+      return d is List ? List<Map<String,dynamic>>.from(d.map((e) => Map<String,dynamic>.from(e))) : [];
+    } catch (_) { return []; }
+  }
+
+  static Future<List<Map<String,dynamic>>> getMoreFromStore(
+      String storeId, {int limit = 20}) async {
+    try {
+      final d = await _get("/products/by-store/$storeId?limit=$limit");
+      return d is List ? List<Map<String,dynamic>>.from(d.map((e) => Map<String,dynamic>.from(e))) : [];
+    } catch (_) { return []; }
+  }
+
+  static Future<Map<String,dynamic>> adminExtendPremium(
+      String token, String vid, int days) async {
+    return Map<String,dynamic>.from(
+        await _put("/merchant-vouchers/$vid/extend", {"days": days}, token: token));
+  }
 
 }
 

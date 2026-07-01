@@ -24,6 +24,7 @@ import '../../core/widgets/brand_logo.dart';
 import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../payment/payment_success_screen.dart';
+import 'products_phase2.dart';
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -55,7 +56,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
 
       final results = await Future.wait([storesFuture, bannersFuture, productsFuture]);
       if (mounted) setState((){
-        _stores   = List<Map<String,dynamic>>.from(results[0]);
+        _stores   = List<Map<String,dynamic>>.from(results[0] as Iterable);
         _banners  = List<Map<String,dynamic>>.from(results[1]);
         _products = List<Map<String,dynamic>>.from(results[2]);
         _loading  = false;
@@ -1015,7 +1016,7 @@ class _AddBannerState extends State<AddBannerPage> {
 }
 
 // ══════════════════════════════════════════════════════════
-// MERCHANT PRODUCTS PAGE
+// MERCHANT PRODUCTS PAGE  (Phase 2 — search / filter / bulk / upgrade / renew)
 // ══════════════════════════════════════════════════════════
 
 class MerchantProductsPage extends StatefulWidget {
@@ -1023,263 +1024,514 @@ class MerchantProductsPage extends StatefulWidget {
   const MerchantProductsPage({super.key, required this.token});
   @override State<MerchantProductsPage> createState() => _MerchantProductsState();
 }
+
 class _MerchantProductsState extends State<MerchantProductsPage> {
-  List<Map<String,dynamic>> _products = []; bool _loading = true;
+  List<Map<String,dynamic>> _products = [];
+  List<Map<String,dynamic>> _filtered = [];
+  bool _loading = true;
+
+  // Search + filter
+  final _searchCtrl = TextEditingController();
+  String _typeFilter   = "All";   // All / Standard / Premium
+  String _statusFilter = "All";   // All / approved / pending_approval / expired
+
+  // Bulk select
+  bool _bulkMode = false;
+  final Set<String> _selected = {};
+
+  // Expiry warnings
+  List<dynamic> _expiryWarnings = [];
 
   @override void initState() { super.initState(); _load(); }
+  @override void dispose()   { _searchCtrl.dispose(); super.dispose(); }
 
   Future<void> _load() async {
-    setState(()=>_loading=true);
-    _products = List<Map<String,dynamic>>.from(await Api.getMerchantProducts(widget.token));
-    if (mounted) setState(()=>_loading=false);
+    setState(() => _loading = true);
+    try {
+      final productsFuture = Api.getMerchantProducts(widget.token);
+      final expiryFuture   = Api.checkProductExpiry(widget.token);
+      final rawProducts = await productsFuture;
+      _products = List<Map<String,dynamic>>.from(rawProducts);
+      final exp = await expiryFuture;
+      _expiryWarnings = (exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[]);
+    } catch (_) {}
+    _applyFilters();
+    if (mounted) setState(() => _loading = false);
   }
 
-  @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("My Products",style:TextStyle(fontWeight:FontWeight.w800))]),
+  void _applyFilters() {
+    final q = _searchCtrl.text.toLowerCase();
+    _filtered = _products.where((v) {
+      final title  = (v["title"] ?? "").toString().toLowerCase();
+      final offer  = (v["offer_text"] ?? "").toString().toLowerCase();
+      final ptype  = (v["product_type"] ?? "premium").toString();
+      final rawSt  = (v["approval_status"] ?? v["status"] ?? "").toString();
+      // Compute effective status
+      String st = rawSt;
+      if (st == "approved") {
+        final endRaw = v["end_date"]?.toString() ?? "";
+        if (endRaw.isNotEmpty) {
+          try { if (DateTime.now().isAfter(DateTime.parse(endRaw))) st = "expired"; } catch (_) {}
+        }
+      }
+      if (q.isNotEmpty && !title.contains(q) && !offer.contains(q)) return false;
+      if (_typeFilter != "All") {
+        if (_typeFilter == "Standard" && ptype != "standard") return false;
+        if (_typeFilter == "Premium"  && ptype == "standard") return false;
+      }
+      if (_statusFilter != "All" && st != _statusFilter) return false;
+      return true;
+    }).toList();
+  }
+
+  String _pid(Map<String,dynamic> v) {
+    final raw = v["_id"];
+    return (raw is Map) ? (raw["\$oid"] ?? raw["oid"] ?? "").toString() : (raw ?? "").toString();
+  }
+
+  Future<void> _doBulkAction(String action) async {
+    if (_selected.isEmpty) return;
+    final ids = _selected.toList();
+    try {
+      await Api.bulkProductAction(widget.token, ids, action);
+      _selected.clear();
+      _bulkMode = false;
+      _load();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("${action.capitalize()} applied to ${ids.length} product(s)"),
+                 backgroundColor: kPrimary));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: kBg,
+    appBar: AppBar(
+      title: Row(children: [
+        buildImageLogo(height: 24, white: true),
+        const SizedBox(width: 8),
+        const Text("My Products", style: TextStyle(fontWeight: FontWeight.w800)),
+      ]),
       backgroundColor: Colors.white, foregroundColor: kText,
+      actions: [
+        IconButton(
+          icon: Icon(_bulkMode ? Icons.close : Icons.checklist_rounded, color: kPrimary),
+          tooltip: _bulkMode ? "Exit bulk" : "Bulk select",
+          onPressed: () => setState(() { _bulkMode = !_bulkMode; _selected.clear(); }),
+        ),
+      ],
     ),
-    floatingActionButton:FloatingActionButton.extended(
+    floatingActionButton: _bulkMode ? null : FloatingActionButton.extended(
       backgroundColor: Colors.white, foregroundColor: kText,
-      icon:const Icon(Icons.add), label:const Text("New Product"),
-      onPressed:() => _showProductTypeDialog(context, widget.token, _load),
+      icon: const Icon(Icons.add), label: const Text("New Product"),
+      onPressed: () => _showProductTypeDialog(context, widget.token, _load),
     ),
-    body:_loading
-      ? const Center(child:CircularProgressIndicator(color:kPrimary))
-      : Column(children:[
-          Expanded(child:_products.isEmpty
-            ? const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                Icon(Icons.local_activity_outlined,size:64,color:kAccent),
-                SizedBox(height:12),
-                Text("No products yet",style:TextStyle(color:kMuted,fontSize:16)),
-                SizedBox(height:6),
-                Text("Tap + to add a product card",style:TextStyle(color:kMuted,fontSize:13)),
-              ]))
-            : RefreshIndicator(
-                onRefresh:_load,
-                child:ListView.builder(
-                  padding:const EdgeInsets.all(14),
-                  itemCount:_products.length,
-                  itemBuilder:(_,i){
-                    final v = _products[i];
-                    final pType = (v["product_type"]??"premium").toString();
-                    final isStd = pType == "standard";
+    body: Column(children: [
+      // ── Expiry warning banner ──
+      if (_expiryWarnings.isNotEmpty) ExpiryWarningBanner(
+        expiring: List<Map<String,dynamic>>.from(
+            _expiryWarnings.whereType<Map>().map((e) => Map<String,dynamic>.from(e))),
+        onRenewTap: () => setState(() {
+          _typeFilter = "Premium"; _statusFilter = "expired"; _applyFilters();
+        }),
+      ),
 
-                    // Resolve status
-                    String status = (v["approval_status"]??"").isNotEmpty
-                        ? (v["approval_status"]??"pending_approval")
-                        : (v["status"]??"pending_approval");
-                    final _vEndRaw = v["end_date"]?.toString() ?? "";
-                    if (status == "approved" && _vEndRaw.isNotEmpty) {
-                      try { final _vEnd = DateTime.parse(_vEndRaw);
-                        if (DateTime.now().isAfter(_vEnd)) status = "expired";
-                      } catch (_) {}
-                    }
-                    // Standard-specific status labels
-                    final (Color sc, String sl) = isStd
-                        ? switch(status) {
-                            "approved"              => (const Color(0xFF1a6640),"✅ Live in Store (Subscription Active)"),
-                            "subscription_expired"  => (Colors.grey.shade600,"⏸ Paused — Renew Store Subscription"),
-                            _ => (kMuted,"📝 Subscription Required"),
-                          }
-                        : switch(status) {
-                            "approved"         => (const Color(0xFF1a6640),"✅ Live in Discover Products"),
-                            "rejected"         => (Colors.red,"❌ Rejected"),
-                            "expired"          => (Colors.grey.shade600,"⏰ Expired"),
-                            "pending_approval"  => (const Color(0xFF856404),"⏳ Awaiting Approval"),
-                            _ => (kMuted,"📝 Pending"),
-                          };
+      // ── Search bar ──
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: (_) => setState(_applyFilters),
+          decoration: InputDecoration(
+            hintText: "Search products…",
+            hintStyle: const TextStyle(color: kMuted, fontSize: 13),
+            prefixIcon: const Icon(Icons.search, color: kMuted, size: 20),
+            suffixIcon: _searchCtrl.text.isNotEmpty
+                ? IconButton(icon: const Icon(Icons.clear, size: 18, color: kMuted),
+                    onPressed: () { _searchCtrl.clear(); setState(_applyFilters); })
+                : null,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            filled: true, fillColor: Colors.white,
+            border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 1.5)),
+          ),
+        ),
+      ),
 
-                    // Product type badge colors
-                    final (Color typeBadgeColor, String typeBadgeLabel) = isStd
-                        ? (const Color(0xFF1a6640), "🟢 Standard")
-                        : (const Color(0xFF6B2FAA), "🟣 Premium");
-
-                    // Extract product id
-                    final _rawId = v["_id"];
-                    final _productId = (_rawId is Map)
-                        ? (_rawId["\$oid"] ?? _rawId["oid"] ?? "").toString()
-                        : (_rawId ?? "").toString();
-
-                    return Stack(children:[Card(elevation:2,margin:const EdgeInsets.only(bottom:14),
-                      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-                      child:Padding(
-                        padding:const EdgeInsets.fromLTRB(12,10,12,44),
-                        child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          _ProductThumb(logoUrl: v["logo_url"]??''),
-                          const SizedBox(width:12),
-                          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                            // Type badge row
-                            Row(children:[
-                              Container(
-                                padding:const EdgeInsets.symmetric(horizontal:7,vertical:2),
-                                decoration:BoxDecoration(
-                                  color:typeBadgeColor.withValues(alpha:.1),
-                                  borderRadius:BorderRadius.circular(8),
-                                  border:Border.all(color:typeBadgeColor.withValues(alpha:.3)),
-                                ),
-                                child:Text(typeBadgeLabel,style:TextStyle(color:typeBadgeColor,fontSize:10,fontWeight:FontWeight.w700)),
-                              ),
-                            ]),
-                            const SizedBox(height:4),
-                            Text(v["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText)),
-                            Text(v["offer_text"]??"",style:const TextStyle(fontSize:12,color:kMuted)),
-                            const SizedBox(height:4),
-                            Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
-                              decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(10)),
-                              child:Text(sl,style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w600))),
-                            // Validity / subscription info
-                            if (!isStd) Builder(builder:(_) {
-                              final endRaw = v["end_date"]?.toString() ?? "";
-                              final days   = v["duration_days"]??v["duration"];
-                              if (endRaw.isNotEmpty) {
-                                try {
-                                  final end = DateTime.parse(endRaw);
-                                  final diff = end.difference(DateTime.now()).inDays;
-                                  final label = diff > 0
-                                      ? "Expires ${end.day.toString().padLeft(2,'0')}-${end.month.toString().padLeft(2,'0')}-${end.year}"
-                                      : "Expired";
-                                  return Padding(
-                                    padding: const EdgeInsets.only(top:4),
-                                    child: Row(mainAxisSize:MainAxisSize.min, children:[
-                                      Icon(diff>0?Icons.calendar_today_rounded:Icons.event_busy_rounded,
-                                        size:11, color: diff>0?kMuted:Colors.red),
-                                      const SizedBox(width:4),
-                                      Text(label, style:TextStyle(fontSize:10, color:diff>0?kMuted:Colors.red, fontWeight:FontWeight.w600)),
-                                    ]),
-                                  );
-                                } catch(_) {}
-                              }
-                              if (days != null) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top:4),
-                                  child: Row(mainAxisSize:MainAxisSize.min, children:[
-                                    const Icon(Icons.timelapse_rounded, size:11, color:kMuted),
-                                    const SizedBox(width:4),
-                                    Text("Duration: $days days",
-                                      style:const TextStyle(fontSize:10,color:kMuted,fontWeight:FontWeight.w600)),
-                                  ]),
-                                );
-                              }
-                              return const SizedBox.shrink();
-                            })
-                            else Padding(
-                              padding: const EdgeInsets.only(top:4),
-                              child: Row(mainAxisSize:MainAxisSize.min, children:[
-                                const Icon(Icons.loop_rounded, size:11, color:kMuted),
-                                const SizedBox(width:4),
-                                Text("Linked to store subscription",
-                                  style:const TextStyle(fontSize:10,color:kMuted,fontWeight:FontWeight.w600)),
-                              ]),
-                            ),
-                          ])),
-                          if (!isStd && (v['amount']??0) != 0)
-                            Text("₹${v['amount']??0}",style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:12)),
-                        ]),
-                      ),
-                    ),
-                    // Edit + Delete button row
-                    Positioned(bottom:8,right:8,
-                      child:Row(mainAxisSize:MainAxisSize.min,children:[
-                        OutlinedButton.icon(
-                          onPressed:() async {
-                            final tCtrl = TextEditingController(text:v["title"]??"");
-                            final oCtrl = TextEditingController(text:v["offer_text"]??"");
-                            final opCtrl= TextEditingController(text:(v["original_price"]??v["original_amount"]??"").toString());
-                            final prCtrl= TextEditingController(text:(v["price"]??v["offer_price"]??v["amount"]??"").toString());
-                            final saved = await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>AlertDialog(
-                              title:const Text("Edit Product",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
-                              content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-                                _EditField(ctrl:tCtrl,label:"Title"),
-                                const SizedBox(height:10),
-                                _EditField(ctrl:oCtrl,label:"Offer Text"),
-                                const SizedBox(height:10),
-                                _EditField(ctrl:opCtrl,label:"Original Price",type:TextInputType.number),
-                                const SizedBox(height:10),
-                                _EditField(ctrl:prCtrl,label:"Offer Price",type:TextInputType.number),
-                              ])),
-                              actions:[
-                                TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
-                                ElevatedButton(
-                                  style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
-                                  onPressed:(){
-                                    final _opVal = double.tryParse(opCtrl.text.trim());
-                                    final _prVal = double.tryParse(prCtrl.text.trim());
-                                    Navigator.pop(context, <String,dynamic>{
-                                      "title": tCtrl.text.trim(),
-                                      "offer_text": oCtrl.text.trim(),
-                                      if (_opVal != null) "original_price": _opVal,
-                                      if (_prVal != null) "price": _prVal,
-                                      if (_prVal != null) "amount": _prVal,
-                                    });
-                                  },
-                                  child:const Text("Save",style:TextStyle(color:Colors.white))),
-                              ],
-                            ));
-                            if (saved != null && saved.isNotEmpty) {
-                              try {
-                                if (_productId.isEmpty) throw Exception("Product ID missing — cannot update");
-                                await Api.updateMerchantProduct(widget.token, _productId, saved);
-                                _load();
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content:Text("Product updated!"),backgroundColor:Color(0xFF1a6640)));
-                              } catch(e) {
-                                if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content:Text("Error: ${e.toString().replaceAll('Exception: ','')}"),backgroundColor:Colors.red));
-                              }
-                            }
-                          },
-                          icon:const Icon(Icons.edit_rounded,size:13,color:kPrimary),
-                          label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:11)),
-                          style:OutlinedButton.styleFrom(
-                            side:const BorderSide(color:kPrimary),
-                            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-                            padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
-                            minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                        ),
-                        const SizedBox(width:6),
-                        OutlinedButton.icon(
-                          onPressed:() async {
-                            final confirm = await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
-                              title:const Text("Delete Product?",style:TextStyle(color:Colors.red,fontWeight:FontWeight.bold)),
-                              content:Text("Delete \"${v['title']??'this product'}\"? This cannot be undone."),
-                              actions:[
-                                TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMuted))),
-                                ElevatedButton(
-                                  style:ElevatedButton.styleFrom(backgroundColor:Colors.red),
-                                  onPressed:()=>Navigator.pop(context,true),
-                                  child:const Text("Delete",style:TextStyle(color:Colors.white))),
-                              ],
-                            ));
-                            if (confirm == true && mounted) {
-                              try {
-                                await Api.deleteMerchantProduct(widget.token, _productId);
-                                _load();
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content:Text("Product deleted."),backgroundColor:Colors.red));
-                              } catch(e) {
-                                if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content:Text("Error deleting: ${e.toString().replaceAll('Exception: ','')}"),backgroundColor:Colors.red));
-                              }
-                            }
-                          },
-                          icon:const Icon(Icons.delete_outline_rounded,size:13,color:Colors.red),
-                          label:const Text("Delete",style:TextStyle(color:Colors.red,fontSize:11)),
-                          style:OutlinedButton.styleFrom(
-                            side:const BorderSide(color:Colors.red),
-                            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-                            padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
-                            minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                        ),
-                      ]),
-                    ),
-                  ]);
-                  },
-                ),
+      // ── Filter chips ──
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(children: [
+          // Type chips
+          for (final t in ["All","Standard","Premium"])
+            Padding(padding: const EdgeInsets.only(right: 6),
+              child: FilterChip(
+                label: Text(t, style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w600,
+                  color: _typeFilter == t ? Colors.white : kText)),
+                selected: _typeFilter == t,
+                onSelected: (_) => setState(() { _typeFilter = t; _applyFilters(); }),
+                selectedColor: kPrimary, backgroundColor: Colors.white,
+                side: const BorderSide(color: kBorder),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              )),
+          const SizedBox(width: 8),
+          Container(width: 1, height: 20, color: kBorder),
+          const SizedBox(width: 8),
+          // Status chips
+          for (final s in [("All","All"),("approved","✅ Live"),("pending_approval","⏳ Pending"),("expired","⏰ Expired")])
+            Padding(padding: const EdgeInsets.only(right: 6),
+              child: FilterChip(
+                label: Text(s.$2, style: TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w600,
+                  color: _statusFilter == s.$1 ? Colors.white : kText)),
+                selected: _statusFilter == s.$1,
+                onSelected: (_) => setState(() { _statusFilter = s.$1; _applyFilters(); }),
+                selectedColor: kPrimary, backgroundColor: Colors.white,
+                side: const BorderSide(color: kBorder),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
               )),
         ]),
+      ),
+
+      // ── Bulk action bar ──
+      if (_bulkMode)
+        Container(
+          color: kPrimary.withValues(alpha: .08),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(children: [
+            Text("${_selected.length} selected", style: const TextStyle(fontWeight: FontWeight.w700, color: kPrimary)),
+            const Spacer(),
+            TextButton(onPressed: () => _doBulkAction("activate"),   child: const Text("Activate",   style: TextStyle(color: kPrimary))),
+            TextButton(onPressed: () => _doBulkAction("deactivate"), child: const Text("Deactivate", style: TextStyle(color: Colors.orange))),
+            TextButton(onPressed: () => _doBulkAction("delete"),     child: const Text("Delete",     style: TextStyle(color: Colors.red))),
+          ]),
+        ),
+
+      // ── List ──
+      Expanded(child: _loading
+        ? const Center(child: CircularProgressIndicator(color: kPrimary))
+        : _filtered.isEmpty
+            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.local_activity_outlined, size: 64, color: kAccent),
+                const SizedBox(height: 12),
+                Text(_products.isEmpty ? "No products yet" : "No matching products",
+                  style: const TextStyle(color: kMuted, fontSize: 16)),
+                if (_products.isEmpty) ...[
+                  const SizedBox(height: 6),
+                  const Text("Tap + to add a product card", style: TextStyle(color: kMuted, fontSize: 13)),
+                ],
+              ]))
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(14),
+                  itemCount: _filtered.length,
+                  itemBuilder: (_, i) => _buildCard(_filtered[i]),
+                ),
+              ),
+      ),
+    ]),
   );
+
+  Widget _buildCard(Map<String,dynamic> v) {
+    final pType = (v["product_type"] ?? "premium").toString();
+    final isStd = pType == "standard";
+    final pid   = _pid(v);
+
+    // Effective status
+    String status = (v["approval_status"] ?? "").isNotEmpty
+        ? (v["approval_status"] ?? "pending_approval").toString()
+        : (v["status"] ?? "pending_approval").toString();
+    final endRaw = v["end_date"]?.toString() ?? "";
+    if (status == "approved" && endRaw.isNotEmpty) {
+      try { if (DateTime.now().isAfter(DateTime.parse(endRaw))) status = "expired"; } catch (_) {}
+    }
+    final isExpired  = status == "expired";
+    final isApproved = status == "approved";
+    final isAvail    = v["is_available"] != false;
+
+    // Status colour + label
+    final (Color sc, String sl) = isStd
+        ? switch(status) {
+            "approved"             => (const Color(0xFF1a6640), "✅ Live (Sub Active)"),
+            "subscription_expired" => (Colors.grey.shade600, "⏸ Paused — Renew Sub"),
+            _                      => (kMuted, "📝 Subscription Required"),
+          }
+        : switch(status) {
+            "approved"        => (const Color(0xFF1a6640), "✅ Live in Discover"),
+            "rejected"        => (Colors.red,              "❌ Rejected"),
+            "expired"         => (Colors.grey.shade600,    "⏰ Expired"),
+            "pending_approval" => (const Color(0xFF856404), "⏳ Awaiting Approval"),
+            _                  => (kMuted,                  "📝 Pending"),
+          };
+
+    // Type badge
+    final (Color tbc, String tbl) = isStd
+        ? (const Color(0xFF1a6640), "🟢 Standard")
+        : (const Color(0xFF6B2FAA), "🟣 Premium");
+
+    // Days left
+    int? daysLeft;
+    if (!isStd && endRaw.isNotEmpty) {
+      try { daysLeft = DateTime.parse(endRaw).difference(DateTime.now()).inDays; } catch (_) {}
+    }
+
+    final isSelected = _selected.contains(pid);
+
+    return Stack(children: [
+      Card(
+        elevation: 2,
+        margin: const EdgeInsets.only(bottom: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: _bulkMode && isSelected
+              ? const BorderSide(color: kPrimary, width: 2)
+              : BorderSide.none,
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: _bulkMode
+              ? () => setState(() {
+                  if (isSelected) _selected.remove(pid); else _selected.add(pid);
+                })
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 52),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Checkbox in bulk mode
+              if (_bulkMode)
+                Padding(
+                  padding: const EdgeInsets.only(right: 10, top: 2),
+                  child: Checkbox(value: isSelected, activeColor: kPrimary,
+                    onChanged: (_) => setState(() {
+                      if (isSelected) _selected.remove(pid); else _selected.add(pid);
+                    })),
+                ),
+              _ProductThumb(logoUrl: v["logo_url"] ?? ""),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Type badge + availability toggle
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: tbc.withValues(alpha: .1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: tbc.withValues(alpha: .3)),
+                    ),
+                    child: Text(tbl, style: TextStyle(color: tbc, fontSize: 10, fontWeight: FontWeight.w700)),
+                  ),
+                  const Spacer(),
+                  // Availability toggle
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text(isAvail ? "On" : "Off",
+                      style: TextStyle(fontSize: 10, color: isAvail ? kPrimary : kMuted,
+                                       fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 4),
+                    Transform.scale(scale: 0.7,
+                      child: Switch(
+                        value: isAvail,
+                        activeColor: kPrimary,
+                        onChanged: (val) async {
+                          if (pid.isEmpty) return;
+                          setState(() => v["is_available"] = val);
+                          try {
+                            await Api.setProductAvailability(widget.token, pid, val);
+                          } catch (e) {
+                            setState(() => v["is_available"] = !val);
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+                          }
+                        },
+                      )),
+                  ]),
+                ]),
+                const SizedBox(height: 4),
+                Text(v["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
+                Text(v["offer_text"] ?? "", style: const TextStyle(fontSize: 12, color: kMuted)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: sc.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)),
+                  child: Text(sl, style: TextStyle(color: sc, fontSize: 11, fontWeight: FontWeight.w600))),
+                // Expiry info for Premium
+                if (!isStd && daysLeft != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(daysLeft > 0 ? Icons.calendar_today_rounded : Icons.event_busy_rounded,
+                        size: 11, color: daysLeft > 7 ? kMuted : Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        daysLeft > 0
+                          ? "Expires ${DateTime.parse(endRaw).day.toString().padLeft(2,'0')}-${DateTime.parse(endRaw).month.toString().padLeft(2,'0')}-${DateTime.parse(endRaw).year}"
+                          : "Expired",
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
+                          color: daysLeft > 7 ? kMuted : (daysLeft > 0 ? Colors.orange : Colors.red))),
+                    ]),
+                  ),
+                if (isStd)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.loop_rounded, size: 11, color: kMuted),
+                      const SizedBox(width: 4),
+                      const Text("Linked to store subscription",
+                        style: TextStyle(fontSize: 10, color: kMuted, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+              ])),
+              if (!isStd && (v["amount"] ?? 0) != 0)
+                Text("₹${v['amount'] ?? 0}",
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: kPrimary, fontSize: 12)),
+            ]),
+          ),
+        ),
+      ),
+
+      // ── Action button row ──
+      if (!_bulkMode)
+        Positioned(bottom: 8, left: 12, right: 12,
+          child: Wrap(spacing: 6, runSpacing: 4, children: [
+            // Edit
+            _ActionBtn(label: "Edit", icon: Icons.edit_rounded, color: kPrimary,
+              onTap: () => _showEditDialog(v, pid)),
+            // Delete
+            _ActionBtn(label: "Delete", icon: Icons.delete_outline_rounded, color: Colors.red,
+              onTap: () => _confirmDelete(v, pid)),
+            // Analytics
+            if (pid.isNotEmpty)
+              _ActionBtn(label: "Analytics", icon: Icons.bar_chart_rounded, color: const Color(0xFF856404),
+                onTap: () => Navigator.push(context,
+                  _offroRoute(ProductAnalyticsPage(token: widget.token, product: v)))),
+            // History
+            if (pid.isNotEmpty)
+              _ActionBtn(label: "History", icon: Icons.history_rounded, color: kMuted,
+                onTap: () => Navigator.push(context,
+                  _offroRoute(ProductHistoryPage(token: widget.token, product: v)))),
+            // Upgrade (Standard only, not already upgraded)
+            if (isStd && v["upgraded"] != true)
+              _ActionBtn(label: "Upgrade", icon: Icons.upgrade_rounded,
+                color: const Color(0xFF6B2FAA),
+                onTap: () => Navigator.push(context,
+                  _offroRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load())),
+            // Renew (Premium, approved or expired)
+            if (!isStd && (isApproved || isExpired))
+              _ActionBtn(label: "Renew", icon: Icons.autorenew_rounded,
+                color: const Color(0xFF1a6640),
+                onTap: () => Navigator.push(context,
+                  _offroRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load())),
+          ]),
+        ),
+    ]);
+  }
+
+  Future<void> _showEditDialog(Map<String,dynamic> v, String pid) async {
+    final tCtrl  = TextEditingController(text: v["title"] ?? "");
+    final oCtrl  = TextEditingController(text: v["offer_text"] ?? "");
+    final opCtrl = TextEditingController(text: (v["original_price"] ?? v["original_amount"] ?? "").toString());
+    final prCtrl = TextEditingController(text: (v["price"] ?? v["offer_price"] ?? v["amount"] ?? "").toString());
+    final saved  = await showDialog<Map<String,dynamic>>(context: context, builder: (_) => AlertDialog(
+      title: const Text("Edit Product", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _EditField(ctrl: tCtrl,  label: "Title"),
+        const SizedBox(height: 10),
+        _EditField(ctrl: oCtrl,  label: "Offer Text"),
+        const SizedBox(height: 10),
+        _EditField(ctrl: opCtrl, label: "Original Price", type: TextInputType.number),
+        const SizedBox(height: 10),
+        _EditField(ctrl: prCtrl, label: "Offer Price",    type: TextInputType.number),
+      ])),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: kMuted))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+          onPressed: () {
+            final opVal = double.tryParse(opCtrl.text.trim());
+            final prVal = double.tryParse(prCtrl.text.trim());
+            Navigator.pop(context, <String,dynamic>{
+              "title": tCtrl.text.trim(),
+              "offer_text": oCtrl.text.trim(),
+              if (opVal != null) "original_price": opVal,
+              if (prVal != null) "price": prVal,
+              if (prVal != null) "amount": prVal,
+            });
+          },
+          child: const Text("Save", style: TextStyle(color: Colors.white))),
+      ],
+    ));
+    if (saved != null && saved.isNotEmpty) {
+      try {
+        if (pid.isEmpty) throw Exception("Product ID missing — cannot update");
+        await Api.updateMerchantProduct(widget.token, pid, saved);
+        _load();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product updated!"), backgroundColor: Color(0xFF1a6640)));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: ${e.toString().replaceAll('Exception: ','')}"), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(Map<String,dynamic> v, String pid) async {
+    final confirm = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+      title: const Text("Delete Product?", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+      content: Text("Delete \"${v['title'] ?? 'this product'}\"? This cannot be undone."),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel", style: TextStyle(color: kMuted))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text("Delete", style: TextStyle(color: Colors.white))),
+      ],
+    ));
+    if (confirm == true && mounted) {
+      try {
+        await Api.deleteMerchantProduct(widget.token, pid);
+        _load();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product deleted."), backgroundColor: Colors.red));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error deleting: ${e.toString().replaceAll('Exception: ','')}"), backgroundColor: Colors.red));
+      }
+    }
+  }
+}
+
+// ── Compact action button ──────────────────────────────────────────────────
+class _ActionBtn extends StatelessWidget {
+  final String label; final IconData icon; final Color color; final VoidCallback onTap;
+  const _ActionBtn({required this.label, required this.icon, required this.color, required this.onTap});
+  @override Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: .35)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+      ]),
+    ),
+  );
+}
+
+// ── String capitalize extension ────────────────────────────────────────────
+extension _Capitalize on String {
+  String capitalize() => isEmpty ? this : "${this[0].toUpperCase()}${substring(1)}";
 }
 
 // ── Product type choice dialog + navigation ──────────────────────────────────
