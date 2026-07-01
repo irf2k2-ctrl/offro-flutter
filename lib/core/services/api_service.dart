@@ -572,6 +572,24 @@ class Api {
   static Future<Map<String,dynamic>> verifyProductPayment(String token, Map body) =>
     _post("/merchant/products/verify", body, token: token);
 
+  static Future<Map<String,dynamic>> createStandardProduct(String token, Map body) async {
+    try { return Map<String,dynamic>.from(await _post("/merchant/products/standard", body, token: token)); }
+    catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
+  }
+
+  static Future<Map<String,dynamic>> getProductLimit(String token) async {
+    try { return Map<String,dynamic>.from(await _get("/merchant/products/limit", token: token)); }
+    catch(_) { return {"standard_product_limit": 10, "standard_count": 0, "premium_count": 0}; }
+  }
+
+  static Future<void> deleteMerchantProduct(String token, String productId) async {
+    try {
+      final uri = Uri.parse("$kBaseUrl/merchant/products/$productId");
+      await http.delete(uri, headers: {"Authorization": "Bearer $token"})
+          .timeout(const Duration(seconds: 20));
+    } catch(_) {}
+  }
+
   static Future<List> getProductCards({String city = ''}) async {
     // Delegates to getPublicProducts — /products-public does not exist
     return getPublicProducts(city: city);

@@ -169,10 +169,14 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                   : _products.isEmpty
                     ? "No products yet — add your first product"
                     : ((){
+                        final std=_products.where((v)=>(v['product_type']??'')=='standard').length;
+                        final prem=_products.where((v)=>(v['product_type']??'premium')=='premium').length;
                         final live=_products.where((v)=>(v['approval_status']??v['status']??'')=='approved').length;
-                        final pend=_products.where((v){final st=(v['approval_status']??v['status']??'').toString();return st=='pending'||st=='pending_approval';}).length;
-                        final parts=<String>[];if(live>0)parts.add("$live Live");if(pend>0)parts.add("$pend Pending");
-                        return "${_products.length} Product${_products.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
+                        final parts=<String>[];
+                        if(std>0) parts.add("🟢 Std: $std");
+                        if(prem>0) parts.add("🟣 Prem: $prem");
+                        if(live>0) parts.add("$live Live");
+                        return parts.join(' • ');
                       })(),
                 onTap: _hasEligibleStore
                   ? ()=>Navigator.push(context,_offroRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
@@ -1039,7 +1043,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     floatingActionButton:FloatingActionButton.extended(
       backgroundColor: Colors.white, foregroundColor: kText,
       icon:const Icon(Icons.add), label:const Text("New Product"),
-      onPressed:()=>Navigator.push(context,_offroRoute(AddProductPage(token:widget.token))).then((_)=>_load()),
+      onPressed:() => _showProductTypeDialog(context, widget.token, _load),
     ),
     body:_loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
@@ -1059,144 +1063,297 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   itemCount:_products.length,
                   itemBuilder:(_,i){
                     final v = _products[i];
-                    // TASK 14: read approval_status as primary, fallback to status
-                    // TASK 4: expired check for products
-                    String status = (v["approval_status"]??"").isNotEmpty ? (v["approval_status"]??"pending_approval") : (v["status"]??"pending_approval");
+                    final pType = (v["product_type"]??"premium").toString();
+                    final isStd = pType == "standard";
+
+                    // Resolve status
+                    String status = (v["approval_status"]??"").isNotEmpty
+                        ? (v["approval_status"]??"pending_approval")
+                        : (v["status"]??"pending_approval");
                     final _vEndRaw = v["end_date"]?.toString() ?? "";
                     if (status == "approved" && _vEndRaw.isNotEmpty) {
                       try { final _vEnd = DateTime.parse(_vEndRaw);
                         if (DateTime.now().isAfter(_vEnd)) status = "expired";
                       } catch (_) {}
                     }
-                    final (Color sc, String sl) = switch(status) {
-                      "approved"         => (const Color(0xFF1a6640),"✅ Live in Discover Products"),
-                      "rejected"         => (Colors.red,"❌ Rejected"),
-                      "expired"          => (Colors.grey.shade600,"⏰ Expired"),
-                      "pending_approval" => (const Color(0xFF856404),"⏳ Awaiting Approval"),
-                      _ => (kMuted,"📝 Pending"),
-                    };
+                    // Standard-specific status labels
+                    final (Color sc, String sl) = isStd
+                        ? switch(status) {
+                            "approved"              => (const Color(0xFF1a6640),"✅ Live in Store (Subscription Active)"),
+                            "subscription_expired"  => (Colors.grey.shade600,"⏸ Paused — Renew Store Subscription"),
+                            _ => (kMuted,"📝 Subscription Required"),
+                          }
+                        : switch(status) {
+                            "approved"         => (const Color(0xFF1a6640),"✅ Live in Discover Products"),
+                            "rejected"         => (Colors.red,"❌ Rejected"),
+                            "expired"          => (Colors.grey.shade600,"⏰ Expired"),
+                            "pending_approval"  => (const Color(0xFF856404),"⏳ Awaiting Approval"),
+                            _ => (kMuted,"📝 Pending"),
+                          };
+
+                    // Product type badge colors
+                    final (Color typeBadgeColor, String typeBadgeLabel) = isStd
+                        ? (const Color(0xFF1a6640), "🟢 Standard")
+                        : (const Color(0xFF6B2FAA), "🟣 Premium");
+
+                    // Extract product id
+                    final _rawId = v["_id"];
+                    final _productId = (_rawId is Map)
+                        ? (_rawId["\$oid"] ?? _rawId["oid"] ?? "").toString()
+                        : (_rawId ?? "").toString();
+
                     return Stack(children:[Card(elevation:2,margin:const EdgeInsets.only(bottom:14),
                       shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-                      child:ListTile(
-                        contentPadding:const EdgeInsets.fromLTRB(12,10,12,10),
-                        leading:_ProductThumb(logoUrl: v["logo_url"]??''),
-                        title:Text(v["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText)),
-                        subtitle:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Text(v["offer_text"]??"",style:const TextStyle(fontSize:12,color:kMuted)),
-                          const SizedBox(height:4),
-                          Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
-                            decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(10)),
-                            child:Text(sl,style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w600))),
-                          // FIX 13: Duration / validity info
-                          Builder(builder:(_) {
-                            final endRaw = v["end_date"]?.toString() ?? "";
-                            final days   = v["duration_days"]??v["duration"];
-                            if (endRaw.isNotEmpty) {
-                              try {
-                                final end = DateTime.parse(endRaw);
-                                final diff = end.difference(DateTime.now()).inDays;
-                                final label = diff > 0
-                                    ? "Valid until ${end.day.toString().padLeft(2,'0')}-${end.month.toString().padLeft(2,'0')}-${end.year}"
-                                    : "Expired";
+                      child:Padding(
+                        padding:const EdgeInsets.fromLTRB(12,10,12,44),
+                        child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                          _ProductThumb(logoUrl: v["logo_url"]??''),
+                          const SizedBox(width:12),
+                          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                            // Type badge row
+                            Row(children:[
+                              Container(
+                                padding:const EdgeInsets.symmetric(horizontal:7,vertical:2),
+                                decoration:BoxDecoration(
+                                  color:typeBadgeColor.withValues(alpha:.1),
+                                  borderRadius:BorderRadius.circular(8),
+                                  border:Border.all(color:typeBadgeColor.withValues(alpha:.3)),
+                                ),
+                                child:Text(typeBadgeLabel,style:TextStyle(color:typeBadgeColor,fontSize:10,fontWeight:FontWeight.w700)),
+                              ),
+                            ]),
+                            const SizedBox(height:4),
+                            Text(v["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText)),
+                            Text(v["offer_text"]??"",style:const TextStyle(fontSize:12,color:kMuted)),
+                            const SizedBox(height:4),
+                            Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                              decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(10)),
+                              child:Text(sl,style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w600))),
+                            // Validity / subscription info
+                            if (!isStd) Builder(builder:(_) {
+                              final endRaw = v["end_date"]?.toString() ?? "";
+                              final days   = v["duration_days"]??v["duration"];
+                              if (endRaw.isNotEmpty) {
+                                try {
+                                  final end = DateTime.parse(endRaw);
+                                  final diff = end.difference(DateTime.now()).inDays;
+                                  final label = diff > 0
+                                      ? "Expires ${end.day.toString().padLeft(2,'0')}-${end.month.toString().padLeft(2,'0')}-${end.year}"
+                                      : "Expired";
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top:4),
+                                    child: Row(mainAxisSize:MainAxisSize.min, children:[
+                                      Icon(diff>0?Icons.calendar_today_rounded:Icons.event_busy_rounded,
+                                        size:11, color: diff>0?kMuted:Colors.red),
+                                      const SizedBox(width:4),
+                                      Text(label, style:TextStyle(fontSize:10, color:diff>0?kMuted:Colors.red, fontWeight:FontWeight.w600)),
+                                    ]),
+                                  );
+                                } catch(_) {}
+                              }
+                              if (days != null) {
                                 return Padding(
                                   padding: const EdgeInsets.only(top:4),
                                   child: Row(mainAxisSize:MainAxisSize.min, children:[
-                                    Icon(diff>0?Icons.calendar_today_rounded:Icons.event_busy_rounded,
-                                      size:11, color: diff>0?kMuted:Colors.red),
+                                    const Icon(Icons.timelapse_rounded, size:11, color:kMuted),
                                     const SizedBox(width:4),
-                                    Text(label, style:TextStyle(
-                                      fontSize:10, color:diff>0?kMuted:Colors.red,
-                                      fontWeight:FontWeight.w600)),
+                                    Text("Duration: $days days",
+                                      style:const TextStyle(fontSize:10,color:kMuted,fontWeight:FontWeight.w600)),
                                   ]),
                                 );
-                              } catch(_) {}
-                            }
-                            if (days != null) {
-                              return Padding(
-                                padding: const EdgeInsets.only(top:4),
-                                child: Row(mainAxisSize:MainAxisSize.min, children:[
-                                  const Icon(Icons.timelapse_rounded, size:11, color:kMuted),
-                                  const SizedBox(width:4),
-                                  Text("Duration: $days days",
-                                    style:const TextStyle(fontSize:10,color:kMuted,fontWeight:FontWeight.w600)),
-                                ]),
-                              );
-                            }
-                            return const SizedBox.shrink();
-                          }),
+                              }
+                              return const SizedBox.shrink();
+                            })
+                            else Padding(
+                              padding: const EdgeInsets.only(top:4),
+                              child: Row(mainAxisSize:MainAxisSize.min, children:[
+                                const Icon(Icons.loop_rounded, size:11, color:kMuted),
+                                const SizedBox(width:4),
+                                Text("Linked to store subscription",
+                                  style:const TextStyle(fontSize:10,color:kMuted,fontWeight:FontWeight.w600)),
+                              ]),
+                            ),
+                          ])),
+                          if (!isStd && (v['amount']??0) != 0)
+                            Text("₹${v['amount']??0}",style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:12)),
                         ]),
-                        trailing:Text("₹${v['amount']??0}",style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary)),
                       ),
                     ),
-                    // Edit button overlay
+                    // Edit + Delete button row
                     Positioned(bottom:8,right:8,
-                      child:OutlinedButton.icon(
-                        onPressed:() async {
-                          final tCtrl = TextEditingController(text:v["title"]??"");
-                          final oCtrl = TextEditingController(text:v["offer_text"]??"");
-                          final opCtrl= TextEditingController(text:(v["original_price"]??v["original_amount"]??"").toString());
-                          final prCtrl= TextEditingController(text:(v["price"]??v["offer_price"]??v["amount"]??"").toString());
-                          final saved = await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>AlertDialog(
-                            title:const Text("Edit Product",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
-                            content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-                              _EditField(ctrl:tCtrl,label:"Title"),
-                              const SizedBox(height:10),
-                              _EditField(ctrl:oCtrl,label:"Offer Text"),
-                              const SizedBox(height:10),
-                              _EditField(ctrl:opCtrl,label:"Original Price",type:TextInputType.number),
-                              const SizedBox(height:10),
-                              _EditField(ctrl:prCtrl,label:"Offer Price",type:TextInputType.number),
-                            ])),
-                            actions:[
-                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
-                              ElevatedButton(
-                                style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
-                                onPressed:(){
-                                  final _opVal = double.tryParse(opCtrl.text.trim());
-                                  final _prVal = double.tryParse(prCtrl.text.trim());
-                                  Navigator.pop(context, <String,dynamic>{
-                                    "title": tCtrl.text.trim(),
-                                    "offer_text": oCtrl.text.trim(),
-                                    if (_opVal != null) "original_price": _opVal,
-                                    if (_prVal != null) "price": _prVal,
-                                    if (_prVal != null) "amount": _prVal,
-                                  });
-                                },
-                                child:const Text("Save",style:TextStyle(color:Colors.white))),
-                            ],
-                          ));
-                          if (saved != null && saved.isNotEmpty) {
-                            try {
-                              // Extract _id safely — could be Map {"\$oid":"..."} or plain string
-                              final _rawId = v["_id"];
-                              final _productId = (_rawId is Map)
-                                ? (_rawId["\$oid"] ?? _rawId["oid"] ?? "").toString()
-                                : (_rawId ?? "").toString();
-                              if (_productId.isEmpty) throw Exception("Product ID missing — cannot update");
-                              await Api.updateMerchantProduct(widget.token, _productId, saved);
-                              _load();
-                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content:Text("Product updated!"),backgroundColor:Color(0xFF1a6640)));
-                            } catch(e) {
-                              if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content:Text("Error: ${e.toString().replaceAll('Exception: ','')}"),backgroundColor:Colors.red));
+                      child:Row(mainAxisSize:MainAxisSize.min,children:[
+                        OutlinedButton.icon(
+                          onPressed:() async {
+                            final tCtrl = TextEditingController(text:v["title"]??"");
+                            final oCtrl = TextEditingController(text:v["offer_text"]??"");
+                            final opCtrl= TextEditingController(text:(v["original_price"]??v["original_amount"]??"").toString());
+                            final prCtrl= TextEditingController(text:(v["price"]??v["offer_price"]??v["amount"]??"").toString());
+                            final saved = await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>AlertDialog(
+                              title:const Text("Edit Product",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                              content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
+                                _EditField(ctrl:tCtrl,label:"Title"),
+                                const SizedBox(height:10),
+                                _EditField(ctrl:oCtrl,label:"Offer Text"),
+                                const SizedBox(height:10),
+                                _EditField(ctrl:opCtrl,label:"Original Price",type:TextInputType.number),
+                                const SizedBox(height:10),
+                                _EditField(ctrl:prCtrl,label:"Offer Price",type:TextInputType.number),
+                              ])),
+                              actions:[
+                                TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                                ElevatedButton(
+                                  style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+                                  onPressed:(){
+                                    final _opVal = double.tryParse(opCtrl.text.trim());
+                                    final _prVal = double.tryParse(prCtrl.text.trim());
+                                    Navigator.pop(context, <String,dynamic>{
+                                      "title": tCtrl.text.trim(),
+                                      "offer_text": oCtrl.text.trim(),
+                                      if (_opVal != null) "original_price": _opVal,
+                                      if (_prVal != null) "price": _prVal,
+                                      if (_prVal != null) "amount": _prVal,
+                                    });
+                                  },
+                                  child:const Text("Save",style:TextStyle(color:Colors.white))),
+                              ],
+                            ));
+                            if (saved != null && saved.isNotEmpty) {
+                              try {
+                                if (_productId.isEmpty) throw Exception("Product ID missing — cannot update");
+                                await Api.updateMerchantProduct(widget.token, _productId, saved);
+                                _load();
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content:Text("Product updated!"),backgroundColor:Color(0xFF1a6640)));
+                              } catch(e) {
+                                if(mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content:Text("Error: ${e.toString().replaceAll('Exception: ','')}"),backgroundColor:Colors.red));
+                              }
                             }
-                          }
-                        },
-                        icon:const Icon(Icons.edit_rounded,size:13,color:kPrimary),
-                        label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:11)),
-                        style:OutlinedButton.styleFrom(
-                          side:const BorderSide(color:kPrimary),
-                          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-                          padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
-                          minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                      ),
+                          },
+                          icon:const Icon(Icons.edit_rounded,size:13,color:kPrimary),
+                          label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:11)),
+                          style:OutlinedButton.styleFrom(
+                            side:const BorderSide(color:kPrimary),
+                            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+                            padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
+                            minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                        ),
+                        const SizedBox(width:6),
+                        OutlinedButton.icon(
+                          onPressed:() async {
+                            final confirm = await showDialog<bool>(context:context,builder:(_)=>AlertDialog(
+                              title:const Text("Delete Product?",style:TextStyle(color:Colors.red,fontWeight:FontWeight.bold)),
+                              content:Text("Delete \"${v['title']??'this product'}\"? This cannot be undone."),
+                              actions:[
+                                TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                                ElevatedButton(
+                                  style:ElevatedButton.styleFrom(backgroundColor:Colors.red),
+                                  onPressed:()=>Navigator.pop(context,true),
+                                  child:const Text("Delete",style:TextStyle(color:Colors.white))),
+                              ],
+                            ));
+                            if (confirm == true && mounted) {
+                              try {
+                                await Api.deleteMerchantProduct(widget.token, _productId);
+                                _load();
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content:Text("Product deleted."),backgroundColor:Colors.red));
+                              } catch(e) {
+                                if(mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content:Text("Error deleting: ${e.toString().replaceAll('Exception: ','')}"),backgroundColor:Colors.red));
+                              }
+                            }
+                          },
+                          icon:const Icon(Icons.delete_outline_rounded,size:13,color:Colors.red),
+                          label:const Text("Delete",style:TextStyle(color:Colors.red,fontSize:11)),
+                          style:OutlinedButton.styleFrom(
+                            side:const BorderSide(color:Colors.red),
+                            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+                            padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
+                            minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                        ),
+                      ]),
                     ),
                   ]);
                   },
                 ),
               )),
         ]),
+  );
+}
+
+// ── Product type choice dialog + navigation ──────────────────────────────────
+void _showProductTypeDialog(BuildContext context, String token, VoidCallback onRefresh) {
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+    builder: (_) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text("Choose Product Type", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: kText)),
+          const SizedBox(height:6),
+          const Text("Select the type of product you want to create.", style: TextStyle(color: kMuted, fontSize: 13)),
+          const SizedBox(height: 20),
+          // Standard product option
+          InkWell(
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, _offroRoute(StandardProductPage(token: token))).then((_) => onRefresh());
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .4)),
+                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFf0faf4),
+              ),
+              child: Row(children: [
+                Container(width:44,height:44,decoration:BoxDecoration(color:const Color(0xFF1a6640),borderRadius:BorderRadius.circular(12)),
+                  child:const Icon(Icons.inventory_2_rounded, color:Colors.white, size:24)),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
+                  const SizedBox(height:3),
+                  const Text("Free • Linked to your store subscription\nAuto-approved, no payment required", style: TextStyle(fontSize: 12, color: kMuted)),
+                ])),
+                const Icon(Icons.chevron_right_rounded, color: kMuted),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Premium product option
+          InkWell(
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.push(context, _offroRoute(AddProductPage(token: token))).then((_) => onRefresh());
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFF6B2FAA).withValues(alpha: .4)),
+                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFF5F0FF),
+              ),
+              child: Row(children: [
+                Container(width:44,height:44,decoration:BoxDecoration(color:const Color(0xFF6B2FAA),borderRadius:BorderRadius.circular(12)),
+                  child:const Icon(Icons.workspace_premium_rounded, color:Colors.white, size:24)),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text("🟣 Premium Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
+                  const SizedBox(height:3),
+                  const Text("Paid • Featured in Discover Products section\nAdmin approval required after payment", style: TextStyle(fontSize: 12, color: kMuted)),
+                ])),
+                const Icon(Icons.chevron_right_rounded, color: kMuted),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    ),
   );
 }
 
@@ -1322,6 +1479,284 @@ class _ProductPlacementPreview extends StatelessWidget {
       ]),
     ]),
   );
+}
+
+// ══════════════════════════════════════════════════════════
+// STANDARD PRODUCT PAGE — free, subscription-linked, no payment
+// ══════════════════════════════════════════════════════════
+
+class StandardProductPage extends StatefulWidget {
+  final String token;
+  const StandardProductPage({super.key, required this.token});
+  @override State<StandardProductPage> createState() => _StandardProductState();
+}
+class _StandardProductState extends State<StandardProductPage> {
+  final _titleC       = TextEditingController();
+  final _offerC       = TextEditingController();
+  final _priceC       = TextEditingController();
+  final _origPriceC   = TextEditingController();
+  String? _logoB64;
+  String? _selCity;
+  List<Map<String,dynamic>> _stores = [];
+  Map<String,dynamic>? _selectedStore;
+  bool _loading = false;
+  bool _storesLoading = false;
+  String _msg = "";
+  Map<String,dynamic> _limitInfo = {"standard_product_limit":10,"standard_count":0};
+
+  @override void initState() {
+    super.initState();
+    _loadStores();
+    _loadLimit();
+  }
+
+  @override void dispose() {
+    _titleC.dispose(); _offerC.dispose(); _priceC.dispose(); _origPriceC.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadStores() async {
+    if (!mounted) return;
+    setState(() => _storesLoading = true);
+    try {
+      final list = await Api.getMerchantStores(widget.token);
+      if (mounted) setState(() {
+        _stores = List<Map<String,dynamic>>.from(list);
+        if (_stores.length == 1) _onStoreSelected(_stores.first);
+        _storesLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _storesLoading = false);
+    }
+  }
+
+  Future<void> _loadLimit() async {
+    try {
+      final info = await Api.getProductLimit(widget.token);
+      if (mounted) setState(() => _limitInfo = info);
+    } catch (_) {}
+  }
+
+  void _onStoreSelected(Map<String,dynamic> store) {
+    final city = (store["city"] ?? "").toString().trim();
+    setState(() {
+      _selectedStore = store;
+      if (city.isNotEmpty) _selCity = city;
+    });
+  }
+
+  Future<void> _pickLogo() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 400);
+    if (img == null) return;
+    final bytes = await File(img.path).readAsBytes();
+    if (bytes.length > 1 * 1024 * 1024) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Logo too large. Max 1MB."), backgroundColor: Colors.red));
+      return;
+    }
+    setState(() => _logoB64 = "data:image/jpeg;base64,${base64Encode(bytes)}");
+  }
+
+  Future<void> _submit() async {
+    if (_titleC.text.trim().isEmpty) { setState(() => _msg = "Product title required"); return; }
+    if (_selectedStore == null) { setState(() => _msg = "Please select a store for this product"); return; }
+
+    final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
+    final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
+    if (count >= limit) {
+      setState(() => _msg = "Standard product limit reached ($limit). Delete an existing product or use Premium.");
+      return;
+    }
+
+    setState(() { _loading = true; _msg = ""; });
+    try {
+      final storeId = (_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString();
+      final result = await Api.createStandardProduct(widget.token, {
+        "title":          _titleC.text.trim(),
+        "offer_text":     _offerC.text.trim(),
+        "logo_url":       _logoB64 ?? "",
+        "price":          _priceC.text.trim(),
+        "original_price": _origPriceC.text.trim(),
+        "store_id":       storeId,
+        "store_name":     (_selectedStore?["store_name"] ?? "").toString(),
+        "city":           _selCity ?? "",
+      });
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("✅ ${result['message'] ?? 'Standard product created!'}"),
+            backgroundColor: const Color(0xFF1a6640)));
+      }
+    } catch (e) {
+      setState(() => _msg = e.toString().replaceAll("Exception:", "").trim());
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override Widget build(BuildContext context) {
+    final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
+    final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(
+        title: Row(children: [
+          buildImageLogo(height: 24, white: true),
+          const SizedBox(width: 8),
+          const Text("Standard Product", style: TextStyle(fontWeight: FontWeight.w800)),
+        ]),
+        backgroundColor: Colors.white, foregroundColor: kText,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Info banner
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFf0faf4),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .3)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1a6640))),
+              const SizedBox(height: 4),
+              const Text("• Free — no payment required\n• Linked to your store subscription\n• Auto-approved and visible in store detail\n• Paused automatically when subscription expires", style: TextStyle(fontSize: 12, color: kMuted)),
+              const SizedBox(height: 8),
+              Text("Usage: $count / $limit standard products", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kText)),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          // Store selector
+          const Text("Select Store *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const SizedBox(height: 6),
+          _storesLoading
+              ? const Center(child: CircularProgressIndicator(color: kPrimary))
+              : _stores.isEmpty
+                  ? const Text("No stores found. Create a store first.", style: TextStyle(color: Colors.red, fontSize: 13))
+                  : DropdownButtonFormField<Map<String,dynamic>>(
+                      value: _selectedStore,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                      ),
+                      hint: const Text("Select a store"),
+                      items: _stores.map((s) => DropdownMenuItem(value: s, child: Text(s["store_name"]?.toString() ?? ""))).toList(),
+                      onChanged: (s) { if (s != null) _onStoreSelected(s); },
+                    ),
+          const SizedBox(height: 16),
+          // Product title
+          const Text("Product Title *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _titleC,
+            decoration: InputDecoration(
+              hintText: "e.g. Flat 20% Off on All Items",
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Offer text
+          const Text("Offer Text", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _offerC,
+            decoration: InputDecoration(
+              hintText: "e.g. Valid on all products",
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Price row
+          Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text("Offer Price", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _priceC,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: "₹ 99",
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                ),
+              ),
+            ])),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text("Original Price", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _origPriceC,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  hintText: "₹ 199",
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                ),
+              ),
+            ])),
+          ]),
+          const SizedBox(height: 16),
+          // Logo
+          const Text("Product Image (optional)", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: _pickLogo,
+            child: Container(
+              height: 80, width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFFf5f5f5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: kBorder),
+              ),
+              child: _logoB64 != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.memory(base64Decode(_logoB64!.split(',').last), fit: BoxFit.cover))
+                  : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      Icon(Icons.add_photo_alternate_outlined, color: kMuted, size: 28),
+                      SizedBox(height: 4),
+                      Text("Tap to upload", style: TextStyle(color: kMuted, fontSize: 12)),
+                    ]),
+            ),
+          ),
+          if (_msg.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(_msg, style: const TextStyle(color: Colors.red, fontSize: 13)),
+          ],
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _loading ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1a6640),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _loading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text("Create Standard Product", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ]),
+      ),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════
