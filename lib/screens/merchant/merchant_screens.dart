@@ -1033,10 +1033,10 @@ class MerchantProductsPage extends StatefulWidget {
 class _MerchantProductsState extends State<MerchantProductsPage> {
   List<Map<String,dynamic>> _products = [];
   List<Map<String,dynamic>> _filtered = [];
+  List<Map<String,dynamic>> _stores   = [];   // for standard product store expiry
   bool _loading = true;
 
   final _searchCtrl = TextEditingController();
-  // Combined filter: "All" | "Standard" | "Premium" | "approved" | "pending_approval" | "expired"
   String _activeFilter = "All";
 
   List<dynamic> _expiryWarnings = [];
@@ -1047,19 +1047,52 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final productsFuture = Api.getMerchantProducts(widget.token);
-      final expiryFuture   = Api.checkProductExpiry(widget.token);
-      final rawProducts    = await productsFuture;
-      _products = List<Map<String,dynamic>>.from(rawProducts);
-      final exp = await expiryFuture;
+      final results = await Future.wait([
+        Api.getMerchantProducts(widget.token),
+        Api.checkProductExpiry(widget.token),
+        Api.getMerchantStores(widget.token),   // needed for standard product store expiry
+      ]);
+      _products = List<Map<String,dynamic>>.from(results[0] as Iterable);
+      final exp = results[1];
       _expiryWarnings = exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[];
+      _stores = List<Map<String,dynamic>>.from(results[2] as Iterable);
     } catch (_) {}
     _applyFilters();
     if (mounted) setState(() => _loading = false);
   }
 
+  // Returns formatted expiry label for a STANDARD product from the store's subscription_end.
+  // subscription_end can be ISO "2026-07-22T00:00:00" or pre-formatted "22 Jul 2026".
+  String _storeExpiryLabel(Map<String,dynamic> v) {
+    final storeId = (v["store_id"] ?? "").toString();
+    if (storeId.isEmpty) return "";
+    try {
+      final store = _stores.firstWhere((s) =>
+        (s["_id"] ?? s["id"] ?? "").toString() == storeId);
+      final raw = (store["subscription_end"] ?? "").toString().trim();
+      if (raw.isEmpty) return "";
+      return _parseDateLabel(raw);
+    } catch (_) { return ""; }
+  }
+
+  // Parses any date string into "dd-mm-yyyy". Falls back to stripping the time portion.
+  String _parseDateLabel(String raw) {
+    if (raw.isEmpty) return "";
+    try {
+      final dt = DateTime.parse(raw);  // handles ISO: "2026-07-22T00:00:00"
+      return "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
+    } catch (_) {}
+    // Already a readable string like "22 Jul 2026" — just strip any trailing time part
+    return raw.contains("T") ? raw.split("T").first : raw;
+  }
+
   String _effectiveStatus(Map<String,dynamic> v) {
-    String st = (v["approval_status"] ?? v["status"] ?? "pending_approval").toString();
+    String st = (v["approval_status"] ?? v["status"] ?? "pending_approval")
+        .toString().toLowerCase().trim();
+    // Normalize all pending/waiting variants → "pending_approval"
+    const pendingVariants = {"pending", "waiting_approval", "waiting",
+                              "submitted", "new", "under_review", "in_review"};
+    if (pendingVariants.contains(st)) st = "pending_approval";
     if (st == "approved") {
       final endRaw = v["end_date"]?.toString() ?? "";
       if (endRaw.isNotEmpty) {
@@ -1137,8 +1170,45 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     );
   }
 
+  // ── On/Off toggle (optimistic) ──────────────────────────
+  Future<void> _toggleActive(Map<String,dynamic> v, String pid) async {
+    final current = v["is_active"] as bool? ?? true;
+    setState(() { v["is_active"] = !current; _applyFilters(); });
+    try {
+      await Api.updateMerchantProduct(widget.token, pid, {"is_active": !current});
+    } catch (e) {
+      if (mounted) setState(() { v["is_active"] = current; _applyFilters(); });
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Toggle failed: $e"), backgroundColor: Colors.red));
+    }
+  }
+
+  // ── Full-screen image viewer ─────────────────────────────
+  void _showImageFullscreen(BuildContext ctx, String logoUrl) {
+    if (logoUrl.isEmpty) return;
+    showDialog(context: ctx, builder: (_) => Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(children: [
+        Center(child: InteractiveViewer(
+          child: logoUrl.startsWith("data:image")
+            ? Image.memory(base64Decode(logoUrl.split(",").last), fit: BoxFit.contain)
+            : Image.network(logoUrl, fit: BoxFit.contain,
+                errorBuilder: (_,__,___) => const Icon(Icons.broken_image, color: Colors.white54, size: 64)),
+        )),
+        Positioned(top: 44, right: 16, child: GestureDetector(
+          onTap: () => Navigator.pop(ctx),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+            child: const Icon(Icons.close, color: Colors.white, size: 22)))),
+      ]),
+    ));
+  }
+
   // ── More actions bottom sheet ────────────────────────────
   void _openMore(Map<String,dynamic> v, String pid) {
+    final isStd = (v["product_type"] ?? "premium").toString() == "standard";
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -1155,14 +1225,15 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 child: Icon(Icons.edit_rounded, color: kPrimary, size: 18)),
               title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
-            if (pid.isNotEmpty)
+            // FIX3: Analytics & Activity only for Premium
+            if (pid.isNotEmpty && !isStd)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFF3CD),
                   child: Icon(Icons.bar_chart_rounded, color: Color(0xFF856404), size: 18)),
                 title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
                   Navigator.push(context, _offroRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
-            if (pid.isNotEmpty)
+            if (pid.isNotEmpty && !isStd)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFF0F0F0),
                   child: Icon(Icons.history_rounded, color: kMuted, size: 18)),
@@ -1307,11 +1378,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   }
 
   Widget _buildCard(Map<String,dynamic> v) {
-    final pType  = (v["product_type"] ?? "premium").toString();
-    final isStd  = pType == "standard";
-    final pid    = _pid(v);
-    final status = _effectiveStatus(v);
-    final endRaw = v["end_date"]?.toString() ?? "";
+    final pType    = (v["product_type"] ?? "premium").toString();
+    final isStd    = pType == "standard";
+    final pid      = _pid(v);
+    final status   = _effectiveStatus(v);
+    final endRaw   = v["end_date"]?.toString() ?? "";
+    final isActive = v["is_active"] as bool? ?? true;
 
     final isExpired  = status == "expired";
     final isApproved = status == "approved";
@@ -1321,24 +1393,25 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         ? switch(status) {
             "approved"             => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
             "subscription_expired" => (Colors.grey.shade600,    "Paused",  Icons.pause_circle_rounded),
-            _                      => (kMuted,                  "Pending", Icons.hourglass_top_rounded),
+            _                      => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
           }
         : switch(status) {
             "approved"         => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
             "rejected"         => (Colors.red,              "Rejected",Icons.cancel_rounded),
             "expired"          => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
             "pending_approval" => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
-            _                  => (kMuted,                  "Pending", Icons.hourglass_top_rounded),
+            _                  => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
           };
 
-    // ── Expiry date string (Premium only) ──
+    // Expiry: standard → store subscription end, premium → product end_date
     String expiryLabel = "";
-    if (!isStd && endRaw.isNotEmpty) {
-      try {
-        final dt = DateTime.parse(endRaw);
-        expiryLabel = "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
-      } catch (_) {}
+    if (isStd) {
+      expiryLabel = _storeExpiryLabel(v);
+    } else if (endRaw.isNotEmpty) {
+      expiryLabel = _parseDateLabel(endRaw);
     }
+
+    final logoUrl = v["logo_url"]?.toString() ?? "";
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -1357,12 +1430,15 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
 
           // ── Row 1: image + info + More button ──
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Square image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 72, height: 72,
-                child: _ProductThumb(logoUrl: v["logo_url"] ?? ""),
+            // FIX2: Square image — tap to enlarge
+            GestureDetector(
+              onTap: () => _showImageFullscreen(context, logoUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox(
+                  width: 72, height: 72,
+                  child: _ProductThumb(logoUrl: logoUrl),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -1383,12 +1459,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 Text(v["offer_text"].toString(),
                   style: const TextStyle(fontSize: 12, color: kMuted),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              // Premium expiry line
-              if (!isStd && expiryLabel.isNotEmpty) ...[
+              // FIX1: Expiry for both std and premium (if end_date exists)
+              if (expiryLabel.isNotEmpty) ...[
                 const SizedBox(height: 3),
                 Row(children: [
                   Icon(Icons.event_rounded, size: 11,
-                    color: isExpired ? Colors.red : (status == "approved" ? kMuted : kMuted)),
+                    color: isExpired ? Colors.red : kMuted),
                   const SizedBox(width: 3),
                   Text("Expires: $expiryLabel",
                     style: TextStyle(
@@ -1396,30 +1472,43 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                       color: isExpired ? Colors.red : kMuted)),
                 ]),
               ],
-              if (!isStd && (v["amount"] ?? 0) != 0) ...[
-                const SizedBox(height: 3),
-                Text("₹${v['amount']}", style: const TextStyle(fontSize: 11, color: kPrimary, fontWeight: FontWeight.w700)),
-              ],
+              // FIX1: price line removed
             ])),
 
-            // More button (top right)
-            GestureDetector(
-              onTap: () => _openMore(v, pid),
-              child: Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  color: kBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: kBorder)),
-                child: const Icon(Icons.more_vert_rounded, size: 18, color: kMuted),
+            // More button + FIX4: On/Off toggle stacked vertically
+            Column(children: [
+              GestureDetector(
+                onTap: () => _openMore(v, pid),
+                child: Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: kBg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: kBorder)),
+                  child: const Icon(Icons.more_vert_rounded, size: 18, color: kMuted),
+                ),
               ),
-            ),
+              const SizedBox(height: 6),
+              // FIX4: On/Off switch
+              Transform.scale(
+                scale: 0.75,
+                child: Switch(
+                  value: isActive,
+                  onChanged: pid.isEmpty ? null : (_) => _toggleActive(v, pid),
+                  activeColor: kPrimary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              Text(isActive ? "On" : "Off",
+                style: TextStyle(
+                  fontSize: 9, fontWeight: FontWeight.w700,
+                  color: isActive ? kPrimary : kMuted)),
+            ]),
           ]),
 
           // ── Row 2: CTA buttons ──
           const SizedBox(height: 10),
           if (isStd && v["upgraded"] != true)
-            // Standard: prominent red Upgrade Now
             SizedBox(width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -1435,7 +1524,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   _offroRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
           if (!isStd && (isApproved || isExpired))
-            // Premium: Renew Now + expiry date
             SizedBox(width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(

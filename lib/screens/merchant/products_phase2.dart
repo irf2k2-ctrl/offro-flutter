@@ -92,37 +92,115 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
 
   Future<void> _proceed() async {
     if (_days < 1) { setState(() => _msg = "Enter a valid number of days"); return; }
+    // Show summary BEFORE API call using Flutter-calculated values
+    final confirmed = await _showProductSummaryDialog(
+      from: _fromDate, to: _endDate,
+      note: "Razorpay opens. Product goes live after admin approval.",
+    );
+    if (!confirmed || !mounted) return;
+
     setState(() { _loading = true; _msg = ""; });
     try {
       final order = await Api.upgradeProductOrder(widget.token, _pid, {
-        "days":          _days,
-        "from_date":     _apiDate(_fromDate),
+        "days":      _days,
+        "from_date": _apiDate(_fromDate),
         if (_discountApplied) "discount_code": _discountCtrl.text.trim().toUpperCase(),
       });
       if (!mounted) return;
-      final paise = (order["amount_paise"] as num?)?.toInt() ?? 0;
-      final mode  = order["pay_mode"] ?? "manual";
-      if (mode == "manual" || paise <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Upgrade submitted for approval!"),
-          backgroundColor: Color(0xFF1a6640)));
-        Navigator.pop(context, true);
-      } else {
+      final rzpKey     = order["key"]?.toString() ?? "";
+      final rzpOrderId = order["order_id"]?.toString() ?? "";
+      final amtRupees  = (order["amount"] as num?)?.toDouble() ?? 0;
+      final paise      = (amtRupees * 100).toInt();
+
+      if (rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
         _pendingOrder = Map<String,dynamic>.from(order);
         _razorpay.open({
-          "key":         order["razorpay_key"],
+          "key":         rzpKey,
           "amount":      paise,
           "name":        "OFFRO",
           "description": "Product Upgrade – $_days Days",
-          "order_id":    order["razorpay_order_id"],
+          "order_id":    rzpOrderId,
           "prefill":     {"contact": "", "email": ""},
           "theme":       {"color": "#3E5F55"},
         });
+        return;
+      } else if (paise == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Upgrade submitted for approval!"),
+            backgroundColor: Color(0xFF1a6640)));
+          Navigator.pop(context, true);
+        }
+      } else {
+        if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
       }
     } catch (e) {
       if (mounted) setState(() => _msg = e.toString().replaceAll("Exception: ", ""));
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  // ── Summary dialog — same format as "New Product" ────────────────────
+  Future<bool> _showProductSummaryDialog({
+    required DateTime from,
+    required DateTime to,
+    String note = "",
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Product Order Summary",
+          style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _dRow("Title",  widget.product["title"]?.toString() ?? ""),
+          _dRow("Offer",  widget.product["offer_text"]?.toString() ?? ""),
+          _dRow("Duration", "$_days Days"),
+          _dRow("Period",   "${_fmtDateFull(from)} → ${_fmtDateFull(to)}"),
+          _dRow("Rate",     "₹$_pricePerDay/day"),
+          const Divider(),
+          _dRow("Base",   "₹${_base.toStringAsFixed(1)}"),
+          if (_discountApplied && _discountAmt > 0)
+            _dRow("Discount", "−₹${_discountAmt.toStringAsFixed(1)}", color: const Color(0xFF1a6640)),
+          _dRow("GST (${_gstPct.toStringAsFixed(1)}%)", "₹${_gstAmt.toStringAsFixed(1)}"),
+          _dRow("Total",  "₹${_total.toStringAsFixed(1)}", bold: true),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: kLight.withValues(alpha: .4),
+              borderRadius: BorderRadius.circular(8)),
+            child: Text(note,
+              style: const TextStyle(fontSize: 12, color: kPrimary))),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: kMuted))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Pay ₹${_total.toStringAsFixed(1)}",
+              style: const TextStyle(color: Colors.white))),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  Widget _dRow(String k, String v, {bool bold = false, Color? color}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Expanded(child: Text(k, style: const TextStyle(color: kMuted, fontSize: 13))),
+      Text(v, style: TextStyle(
+        fontSize: 13,
+        fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+        color: color ?? (bold ? kPrimary : kText))),
+    ]));
+
+  String _fmtDateFull(DateTime dt) {
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day.toString().padLeft(2,'0')} ${m[dt.month-1]} ${dt.year}";
   }
 
   void _onPaySuccess(PaymentSuccessResponse res) async {
@@ -142,7 +220,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) setState(() => _msg = e.toString().replaceAll("Exception: ", ""));
+      if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
     }
   }
   void _onPayError(PaymentFailureResponse res) {
@@ -415,6 +493,13 @@ class _RenewProductPageState extends State<RenewProductPage> {
 
   Future<void> _proceed() async {
     if (_days < 1) { setState(() => _msg = "Enter a valid number of days"); return; }
+    // Show summary BEFORE API call using Flutter-calculated values
+    final confirmed = await _showProductSummaryDialog(
+      from: _renewFrom, to: _newEnd,
+      note: "Razorpay opens. Listing renewed after payment.",
+    );
+    if (!confirmed || !mounted) return;
+
     setState(() { _loading = true; _msg = ""; });
     try {
       final order = await Api.renewProductOrder(widget.token, _pid, {
@@ -422,29 +507,100 @@ class _RenewProductPageState extends State<RenewProductPage> {
         if (_discountApplied) "discount_code": _discountCtrl.text.trim().toUpperCase(),
       });
       if (!mounted) return;
-      final paise = (order["amount_paise"] as num?)?.toInt() ?? 0;
-      final mode  = order["pay_mode"] ?? "manual";
-      if (mode == "manual" || paise <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("✅ Renewed successfully!"),
-          backgroundColor: Color(0xFF1a6640)));
-        Navigator.pop(context, true);
-      } else {
+      final rzpKey     = order["key"]?.toString() ?? "";
+      final rzpOrderId = order["order_id"]?.toString() ?? "";
+      final amtRupees  = (order["amount"] as num?)?.toDouble() ?? 0;
+      final paise      = (amtRupees * 100).toInt();
+
+      if (rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
         _pendingOrder = Map<String,dynamic>.from(order);
         _razorpay.open({
-          "key":         order["razorpay_key"],
+          "key":         rzpKey,
           "amount":      paise,
           "name":        "OFFRO",
           "description": "Premium Renewal – $_days Days",
-          "order_id":    order["razorpay_order_id"],
+          "order_id":    rzpOrderId,
           "prefill":     {"contact": "", "email": ""},
           "theme":       {"color": "#3E5F55"},
         });
+        return;
+      } else if (paise == 0) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("✅ Renewed successfully!"),
+            backgroundColor: Color(0xFF1a6640)));
+          Navigator.pop(context, true);
+        }
+      } else {
+        if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
       }
     } catch(e) {
       if (mounted) setState(() => _msg = e.toString().replaceAll("Exception: ", ""));
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  // ── Summary dialog — same format as "New Product" ────────────────────
+  Future<bool> _showProductSummaryDialog({
+    required DateTime from,
+    required DateTime to,
+    String note = "",
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text("Product Order Summary",
+          style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _dRow("Title",  widget.product["title"]?.toString() ?? ""),
+          _dRow("Offer",  widget.product["offer_text"]?.toString() ?? ""),
+          _dRow("Duration", "$_days Days"),
+          _dRow("Period",   "${_fmtDateFull(from)} → ${_fmtDateFull(to)}"),
+          _dRow("Rate",     "₹$_pricePerDay/day"),
+          const Divider(),
+          _dRow("Base",   "₹${_base.toStringAsFixed(1)}"),
+          if (_discountApplied && _discountAmt > 0)
+            _dRow("Discount", "−₹${_discountAmt.toStringAsFixed(1)}", color: const Color(0xFF1a6640)),
+          _dRow("GST (${_gstPct.toStringAsFixed(1)}%)", "₹${_gstAmt.toStringAsFixed(1)}"),
+          _dRow("Total",  "₹${_total.toStringAsFixed(1)}", bold: true),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: kLight.withValues(alpha: .4),
+              borderRadius: BorderRadius.circular(8)),
+            child: Text(note,
+              style: const TextStyle(fontSize: 12, color: kPrimary))),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: kMuted))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text("Pay ₹${_total.toStringAsFixed(1)}",
+              style: const TextStyle(color: Colors.white))),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  Widget _dRow(String k, String v, {bool bold = false, Color? color}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(children: [
+      Expanded(child: Text(k, style: const TextStyle(color: kMuted, fontSize: 13))),
+      Text(v, style: TextStyle(
+        fontSize: 13,
+        fontWeight: bold ? FontWeight.bold : FontWeight.w500,
+        color: color ?? (bold ? kPrimary : kText))),
+    ]));
+
+  String _fmtDateFull(DateTime dt) {
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day.toString().padLeft(2,'0')} ${m[dt.month-1]} ${dt.year}";
   }
 
   // keep for back-compat (unused now but referenced by old summary path)
@@ -487,7 +643,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) setState(() => _msg = e.toString().replaceAll("Exception: ", ""));
+      if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
     }
   }
   void _onPayError(PaymentFailureResponse res) {
