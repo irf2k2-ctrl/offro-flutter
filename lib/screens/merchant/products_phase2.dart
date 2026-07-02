@@ -428,22 +428,40 @@ class _RenewProductPageState extends State<RenewProductPage> {
     "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
   String _fmtAmt(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
 
+  // Parses ISO "2026-07-04" OR "04 Jul 2026" OR "04-07-2026" → DateTime
+  DateTime? _parseAnyDate(String raw) {
+    if (raw.isEmpty) return null;
+    try { return DateTime.parse(raw); } catch (_) {}
+    try {
+      final parts = raw.trim().split(RegExp(r'[\s\-/]+'));
+      if (parts.length >= 3) {
+        const months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                        "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+        final mon = months[parts[1].toLowerCase().substring(0, 3)];
+        if (mon != null) {
+          final day = int.tryParse(parts[0]);
+          final yr  = int.tryParse(parts[2]);
+          if (day != null && yr != null) return DateTime(yr, mon, day);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   String get _curEnd {
     final raw = widget.product["end_date"]?.toString() ?? "";
     if (raw.isEmpty) return "—";
-    try {
-      final dt = DateTime.parse(raw);
-      return _fmtDate(dt);
-    } catch (_) { return raw; }
+    final dt = _parseAnyDate(raw);
+    return dt != null ? _fmtDate(dt) : raw;
   }
 
   DateTime get _renewFrom {
     final raw = widget.product["end_date"]?.toString() ?? "";
     if (raw.isEmpty) return DateTime.now();
-    try {
-      final dt = DateTime.parse(raw);
-      return dt.isBefore(DateTime.now()) ? DateTime.now() : dt;
-    } catch (_) { return DateTime.now(); }
+    final dt = _parseAnyDate(raw);
+    if (dt == null) return DateTime.now();
+    // If current listing hasn't expired yet, renewal starts the day AFTER
+    return dt.isAfter(DateTime.now()) ? dt.add(const Duration(days: 1)) : DateTime.now();
   }
 
   DateTime get _newEnd => _renewFrom.add(Duration(days: _days));

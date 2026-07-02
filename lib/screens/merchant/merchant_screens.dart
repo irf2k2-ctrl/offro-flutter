@@ -1086,6 +1086,27 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     return raw.contains("T") ? raw.split("T").first : raw;
   }
 
+  // Parses ISO "2026-07-04" OR "04 Jul 2026" OR "04-07-2026" → DateTime
+  DateTime? _parseAnyDate(String raw) {
+    if (raw.isEmpty) return null;
+    try { return DateTime.parse(raw); } catch (_) {}
+    try {
+      final parts = raw.trim().split(RegExp(r'[\s\-/]+'));
+      if (parts.length >= 3) {
+        const months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                        "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+        // "dd MMM yyyy"
+        final mon = months[parts[1].toLowerCase().substring(0, 3)];
+        if (mon != null) {
+          final day = int.tryParse(parts[0]);
+          final yr  = int.tryParse(parts[2]);
+          if (day != null && yr != null) return DateTime(yr, mon, day);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   String _effectiveStatus(Map<String,dynamic> v) {
     String st = (v["approval_status"] ?? v["status"] ?? "pending_approval")
         .toString().toLowerCase().trim();
@@ -1096,7 +1117,8 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     if (st == "approved") {
       final endRaw = v["end_date"]?.toString() ?? "";
       if (endRaw.isNotEmpty) {
-        try { if (DateTime.now().isAfter(DateTime.parse(endRaw))) st = "expired"; } catch (_) {}
+        final dt = _parseAnyDate(endRaw);
+        if (dt != null && DateTime.now().isAfter(dt)) st = "expired";
       }
     }
     return st;
@@ -1455,10 +1477,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               Text(v["title"] ?? "",
                 style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kText),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
-              if ((v["offer_text"] ?? "").toString().isNotEmpty)
+              if ((v["offer_text"] ?? "").toString().isNotEmpty) ...[
+                const SizedBox(height: 4),
                 Text(v["offer_text"].toString(),
                   style: const TextStyle(fontSize: 12, color: kMuted),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
               // FIX1: Expiry for both std and premium (if end_date exists)
               if (expiryLabel.isNotEmpty) ...[
                 const SizedBox(height: 3),
@@ -1992,6 +2016,7 @@ class _StandardProductState extends State<StandardProductPage> {
         "store_id":       storeId,
         "store_name":     (_selectedStore?["store_name"] ?? "").toString(),
         "city":           _selCity ?? "",
+        "is_active":      true,
       });
       if (mounted) {
         Navigator.pop(context);
