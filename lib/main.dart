@@ -797,7 +797,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<String> _cityImageUrls = []; // all city images for rotation
   int    _heroImgIndex = 0;          // current hero image index
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
-  String _defaultCityImageUrl = ""; // fallback from /admin/default-images
+  String _defaultCityImageUrl = "";    // fallback from /admin/default-images
+  String _defaultProductImageUrl = ""; // default product image from /admin/default-images
   int _sliderPage=0;
   final PageController _sliderPc = PageController(initialPage: 49999); // FIX 5: start at midpoint for infinite scroll
   Timer? _sliderTimer;
@@ -1081,14 +1082,16 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
           _nsUrl = nsImgs.trim();
         }
-        if (_nsUrl.startsWith("http") && mounted) {
+        if ((_nsUrl.startsWith("http") || _nsUrl.startsWith("data:image")) && mounted) {
           setState(() { _noServiceImg = _nsUrl; });
         }
         final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
         final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
+        final defProd = (defaults["product"] ?? "").toString().trim();
         if (mounted) setState(() {
           if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
           if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
+          if (defProd.isNotEmpty) _defaultProductImageUrl = defProd;
         });
         _mbFallbackUrl = (defaults["merchant_banner"] ?? "").toString().trim();
       } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getDefaultImages error: $e"); }
@@ -1863,6 +1866,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       products: _products,
                       onViewAll: () => _viewAllProducts(context),
                       token: widget.token,
+                      defaultProductImageUrl: _defaultProductImageUrl,
                     )),
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
@@ -2181,17 +2185,19 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // ── No-service with image: image fills top, footer below ──
     if (!_netError && !_isTimeout && !_fetchFailed && _noServiceImg.isNotEmpty) {
-      return Column(children: [
-        Expanded(
-          child: Image.network(
-            _noServiceImg,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            errorBuilder: (_, __, ___) => Container(color: kPrimary),
-          ),
-        ),
-        footer,
-      ]);
+      Widget nsImgWidget;
+      if (_noServiceImg.startsWith("data:image")) {
+        try {
+          nsImgWidget = Image.memory(
+            base64Decode(_noServiceImg.split(",").last),
+            fit: BoxFit.cover, width: double.infinity, gaplessPlayback: true);
+        } catch (_) { nsImgWidget = Container(color: kPrimary); }
+      } else {
+        nsImgWidget = Image.network(
+          _noServiceImg, fit: BoxFit.cover, width: double.infinity,
+          errorBuilder: (_, __, ___) => Container(color: kPrimary));
+      }
+      return Column(children: [Expanded(child: nsImgWidget), footer]);
     }
 
     // ── Error / no-image states: kPrimary background + footer ──
@@ -5034,7 +5040,13 @@ class _DiscoverProductsSection extends StatelessWidget {
   final List<Map<String,dynamic>> products;
   final VoidCallback onViewAll;
   final String token;
-  const _DiscoverProductsSection({required this.products, required this.onViewAll, this.token = ""});
+  final String defaultProductImageUrl;
+  const _DiscoverProductsSection({
+    required this.products,
+    required this.onViewAll,
+    this.token = "",
+    this.defaultProductImageUrl = "",
+  });
 
   static num? _numVal(Map v, List<String> keys) {
     for (final k in keys) {
@@ -5088,8 +5100,46 @@ class _DiscoverProductsSection extends StatelessWidget {
     );
   }
 
+  Widget _defaultProductPlaceholder(BuildContext context) {
+    final imgUrl = defaultProductImageUrl;
+    Widget imgW;
+    if (imgUrl.startsWith("data:image")) {
+      try {
+        imgW = Image.memory(base64Decode(imgUrl.split(",").last),
+          fit: BoxFit.cover, width: double.infinity, gaplessPlayback: true);
+      } catch (_) { imgW = Container(color: const Color(0xFFe8f5f0)); }
+    } else if (imgUrl.startsWith("http")) {
+      imgW = Image.network(imgUrl, fit: BoxFit.cover, width: double.infinity,
+        errorBuilder: (_, __, ___) => Container(color: const Color(0xFFe8f5f0)));
+    } else {
+      imgW = Container(color: const Color(0xFFe8f5f0),
+        child: const Icon(Icons.image_not_supported_outlined, color: Color(0xFF6b8c7e), size: 36));
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Text("Discover Products",
+            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: SizedBox(height: 170, width: double.infinity, child: imgW),
+          ),
+        ),
+      ]),
+    );
+  }
+
   @override Widget build(BuildContext context) {
-    if (products.isEmpty) return const SizedBox.shrink();
+    if (products.isEmpty) {
+      return defaultProductImageUrl.isNotEmpty
+          ? _defaultProductPlaceholder(context)
+          : const SizedBox.shrink();
+    }
 
     final _cardGrads = [
       [Color(0xFFe8f5f0), Color(0xFFCDEBD6)],
