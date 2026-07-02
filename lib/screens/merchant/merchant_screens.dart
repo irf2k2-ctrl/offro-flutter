@@ -42,29 +42,31 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   List<Map<String,dynamic>> _banners  = [];
   List<Map<String,dynamic>> _products = [];
   bool _loading   = true;
-  bool _loadError = false; // FIX7: true = network error, don't show new-merchant flow
+  bool _loadError = false;
+  int  _stdLimit  = 10;  // admin-configured standard product slot limit
 
   @override void initState() { super.initState(); _load(); }
 
   Future<void> _load({int retryCount = 0}) async {
     setState(()=>_loading=true);
     try {
-      // FIX7: Individual timeouts + retry on failure to prevent existing merchant showing as new
       final storesFuture   = Api.getMerchantStores(widget.token).timeout(const Duration(seconds: 15));
       final bannersFuture  = Api.getMerchantBanners(widget.token).timeout(const Duration(seconds: 10));
       final productsFuture = Api.getMerchantProducts(widget.token).timeout(const Duration(seconds: 10));
+      final limitFuture    = Api.getProductLimit(widget.token).timeout(const Duration(seconds: 10));
 
-      final results = await Future.wait([storesFuture, bannersFuture, productsFuture]);
+      final results = await Future.wait([storesFuture, bannersFuture, productsFuture, limitFuture]);
       if (mounted) setState((){
         _stores   = List<Map<String,dynamic>>.from(results[0] as Iterable);
-        _banners  = List<Map<String,dynamic>>.from(results[1]);
-        _products = List<Map<String,dynamic>>.from(results[2]);
+        _banners  = List<Map<String,dynamic>>.from(results[1] as Iterable);
+        _products = List<Map<String,dynamic>>.from(results[2] as Iterable);
+        final limitMap = results[3] as Map<String,dynamic>;
+        _stdLimit = (limitMap["standard_product_limit"] as num?)?.toInt() ?? 10;
         _loading  = false;
         _loadError = false;
       });
     } catch(e) {
       debugPrint('[MerchantHome] _load error (attempt ${retryCount+1}): $e');
-      // FIX7: retry once automatically before showing error/new-merchant flow
       if (retryCount == 0 && mounted) {
         await Future.delayed(const Duration(seconds: 2));
         return _load(retryCount: 1);
@@ -170,14 +172,17 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                   : _products.isEmpty
                     ? "No products yet — add your first product"
                     : ((){
-                        final std=_products.where((v)=>(v['product_type']??'')=='standard').length;
-                        final prem=_products.where((v)=>(v['product_type']??'premium')=='premium').length;
-                        final live=_products.where((v)=>(v['approval_status']??v['status']??'')=='approved').length;
+                        final std  = _products.where((v)=>(v['product_type']??'')=='standard').length;
+                        final prem = _products.where((v)=>(v['product_type']??'premium')=='premium').length;
+                        final live = _products.where((v){
+                          final st=(v['approval_status']??v['status']??'').toString();
+                          return st=='approved';
+                        }).length;
                         final parts=<String>[];
-                        if(std>0) parts.add("🟢 Std: $std");
+                        parts.add("🟢 Std: $std/$_stdLimit");
                         if(prem>0) parts.add("🟣 Prem: $prem");
                         if(live>0) parts.add("$live Live");
-                        return parts.join(' • ');
+                        return parts.join('  ·  ');
                       })(),
                 onTap: _hasEligibleStore
                   ? ()=>Navigator.push(context,_offroRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
@@ -1016,7 +1021,7 @@ class _AddBannerState extends State<AddBannerPage> {
 }
 
 // ══════════════════════════════════════════════════════════
-// MERCHANT PRODUCTS PAGE  (Phase 2 — search / filter / bulk / upgrade / renew)
+// MERCHANT PRODUCTS PAGE  (Phase 2 — redesigned)
 // ══════════════════════════════════════════════════════════
 
 class MerchantProductsPage extends StatefulWidget {
@@ -1030,16 +1035,10 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   List<Map<String,dynamic>> _filtered = [];
   bool _loading = true;
 
-  // Search + filter
   final _searchCtrl = TextEditingController();
-  String _typeFilter   = "All";   // All / Standard / Premium
-  String _statusFilter = "All";   // All / approved / pending_approval / expired
+  // Combined filter: "All" | "Standard" | "Premium" | "approved" | "pending_approval" | "expired"
+  String _activeFilter = "All";
 
-  // Bulk select
-  bool _bulkMode = false;
-  final Set<String> _selected = {};
-
-  // Expiry warnings
   List<dynamic> _expiryWarnings = [];
 
   @override void initState() { super.initState(); _load(); }
@@ -1050,37 +1049,42 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     try {
       final productsFuture = Api.getMerchantProducts(widget.token);
       final expiryFuture   = Api.checkProductExpiry(widget.token);
-      final rawProducts = await productsFuture;
+      final rawProducts    = await productsFuture;
       _products = List<Map<String,dynamic>>.from(rawProducts);
       final exp = await expiryFuture;
-      _expiryWarnings = (exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[]);
+      _expiryWarnings = exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[];
     } catch (_) {}
     _applyFilters();
     if (mounted) setState(() => _loading = false);
   }
 
+  String _effectiveStatus(Map<String,dynamic> v) {
+    String st = (v["approval_status"] ?? v["status"] ?? "pending_approval").toString();
+    if (st == "approved") {
+      final endRaw = v["end_date"]?.toString() ?? "";
+      if (endRaw.isNotEmpty) {
+        try { if (DateTime.now().isAfter(DateTime.parse(endRaw))) st = "expired"; } catch (_) {}
+      }
+    }
+    return st;
+  }
+
   void _applyFilters() {
     final q = _searchCtrl.text.toLowerCase();
     _filtered = _products.where((v) {
-      final title  = (v["title"] ?? "").toString().toLowerCase();
-      final offer  = (v["offer_text"] ?? "").toString().toLowerCase();
-      final ptype  = (v["product_type"] ?? "premium").toString();
-      final rawSt  = (v["approval_status"] ?? v["status"] ?? "").toString();
-      // Compute effective status
-      String st = rawSt;
-      if (st == "approved") {
-        final endRaw = v["end_date"]?.toString() ?? "";
-        if (endRaw.isNotEmpty) {
-          try { if (DateTime.now().isAfter(DateTime.parse(endRaw))) st = "expired"; } catch (_) {}
-        }
-      }
+      final title = (v["title"] ?? "").toString().toLowerCase();
+      final offer = (v["offer_text"] ?? "").toString().toLowerCase();
+      final ptype = (v["product_type"] ?? "premium").toString();
+      final st    = _effectiveStatus(v);
       if (q.isNotEmpty && !title.contains(q) && !offer.contains(q)) return false;
-      if (_typeFilter != "All") {
-        if (_typeFilter == "Standard" && ptype != "standard") return false;
-        if (_typeFilter == "Premium"  && ptype == "standard") return false;
+      switch (_activeFilter) {
+        case "Standard":        return ptype == "standard";
+        case "Premium":         return ptype != "standard";
+        case "approved":        return st == "approved";
+        case "pending_approval":return st == "pending_approval";
+        case "expired":         return st == "expired";
+        default:                return true;
       }
-      if (_statusFilter != "All" && st != _statusFilter) return false;
-      return true;
     }).toList();
   }
 
@@ -1089,348 +1093,370 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     return (raw is Map) ? (raw["\$oid"] ?? raw["oid"] ?? "").toString() : (raw ?? "").toString();
   }
 
-  Future<void> _doBulkAction(String action) async {
-    if (_selected.isEmpty) return;
-    final ids = _selected.toList();
-    try {
-      await Api.bulkProductAction(widget.token, ids, action);
-      _selected.clear();
-      _bulkMode = false;
-      _load();
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("${action.capitalize()} applied to ${ids.length} product(s)"),
-                 backgroundColor: kPrimary));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
-    }
+  // ── Filter bottom sheet ──────────────────────────────────
+  void _openFilter() {
+    final opts = [
+      ("All",              "All Products",         Icons.grid_view_rounded,         kText),
+      ("Standard",         "Standard Only",        Icons.inventory_2_rounded,        const Color(0xFF1a6640)),
+      ("Premium",          "Premium Only",         Icons.workspace_premium_rounded,  const Color(0xFF6B2FAA)),
+      ("approved",         "Live",                 Icons.check_circle_rounded,       const Color(0xFF1a6640)),
+      ("pending_approval", "Pending Approval",     Icons.hourglass_top_rounded,      const Color(0xFF856404)),
+      ("expired",          "Expired",              Icons.event_busy_rounded,         Colors.red),
+    ];
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text("Filter Products", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kText)),
+            const SizedBox(height: 14),
+            ...opts.map((o) {
+              final selected = _activeFilter == o.$1;
+              return ListTile(
+                dense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                leading: CircleAvatar(
+                  radius: 18,
+                  backgroundColor: (selected ? o.$4 : kBorder).withValues(alpha: .15),
+                  child: Icon(o.$3, color: selected ? o.$4 : kMuted, size: 18)),
+                title: Text(o.$2, style: TextStyle(
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? o.$4 : kText, fontSize: 14)),
+                trailing: selected ? Icon(Icons.check_rounded, color: o.$4, size: 20) : null,
+                onTap: () {
+                  setState(() { _activeFilter = o.$1; _applyFilters(); });
+                  Navigator.pop(context);
+                },
+              );
+            }),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  // ── More actions bottom sheet ────────────────────────────
+  void _openMore(Map<String,dynamic> v, String pid) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(v["title"] ?? "Product",
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
+            const SizedBox(height: 4),
+            const Divider(),
+            ListTile(
+              leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFe8f4ef),
+                child: Icon(Icons.edit_rounded, color: kPrimary, size: 18)),
+              title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
+            if (pid.isNotEmpty)
+              ListTile(
+                leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFF3CD),
+                  child: Icon(Icons.bar_chart_rounded, color: Color(0xFF856404), size: 18)),
+                title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () { Navigator.pop(context);
+                  Navigator.push(context, _offroRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
+            if (pid.isNotEmpty)
+              ListTile(
+                leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFF0F0F0),
+                  child: Icon(Icons.history_rounded, color: kMuted, size: 18)),
+                title: const Text("Activity History", style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () { Navigator.pop(context);
+                  Navigator.push(context, _offroRoute(ProductHistoryPage(token: widget.token, product: v))); }),
+            ListTile(
+              leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFEBEB),
+                child: Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18)),
+              title: const Text("Delete Product", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+              onTap: () { Navigator.pop(context); _confirmDelete(v, pid); }),
+            const SizedBox(height: 4),
+          ]),
+        ),
+      ),
+    );
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(
-      title: Row(children: [
-        buildImageLogo(height: 24, white: true),
-        const SizedBox(width: 8),
-        const Text("My Products", style: TextStyle(fontWeight: FontWeight.w800)),
-      ]),
-      backgroundColor: Colors.white, foregroundColor: kText,
-      actions: [
-        IconButton(
-          icon: Icon(_bulkMode ? Icons.close : Icons.checklist_rounded, color: kPrimary),
-          tooltip: _bulkMode ? "Exit bulk" : "Bulk select",
-          onPressed: () => setState(() { _bulkMode = !_bulkMode; _selected.clear(); }),
-        ),
-      ],
-    ),
-    floatingActionButton: _bulkMode ? null : FloatingActionButton.extended(
-      backgroundColor: Colors.white, foregroundColor: kText,
-      icon: const Icon(Icons.add), label: const Text("New Product"),
-      onPressed: () => _showProductTypeDialog(context, widget.token, _load),
-    ),
-    body: Column(children: [
-      // ── Expiry warning banner ──
-      if (_expiryWarnings.isNotEmpty) ExpiryWarningBanner(
-        expiring: List<Map<String,dynamic>>.from(
-            _expiryWarnings.whereType<Map>().map((e) => Map<String,dynamic>.from(e))),
-        onRenewTap: () => setState(() {
-          _typeFilter = "Premium"; _statusFilter = "expired"; _applyFilters();
-        }),
+  Widget build(BuildContext context) {
+    final hasFilter = _activeFilter != "All";
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(
+        title: Row(children: [
+          buildImageLogo(height: 24, white: true),
+          const SizedBox(width: 8),
+          const Text("My Products", style: TextStyle(fontWeight: FontWeight.w800)),
+        ]),
+        backgroundColor: Colors.white, foregroundColor: kText,
+        actions: [
+          // Filter button with active indicator
+          Stack(clipBehavior: Clip.none, children: [
+            IconButton(
+              icon: const Icon(Icons.filter_list_rounded),
+              color: hasFilter ? kPrimary : kMuted,
+              tooltip: "Filter",
+              onPressed: _openFilter,
+            ),
+            if (hasFilter)
+              Positioned(top: 8, right: 8,
+                child: Container(width: 8, height: 8,
+                  decoration: const BoxDecoration(color: kPrimary, shape: BoxShape.circle))),
+          ]),
+        ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Colors.white, foregroundColor: kText,
+        icon: const Icon(Icons.add),
+        label: const Text("New Product"),
+        onPressed: () => _showProductTypeDialog(context, widget.token, _load),
+      ),
+      body: Column(children: [
+        // ── Expiry warning banner ──
+        if (_expiryWarnings.isNotEmpty) ExpiryWarningBanner(
+          expiring: List<Map<String,dynamic>>.from(
+              _expiryWarnings.whereType<Map>().map((e) => Map<String,dynamic>.from(e))),
+          onRenewTap: () => setState(() { _activeFilter = "expired"; _applyFilters(); }),
+        ),
 
-      // ── Search bar ──
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-        child: TextField(
-          controller: _searchCtrl,
-          onChanged: (_) => setState(_applyFilters),
-          decoration: InputDecoration(
-            hintText: "Search products…",
-            hintStyle: const TextStyle(color: kMuted, fontSize: 13),
-            prefixIcon: const Icon(Icons.search, color: kMuted, size: 20),
-            suffixIcon: _searchCtrl.text.isNotEmpty
-                ? IconButton(icon: const Icon(Icons.clear, size: 18, color: kMuted),
-                    onPressed: () { _searchCtrl.clear(); setState(_applyFilters); })
-                : null,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            filled: true, fillColor: Colors.white,
-            border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 1.5)),
+        // ── Search + active filter chip ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+          child: Row(children: [
+            Expanded(child: TextField(
+              controller: _searchCtrl,
+              onChanged: (_) => setState(_applyFilters),
+              decoration: InputDecoration(
+                hintText: "Search products…",
+                hintStyle: const TextStyle(color: kMuted, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: kMuted, size: 20),
+                suffixIcon: _searchCtrl.text.isNotEmpty
+                    ? IconButton(icon: const Icon(Icons.clear, size: 18, color: kMuted),
+                        onPressed: () { _searchCtrl.clear(); setState(_applyFilters); })
+                    : null,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                filled: true, fillColor: Colors.white,
+                border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 1.5)),
+              ),
+            )),
+          ]),
+        ),
+        // Active filter label
+        if (hasFilter)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(color: kPrimary.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: kPrimary.withValues(alpha: .3))),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.filter_list_rounded, size: 13, color: kPrimary),
+                  const SizedBox(width: 5),
+                  Text(_activeFilter == "approved" ? "Live"
+                    : _activeFilter == "pending_approval" ? "Pending"
+                    : _activeFilter == "expired" ? "Expired"
+                    : _activeFilter,
+                    style: const TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w700)),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => setState(() { _activeFilter = "All"; _applyFilters(); }),
+                    child: const Icon(Icons.close_rounded, size: 13, color: kPrimary)),
+                ]),
+              ),
+              const Spacer(),
+              Text("${_filtered.length} result${_filtered.length == 1 ? '' : 's'}",
+                style: const TextStyle(fontSize: 12, color: kMuted)),
+            ]),
           ),
-        ),
-      ),
+        const SizedBox(height: 8),
 
-      // ── Filter chips ──
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(children: [
-          // Type chips
-          for (final t in ["All","Standard","Premium"])
-            Padding(padding: const EdgeInsets.only(right: 6),
-              child: FilterChip(
-                label: Text(t, style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w600,
-                  color: _typeFilter == t ? Colors.white : kText)),
-                selected: _typeFilter == t,
-                onSelected: (_) => setState(() { _typeFilter = t; _applyFilters(); }),
-                selectedColor: kPrimary, backgroundColor: Colors.white,
-                side: const BorderSide(color: kBorder),
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+        // ── List ──
+        Expanded(child: _loading
+          ? const Center(child: CircularProgressIndicator(color: kPrimary))
+          : _filtered.isEmpty
+              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.local_activity_outlined, size: 64, color: kAccent),
+                  const SizedBox(height: 12),
+                  Text(_products.isEmpty ? "No products yet" : "No matching products",
+                    style: const TextStyle(color: kMuted, fontSize: 16)),
+                  if (_products.isEmpty)
+                    const Padding(padding: EdgeInsets.only(top: 6),
+                      child: Text("Tap + New Product to get started",
+                        style: TextStyle(color: kMuted, fontSize: 13))),
+                ]))
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+                    itemCount: _filtered.length,
+                    itemBuilder: (_, i) => _buildCard(_filtered[i]),
+                  ),
+                ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _buildCard(Map<String,dynamic> v) {
+    final pType  = (v["product_type"] ?? "premium").toString();
+    final isStd  = pType == "standard";
+    final pid    = _pid(v);
+    final status = _effectiveStatus(v);
+    final endRaw = v["end_date"]?.toString() ?? "";
+
+    final isExpired  = status == "expired";
+    final isApproved = status == "approved";
+
+    // ── Status badge ──
+    final (Color sc, String sl, IconData si) = isStd
+        ? switch(status) {
+            "approved"             => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
+            "subscription_expired" => (Colors.grey.shade600,    "Paused",  Icons.pause_circle_rounded),
+            _                      => (kMuted,                  "Pending", Icons.hourglass_top_rounded),
+          }
+        : switch(status) {
+            "approved"         => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
+            "rejected"         => (Colors.red,              "Rejected",Icons.cancel_rounded),
+            "expired"          => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
+            "pending_approval" => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
+            _                  => (kMuted,                  "Pending", Icons.hourglass_top_rounded),
+          };
+
+    // ── Expiry date string (Premium only) ──
+    String expiryLabel = "";
+    if (!isStd && endRaw.isNotEmpty) {
+      try {
+        final dt = DateTime.parse(endRaw);
+        expiryLabel = "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
+      } catch (_) {}
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isStd
+            ? const Color(0xFF1a6640).withValues(alpha: .18)
+            : const Color(0xFF6B2FAA).withValues(alpha: .18)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // ── Row 1: image + info + More button ──
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Square image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox(
+                width: 72, height: 72,
+                child: _ProductThumb(logoUrl: v["logo_url"] ?? ""),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Info column
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Type badge + status badge
+              Row(children: [
+                _TypeBadge(isStd: isStd),
+                const SizedBox(width: 6),
+                _StatusBadge(label: sl, color: sc, icon: si),
+              ]),
+              const SizedBox(height: 6),
+              Text(v["title"] ?? "",
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kText),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+              if ((v["offer_text"] ?? "").toString().isNotEmpty)
+                Text(v["offer_text"].toString(),
+                  style: const TextStyle(fontSize: 12, color: kMuted),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              // Premium expiry line
+              if (!isStd && expiryLabel.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Row(children: [
+                  Icon(Icons.event_rounded, size: 11,
+                    color: isExpired ? Colors.red : (status == "approved" ? kMuted : kMuted)),
+                  const SizedBox(width: 3),
+                  Text("Expires: $expiryLabel",
+                    style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600,
+                      color: isExpired ? Colors.red : kMuted)),
+                ]),
+              ],
+              if (!isStd && (v["amount"] ?? 0) != 0) ...[
+                const SizedBox(height: 3),
+                Text("₹${v['amount']}", style: const TextStyle(fontSize: 11, color: kPrimary, fontWeight: FontWeight.w700)),
+              ],
+            ])),
+
+            // More button (top right)
+            GestureDetector(
+              onTap: () => _openMore(v, pid),
+              child: Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: kBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: kBorder)),
+                child: const Icon(Icons.more_vert_rounded, size: 18, color: kMuted),
+              ),
+            ),
+          ]),
+
+          // ── Row 2: CTA buttons ──
+          const SizedBox(height: 10),
+          if (isStd && v["upgraded"] != true)
+            // Standard: prominent red Upgrade Now
+            SizedBox(width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.upgrade_rounded, size: 16),
+                label: const Text("Upgrade Now", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                onPressed: () => Navigator.push(context,
+                  _offroRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
-          const SizedBox(width: 8),
-          Container(width: 1, height: 20, color: kBorder),
-          const SizedBox(width: 8),
-          // Status chips
-          for (final s in [("All","All"),("approved","✅ Live"),("pending_approval","⏳ Pending"),("expired","⏰ Expired")])
-            Padding(padding: const EdgeInsets.only(right: 6),
-              child: FilterChip(
-                label: Text(s.$2, style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w600,
-                  color: _statusFilter == s.$1 ? Colors.white : kText)),
-                selected: _statusFilter == s.$1,
-                onSelected: (_) => setState(() { _statusFilter = s.$1; _applyFilters(); }),
-                selectedColor: kPrimary, backgroundColor: Colors.white,
-                side: const BorderSide(color: kBorder),
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+          if (!isStd && (isApproved || isExpired))
+            // Premium: Renew Now + expiry date
+            SizedBox(width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isExpired ? Colors.red.shade600 : const Color(0xFF856404),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.autorenew_rounded, size: 16),
+                label: Text(
+                  expiryLabel.isNotEmpty
+                    ? "Renew Now  ·  Expires: $expiryLabel"
+                    : "Renew Now",
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                onPressed: () => Navigator.push(context,
+                  _offroRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
         ]),
       ),
-
-      // ── Bulk action bar ──
-      if (_bulkMode)
-        Container(
-          color: kPrimary.withValues(alpha: .08),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(children: [
-            Text("${_selected.length} selected", style: const TextStyle(fontWeight: FontWeight.w700, color: kPrimary)),
-            const Spacer(),
-            TextButton(onPressed: () => _doBulkAction("activate"),   child: const Text("Activate",   style: TextStyle(color: kPrimary))),
-            TextButton(onPressed: () => _doBulkAction("deactivate"), child: const Text("Deactivate", style: TextStyle(color: Colors.orange))),
-            TextButton(onPressed: () => _doBulkAction("delete"),     child: const Text("Delete",     style: TextStyle(color: Colors.red))),
-          ]),
-        ),
-
-      // ── List ──
-      Expanded(child: _loading
-        ? const Center(child: CircularProgressIndicator(color: kPrimary))
-        : _filtered.isEmpty
-            ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.local_activity_outlined, size: 64, color: kAccent),
-                const SizedBox(height: 12),
-                Text(_products.isEmpty ? "No products yet" : "No matching products",
-                  style: const TextStyle(color: kMuted, fontSize: 16)),
-                if (_products.isEmpty) ...[
-                  const SizedBox(height: 6),
-                  const Text("Tap + to add a product card", style: TextStyle(color: kMuted, fontSize: 13)),
-                ],
-              ]))
-            : RefreshIndicator(
-                onRefresh: _load,
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(14),
-                  itemCount: _filtered.length,
-                  itemBuilder: (_, i) => _buildCard(_filtered[i]),
-                ),
-              ),
-      ),
-    ]),
-  );
-
-  Widget _buildCard(Map<String,dynamic> v) {
-    final pType = (v["product_type"] ?? "premium").toString();
-    final isStd = pType == "standard";
-    final pid   = _pid(v);
-
-    // Effective status
-    String status = (v["approval_status"] ?? "").isNotEmpty
-        ? (v["approval_status"] ?? "pending_approval").toString()
-        : (v["status"] ?? "pending_approval").toString();
-    final endRaw = v["end_date"]?.toString() ?? "";
-    if (status == "approved" && endRaw.isNotEmpty) {
-      try { if (DateTime.now().isAfter(DateTime.parse(endRaw))) status = "expired"; } catch (_) {}
-    }
-    final isExpired  = status == "expired";
-    final isApproved = status == "approved";
-    final isAvail    = v["is_available"] != false;
-
-    // Status colour + label
-    final (Color sc, String sl) = isStd
-        ? switch(status) {
-            "approved"             => (const Color(0xFF1a6640), "✅ Live (Sub Active)"),
-            "subscription_expired" => (Colors.grey.shade600, "⏸ Paused — Renew Sub"),
-            _                      => (kMuted, "📝 Subscription Required"),
-          }
-        : switch(status) {
-            "approved"        => (const Color(0xFF1a6640), "✅ Live in Discover"),
-            "rejected"        => (Colors.red,              "❌ Rejected"),
-            "expired"         => (Colors.grey.shade600,    "⏰ Expired"),
-            "pending_approval" => (const Color(0xFF856404), "⏳ Awaiting Approval"),
-            _                  => (kMuted,                  "📝 Pending"),
-          };
-
-    // Type badge
-    final (Color tbc, String tbl) = isStd
-        ? (const Color(0xFF1a6640), "🟢 Standard")
-        : (const Color(0xFF6B2FAA), "🟣 Premium");
-
-    // Days left
-    int? daysLeft;
-    if (!isStd && endRaw.isNotEmpty) {
-      try { daysLeft = DateTime.parse(endRaw).difference(DateTime.now()).inDays; } catch (_) {}
-    }
-
-    final isSelected = _selected.contains(pid);
-
-    return Stack(children: [
-      Card(
-        elevation: 2,
-        margin: const EdgeInsets.only(bottom: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: _bulkMode && isSelected
-              ? const BorderSide(color: kPrimary, width: 2)
-              : BorderSide.none,
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: _bulkMode
-              ? () => setState(() {
-                  if (isSelected) _selected.remove(pid); else _selected.add(pid);
-                })
-              : null,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 52),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Checkbox in bulk mode
-              if (_bulkMode)
-                Padding(
-                  padding: const EdgeInsets.only(right: 10, top: 2),
-                  child: Checkbox(value: isSelected, activeColor: kPrimary,
-                    onChanged: (_) => setState(() {
-                      if (isSelected) _selected.remove(pid); else _selected.add(pid);
-                    })),
-                ),
-              _ProductThumb(logoUrl: v["logo_url"] ?? ""),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Type badge + availability toggle
-                Row(children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tbc.withValues(alpha: .1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: tbc.withValues(alpha: .3)),
-                    ),
-                    child: Text(tbl, style: TextStyle(color: tbc, fontSize: 10, fontWeight: FontWeight.w700)),
-                  ),
-                  const Spacer(),
-                  // Availability toggle
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text(isAvail ? "On" : "Off",
-                      style: TextStyle(fontSize: 10, color: isAvail ? kPrimary : kMuted,
-                                       fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 4),
-                    Transform.scale(scale: 0.7,
-                      child: Switch(
-                        value: isAvail,
-                        activeColor: kPrimary,
-                        onChanged: (val) async {
-                          if (pid.isEmpty) return;
-                          setState(() => v["is_available"] = val);
-                          try {
-                            await Api.setProductAvailability(widget.token, pid, val);
-                          } catch (e) {
-                            setState(() => v["is_available"] = !val);
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
-                          }
-                        },
-                      )),
-                  ]),
-                ]),
-                const SizedBox(height: 4),
-                Text(v["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
-                Text(v["offer_text"] ?? "", style: const TextStyle(fontSize: 12, color: kMuted)),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(color: sc.withValues(alpha: .12), borderRadius: BorderRadius.circular(10)),
-                  child: Text(sl, style: TextStyle(color: sc, fontSize: 11, fontWeight: FontWeight.w600))),
-                // Expiry info for Premium
-                if (!isStd && daysLeft != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(daysLeft > 0 ? Icons.calendar_today_rounded : Icons.event_busy_rounded,
-                        size: 11, color: daysLeft > 7 ? kMuted : Colors.orange),
-                      const SizedBox(width: 4),
-                      Text(
-                        daysLeft > 0
-                          ? "Expires ${DateTime.parse(endRaw).day.toString().padLeft(2,'0')}-${DateTime.parse(endRaw).month.toString().padLeft(2,'0')}-${DateTime.parse(endRaw).year}"
-                          : "Expired",
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600,
-                          color: daysLeft > 7 ? kMuted : (daysLeft > 0 ? Colors.orange : Colors.red))),
-                    ]),
-                  ),
-                if (isStd)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.loop_rounded, size: 11, color: kMuted),
-                      const SizedBox(width: 4),
-                      const Text("Linked to store subscription",
-                        style: TextStyle(fontSize: 10, color: kMuted, fontWeight: FontWeight.w600)),
-                    ]),
-                  ),
-              ])),
-              if (!isStd && (v["amount"] ?? 0) != 0)
-                Text("₹${v['amount'] ?? 0}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: kPrimary, fontSize: 12)),
-            ]),
-          ),
-        ),
-      ),
-
-      // ── Action button row ──
-      if (!_bulkMode)
-        Positioned(bottom: 8, left: 12, right: 12,
-          child: Wrap(spacing: 6, runSpacing: 4, children: [
-            // Edit
-            _ActionBtn(label: "Edit", icon: Icons.edit_rounded, color: kPrimary,
-              onTap: () => _showEditDialog(v, pid)),
-            // Delete
-            _ActionBtn(label: "Delete", icon: Icons.delete_outline_rounded, color: Colors.red,
-              onTap: () => _confirmDelete(v, pid)),
-            // Analytics
-            if (pid.isNotEmpty)
-              _ActionBtn(label: "Analytics", icon: Icons.bar_chart_rounded, color: const Color(0xFF856404),
-                onTap: () => Navigator.push(context,
-                  _offroRoute(ProductAnalyticsPage(token: widget.token, product: v)))),
-            // History
-            if (pid.isNotEmpty)
-              _ActionBtn(label: "History", icon: Icons.history_rounded, color: kMuted,
-                onTap: () => Navigator.push(context,
-                  _offroRoute(ProductHistoryPage(token: widget.token, product: v)))),
-            // Upgrade (Standard only, not already upgraded)
-            if (isStd && v["upgraded"] != true)
-              _ActionBtn(label: "Upgrade", icon: Icons.upgrade_rounded,
-                color: const Color(0xFF6B2FAA),
-                onTap: () => Navigator.push(context,
-                  _offroRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load())),
-            // Renew (Premium, approved or expired)
-            if (!isStd && (isApproved || isExpired))
-              _ActionBtn(label: "Renew", icon: Icons.autorenew_rounded,
-                color: const Color(0xFF1a6640),
-                onTap: () => Navigator.push(context,
-                  _offroRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load())),
-          ]),
-        ),
-    ]);
+    );
   }
 
   Future<void> _showEditDialog(Map<String,dynamic> v, String pid) async {
@@ -1505,6 +1531,51 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       }
     }
   }
+}
+
+// ── Compact type badge ──────────────────────────────────────────────────────
+class _TypeBadge extends StatelessWidget {
+  final bool isStd;
+  const _TypeBadge({required this.isStd});
+  @override Widget build(BuildContext context) {
+    final color = isStd ? const Color(0xFF1a6640) : const Color(0xFF6B2FAA);
+    final label = isStd ? "Standard" : "Premium";
+    final icon  = isStd ? Icons.inventory_2_rounded : Icons.workspace_premium_rounded;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: .3)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 10, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
+}
+
+// ── Compact status badge ────────────────────────────────────────────────────
+class _StatusBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final IconData icon;
+  const _StatusBadge({required this.label, required this.color, required this.icon});
+  @override Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withValues(alpha: .3)),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 10, color: color),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
+    ]),
+  );
 }
 
 // ── Compact action button ──────────────────────────────────────────────────
