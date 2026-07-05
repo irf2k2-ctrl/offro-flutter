@@ -1342,21 +1342,22 @@ class TopStoreCard extends StatelessWidget {
                     style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500)),
                 ],
                 const Spacer(),
-                // Dynamic open/close indicator
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: _statusBg,
-                    borderRadius: BorderRadius.circular(8),
+                // Dynamic open/close indicator — hidden when times not configured
+                if (_closeTime.isNotEmpty && _timesOk)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _statusBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text(_statusLabel,
+                        style: TextStyle(color: _statusTxt, fontSize: 10, fontWeight: FontWeight.w700)),
+                      if (_statusSub.isNotEmpty)
+                        Text(_statusSub,
+                          style: TextStyle(color: _statusTxt.withValues(alpha: .75), fontSize: 8, fontWeight: FontWeight.w500)),
+                    ]),
                   ),
-                  child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text(_statusLabel,
-                      style: TextStyle(color: _statusTxt, fontSize: 10, fontWeight: FontWeight.w700)),
-                    if (_statusSub.isNotEmpty)
-                      Text(_statusSub,
-                        style: TextStyle(color: _statusTxt.withValues(alpha: .75), fontSize: 8, fontWeight: FontWeight.w500)),
-                  ]),
-                ),
               ]),
             ]),
           ),
