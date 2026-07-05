@@ -22,13 +22,17 @@ PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
   final closeTime = store['close_time']?.toString() ?? '';
   if (closeTime.isEmpty ||
       (openTime == '00:00' && closeTime == '00:00') ||
-      (openTime.isEmpty  && closeTime == '00:00')) {
+      (openTime.isEmpty  && closeTime == '00:00') ||
+      (closeTime == '00:00:00')) {
     return (isOpen: null, label: '', sub: '');
   }
   try {
+    // Strip seconds if stored as HH:MM:SS
+    final ct       = closeTime.length > 5 ? closeTime.substring(0, 5) : closeTime;
+    final ot       = openTime.length  > 5 ? openTime.substring(0, 5)  : openTime;
     final now      = TimeOfDay.now();
     final nowMins  = now.hour * 60 + now.minute;
-    final cParts   = closeTime.split(':');
+    final cParts   = ct.split(':');
     final cH       = int.parse(cParts[0]);
     final cM       = cParts.length > 1 ? int.parse(cParts[1]) : 0;
     final closeMins = cH * 60 + cM;
@@ -39,8 +43,8 @@ PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
       return (isOpen: true,  label: 'Open',   sub: 'Closes $cH12$cMinStr $cSuffix');
     } else {
       String sub = '';
-      if (openTime.isNotEmpty) {
-        final oParts  = openTime.split(':');
+      if (ot.isNotEmpty) {
+        final oParts  = ot.split(':');
         final oH      = int.parse(oParts[0]);
         final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
         final oSuffix = oH >= 12 ? 'PM' : 'AM';
@@ -1209,47 +1213,15 @@ class TopStoreCard extends StatelessWidget {
     final imgSrc   = _resolveImg();
     final badgeLabel = _badgeLabel();
 
-    // Open/close status (same logic as main.dart _storeCard)
-    final _openTime  = store["open_time"]?.toString()  ?? "";
+    // Open/close status — uses shared helper (same as NitHorizontalCard)
+    final _st        = _getStoreStatus(store);
     final _closeTime = store["close_time"]?.toString() ?? "";
-    final _now       = TimeOfDay.now();
-    String _statusLabel = "Open";
-    Color  _statusBg    = const Color(0xFFe8f5ee);
-    Color  _statusTxt   = const Color(0xFF2e7d52);
-    String _statusSub   = "";
-    final bool _timesOk = !(_openTime == "00:00" && _closeTime == "00:00")
-        && !(_openTime.isEmpty && _closeTime == "00:00");
-    if (_closeTime.isNotEmpty && _timesOk) {
-      try {
-        final _cP    = _closeTime.split(":");
-        final _cH    = int.parse(_cP[0]);
-        final _cM    = _cP.length > 1 ? int.parse(_cP[1]) : 0;
-        final _nowM  = _now.hour * 60 + _now.minute;
-        final _clM   = _cH * 60 + _cM;
-        final _cSuf  = _cH >= 12 ? "PM" : "AM";
-        final _cH12  = _cH > 12 ? _cH - 12 : (_cH == 0 ? 12 : _cH);
-        final _cMin  = _cM > 0 ? ":${_cM.toString().padLeft(2,'0')}" : "";
-        if (_nowM < _clM) {
-          _statusLabel = "Open";
-          _statusBg    = const Color(0xFFe8f5ee);
-          _statusTxt   = const Color(0xFF2e7d52);
-          _statusSub   = "Closes $_cH12$_cMin $_cSuf";
-        } else {
-          _statusLabel = "Closed";
-          _statusBg    = const Color(0xFFfce8e6);
-          _statusTxt   = const Color(0xFFc0392b);
-          if (_openTime.isNotEmpty) {
-            final _oP   = _openTime.split(":");
-            final _oH   = int.parse(_oP[0]);
-            final _oM   = _oP.length > 1 ? int.parse(_oP[1]) : 0;
-            final _oSuf = _oH >= 12 ? "PM" : "AM";
-            final _oH12 = _oH > 12 ? _oH - 12 : (_oH == 0 ? 12 : _oH);
-            final _oMin = _oM > 0 ? ":\${_oM.toString().padLeft(2,'0')}" : "";
-            _statusSub  = "Opens $_oH12$_oMin $_oSuf";
-          }
-        }
-      } catch (_) {}
-    }
+    final String _statusLabel = _st.label;
+    final Color  _statusBg    = _st.isOpen == true
+        ? const Color(0xFFe8f5ee) : const Color(0xFFfce8e6);
+    final Color  _statusTxt   = _st.isOpen == true
+        ? const Color(0xFF2e7d52) : const Color(0xFFc0392b);
+    final String _statusSub   = _st.sub;
 
     // Location string
     final locationParts = [area, city].where((x) => x.isNotEmpty && x != "null").toList();
@@ -1343,7 +1315,7 @@ class TopStoreCard extends StatelessWidget {
                 ],
                 const Spacer(),
                 // Dynamic open/close indicator — hidden when times not configured
-                if (_closeTime.isNotEmpty && _timesOk)
+                if (_st.label.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
