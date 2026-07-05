@@ -59,6 +59,16 @@ class Api {
     if (kDebugMode) debugPrint("[OFFRO] clearCategoryCache: removed cache for '$categoryName'");
   }
 
+  /// Clear the categories list cache so the next fetchCategories() hits the backend fresh.
+  /// Call this before opening the All Categories screen to always show latest admin categories.
+  static void clearCategoriesListCache() {
+    _apiCache.remove("categories");
+    _apiCache.remove("categories_auth");
+    _apiCacheTime.remove("categories");
+    _apiCacheTime.remove("categories_auth");
+    if (kDebugMode) debugPrint("[OFFRO] clearCategoriesListCache: categories cache cleared");
+  }
+
   static Future<dynamic> _put(String path, Map body, {String? token}) async {
     final r = await http.put(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
     final d = json.decode(r.body);
@@ -153,6 +163,19 @@ class Api {
       return {"error": "Unexpected response from server."};
     } catch (e) {
       return {"error": "Network error. Please check your connection and try again."};
+    }
+  }
+
+  static Future<Map<String,dynamic>> reverseGeocode(double lat, double lng) async {
+    try {
+      final r = await http.get(
+        Uri.parse("$kBaseUrl/reverse-geocode?lat=$lat&lng=$lng"),
+      ).timeout(const Duration(seconds: 10));
+      final d = json.decode(r.body);
+      if (d is Map) return Map<String,dynamic>.from(d);
+      return {"error": "Unexpected response."};
+    } catch (e) {
+      return {"error": "Network error."};
     }
   }
 
@@ -467,6 +490,13 @@ class Api {
     } catch (e) {
       return {"error": e.toString()};
     }
+  }
+
+  static Future<Map<String,dynamic>> getMyProductReview(String token, String productId) async {
+    try {
+      final d = await _get("/products/$productId/my-review", token: token);
+      return d is Map ? Map<String,dynamic>.from(d) : {};
+    } catch (_) { return {}; }
   }
 
   // ── Product Favorites ──

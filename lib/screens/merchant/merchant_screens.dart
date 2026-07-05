@@ -1138,7 +1138,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         case "approved":        return st == "approved";
         case "pending_approval":return st == "pending_approval";
         case "expired":         return st == "expired";
-        default:                return true;
+        default:                return st != "expired";
       }
     }).toList();
   }
@@ -1536,7 +1536,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             SizedBox(width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red.shade600,
+                  backgroundColor: const Color(0xFF856404),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1751,7 +1751,7 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
                   const SizedBox(height:3),
-                  const Text("Free • Linked to your store subscription\nAuto-approved, no payment required", style: TextStyle(fontSize: 12, color: kMuted)),
+                  const Text("Free • Linked to your store subscription\nAdmin approval required, no payment needed", style: TextStyle(fontSize: 12, color: kMuted)),
                 ])),
                 const Icon(Icons.chevron_right_rounded, color: kMuted),
               ]),
@@ -1996,6 +1996,7 @@ class _StandardProductState extends State<StandardProductPage> {
   Future<void> _submit() async {
     if (_titleC.text.trim().isEmpty) { setState(() => _msg = "Product title required"); return; }
     if (_selectedStore == null) { setState(() => _msg = "Please select a store for this product"); return; }
+    if (_logoB64 == null) { setState(() => _msg = "Please upload a product image"); return; }
 
     final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
     final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
@@ -2057,7 +2058,7 @@ class _StandardProductState extends State<StandardProductPage> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1a6640))),
               const SizedBox(height: 4),
-              const Text("• Free — no payment required\n• Linked to your store subscription\n• Auto-approved and visible in store detail\n• Paused automatically when subscription expires", style: TextStyle(fontSize: 12, color: kMuted)),
+              const Text("• Free — no payment required\n• Linked to your store subscription\n• Admin approval required before going live\n• Paused automatically when subscription expires", style: TextStyle(fontSize: 12, color: kMuted)),
               const SizedBox(height: 8),
               Text("Usage: $count / $limit standard products", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kText)),
             ]),
@@ -2147,7 +2148,7 @@ class _StandardProductState extends State<StandardProductPage> {
           ]),
           const SizedBox(height: 16),
           // Logo
-          const Text("Product Image (optional)", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const Text("Product Image *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: _pickLogo,
@@ -2329,6 +2330,7 @@ class _AddProductState extends State<AddProductPage> {
     if(_titleC.text.trim().isEmpty){setState(()=>_msg="Product title required");return;}
     if(_selectedStore==null){setState(()=>_msg="Please select a store for this product");return;}
     if(_selCity==null||_selCity!.trim().isEmpty){setState(()=>_msg="Please select a city for this product");return;}
+    if(_logoB64==null){setState(()=>_msg="Please upload a product image");return;}
     if(_days<1){setState(()=>_msg="Enter number of days (minimum 1)");return;}
     setState((){_loading=true;_msg="";});
     try{
@@ -2549,7 +2551,7 @@ class _AddProductState extends State<AddProductPage> {
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 const Icon(Icons.image_rounded,size:28,color:kAccent),
                 const SizedBox(height:4),
-                const Text("Upload Logo (optional)",style:TextStyle(color:kMuted,fontSize:12)),
+                const Text("Upload Image",style:TextStyle(color:kMuted,fontSize:12)),
                 Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 400×400px"),const SizedBox(width:6),_InfoChip("📦 Max 1MB")]),
               ]),
         )),
@@ -2852,7 +2854,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                   child:Row(mainAxisSize:MainAxisSize.min,children:[
                     Icon(Icons.event_available,size:13,color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404)),
                     const SizedBox(width:4),
-                    Text("${status=='active'?'Active till':'Expires'}: ${s['subscription_end']}",
+                    Text("${status=='active'?'Active till':'Expires'}: ${(s['subscription_end']?.toString() ?? '').split('T').first}",
                       style:TextStyle(color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404),fontSize:11.5,fontWeight:FontWeight.w700)),
                   ])),
               const SizedBox(height:10),
@@ -3017,12 +3019,43 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _locConfirmed = true;
         _locLoading   = false;
       });
+      await _reverseGeocode(pos.latitude, pos.longitude);
     } catch (e) {
       if (mounted) setState(() {
         _locLoading = false;
         _msg = "Could not get location: ${e.toString().replaceAll('Exception: ','')}";
       });
     }
+  }
+
+  // ── Reverse geocode: fill state/city/area/address from lat/lng ──
+  Future<void> _reverseGeocode(double lat, double lng) async {
+    try {
+      final res = await Api.reverseGeocode(lat, lng);
+      if (!mounted || res.containsKey('error')) return;
+      setState(() {
+        final st = res['state']?.toString() ?? '';
+        final ct = res['city']?.toString() ?? '';
+        final ar = res['area']?.toString() ?? '';
+        final ad = res['address']?.toString() ?? '';
+        // Case-insensitive state match
+        final matchedState = st.isNotEmpty
+            ? kIndiaStates.firstWhere((s) => s.toLowerCase() == st.toLowerCase(), orElse: () => '')
+            : '';
+        if (matchedState.isNotEmpty) _selState = matchedState;
+        // Case-insensitive city match within the matched state's city list
+        if (ct.isNotEmpty) {
+          final stateKey = matchedState.isNotEmpty ? matchedState : (_selState ?? '');
+          final cities = kIndiaCities[stateKey] ?? [];
+          final matchedCity = cities.firstWhere(
+              (c) => c.toLowerCase() == ct.toLowerCase(), orElse: () => '');
+          if (matchedCity.isNotEmpty) { _selCity = matchedCity; _loadAreas(matchedCity); }
+          else if (cities.isEmpty) { _selCity = ct; _loadAreas(ct); }
+        }
+        if (ar.isNotEmpty) _area.text = ar;
+        if (ad.isNotEmpty) _addr.text = ad;
+      });
+    } catch (_) {}
   }
 
   // ── Google Maps link resolution (inline Blinkit-style) ──
@@ -3056,6 +3089,31 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _mapsApplied  = true;
         _locConfirmed = true;
       });
+      // Auto-fill address fields from resolved location
+      final st = res['state']?.toString() ?? '';
+      final ct = res['city']?.toString() ?? '';
+      final ar = res['area']?.toString() ?? '';
+      final ad = res['address']?.toString() ?? '';
+      if (mounted && (st.isNotEmpty || ct.isNotEmpty || ar.isNotEmpty || ad.isNotEmpty)) {
+        setState(() {
+          // Case-insensitive state match
+          final matchedState = st.isNotEmpty
+              ? kIndiaStates.firstWhere((s) => s.toLowerCase() == st.toLowerCase(), orElse: () => '')
+              : '';
+          if (matchedState.isNotEmpty) _selState = matchedState;
+          // Case-insensitive city match within the matched state's city list
+          if (ct.isNotEmpty) {
+            final stateKey = matchedState.isNotEmpty ? matchedState : (_selState ?? '');
+            final cities = kIndiaCities[stateKey] ?? [];
+            final matchedCity = cities.firstWhere(
+                (c) => c.toLowerCase() == ct.toLowerCase(), orElse: () => '');
+            if (matchedCity.isNotEmpty) { _selCity = matchedCity; _loadAreas(matchedCity); }
+            else if (cities.isEmpty) { _selCity = ct; _loadAreas(ct); }
+          }
+          if (ar.isNotEmpty) _area.text = ar;
+          if (ad.isNotEmpty) _addr.text = ad;
+        });
+      }
     }
   }
 
@@ -3509,45 +3567,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         decoration:_dec("Category",Icons.category),
         hint:const Text("Select category")),
       const SizedBox(height:12),
-      DropdownButtonFormField<String>(
-        isExpanded: true,
-        value: kIndiaStates.contains(_selState)?_selState:null,
-        items: kIndiaStates.map((s)=>DropdownMenuItem<String>(value:s,child:Text(s,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
-        onChanged:(v)=>setState((){_selState=v;_selCity=null;}),
-        decoration:_dec("State *",Icons.map),
-        hint:const Text("Select State",overflow:TextOverflow.ellipsis)),
-      const SizedBox(height:12),
-      DropdownButtonFormField<String>(
-        isExpanded: true,
-        value: (_selState!=null && (kIndiaCities[_selState]??[]).contains(_selCity))?_selCity:null,
-        items: (_selState==null?[]:kIndiaCities[_selState]??[]).map((c)=>DropdownMenuItem<String>(value:c,child:Text(c,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
-        onChanged:(v){ setState(()=>_selCity=v); if(v!=null) _loadAreas(v); },
-        decoration:_dec("City *",Icons.location_city),
-        hint:Text(_selState==null?"Select State first":"Select City",overflow:TextOverflow.ellipsis)),
-      const SizedBox(height:12),
-      // ── Area / Locality Dropdown ──────────────────────────────────────
-      if (_areasLoading)
-        const LinearProgressIndicator(minHeight: 2, color: kPrimary)
-      else if (_areas.isNotEmpty)
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          // current value: if _area.text is in list use it, else null (show hint)
-          value: _areas.contains(_area.text) ? _area.text : null,
-          items: _areas.map((a) => DropdownMenuItem<String>(
-            value: a,
-            child: Text(a, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
-          )).toList(),
-          onChanged: (v) { if (v != null) setState(() => _area.text = v); },
-          decoration: _dec("Area / Locality", Icons.my_location),
-          hint: const Text("Select area", overflow: TextOverflow.ellipsis),
-        )
-      else
-        _field(_area, "Area / Locality", Icons.my_location),
-      const SizedBox(height:12),
-      _field(_addr,"Full Address",Icons.home),
-      const SizedBox(height:12),
-      _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
-      const SizedBox(height:12),
       // GPS location capture
       Container(
         padding: const EdgeInsets.all(14),
@@ -3712,6 +3731,45 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               style: TextStyle(color: kMuted, fontSize: 11)),
         ]),
       ),
+      const SizedBox(height:12),
+      DropdownButtonFormField<String>(
+        isExpanded: true,
+        value: kIndiaStates.contains(_selState)?_selState:null,
+        items: kIndiaStates.map((s)=>DropdownMenuItem<String>(value:s,child:Text(s,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
+        onChanged:(v)=>setState((){_selState=v;_selCity=null;}),
+        decoration:_dec("State *",Icons.map),
+        hint:const Text("Select State",overflow:TextOverflow.ellipsis)),
+      const SizedBox(height:12),
+      DropdownButtonFormField<String>(
+        isExpanded: true,
+        value: (_selState!=null && (kIndiaCities[_selState]??[]).contains(_selCity))?_selCity:null,
+        items: (_selState==null?[]:kIndiaCities[_selState]??[]).map((c)=>DropdownMenuItem<String>(value:c,child:Text(c,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
+        onChanged:(v){ setState(()=>_selCity=v); if(v!=null) _loadAreas(v); },
+        decoration:_dec("City *",Icons.location_city),
+        hint:Text(_selState==null?"Select State first":"Select City",overflow:TextOverflow.ellipsis)),
+      const SizedBox(height:12),
+      // ── Area / Locality Dropdown ──────────────────────────────────────
+      if (_areasLoading)
+        const LinearProgressIndicator(minHeight: 2, color: kPrimary)
+      else if (_areas.isNotEmpty)
+        DropdownButtonFormField<String>(
+          isExpanded: true,
+          // current value: if _area.text is in list use it, else null (show hint)
+          value: _areas.contains(_area.text) ? _area.text : null,
+          items: _areas.map((a) => DropdownMenuItem<String>(
+            value: a,
+            child: Text(a, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+          )).toList(),
+          onChanged: (v) { if (v != null) setState(() => _area.text = v); },
+          decoration: _dec("Area / Locality", Icons.my_location),
+          hint: const Text("Select area", overflow: TextOverflow.ellipsis),
+        )
+      else
+        _field(_area, "Area / Locality", Icons.my_location),
+      const SizedBox(height:12),
+      _field(_addr,"Full Address",Icons.home),
+      const SizedBox(height:12),
+      _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
       const SizedBox(height: 16),
       // Image picker
       GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder,style:BorderStyle.solid)),

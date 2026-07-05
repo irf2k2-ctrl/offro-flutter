@@ -17,35 +17,32 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-// ─────────────────────── SPLIT IMPORTS ───────────────────────
-import 'core/constants/app_constants.dart';
-import 'core/services/api_service.dart';
-import 'core/services/fav_state.dart';
-import 'core/services/prefs_service.dart';
-import 'core/services/fcm_service.dart';
-import 'screens/splash/splash_screen.dart';
-import 'screens/loading/location_loading_screen.dart';
-import 'screens/onboarding/onboarding_screen.dart';
-import 'core/widgets/brand_logo.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/merchant/merchant_screens.dart';
-import 'screens/favorites/favorites_page.dart';
-import 'screens/detail/detail_page.dart';
-import 'screens/store/store_detail_page.dart';
-import 'screens/home/popup_campaign_overlay.dart';
-import 'screens/qr/qr_page.dart';
-import 'screens/wallet/wallet_page.dart';
-import 'screens/payment/payment_success_screen.dart';
-import 'core/widgets/store_cards.dart';
+// ─── Local imports ───
+import '../../core/constants/app_constants.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/fav_state.dart';
+import '../../core/services/prefs_service.dart';
+import '../../core/services/fcm_service.dart';
+import '../../core/services/app_nav.dart';
+import '../../core/widgets/brand_logo.dart';
+import '../../core/widgets/store_cards.dart';
+import '../auth/login_screen.dart';
+import '../merchant/merchant_screens.dart';
+import '../favorites/favorites_page.dart';
+import '../store/store_detail_page.dart';
+import '../qr/qr_page.dart';
+import '../wallet/wallet_page.dart';
+import '../payment/payment_success_screen.dart';
+import '../splash/splash_screen.dart';
+import '../loading/location_loading_screen.dart';
+import '../onboarding/onboarding_screen.dart';
+import '../detail/detail_page.dart';
+import '../search/search_page.dart';
+import '../notifications/notifications_page.dart';
+import 'popup_campaign_overlay.dart';
 
-PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
-
-
-// ─────────────────────── CONFIG ───────────────────────
-const kBaseUrl = "https://offro-backend-production.up.railway.app";
+const kBaseUrl     = "https://offro-backend-production.up.railway.app";
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
-
-// ─────────────────────── COLORS ───────────────────────
 const kPrimary  = Color(0xFF3E5F55);
 const kLight    = Color(0xFFCDEBD6);
 const kAccent   = Color(0xFFA9CDBA);
@@ -55,16 +52,10 @@ const kText     = Color(0xFF2c3e35);
 const kMuted    = Color(0xFF6b8c7e);
 const kBorder   = Color(0xFFd4e8de);
 
+PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
-
-// ─────────────────────── FCM (see core/services/fcm_service.dart) ───────────────────────
-// ─────────────────────── API ───────────────────────
-
-// ─────────────────────── NOTIFICATION NOTIFIER ───────────────────────
-/// Global ValueNotifier — FCM handlers call .value++ to update badge in real time
-final _unreadNotifier = ValueNotifier<int>(0);
-
-// ─────────────────────── PREFS ───────────────────────
+/// Global unread-notification counter.
+final unreadNotifier = ValueNotifier<int>(0);
 
 // ─────────────────────── LOCATION ───────────────────────
 // Haversine distance in km between two lat/lng points
@@ -173,113 +164,6 @@ double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
 }
 
 
-// ─────────────────────── MAIN ───────────────────────
-// Background FCM handler — must be top-level function
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  if (kDebugMode) debugPrint('[FCM] Background message: \${message.notification?.title}');
-  // Issue 2: Save notification to local history
-  try {
-    final title    = message.notification?.title ?? message.data['title'] ?? '';
-    final body     = message.notification?.body  ?? message.data['body']  ?? '';
-    final imageUrl = message.data['image_url'] ?? message.data['image'] ?? '';
-    if (title.isNotEmpty) {
-      await Prefs.saveNotification(title: title, body: body, imageUrl: imageUrl);
-      await Prefs.incrementUnread(); // Update badge count persistently
-    }
-  } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-}
-
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // 1. Initialize Firebase
-  await Firebase.initializeApp();
-
-  // 2. Register background message handler (must be before runApp)
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // 3. Initialize flutter_local_notifications + create high-importance channel
-  await initLocalNotifications();
-  // Wire local notification tap → navigate to NotificationsPage
-  onLocalNotifTap = (payload) {
-    MyApp.navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => const NotificationsPage()),
-    );
-  };
-
-  // 4. Configure FCM foreground presentation (iOS only — Android needs local notif)
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true, badge: true, sound: true,
-  );
-
-  // 5. Request Android 13+ POST_NOTIFICATIONS permission early
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true, badge: true, sound: true,
-    announcement: false, carPlay: false, criticalAlert: false, provisional: false,
-  );
-
-  // 6. Handle notification that LAUNCHED the app (cold start / terminated state tap)
-  final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMsg != null) {
-    if (kDebugMode) debugPrint('[FCM] App launched from notification: \${initialMsg.notification?.title}');
-    final _it = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
-    final _ib = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
-    final _ii = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
-    if (_it.isNotEmpty) {
-      await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii);
-      await Prefs.incrementUnread();
-    }
-    // Navigate to NotificationsPage after app fully loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      MyApp.navigatorKey.currentState?.push(
-        MaterialPageRoute(builder: (_) => const NotificationsPage()),
-      );
-    });
-  }
-
-  // 7. Foreground message listener — show local notification manually
-  FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
-    if (kDebugMode) debugPrint('[FCM] ▶ Foreground message received: \${msg.notification?.title} | \${msg.notification?.body}');
-    if (kDebugMode) debugPrint('[FCM] Data payload: \${msg.data}');
-    showLocalNotification(msg); // show banner while app is open
-    // Save to notification history (must await inside async listener)
-    final _t = msg.notification?.title ?? msg.data['title'] ?? '';
-    final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
-    final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-    if (_t.isNotEmpty) {
-      await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
-      await Prefs.incrementUnread(); // Prefs is static — safe to call anywhere
-      _unreadNotifier.value++; // Update UI badge in real time
-    }
-  });
-
-  // 8. Background-to-foreground tap listener (app was in background, user tapped)
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) async {
-    if (kDebugMode) debugPrint('[FCM] 🔔 User tapped notification (from background): \${msg.notification?.title}');
-    if (kDebugMode) debugPrint('[FCM] Data: \${msg.data}');
-    // Save to notification history (await to ensure SharedPreferences write completes)
-    final _t = msg.notification?.title ?? msg.data['title'] ?? '';
-    final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
-    final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-    if (_t.isNotEmpty) {
-      await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
-      await Prefs.incrementUnread();
-    }
-    // Navigate to NotificationsPage when user taps notification from background
-    MyApp.navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => const NotificationsPage()),
-    );
-  });
-
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-  ));
-
-  runApp(const MyApp());
-}
 
 IconData _categoryIcon(String cat) {
   switch(cat.toLowerCase()) {
@@ -327,215 +211,6 @@ Map<String,dynamic> _enrichStoreForDetail(Map<String,dynamic> s) {
   }
   return s;
 }
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  // NavigatorKey lets us navigate from anywhere (callbacks, FCM tap handlers, etc.)
-  // without depending on a captured BuildContext that may become stale.
-  static final navigatorKey = GlobalKey<NavigatorState>();
-
-  // Central navigation helpers — called from SplashScreen / Login / Onboarding callbacks.
-  static void goHome({required String token, required String name,
-      required String phone, required String userId, required String city}) {
-    // TASK 2 FIX: clear stale cache + save mode so all sections reload correctly
-    Api.clearCache();
-    Prefs.saveMode('user');
-    // Route through LocationLoadingScreen so home opens fully loaded
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(LocationLoadingScreen(
-        token: token, name: name, phone: phone, userId: userId,
-        // Pass saved city so it loads instantly without GPS wait
-        forcedCity: city.isNotEmpty ? city : null,
-        onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                   required double? lat, required double? lng}) =>
-            goHomeWithData(token: token, name: name, phone: phone, userId: userId,
-                city: city, stores: stores, lat: lat, lng: lng),
-      )),
-      (r) => false,
-    );
-  }
-
-  static void goLogin() {
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(LoginScreen(onSuccess: (tok, nm, ph, uid, role) {
-        if (role == 'merchant') {
-          // Merchant role selected → merchant loader → merchant home
-          _goMerchantViaUnified(merchantToken: tok, phone: ph, name: nm);
-        } else {
-          // User role selected → GPS location loader → user home
-          navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(LocationLoadingScreen(
-              token: tok, name: nm, phone: ph, userId: uid,
-              onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                         required double? lat, required double? lng}) =>
-                  goHomeWithData(token: tok, name: nm, phone: ph, userId: uid,
-                      city: city, stores: stores, lat: lat, lng: lng),
-            )),
-            (r) => false,
-          );
-        }
-      })),
-      (r) => false,
-    );
-  }
-
-  /// Switch mode — called from SwitchModeSheet in user profile
-  static void goSwitchMode(String token, String name, String phone, String userId, String role) {
-    if (role == 'merchant') {
-      _goMerchantViaUnified(phone: phone, name: name);
-    } else {
-      // TASK 2 FIX: get a fresh user token so getWallet and user APIs work correctly
-      _goUserViaUnified(phone: phone, name: name, userId: userId);
-    }
-  }
-
-  /// Switch to user mode — issues a fresh user session token, then routes home.
-  static void _goUserViaUnified({required String phone, required String name, required String userId}) async {
-    try {
-      Api.clearCache();
-      // Issue a fresh user session token
-      final resp = await Api.loginUser(phone);
-      final freshToken = resp['token']?.toString() ?? '';
-      final freshId    = resp['user_id']?.toString() ?? userId;
-      final freshName  = resp['name']?.toString() ?? name;
-      if (freshToken.isNotEmpty) {
-        await Prefs.save(freshToken, freshName, phone, 'user', userId: freshId);
-        await Prefs.saveMode('user');
-        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '');
-      } else {
-        // Fallback — use existing token (may cause wallet 401 but banners still load)
-        await Prefs.saveMode('user');
-        goHome(token: '', name: name, phone: phone, userId: userId, city: '');
-      }
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Switch] _goUserViaUnified error: $e');
-      await Prefs.saveMode('user');
-      goHome(token: '', name: name, phone: phone, userId: userId, city: '');
-    }
-  }
-
-  /// Unified merchant flow: fresh login → merchant loader → merchant home.
-  /// Called both from post-OTP flow and from Switch Mode.
-  /// [merchantToken] — pass if we already have a valid merchant token (e.g. splash restore).
-  /// [phone] — used to issue a fresh merchant token when switching from user mode.
-  static void _goMerchantViaUnified({
-    String? merchantToken,
-    required String phone,
-    required String name,
-  }) async {
-    try {
-      String token = merchantToken ?? '';
-      Map<String, dynamic>? merchantData;
-
-      // If we already have a merchant token, try it first
-      if (token.isNotEmpty) {
-        merchantData = await Api.getMerchantMe(token);
-      }
-
-      // No valid token or it failed → issue a fresh token via unified account-login
-      if (merchantData == null) {
-        final loginResp = await Api.loginAccount(phone);
-        token = loginResp['token']?.toString() ?? '';
-        if (token.isEmpty) {
-          if (kDebugMode) debugPrint('[Switch] loginAccount returned empty token for merchant switch');
-          goLogin();
-          return;
-        }
-        final mName   = loginResp['name']?.toString()        ?? name;
-        final mId     = loginResp['merchant_id']?.toString() ?? loginResp['account_id']?.toString() ?? '';
-        await Prefs.save(token, mName, phone, 'merchant', userId: mId);
-        await Prefs.saveMerchantId(mId);
-        await Prefs.saveMode('merchant');
-        merchantData = await Api.getMerchantMe(token);
-      }
-
-      if (merchantData == null) {
-        if (kDebugMode) debugPrint('[Switch] getMerchantMe returned null after fresh login');
-        goLogin();
-        return;
-      }
-
-      navigatorKey.currentState?.pushAndRemoveUntil(
-        _route(MerchantLoadingScreen(
-          token: token,
-          merchant: merchantData,
-          onReady: (tok, merch) {
-            navigatorKey.currentState?.pushAndRemoveUntil(
-              _route(MerchantHome(token: tok, merchant: merch)),
-              (r) => false,
-            );
-          },
-        )),
-        (r) => false,
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('[Switch] _goMerchantViaUnified error: $e');
-      // If merchant not registered, go to login so they can register
-      goLogin();
-    }
-  }
-
-  static void goHomeWithData({
-    required String token, required String name, required String phone,
-    required String userId,  required String city,
-    required List<Map<String,dynamic>> stores,
-    required double? lat,    required double? lng,
-  }) {
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(HomeScreen(
-        token: token, name: name, phone: phone,
-        savedCity: city, userId: userId,
-        preloadedStores: stores,
-        preloadedLat: lat, preloadedLng: lng,
-      )),
-      (r) => false,
-    );
-  }
-
-  static void goOnboarding() {
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(OnboardingScreen(onComplete: goLogin)),
-      (r) => false,
-    );
-  }
-
-  static void goMerchant({required String token, required Map merchant}) {
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(MerchantHome(token: token, merchant: merchant)),
-      (r) => false,
-    );
-  }
-
-  @override Widget build(BuildContext context) => MaterialApp(
-    debugShowCheckedModeBanner: false,
-    navigatorKey: navigatorKey,
-    theme: ThemeData(
-      primaryColor: kPrimary,
-      colorScheme: ColorScheme.fromSeed(seedColor: kPrimary),
-      useMaterial3: false,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: kText),
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-        ),
-      ),
-    ),
-    home: SplashScreen(
-      onUser:       (token, name, phone, city, userId) => goHome(token: token, name: name, phone: phone, userId: userId, city: city),
-      onMerchant:   (token, merchant) => goMerchant(token: token, merchant: merchant),
-      onOnboarding: goOnboarding,
-      onLogin:      goLogin,
-    ),
-  );
-}
-
 
 // ─────────────────────── SCALE ON TAP WIDGET ───────────────────────
 class _ScaleOnTap extends StatefulWidget {
@@ -653,92 +328,6 @@ class _ProfileNavBtn extends StatelessWidget {
 
 
 // ─────────────────────── MASONRY SEARCH GRID ───────────────────────
-class _MasonrySearchGrid extends StatelessWidget {
-  final List<Map<String,dynamic>> stores; final String token;
-  const _MasonrySearchGrid({required this.stores,required this.token});
-
-  Widget _imgWidget(Map s) {
-    String img = s["image_url"]?.toString() ?? "";
-    if (img.isEmpty) img = s["image_thumb"]?.toString() ?? "";
-    if (img.isEmpty) img = s["image"]?.toString() ?? "";
-    if (img.isEmpty) img = s["image2"]?.toString() ?? "";
-    if (img.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
-      catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-    }
-    final imgUrl = img.startsWith("/") ? "$kBaseUrl$img" : img;
-    if (imgUrl.startsWith("http")) {
-      return CachedNetworkImage(imageUrl:imgUrl,fit:BoxFit.cover,width:double.infinity,height:double.infinity,
-        placeholder:(_,__)=>Container(color:kAccent,child:const Center(child:Icon(Icons.store,color:kPrimary,size:32))),
-        errorWidget:(_,__,___)=>Container(color:kAccent,child:const Center(child:Icon(Icons.store,color:kPrimary,size:32))));
-    }
-    return Container(color:kAccent, child:Center(child:Icon(Icons.store,color:kPrimary,size:32)));
-  }
-
-  @override Widget build(BuildContext context) {
-    // Generate random heights: alternate between tall/medium/short
-    final heights = List.generate(stores.length, (i) => [140.0,180.0,120.0,160.0,200.0,130.0][i%6]);
-    // Build 2-column masonry
-    final col1 = <int>[]; final col2 = <int>[];
-    double h1=0, h2=0;
-    for(int i=0;i<stores.length;i++){
-      if(h1<=h2){col1.add(i);h1+=heights[i]+10;}
-      else{col2.add(i);h2+=heights[i]+10;}
-    }
-    Widget _card(int idx) {
-      final s=Map<String,dynamic>.from(stores[idx] as Map);
-      final dist = s["distance_km"] != null ? (s["distance_km"] as num).toDouble() : null;
-      final rating=(s["rating"] as num?)?.toDouble()??0;
-      return GestureDetector(
-        onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(s), token:token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
-        child:Container(
-          height:heights[idx],
-          margin:const EdgeInsets.only(bottom:10),
-          decoration:BoxDecoration(
-            borderRadius:BorderRadius.circular(16),
-            boxShadow:[BoxShadow(color:Colors.black.withValues(alpha: .1),blurRadius:8,offset:const Offset(0,3))],
-          ),
-          child:ClipRRect(
-            borderRadius:BorderRadius.circular(16),
-            child:Stack(fit:StackFit.expand,children:[
-              _imgWidget(s),
-              Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(
-                gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
-                  colors:[Colors.transparent,Colors.transparent,Colors.black.withValues(alpha: .7)],stops:const[0,.5,1]),
-              ))),
-              if(dist!=null) Positioned(top:7,right:7,child:Container(
-                padding:const EdgeInsets.symmetric(horizontal:6,vertical:3),
-                decoration:BoxDecoration(color:Colors.black54,borderRadius:BorderRadius.circular(8)),
-                child:Text(dist<1?"${(dist*1000).round()}m":"${dist.toStringAsFixed(1)}km",
-                  style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.w700)),
-              )),
-              Positioned(bottom:0,left:0,right:0,child:Padding(
-                padding:const EdgeInsets.fromLTRB(8,0,8,8),
-                child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
-                  Text(s["store_name"]?.toString()??"",style:const TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w800),maxLines:1,overflow:TextOverflow.ellipsis),
-                  if(rating>0) Row(children:[
-                    const Icon(Icons.star_rounded,color:Color(0xFFFFD700),size:10),const SizedBox(width:2),
-                    Text(rating.toStringAsFixed(1),style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.w700)),
-                  ]),
-                ]),
-              )),
-            ]),
-          ),
-        ),
-      );
-    }
-    return SingleChildScrollView(
-      padding:const EdgeInsets.fromLTRB(12,12,12,24),
-      child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Expanded(child:Column(children:col1.map(_card).toList())),
-        const SizedBox(width:10),
-        Expanded(child:Column(children:col2.map(_card).toList())),
-      ]),
-    );
-  }
-}
-
-// ─────────────────────── GIFT VOUCHER CARD WIDGET ───────────────────────
 
 class HomeScreen extends StatefulWidget {
   final String token, name, phone, savedCity, userId;
@@ -763,7 +352,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _netError=false; bool _fetchFailed=false;
   bool _loadAllRunning=false; // FIX 4: prevent parallel _loadAll calls
   bool _isTimeout=false; // FIX 10: distinguish timeout from other errors
-  bool _popupShown=false;
 
   // ── Location + store cache (static so it survives rebuilds) ──
   static String _cachedCity = "";
@@ -801,7 +389,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
   String _defaultCityImageUrl = "";    // fallback from /admin/default-images
   String _defaultProductImageUrl = ""; // default product image from /admin/default-images
-  String _mbFallbackUrl = "";          // default merchant banner image
   int _sliderPage=0;
   final PageController _sliderPc = PageController(initialPage: 49999); // FIX 5: start at midpoint for infinite scroll
   Timer? _sliderTimer;
@@ -897,7 +484,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadUnreadCount(); // Issue 8: load notification badge
     _loadFavStores(); // load fav store ids for home screen hearts
     // Sync badge with real-time notifier (updates from FCM foreground messages)
-    _unreadNotifier.addListener(_onUnreadChanged);
+    unreadNotifier.addListener(_onUnreadChanged);
     FavState.instance.addListener(_onFavChanged);
     // FIX 1: scroll listener for FAB visibility
     double _lastScrollOffset = 0;
@@ -939,7 +526,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _onUnreadChanged() {
-    if (mounted) setState(() => _unreadCount = _unreadNotifier.value);
+    if (mounted) setState(() => _unreadCount = unreadNotifier.value);
   }
 
   Future<void> _loadFavStores() async {
@@ -1055,6 +642,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       ]);
       // ── Hero images: fetch arrays from /default-images, rotate every 2 min ──
       List<String> resolvedCityImgs = [];
+      String _mbFallbackUrl = "";
       try {
         final defaults = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
         if (kDebugMode) debugPrint("[OFFRO] /default-images keys: \${defaults.keys.toList()}");
@@ -1168,7 +756,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // City image fetched in parallel in Future.wait above
 
       setState(() {
-        if (cats.length > 1 || _cats.length <= 1) _cats = List<String>.from(cats);
+        _cats            = List<String>.from(cats);
         if (richCats2.isNotEmpty) _richCats = richCats2;
         else if (_richCats.isEmpty) Api.clearCache(); // force refetch next time
         _sliders         = sliderList;
@@ -1187,17 +775,25 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       });
       _startSliderAutoPlay();
       _startHeroRotation();
-      WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndShowPopup());
+      // Show popup campaign after home screen is fully loaded
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndShowPopup();
+      });
     } catch (e) {
       if (kDebugMode) debugPrint("[OFFRO] _loadSupplementary error: $e");
     }
   }
 
+  bool _popupShown = false;
   Future<void> _checkAndShowPopup() async {
     if (_popupShown || !mounted) return;
     _popupShown = true;
     final c = city.isNotEmpty && city != "Detecting..." ? city : widget.savedCity;
-    await showPopupCampaignIfNeeded(context: context, city: c, token: widget.token);
+    await showPopupCampaignIfNeeded(
+      context:  context,
+      city:     c,
+      token:    widget.token,
+    );
   }
 
   Future<void> _loadAll(String c) async {
@@ -1381,19 +977,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     final sliderList = List<Map<String,dynamic>>.from(slides);
     for(int i=0;i<sliderList.length;i++) sliderList[i]["_idx"] = i;
 
-    // City-filter banners immediately — prevents other-city banners flashing on screen
-    final List<Map<String,dynamic>> filteredSliders;
-    if (c.isNotEmpty) {
-      final cf = sliderList.where((s) {
-        final sCity = (s["city"] ?? "").toString().trim().toLowerCase();
-        return sCity.isEmpty || sCity == c.toLowerCase().trim();
-      }).toList();
-      for (int i = 0; i < cf.length; i++) cf[i]["_idx"] = i;
-      filteredSliders = cf;
-    } else {
-      filteredSliders = sliderList;
-    }
-
     // Update static cache
     _cachedCity   = c;
     _cachedStores = List<Map<String,dynamic>>.from(sl);
@@ -1403,12 +986,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
     setState((){
       _stores   = sl;
-      if (cats.length > 1 || _cats.length <= 1) _cats = List<String>.from(cats);
+      _cats     = List<String>.from(cats);
         if (richCats3.isNotEmpty) _richCats = richCats3;
         else if (_richCats.isEmpty) Api.clearCache(); // force refetch
-      // Apply city-filtered sliders; use fallback if empty and URL already known
-      _sliders  = filteredSliders.isNotEmpty ? filteredSliders
-          : (_mbFallbackUrl.startsWith("http") ? [{"id":"default","title":"","subtitle":"","image":_mbFallbackUrl,"image_url":_mbFallbackUrl,"link_url":"","bg_color":"","sort_order":0,"city":""}] : filteredSliders);
+      _sliders  = sliderList;
       _products = productList;
       _productsLoading = false;
       _loading  = false;
@@ -1455,9 +1036,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   void _startSliderAutoPlay(){
     _sliderTimer?.cancel();
     if(_sliders.length>1){
-      _sliderTimer=Timer.periodic(const Duration(seconds:5),(_){
+      _sliderTimer=Timer.periodic(const Duration(minutes:2),(_){
         if(_sliderPc.hasClients){
-          _sliderPc.nextPage(duration:const Duration(milliseconds:500),curve:Curves.easeInOut);
+          // FIX 5c: always go forward by 1 real page — no modulo jump
+          final nextPage = (_sliderPc.page?.round() ?? 49999) + 1;
+          _sliderPc.animateToPage(nextPage,duration:const Duration(milliseconds:500),curve:Curves.easeInOut);
         }
       });
     }
@@ -1795,7 +1378,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override void dispose() {
     FavState.instance.removeListener(_onFavChanged);
-    _unreadNotifier.removeListener(_onUnreadChanged);
+    unreadNotifier.removeListener(_onUnreadChanged);
     WidgetsBinding.instance.removeObserver(this);
     _catTimer?.cancel(); _sliderTimer?.cancel(); _heroRotateTimer?.cancel(); _sliderPc.dispose();
     _scrollCtrl.dispose(); // FIX 1: FAB scroll controller
@@ -1809,7 +1392,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // Refresh unread badge when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       _loadUnreadCount();
-      if (mounted) setState(() => _unreadCount = _unreadNotifier.value);
+      if (mounted) setState(() => _unreadCount = unreadNotifier.value);
     }
   }
 
@@ -2138,7 +1721,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       Navigator.of(context).pushAndRemoveUntil(
         _route(ContinueAsScreen(
           phone: widget.phone,
-          onRoleSelected: (role, remember) async => MyApp.goSwitchMode(
+          onRoleSelected: (role, remember) async => appGoSwitchMode?.call(
             widget.token, widget.name, widget.phone, widget.userId, role),
         )),
         (route) => false,
@@ -2328,7 +1911,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _searchStores(BuildContext ctx) {
-    Navigator.push(ctx, _route(_SearchPage(token:widget.token, city:city)));
+    Navigator.push(ctx, _route(SearchPage(
+      token: widget.token,
+      city: city,
+      products: _products.map((v) => Map<String,dynamic>.from(v as Map)).toList(),
+    )));
   }
 
   // Profile sheet (replaces _more) — all options inside
@@ -2376,7 +1963,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               await Prefs.clear();
               Api.clearCache();
               // Use navigatorKey so OnboardingScreen gets the goLogin callback
-              MyApp.goOnboarding();
+              appGoOnboarding?.call();
             },color:Colors.red),
             const SizedBox(height:28),
           ])),
@@ -2395,14 +1982,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     onTap: () {
       Navigator.pop(ctx); // close bottom sheet first
       showModalBottomSheet(
-        context: MyApp.navigatorKey.currentContext ?? ctx,
+        context: appNavigatorKey?.currentContext ?? ctx,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
         builder: (_) => SwitchModeSheet(
           currentMode: 'user',
           token: widget.token,
           phone: widget.phone,
-          onSwitch: (role) => MyApp.goSwitchMode(
+          onSwitch: (role) => appGoSwitchMode?.call(
             widget.token, widget.name, widget.phone, widget.userId, role),
         ),
       );
@@ -2426,420 +2013,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   void _viewAllProducts(BuildContext ctx) =>
     Navigator.push(ctx, _route(ProductViewAllPage(
       products: _products.map((v)=>Map<String,dynamic>.from(v as Map)).toList(),
-      token: widget.token,
-      city: city)));
+      token: widget.token)));
 
   void _viewAll(BuildContext ctx, String title, List<Map<String,dynamic>> stores, {bool bigCards=false}) =>
-    Navigator.push(ctx, _route(_ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
+    Navigator.push(ctx, _route(ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
 }
-
-// ─────────────────────── VIEW ALL PAGE ───────────────────────
-
-// ─────────────────────── SEARCH PAGE ───────────────────────
-class _SearchPage extends StatefulWidget {
-  final String token; final String city;
-  const _SearchPage({required this.token, required this.city});
-  @override State<_SearchPage> createState()=>_SearchPageState();
-}
-class _SearchPageState extends State<_SearchPage> {
-  final _sc = TextEditingController();
-  String _q = ""; bool _busy = false;
-  List<Map<String,dynamic>> _results = [];
-
-  @override void dispose(){ _sc.dispose(); super.dispose(); }
-
-  Future<void> _doSearch(String q) async {
-    final qt = q.trim();
-    if (qt.isEmpty) { setState(()=>_results=[]); return; }
-    setState(()=>_busy=true);
-    try {
-      final all = await Api.fetchStores(city:widget.city);
-      final ql = qt.toLowerCase();
-      _results = List<Map<String,dynamic>>.from(all.where((s)=>
-        (s["store_name"]??'').toLowerCase().contains(ql)||
-        (s["category"]??'').toLowerCase().contains(ql)||
-        (s["area"]??'').toLowerCase().contains(ql)||
-        (s["offer"]??'').toLowerCase().contains(ql)
-      ).toList());
-    } catch(_) { _results = []; }
-    if (mounted) setState(()=>_busy=false);
-  }
-
-  @override Widget build(BuildContext context){
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: kPrimary,
-        foregroundColor: Colors.white,
-        titleSpacing: 0,
-        title: TextField(
-          controller: _sc,
-          autofocus: true,
-          style: const TextStyle(color:Colors.white, fontSize:15),
-          cursorColor: Colors.white,
-          decoration: InputDecoration(
-            hintText: "Search stores in ${widget.city}...",
-            hintStyle: const TextStyle(color:Colors.white60, fontSize:14),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(vertical:14),
-          ),
-          onChanged:(v){ setState(()=>_q=v); if(v.trim().isNotEmpty) _doSearch(v); else setState(()=>_results=[]); },
-          onSubmitted:_doSearch,
-        ),
-        actions:[
-          if (_q.isNotEmpty) IconButton(icon:const Icon(Icons.clear,color:Colors.white),onPressed:(){ _sc.clear(); setState((){ _q=''; _results=[]; }); }),
-        ],
-      ),
-      body: _busy
-        ? const Center(child:CircularProgressIndicator(color:kPrimary))
-        : _q.isEmpty
-          ? _SearchLandingGrid(token:widget.token, city:widget.city)
-          : _results.isEmpty
-            ? Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
-                const Icon(Icons.search_off,color:kAccent,size:56),
-                const SizedBox(height:12),
-                Text("No results for '$_q'",style:const TextStyle(color:kMuted,fontSize:15)),
-              ]))
-            : ListView.separated(
-                padding:const EdgeInsets.all(14),
-                separatorBuilder:(_,__)=>const SizedBox(height:8),
-                itemCount:_results.length,
-                itemBuilder:(_,i){
-                  final s=_results[i];
-                  String img=s["image_url"]?.toString()??''; if(img.isEmpty)img=s["image_thumb"]?.toString()??''; if(img.isEmpty)img=s["image"]?.toString()??''; if(img.isEmpty)img=s["image2"]?.toString()??'';
-                  return GestureDetector(
-                    onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(s), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
-                    child:Container(padding:const EdgeInsets.all(12),
-                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
-                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha: .05),blurRadius:8,offset:const Offset(0,2))]),
-                      child:Row(children:[
-                        ClipRRect(borderRadius:BorderRadius.circular(10),child:SizedBox(width:62,height:62,
-                          child:img.isNotEmpty&&img.startsWith("data:image")
-                            ? Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover)
-                            : Container(color:kAccent,child:const Icon(Icons.store,color:kPrimary,size:28)))),
-                        const SizedBox(width:12),
-                        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:14)),
-                          Text("${s['category']??''} · ${s['area']??''}",style:const TextStyle(color:kMuted,fontSize:12)),
-                          if ((s['visit_points']??0)>0) Padding(padding:const EdgeInsets.only(top:3),
-                            child:Text("${s['visit_points']} pts on visit",style:const TextStyle(color:kPrimary,fontSize:11,fontWeight:FontWeight.w600))),
-                        ])),
-                        const Icon(Icons.arrow_forward_ios_rounded,color:kBorder,size:14),
-                      ])));
-                }),
-    );
-  }
-}
-
-// ─────────────────────── SEARCH LANDING GRID ───────────────────────
-class _SearchLandingGrid extends StatefulWidget {
-  final String token; final String city;
-  const _SearchLandingGrid({required this.token,required this.city});
-  @override State<_SearchLandingGrid> createState()=>_SearchLandingGridState();
-}
-class _SearchLandingGridState extends State<_SearchLandingGrid> {
-  List<Map<String,dynamic>> _stores=[];bool _loading=true;
-  @override void initState(){super.initState();_load();}
-  Future<void> _load() async {
-    try{final d=await Api.fetchStores(city:widget.city);if(mounted)setState((){_stores=List<Map<String,dynamic>>.from(d);_loading=false;});}
-    catch(_){if(mounted)setState(()=>_loading=false);}
-  }
-  @override Widget build(BuildContext context){
-    if(_loading) return const Center(child:CircularProgressIndicator(color:kPrimary));
-    if(_stores.isEmpty) return const Center(child:Text("No stores yet",style:TextStyle(color:kMuted)));
-    return _MasonrySearchGrid(stores:_stores, token:widget.token);
-  }
-}
-
-class _ViewAllPage extends StatefulWidget {
-  final String title;
-  final List<Map<String,dynamic>> stores;
-  final String token;
-  final bool bigCards; // true = Explore Stores style, false = grid
-  const _ViewAllPage({required this.title, required this.stores, required this.token, this.bigCards=false});
-  @override State<_ViewAllPage> createState()=>_ViewAllPageState();
-}
-class _ViewAllPageState extends State<_ViewAllPage>{
-  final _searchCtrl = TextEditingController();
-  String _q = "";
-  @override void dispose(){ _searchCtrl.dispose(); super.dispose(); }
-
-  List<Map<String,dynamic>> get _filtered {
-    if (_q.trim().isEmpty) return widget.stores;
-    final q = _q.toLowerCase();
-    return widget.stores.where((s){
-      return (s["store_name"]??"").toString().toLowerCase().contains(q)
-          || (s["area"]??"").toString().toLowerCase().contains(q)
-          || (s["city"]??"").toString().toLowerCase().contains(q)
-          || (s["category"]??"").toString().toLowerCase().contains(q)
-          || (s["offer"]??"").toString().toLowerCase().contains(q)
-          || (s["about"]??"").toString().toLowerCase().contains(q);
-    }).toList();
-  }
-
-  @override Widget build(BuildContext context){
-    final filtered = _filtered;
-    final scrH = MediaQuery.of(context).size.height;
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        title: Text(widget.title, style:const TextStyle(fontWeight:FontWeight.w800)),
-        elevation: 0,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(54),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14,0,14,10),
-            child: Container(
-              decoration: BoxDecoration(color:Colors.white, borderRadius:BorderRadius.circular(12)),
-              child: TextField(
-                controller: _searchCtrl,
-                onChanged: (v)=>setState(()=>_q=v),
-                style: const TextStyle(color:kText, fontSize:14),
-                decoration: InputDecoration(
-                  hintText: "Search store, area, offer...",
-                  hintStyle: const TextStyle(color:kMuted, fontSize:13),
-                  prefixIcon: const Icon(Icons.search, color:kMuted, size:20),
-                  suffixIcon: _q.isNotEmpty ? IconButton(icon:const Icon(Icons.clear,size:18,color:kMuted), onPressed:(){_searchCtrl.clear();setState(()=>_q="");}) : null,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical:12),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: filtered.isEmpty
-        ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-            const Icon(Icons.search_off,color:kAccent,size:56),const SizedBox(height:12),
-            Text(_q.isEmpty?"No stores yet":"No results for '$_q'",style:const TextStyle(color:kMuted,fontSize:15))]))
-        : ListView.builder(
-            padding:const EdgeInsets.fromLTRB(14,8,14,24),
-            itemCount:filtered.length,
-            itemBuilder:(_,i)=>Padding(
-              padding:const EdgeInsets.only(bottom:10),
-              child:GestureDetector(
-                onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(filtered[i]), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
-                child:TopStoreCard(store:filtered[i]),
-              ),
-            )),
-    );
-  }
-}
-
-// ─────────────────────── FAVORITES PAGE ───────────────────────
-
-
-// ─────────────────────── NOTIFICATIONS PAGE ───────────────────────
-class NotificationsPage extends StatefulWidget {
-  const NotificationsPage({super.key});
-  @override State<NotificationsPage> createState() => _NotificationsPageState();
-}
-
-class _NotificationsPageState extends State<NotificationsPage> {
-  List<Map<String,dynamic>> _notifs = [];
-  bool _loading = true;
-
-  @override void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    await Prefs.clearUnread(); // Mark all as read when page opens
-    // Auto-purge notifications older than 30 days
-    final rawList = await Prefs.getNotifications();
-    final cutoff  = DateTime.now().subtract(const Duration(days: 30));
-    final list = rawList.where((n) {
-      final ts = n["ts"] as String? ?? "";
-      if (ts.isEmpty) return true;
-      try { return DateTime.parse(ts).isAfter(cutoff); } catch (_) { return true; }
-    }).toList();
-    if (list.length != rawList.length) {
-      // Persist pruned list — re-save via saveNotification
-      await Prefs.clearNotifications();
-      for (final n in list.reversed) {
-        await Prefs.saveNotification(
-          title:    n["title"]     as String? ?? "",
-          body:     n["body"]      as String? ?? "",
-          imageUrl: n["image_url"] as String? ?? "",
-          type:     n["type"]      as String? ?? "promo",
-        );
-      }
-    }
-    if (mounted) setState(() { _notifs = list; _loading = false; });
-  }
-
-  Future<void> _deleteNotif(int index) async {
-    setState(() => _notifs.removeAt(index));
-    // Rebuild stored list without deleted notification
-    await Prefs.clearNotifications();
-    for (final n in _notifs.reversed) {
-      await Prefs.saveNotification(
-        title:    n["title"]     as String? ?? "",
-        body:     n["body"]      as String? ?? "",
-        imageUrl: n["image_url"] as String? ?? "",
-        type:     n["type"]      as String? ?? "promo",
-      );
-    }
-  }
-
-  Future<void> _clearAll() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Clear All Notifications?"),
-        content: const Text("This will permanently remove all your notifications."),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-          TextButton(onPressed: () => Navigator.pop(context, true),
-            child: const Text("Clear All", style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await Prefs.clearNotifications();
-      if (mounted) setState(() => _notifs = []);
-    }
-  }
-
-  String _timeAgo(String isoTs) {
-    try {
-      final dt   = DateTime.parse(isoTs);
-      final diff = DateTime.now().difference(dt);
-      if (diff.inMinutes < 1)  return "just now";
-      if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
-      if (diff.inHours  < 24)  return "${diff.inHours}h ago";
-      if (diff.inDays   < 7)   return "${diff.inDays}d ago";
-      return "${(diff.inDays / 7).floor()}w ago";
-    } catch (_) { return ""; }
-  }
-
-  @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        title: const Text("Notifications", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-        elevation: 0,
-        actions: [
-          if (_notifs.isNotEmpty)
-            TextButton(
-              onPressed: _clearAll,
-              child: const Text("Clear All", style: TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w600)),
-            ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: kPrimary))
-          : _notifs.isEmpty
-              ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.notifications_none_rounded, size: 64, color: kMuted.withValues(alpha: .4)),
-                  const SizedBox(height: 16),
-                  const Text("No notifications yet", style: TextStyle(color: kMuted, fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  const Text("You'll see deals and alerts here", style: TextStyle(color: kMuted, fontSize: 13)),
-                ]))
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: _notifs.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-                  itemBuilder: (_, i) {
-                    final n       = _notifs[i];
-                    final title   = n["title"] ?? "";
-                    final body    = n["body"]  ?? "";
-                    final imgUrl  = n["image_url"] ?? "";
-                    final ts      = n["ts"] ?? "";
-                    return Dismissible(
-                      key: Key(ts + title + i.toString()),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Colors.red.shade400,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        child: const Icon(Icons.delete_rounded, color: Colors.white, size: 26),
-                      ),
-                      onDismissed: (_) => _deleteNotif(i),
-                      child: GestureDetector(
-                      onTap: () => showDialog(
-                        context: context,
-                        builder: (_) => Dialog(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              if (imgUrl.isNotEmpty)
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: imgUrl.startsWith("data:image")
-                                    ? Image.memory(base64Decode(imgUrl.split(",").last), height: 160, width: double.infinity, fit: BoxFit.cover, gaplessPlayback: true)
-                                    : CachedNetworkImage(imageUrl: imgUrl, height: 160, width: double.infinity, fit: BoxFit.cover),
-                                ),
-                              if (imgUrl.isNotEmpty) const SizedBox(height: 14),
-                              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: kText)),
-                              if (body.isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                Text(body, style: const TextStyle(fontSize: 14, color: kMuted, height: 1.5)),
-                              ],
-                              if (ts.isNotEmpty) ...[
-                                const SizedBox(height: 10),
-                                Text(_timeAgo(ts), style: const TextStyle(fontSize: 11, color: kMuted)),
-                              ],
-                              const SizedBox(height: 16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton(
-                                  onPressed: () => Navigator.pop(context),
-                                  child: const Text("Close", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
-                                ),
-                              ),
-                            ]),
-                          ),
-                        ),
-                      ),
-                      child: Container(
-                      color: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        // Notification icon or image
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: SizedBox(
-                            width: 52, height: 52,
-                            child: imgUrl.isNotEmpty
-                                ? (imgUrl.startsWith("data:image")
-                                    ? Image.memory(base64Decode(imgUrl.split(",").last), fit: BoxFit.cover, gaplessPlayback: true)
-                                    : CachedNetworkImage(imageUrl: imgUrl, fit: BoxFit.cover,
-                                        placeholder: (_, __) => Container(color: kLight),
-                                        errorWidget: (_, __, ___) => Container(color: kLight,
-                                            child: const Icon(Icons.notifications_rounded, color: kPrimary, size: 24))))
-                                : Container(color: kLight,
-                                    child: const Icon(Icons.notifications_rounded, color: kPrimary, size: 24)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Expanded(child: Text(title, style: const TextStyle(color: kText, fontSize: 14, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                            if (ts.isNotEmpty) Text(_timeAgo(ts), style: const TextStyle(color: kMuted, fontSize: 11)),
-                          ]),
-                          if (body.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(body, style: const TextStyle(color: kMuted, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-                          ],
-                        ])),
-                      ]),
-                      ), // close GestureDetector child Container
-                    ),  // GestureDetector
-                    );  // Dismissible
-                  },
-                ),
-    );
-  }
-}
-
 
 // ══════════════════════════════════════════════════════
 // BROWSE BY CATEGORIES SECTION
@@ -5069,7 +4247,7 @@ class _BannerSection extends StatelessWidget {
 
 
 // ═══════════════════════════════════════════════════════
-// 6. Discover Products — clean horizontal cards, no background
+// 6. Discover Products — horizontal cards with light background
 // ═══════════════════════════════════════════════════════
 class _DiscoverProductsSection extends StatelessWidget {
   final List<Map<String,dynamic>> products;
@@ -5150,8 +4328,9 @@ class _DiscoverProductsSection extends StatelessWidget {
       imgW = Container(color: const Color(0xFFe8f5f0),
         child: const Icon(Icons.image_not_supported_outlined, color: Color(0xFF6b8c7e), size: 36));
     }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
+    return Container(
+      color: const Color(0xFFF4F9F6),
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -5186,9 +4365,8 @@ class _DiscoverProductsSection extends StatelessWidget {
     ];
 
     return Container(
-      color: const Color(0xFFF0FAF5),
-      child: Padding(
-      padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
+      color: const Color(0xFFF4F9F6),
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -5353,27 +4531,27 @@ class _DiscoverProductsSection extends StatelessWidget {
                               ]),
                             );
                           }),
-                          if (storeName.isNotEmpty) ...[
-                            const SizedBox(height: 3),
+                          const SizedBox(height: 3),
+                          if (storeName.isNotEmpty)
                             Text(storeName,
                               style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
                               maxLines: 1, overflow: TextOverflow.ellipsis),
+                          if (saleP != null || origP != null) ...[
                             const SizedBox(height: 4),
+                            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                              if (origP != null) ...[
+                                Text("₹${origP.toStringAsFixed(0)}",
+                                  style: const TextStyle(
+                                    color: Color(0xFF9e9e9e), fontSize: 9, fontWeight: FontWeight.w500,
+                                    decoration: TextDecoration.lineThrough,
+                                    decorationColor: Color(0xFF9e9e9e))),
+                                const SizedBox(width: 4),
+                              ],
+                              if (saleP != null)
+                                Text("₹${saleP.toStringAsFixed(0)}",
+                                  style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 12, fontWeight: FontWeight.w900)),
+                            ]),
                           ],
-                          Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                            Text("Offer ",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 8, fontWeight: FontWeight.w600)),
-                            Text("₹${saleP?.toStringAsFixed(0) ?? '0'}",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w900)),
-                            if (origP != null) ...[
-                              const SizedBox(width: 4),
-                              Text("₹${origP.toStringAsFixed(0)}",
-                                style: const TextStyle(
-                                  color: Color(0xFF9e9e9e), fontSize: 9,
-                                  decoration: TextDecoration.lineThrough,
-                                  decorationColor: Color(0xFF9e9e9e))),
-                            ],
-                          ]),
                         ]),
                       );
                     }),
@@ -5384,7 +4562,6 @@ class _DiscoverProductsSection extends StatelessWidget {
           ),
         ),
       ]),
-      ),
     );
   }
 }
@@ -6326,18 +5503,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                 overflow: TextOverflow.ellipsis),
             ],
 
-            if (rating > 0) ...[
-              const SizedBox(height: 3),
-              Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                const SizedBox(width: 2),
-                Text(rating.toStringAsFixed(1),
-                  style: const TextStyle(color: Color(0xFF555555), fontSize: 10, fontWeight: FontWeight.w700)),
-                if (revCount > 0) Text(" ($revCount)",
-                  style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
-              ]),
-            ],
-
             const SizedBox(height: 4),
 
             // ── Divider ──
@@ -6511,1289 +5676,3 @@ class _PromoSliderSection extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════
 // PRODUCT DETAIL PAGE
 // ═══════════════════════════════════════════════════════════════
-class ProductDetailsPage extends StatefulWidget {
-  final Map<String,dynamic> product;
-  final String token;
-  const ProductDetailsPage({super.key, required this.product, this.token = ""});
-  @override State<ProductDetailsPage> createState() => _ProductDetailsPageState();
-}
-
-class _ProductDetailsPageState extends State<ProductDetailsPage> {
-  bool _isFav = false;
-  double _userRating = 0;
-  double _avgRating  = 0;
-  int    _ratingCount = 0;
-  final TextEditingController _reviewCtrl = TextEditingController();
-  bool _reviewSubmitting = false;
-  bool _reviewSubmitted  = false;
-
-  @override void initState() {
-    super.initState();
-    _avgRating   = (widget.product["rating"] as num?)?.toDouble() ?? 0.0;
-    _ratingCount = (widget.product["rating_count"] as num?)?.toInt() ?? 0;
-    _loadFavStatus();
-    _loadMyReview();
-  }
-
-  Future<void> _loadMyReview() async {
-    if (widget.token.isEmpty) return;
-    final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-    if (pid.isEmpty) return;
-    try {
-      final rev = await Api.getMyProductReview(widget.token, pid);
-      if (rev.isNotEmpty && rev["rating"] != null) {
-        if (mounted) setState(() {
-          _userRating      = (rev["rating"] as num).toDouble();
-          _reviewCtrl.text = rev["text"]?.toString() ?? "";
-          _reviewSubmitted = true;
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _loadFavStatus() async {
-    if (widget.token.isEmpty) return;
-    final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-    if (pid.isEmpty) return;
-    final fav = await Api.isProductFavorite(widget.token, pid);
-    FavState.instance.setProduct(pid, fav);
-    if (mounted) setState(() => _isFav = fav);
-  }
-
-  @override void dispose() { _reviewCtrl.dispose(); super.dispose(); }
-
-  num? _numVal(List<String> keys) {
-    for (final k in keys) {
-      final raw = widget.product[k];
-      if (raw == null) continue;
-      if (raw is num) return raw;
-      final parsed = num.tryParse(raw.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
-      if (parsed != null && parsed > 0) return parsed;
-    }
-    return null;
-  }
-
-  Widget _resolveImage() {
-    final keys = ["image_url","image_thumb","image","logo_url","logo"];
-    final storeObj = widget.product["store"];
-    if (storeObj is Map) {
-      for (final k in ["image_url","image_thumb","image","image2"]) {
-        final v = storeObj[k]?.toString() ?? "";
-        if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-          placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-          errorWidget: (_, __, ___) => _fallbackImg());
-        if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-        }
-      }
-    }
-    for (final k in keys) {
-      final v = widget.product[k]?.toString() ?? "";
-      if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-        placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-        errorWidget: (_, __, ___) => _fallbackImg());
-      if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-      }
-    }
-    return _fallbackImg();
-  }
-
-  // Full-screen contained version of product image (for the viewer dialog)
-  Widget _resolveImageContained() {
-    final keys = ["image_url","image_thumb","image","logo_url","logo"];
-    final storeObj = widget.product["store"];
-    if (storeObj is Map) {
-      for (final k in ["image_url","image_thumb","image","image2"]) {
-        final v = storeObj[k]?.toString() ?? "";
-        if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.contain,
-          placeholder: (_, __) => const SizedBox.shrink(),
-          errorWidget: (_, __, ___) => _fallbackImg());
-        if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-        }
-      }
-    }
-    for (final k in keys) {
-      final v = widget.product[k]?.toString() ?? "";
-      if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.contain,
-        placeholder: (_, __) => const SizedBox.shrink(),
-        errorWidget: (_, __, ___) => _fallbackImg());
-      if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-      }
-    }
-    return _fallbackImg();
-  }
-
-  Widget _fallbackImg() {
-    final name = widget.product["title"]?.toString() ?? widget.product["name"]?.toString() ?? "P";
-    return Container(
-      color: const Color(0xFFA9CDBA),
-      child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "P",
-        style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 48, fontWeight: FontWeight.w900))),
-    );
-  }
-
-  Future<void> _submitReview() async {
-    final text = _reviewCtrl.text.trim();
-    if (text.length < 3 || _userRating == 0) return;
-    final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-    if (pid.isEmpty) return;
-    setState(() => _reviewSubmitting = true);
-    try {
-      final result = await Api.submitProductReview(widget.token, pid, _userRating, text);
-      if (result.containsKey("error")) {
-        if (mounted) {
-          setState(() => _reviewSubmitting = false);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(result["error"].toString()),
-            backgroundColor: Colors.red.shade700));
-        }
-        return;
-      }
-      final newCount = _ratingCount + 1;
-      final newAvg   = ((_avgRating * _ratingCount) + _userRating) / newCount;
-      if (mounted) setState(() {
-        _reviewSubmitting = false;
-        _reviewSubmitted  = true;
-        _ratingCount      = newCount;
-        _avgRating        = double.parse(newAvg.toStringAsFixed(1));
-      });
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Review submitted! Thank you."),
-          backgroundColor: Color(0xFF3E5F55)));
-    } catch (e) {
-      if (mounted) {
-        setState(() => _reviewSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString()), backgroundColor: Colors.red.shade700));
-      }
-    }
-  }
-
-  @override Widget build(BuildContext context) {
-    final p = widget.product;
-    final title      = p["title"]?.toString() ?? p["name"]?.toString() ?? "Product";
-    final storeObj   = p["store"];
-    final storeName  = storeObj is Map
-        ? (storeObj["store_name"] ?? storeObj["business_name"] ?? storeObj["merchant_name"] ?? storeObj["name"] ?? "").toString()
-        : (p["store_name"] ?? p["business_name"] ?? p["merchant_name"] ?? "").toString();
-    final storeArea  = storeObj is Map ? (storeObj["area"] ?? "").toString() : (p["area"] ?? "").toString();
-    final storeCat   = storeObj is Map ? (storeObj["category"] ?? "").toString() : (p["category"] ?? "").toString();
-    final storeId    = storeObj is Map
-        ? (storeObj["_id"] ?? storeObj["id"] ?? "").toString()
-        : (widget.product["store_id"] ?? "").toString(); // merchant_id intentionally excluded (wrong entity)
-    final storeData  = storeObj is Map
-        ? (Map<String,dynamic>.from(storeObj as Map)..["_id"] ??= storeId)
-        : <String,dynamic>{"_id": storeId, "store_name": widget.product["store_name"] ?? "",
-                            "category": widget.product["category"] ?? "",
-                            "area": widget.product["area"] ?? ""};
-    // store_active: from API response (public.py attaches this — false if store status != active)
-    // Defaults to true if field absent (backward compat with older records)
-    final bool storeIsActive = widget.product["store_active"] as bool? ?? true;
-    final description = p["description"]?.toString() ?? p["details"]?.toString() ?? "";
-    final offerText  = p["offer"]?.toString() ?? "";
-    final discMatch  = RegExp(r'(\d+)%').firstMatch(offerText);
-    final discBadge  = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
-
-    final saleP = _numVal(["offer_price","sale_price","price","current_price"]); // ITEM10
-    final origP = _numVal(["original_price","mrp","was_price","compare_price"]);
-    final showOrig = origP != null && saleP != null && origP > saleP;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: CustomScrollView(slivers: [
-        // ── Hero image app bar ──
-        SliverAppBar(
-          expandedHeight: 300,
-          pinned: true,
-          backgroundColor: const Color(0xFF3E5F55),
-          leading: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18)),
-          ),
-          actions: [
-            GestureDetector(
-              onTap: () async {
-                final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-                setState(() => _isFav = !_isFav); // optimistic
-                FavState.instance.toggleProduct(pid);
-                if (widget.token.isNotEmpty && pid.isNotEmpty) {
-                  await Api.toggleProductFavorite(widget.token, pid);
-                }
-              },
-              child: Container(
-                margin: const EdgeInsets.all(8),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
-                child: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: _isFav ? const Color(0xFFe74c3c) : Colors.white, size: 20)),
-            ),
-            const SizedBox(width: 4),
-          ],
-          flexibleSpace: FlexibleSpaceBar(
-            background: GestureDetector(
-              onTap: () => showDialog(
-                context: context,
-                barrierColor: Colors.black87,
-                builder: (ctx) => Dialog(
-                  backgroundColor: Colors.transparent,
-                  insetPadding: EdgeInsets.zero,
-                  child: Stack(children: [
-                    Positioned.fill(
-                      child: InteractiveViewer(
-                        minScale: 0.8, maxScale: 5.0,
-                        child: Center(
-                          child: _resolveImageContained(),
-                        ),
-                      ),
-                    ),
-                    Positioned(top: 40, right: 16,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 20)))),
-                  ]),
-                ),
-              ),
-              child: Stack(fit: StackFit.expand, children: [
-              _resolveImage(),
-              // Bottom scrim
-              Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.transparent, Colors.black.withValues(alpha: .55)],
-                  stops: const [0.0, 0.55, 1.0]),
-              ))),
-              // Discount badge
-              if (discBadge.isNotEmpty)
-                Positioned(bottom: 16, left: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(8)),
-                    child: Text(discBadge, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
-                  )),
-              ]),
-            ),
-          ),
-        ),
-
-        SliverToBoxAdapter(child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-            // ── Product name ──
-            Text(title,
-              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 22, fontWeight: FontWeight.w900, height: 1.25)),
-
-            const SizedBox(height: 10),
-
-            // ── Price row ──
-            if (saleP != null || showOrig)
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  // ── Price row: sale price + strikethrough orig on ONE line ──
-                  Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                    if (saleP != null)
-                      Text("₹${saleP.toStringAsFixed(0)}",
-                        style: const TextStyle(
-                          color: Color(0xFF2c7a4b), fontSize: 24, fontWeight: FontWeight.w900)),
-                    if (showOrig) ...[
-                      const SizedBox(width: 10),
-                      Text("₹${origP!.toStringAsFixed(0)}",
-                        style: const TextStyle(
-                          color: Color(0xFF9e9e9e), fontSize: 15, fontWeight: FontWeight.w500,
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: Color(0xFF9e9e9e))),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFe74c3c),
-                          borderRadius: BorderRadius.circular(6)),
-                        child: Text(
-                          "${(((origP! - saleP!) / origP!) * 100).toStringAsFixed(0)}% off",
-                          style: const TextStyle(
-                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
-                    ],
-                  ]),
-                ]),
-                const SizedBox(height: 3),
-                Row(children: [
-                  if (saleP != null)
-                    const Text("Selling Price",
-                      style: TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w600)),
-                  if (showOrig) ...[
-                    const SizedBox(width: 12),
-                    Text("MRP ₹${origP!.toStringAsFixed(0)}",
-                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
-                  ],
-                ]),
-              ]),
-
-            const SizedBox(height: 14),
-
-            // ── Rating row ──
-            if (_avgRating > 0 || _ratingCount > 0)
-              Row(children: [
-                ...List.generate(5, (i) => Icon(
-                  i < _avgRating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: const Color(0xFFFFD700), size: 18)),
-                const SizedBox(width: 6),
-                Text(_avgRating.toStringAsFixed(1),
-                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w700)),
-                if (_ratingCount > 0) ...[
-                  const SizedBox(width: 4),
-                  Text("($_ratingCount reviews)",
-                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
-                ],
-              ]),
-
-            if (_avgRating > 0 || _ratingCount > 0) const SizedBox(height: 14),
-
-            // ── Description ──
-            if (description.isNotEmpty) ...[
-              const Text("About this product",
-                style: TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              Text(description,
-                style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.55)),
-              const SizedBox(height: 20),
-            ],
-
-            // ── Offer text ──
-            if (offerText.isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe8f5f0),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFA9CDBA)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.local_offer_rounded, color: Color(0xFF3E5F55), size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(offerText,
-                    style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 13, fontWeight: FontWeight.w600))),
-                ]),
-              ),
-              const SizedBox(height: 20),
-            ],
-
-            // ── Divider ──
-            const Divider(color: Color(0xFFe8f5f0)),
-            const SizedBox(height: 16),
-
-            // ── Store section ──
-            const Text("Sold by",
-              style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 12, fontWeight: FontWeight.w600,
-                letterSpacing: .5)),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: (storeName.isNotEmpty || storeId.isNotEmpty)
-                ? () async {
-                    // Fetch full store data so the detail page has images/rating/etc.
-                    Map<String,dynamic> fullStore = storeData;
-                    if (storeId.isNotEmpty) {
-                      try {
-                        final fetched = await Api.fetchStoreDetail(storeId);
-                        if (fetched.isNotEmpty) {
-                          fullStore = Map<String,dynamic>.from(fetched);
-                          fullStore.putIfAbsent("_id", () => storeId);
-                        }
-                      } catch (_) {}
-                    }
-                    if (!context.mounted) return;
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => StoreDetailPage(
-                        store: fullStore,
-                        token: widget.token,
-                        userName: "",
-                        onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))))));
-                  }
-                : null,
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFd4e8de)),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 10, offset: const Offset(0, 3))],
-                ),
-                child: Builder(builder: (_) {
-                  final storeRating = (storeData["rating"] as num?)?.toDouble() ??
-                                      (storeData["admin_rating"] as num?)?.toDouble() ?? 0.0;
-                  final storeDist   = (storeData["distance_km"] as num?)?.toDouble();
-                  final distLabel   = storeDist != null
-                    ? (storeDist < 1.0 ? "${(storeDist * 1000).toStringAsFixed(0)} m away"
-                                       : "${storeDist.toStringAsFixed(1)} km away")
-                    : "";
-                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      // Store avatar
-                      Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                          color: storeIsActive ? const Color(0xFFe8f5f0) : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: Center(child: Text(
-                          storeName.isNotEmpty ? storeName[0].toUpperCase() : "S",
-                          style: TextStyle(
-                            color: storeIsActive ? const Color(0xFF3E5F55) : const Color(0xFF9E9E9E),
-                            fontSize: 22, fontWeight: FontWeight.w900))),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(storeName,
-                          style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
-                        if (storeArea.isNotEmpty || storeCat.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text("${storeCat.isNotEmpty ? storeCat : ''}${storeCat.isNotEmpty && storeArea.isNotEmpty ? '  ·  ' : ''}${storeArea}".trim(),
-                            style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
-                        ],
-                        const SizedBox(height: 5),
-                        Row(children: [
-                          if (storeRating > 0) ...[
-                            const Icon(Icons.star_rounded, color: Color(0xFFFFD700), size: 13),
-                            const SizedBox(width: 3),
-                            Text(storeRating.toStringAsFixed(1),
-                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w700)),
-                            if (distLabel.isNotEmpty) const SizedBox(width: 8),
-                          ],
-                          if (distLabel.isNotEmpty) ...[
-                            const Icon(Icons.near_me_rounded, color: Color(0xFF3E5F55), size: 12),
-                            const SizedBox(width: 3),
-                            Text(distLabel,
-                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500)),
-                          ],
-                        ]),
-                      ])),
-                      const Icon(Icons.chevron_right_rounded, color: Color(0xFF3E5F55), size: 22),
-                    ]),
-                    // ── Store inactive badge (shown only if store subscription expired) ──
-                    if (!storeIsActive) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E0),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: .4)),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.info_outline_rounded, size: 12, color: Color(0xFFE65100)),
-                          const SizedBox(width: 5),
-                          const Text("Store Currently Inactive",
-                            style: TextStyle(color: Color(0xFFE65100), fontSize: 11, fontWeight: FontWeight.w700)),
-                        ]),
-                      ),
-                    ],
-                  ]);
-                }),
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // ── Rate & Review ──
-            const Text("Rate & Review",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-
-            // Star rating selector (locked once review submitted)
-            AbsorbPointer(
-              absorbing: _reviewSubmitted,
-              child: Row(children: [
-              ...List.generate(5, (i) => GestureDetector(
-                onTap: () => setState(() => _userRating = i + 1.0),
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Icon(
-                    i < _userRating ? Icons.star_rounded : Icons.star_outline_rounded,
-                    color: const Color(0xFFFFD700), size: 30)),
-              )),
-              const SizedBox(width: 8),
-              Text(_userRating == 0 ? "Tap to rate" : ["","Poor","Fair","Good","Great","Excellent"][_userRating.toInt()],
-                style: TextStyle(
-                  color: _userRating == 0 ? const Color(0xFF9e9e9e) : const Color(0xFF3E5F55),
-                  fontSize: 13, fontWeight: FontWeight.w600)),
-            ])),
-
-            const SizedBox(height: 12),
-
-            // Review text field
-            if (!_reviewSubmitted) ...[
-              TextField(
-                controller: _reviewCtrl,
-                maxLines: 3,
-                style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: "Share your experience with this product...",
-                  hintStyle: const TextStyle(color: Color(0xFFa0b8b0), fontSize: 13),
-                  filled: true,
-                  fillColor: const Color(0xFFF7FBF9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFd4e8de))),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFd4e8de))),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF3E5F55), width: 1.5)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (_userRating > 0 && !_reviewSubmitting) ? _submitReview : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3E5F55),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: _reviewSubmitting
-                    ? const SizedBox(width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text("Submit Review", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ] else
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe8f5f0),
-                  borderRadius: BorderRadius.circular(14)),
-                child: const Row(children: [
-                  Icon(Icons.check_circle_rounded, color: Color(0xFF3E5F55), size: 20),
-                  SizedBox(width: 10),
-                  Text("Thanks for your review!", style: TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w600)),
-                ]),
-              ),
-
-            const SizedBox(height: 100),
-          ]),
-        )),
-      ]),
-    );
-  }
-}
-
-class _PremiumProductCard extends StatelessWidget {
-  final Map<String,dynamic> product;
-  final int colorIdx;
-  const _PremiumProductCard({required this.product, this.colorIdx = 0});
-
-  static const _fallbackColors = [
-    [Color(0xFF3E5F55), Color(0xFF2c4a3e)],
-    [Color(0xFF5D4037), Color(0xFF3E2723)],
-    [Color(0xFF1565C0), Color(0xFF0D47A1)],
-    [Color(0xFF6A1B9A), Color(0xFF4A148C)],
-    [Color(0xFFC62828), Color(0xFFB71C1C)],
-    [Color(0xFF00695C), Color(0xFF004D40)],
-  ];
-
-  Widget _buildImage() {
-    final storeObj = product["store"];
-    if (storeObj is Map) {
-      for (final k in ["image2", "image", "photo"]) {
-        final si = storeObj[k]?.toString() ?? "";
-        if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-        }
-        final url = si.startsWith("/") ? kBaseUrl + si : si;
-        if (url.startsWith("http")) {
-          return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-            placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-            errorWidget: (_, __, ___) => _fallback());
-        }
-      }
-    }
-    for (final k in ["logo_url","logo_thumb","image_url","image_thumb","image2","image","logo"]) {
-      final img = product[k]?.toString() ?? "";
-      if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-      }
-      final url = img.startsWith("/") ? kBaseUrl + img : img;
-      if (url.startsWith("http")) {
-        return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-          placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-          errorWidget: (_, __, ___) => _fallback());
-      }
-    }
-    return _fallback();
-  }
-
-  Widget _fallback() {
-    final pal = _fallbackColors[colorIdx % _fallbackColors.length];
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: pal, begin: Alignment.topLeft, end: Alignment.bottomRight),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final title     = product["title"]?.toString() ?? "";
-    final offerText = product["offer"]?.toString() ?? product["text"]?.toString() ?? "";
-    final storeName = (product["store"] is Map ? product["store"]["store_name"] : null)?.toString()
-        ?? product["store_name"]?.toString() ?? "";
-    final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
-    final discLabel = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
-
-    return Container(
-      width: 185,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 18, offset: const Offset(0, 5)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(fit: StackFit.expand, children: [
-          // Full-bleed image
-          _buildImage(),
-          // Bottom gradient
-          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.transparent,
-                Colors.black.withValues(alpha: .55),
-                Colors.black.withValues(alpha: .88),
-              ],
-              stops: const [0.0, 0.38, 0.70, 1.0],
-            ),
-          ))),
-          // Discount badge top-left
-          if (discLabel.isNotEmpty)
-            Positioned(top: 10, left: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe74c3c),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.25), blurRadius: 6)],
-                ),
-                child: Text(discLabel,
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
-              ),
-            ),
-          // Bottom content
-          Positioned(bottom: 12, left: 10, right: 10,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              if (storeName.isNotEmpty)
-                Text(storeName,
-                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (title.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(title,
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, height: 1.2,
-                    shadows: [Shadow(blurRadius: 8, color: Colors.black87)]),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              ],
-              if (offerText.isNotEmpty && offerText != title) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: .25)),
-                  ),
-                  child: Text(offerText,
-                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-              ],
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-
-// ─────────────────────── VOUCHER VIEW ALL PAGE ───────────────────────
-class ProductViewAllPage extends StatefulWidget {
-  final List<Map<String,dynamic>> products; // initial list (may be partial)
-  final String token;
-  final String city; // city filter for full fetch
-  const ProductViewAllPage({required this.products, this.token = "", this.city = ""});
-  @override State<ProductViewAllPage> createState()=>_ProductViewAllPageState();
-}
-class _ProductViewAllPageState extends State<ProductViewAllPage>{
-  String _cat = "All";
-  String _query = "";
-  bool   _fetching = true;
-  List<Map<String,dynamic>> _all = [];
-
-  @override void initState() {
-    super.initState();
-    _all = List<Map<String,dynamic>>.from(widget.products); // show passed list instantly
-    _fetchAll();
-  }
-
-  // Fetch full product list from API filtered by city (home may have cached a partial set)
-  Future<void> _fetchAll() async {
-    try {
-      final fresh = await Api.getProductCards(city: widget.city);
-      if (mounted) setState(() {
-        _all = List<Map<String,dynamic>>.from(fresh);
-        _fetching = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _fetching = false);
-    }
-  }
-
-  List<String> get _cats {
-    final s = {"All"};
-    for(final v in _all){
-      final c = v["category"]?.toString() ?? "";
-      if(c.isNotEmpty) s.add(c);
-    }
-    return s.toList();
-  }
-  List<Map<String,dynamic>> get _filtered {
-    var list = _cat == "All"
-        ? _all
-        : _all.where((v) => (v["category"]?.toString() ?? "") == _cat).toList();
-    if (_query.isNotEmpty) {
-      final q = _query.toLowerCase();
-      list = list.where((v) =>
-        (v["title"]?.toString() ?? "").toLowerCase().contains(q) ||
-        (v["text"]?.toString() ?? "").toLowerCase().contains(q) ||
-        (v["store_name"]?.toString() ?? "").toLowerCase().contains(q) ||
-        ((v["store"] is Map ? v["store"]["store_name"] : null)?.toString() ?? "").toLowerCase().contains(q)
-      ).toList();
-    }
-    return list;
-  }
-
-  @override Widget build(BuildContext context){
-    return Scaffold(
-      backgroundColor: kBg,
-      body: CustomScrollView(slivers: [
-        // Glossy warm-tone SliverAppBar
-        SliverAppBar(
-          expandedHeight: 100,
-          pinned: true,
-          backgroundColor: const Color(0xFFFDFBF6),
-          foregroundColor: kText,
-          elevation: 0,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(52),
-            child: _VapSearchBar(),
-          ),
-          flexibleSpace: FlexibleSpaceBar(
-            title: const Text("See All Products",
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: kText)),
-            background: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [Color(0xFFFDFBF6), Color(0xFFE7D7C8), Color(0xFFFDFBF6)],
-                ),
-              ),
-              child: Stack(children: [
-                Positioned(top: 0, left: 0, right: 0, child: Container(
-                  height: 55,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.white.withValues(alpha: .4), Colors.transparent],
-                    ),
-                  ),
-                )),
-              ]),
-            ),
-          ),
-        ),
-        // Category filter chips row
-        SliverToBoxAdapter(child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-          color: Colors.white,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(children: _cats.map((cat) => GestureDetector(
-              onTap: () => setState(() => _cat = cat),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _cat == cat ? kPrimary : Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: _cat == cat ? kPrimary : kBorder, width: 1.2),
-                  boxShadow: _cat == cat
-                    ? [BoxShadow(color: kPrimary.withValues(alpha: .25), blurRadius: 8, offset: const Offset(0,2))]
-                    : [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 4)],
-                ),
-                child: Text(cat, style: TextStyle(
-                  color: _cat == cat ? Colors.white : kMuted,
-                  fontSize: 12, fontWeight: FontWeight.w700)),
-              ),
-            )).toList()),
-          ),
-        )),
-        // Content
-        if (_fetching && _all.isEmpty)
-          const SliverFillRemaining(
-            child: Center(child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2)))
-        else if (_filtered.isEmpty)
-          SliverFillRemaining(
-            child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                width: 80, height: 80,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(colors: [Color(0xFFE7D7C8), Color(0xFFFDFBF6)]),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.storefront_outlined, color: Color(0xFFB8A090), size: 40)),
-              const SizedBox(height: 16),
-              const Text("No products found",
-                style: TextStyle(color: kText, fontSize: 16, fontWeight: FontWeight.w700)),
-            ])))
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 80),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.80,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (_, i) => ProductDetailCard(
-                  product: Map<String,dynamic>.from(_filtered[i]),
-                  colorIdx: i,
-                  token: widget.token,
-                ),
-                childCount: _filtered.length,
-              ),
-            ),
-          ),
-      ]),
-    );
-  }
-}
-
-
-// ─────────────────────── VOUCHER SUPPORT WIDGETS ───────────────────────
-
-class ProductDetailCard extends StatefulWidget {
-  final Map product;
-  final int colorIdx;
-  final String token;
-  const ProductDetailCard({required this.product, this.colorIdx = 0, this.token = ""});
-  @override State<ProductDetailCard> createState() => _ProductDetailCardState();
-}
-class _ProductDetailCardState extends State<ProductDetailCard> {
-  Map get product => widget.product;
-  int  get colorIdx => widget.colorIdx;
-  bool _isFav = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final pid = product["_id"]?.toString() ?? product["id"]?.toString() ?? "";
-    if (pid.isNotEmpty) _isFav = FavState.instance.hasProduct(pid);
-  }
-
-  static const List<List<Color>> _palettes = [
-    [Color(0xFFCDEBD6), Color(0xFFA9CDBA)],
-    [Color(0xFFE7D7C8), Color(0xFFD4B896)],
-    [Color(0xFFD6EAF8), Color(0xFFAED6F1)],
-    [Color(0xFFFDE8E8), Color(0xFFF1ABAB)],
-    [Color(0xFFFFF3CD), Color(0xFFFFD966)],
-    [Color(0xFFEDE7F6), Color(0xFFCE93D8)],
-  ];
-
-  // Try to load store image (same chain as before, no gift box fallback)
-  Widget _imgWidget() {
-    final storeObj = product["store"];
-    if (storeObj is Map) {
-      for (final k in ["image2","image","img","photo"]) {
-        final si = storeObj[k]?.toString() ?? "";
-        if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-        }
-        final siUrl = si.startsWith("/") ? "$kBaseUrl$si" : si;
-        if (siUrl.startsWith("http")) {
-          return CachedNetworkImage(imageUrl:siUrl, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
-            placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
-            errorWidget:(_,__,___)=>_brandedBg());
-        }
-      }
-    }
-    for (final key in ["logo_url","logo_thumb","logo","image_url","image_thumb","image2","store_image2","image","photo","img"]) {
-      final img = product[key]?.toString() ?? "";
-      if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
-      }
-      final imgUrl2 = img.startsWith("/") ? "$kBaseUrl$img" : img;
-      if (imgUrl2.startsWith("http")) {
-        return CachedNetworkImage(imageUrl:imgUrl2, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
-          placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
-          errorWidget:(_,__,___)=>_brandedBg());
-      }
-    }
-    return _brandedBg();
-  }
-
-  Widget _brandedBg() => Container(
-    decoration:const BoxDecoration(
-      gradient:LinearGradient(colors:[Color(0xFF3E5F55),Color(0xFF2a4a40)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
-  );
-
-  void _openDetail(BuildContext context) {
-    final title    = product["title"]?.toString() ?? "";
-    final text     = product["text"]?.toString() ?? "";
-    final _validRaw = product["validity"]?.toString() ?? "";
-    // Guard: reject raw Dart template strings (e.g. "\${dt.day}", "months[...")
-    final _validSafe = (_validRaw.contains(r'\${') || _validRaw.contains('months[') ||
-        (_validRaw.contains('{') && _validRaw.contains('}'))) ? "" : _validRaw;
-    String validity = _validSafe;
-    if (_validSafe.isNotEmpty) {
-      try {
-        final _vdt = DateTime.parse(_validSafe);
-        const _vmo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        validity = "\${_vdt.day} \${_vmo[_vdt.month-1]} \${_vdt.year}";
-      } catch (_) {
-        // Not ISO format — try dd/mm/yyyy or dd-mm-yyyy
-        try {
-          final parts = _validSafe.split(RegExp(r'[/\-]'));
-          if (parts.length == 3) {
-            const _vmo2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-            final d = int.parse(parts[0]); final m = int.parse(parts[1]); final y = int.parse(parts[2]);
-            if (m >= 1 && m <= 12) validity = "\$d \${_vmo2[m-1]} \$y";
-          }
-        } catch (_) { validity = ""; } // suppress raw strings entirely
-      }
-    }
-    final storeName = (product["store"] is Map ? product["store"]["store_name"] : null)?.toString()
-        ?? product["store_name"]?.toString() ?? "";
-    final pal = _palettes[colorIdx % _palettes.length];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const SizedBox(height: 12),
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          // Banner image
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: SizedBox(height: 170, width: double.infinity, child: _imgWidget()),
-          ),
-          const SizedBox(height: 20),
-          // Offer badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(colors: pal, begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Text(title.isNotEmpty ? title : "Special Offer",
-              style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 15, fontWeight: FontWeight.w900)),
-          ),
-          const SizedBox(height: 14),
-          if (text.isNotEmpty) Text(text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 16, fontWeight: FontWeight.w700, height: 1.4)),
-          if (storeName.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.store_rounded, color: Color(0xFF6b8c7e), size: 15),
-              const SizedBox(width: 5),
-              Text(storeName, style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 13, fontWeight: FontWeight.w600)),
-            ]),
-          ],
-          if (validity.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.calendar_today_rounded, color: Color(0xFF6b8c7e), size: 13),
-              const SizedBox(width: 5),
-              Text("Valid till: $validity", style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
-            ]),
-          ],
-          const SizedBox(height: 24),
-          // FIX 12: Replace "Got it" with "Download" button
-          Row(children: [
-            Expanded(child: OutlinedButton.icon(
-              icon: const Icon(Icons.close_rounded, size: 16),
-              label: const Text("Close", style: TextStyle(fontSize: 13)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF3E5F55),
-                side: const BorderSide(color: Color(0xFF3E5F55)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () => Navigator.pop(context),
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: ElevatedButton.icon(
-              icon: const Icon(Icons.download_rounded, size: 16),
-              label: const Text("Download", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3E5F55),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () {
-                final shareText = [
-                  "🎁 OFFRO Product",
-                  if (title.isNotEmpty) "Offer: $title",
-                  if (text.isNotEmpty) text,
-                  if (storeName.isNotEmpty) "Store: $storeName",
-                  if (validity.isNotEmpty) "Valid till: $validity",
-                  "Download OFFRO for exclusive deals!",
-                ].join("\n");
-                Share.share(shareText, subject: "OFFRO Product – $title");
-              },
-            )),
-          ]),
-        ]),
-      ),
-    );
-  }
-
-  @override Widget build(BuildContext context) {
-    final title    = product["title"]?.toString() ?? "";
-    final text     = product["text"]?.toString() ?? "";
-    final _validRaw = product["validity"]?.toString() ?? "";
-    // Guard: reject raw Dart template strings (e.g. "\${dt.day}", "months[...")
-    final _validSafe = (_validRaw.contains(r'\${') || _validRaw.contains('months[') ||
-        (_validRaw.contains('{') && _validRaw.contains('}'))) ? "" : _validRaw;
-    String validity = _validSafe;
-    if (_validSafe.isNotEmpty) {
-      try {
-        final _vdt = DateTime.parse(_validSafe);
-        const _vmo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        validity = "\${_vdt.day} \${_vmo[_vdt.month-1]} \${_vdt.year}";
-      } catch (_) {
-        // Not ISO format — try dd/mm/yyyy or dd-mm-yyyy
-        try {
-          final parts = _validSafe.split(RegExp(r'[/\-]'));
-          if (parts.length == 3) {
-            const _vmo2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-            final d = int.parse(parts[0]); final m = int.parse(parts[1]); final y = int.parse(parts[2]);
-            if (m >= 1 && m <= 12) validity = "\$d \${_vmo2[m-1]} \$y";
-          }
-        } catch (_) { validity = ""; } // suppress raw strings entirely
-      }
-    }
-    final storeName = (product["store"] is Map
-        ? product["store"]["store_name"]
-        : null)?.toString() ?? product["store_name"]?.toString() ?? "";
-    final priceRaw = product["price"]?.toString() ?? "";
-    final origRaw  = product["original_price"]?.toString() ?? product["mrp"]?.toString() ?? "";
-    final discount = product["discount"]?.toString() ?? "";
-    final isBestSeller = (product["best_seller"] == true) ||
-        (product["tag"]?.toString().toLowerCase() == "best seller");
-
-    // Badge label + color (text-only badge removed to keep cards clean)
-    String badgeLabel = "";
-    Color  badgeColor = const Color(0xFFFF6B35);
-    if (isBestSeller) {
-      badgeLabel = "BEST SELLER";
-      badgeColor = const Color(0xFFFFBF00);
-    } else if (discount.isNotEmpty && discount != "0") {
-      badgeLabel = "$discount% OFF";
-      badgeColor = const Color(0xFFFF6B35);
-    }
-
-    return GestureDetector(
-      onTap: () => _openDetail(context),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFd4e8de), width: 1),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha:.08), blurRadius:12, offset: const Offset(0,4)),
-            BoxShadow(color: Colors.white.withValues(alpha:.9),  blurRadius:1,  offset: const Offset(0,-1)),
-          ],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── Top: Product image with badge overlay ──
-          Stack(children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-              child: SizedBox(
-                height: 110,
-                width: double.infinity,
-                child: _imgWidget(),
-              ),
-            ),
-            // Offer badge top-left
-            if (badgeLabel.isNotEmpty)
-              Positioned(top: 7, left: 7, child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: badgeColor,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [BoxShadow(color: badgeColor.withValues(alpha:.4), blurRadius:6)],
-                ),
-                child: Text(badgeLabel,
-                  style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900),
-                  maxLines: 1),
-              )),
-            // Heart icon top-right — live toggle via FavState
-            Positioned(top: 7, right: 7, child: GestureDetector(
-              onTap: () async {
-                final pid = product["_id"]?.toString() ?? product["id"]?.toString() ?? "";
-                if (pid.isEmpty) return;
-                final next = !_isFav;
-                setState(() => _isFav = next);
-                FavState.instance.setProduct(pid, next);
-                try {
-                  await Api.toggleProductFavorite(widget.token, pid);
-                } catch (_) {
-                  setState(() => _isFav = !next);
-                  FavState.instance.setProduct(pid, !next);
-                }
-              },
-              child: Container(
-                width: 26, height: 26,
-                decoration: BoxDecoration(
-                  color: _isFav
-                    ? const Color(0xFFe74c3c).withValues(alpha:.90)
-                    : Colors.white.withValues(alpha:.85),
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius:4)],
-                ),
-                child: Icon(
-                  _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: _isFav ? Colors.white : const Color(0xFF3E5F55),
-                  size: 14),
-              ),
-            )),
-          ]),
-
-          // ── Bottom: text content ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Product title
-              Text(
-                title.isNotEmpty ? title : (text.isNotEmpty ? text : "Special Offer"),
-                style: const TextStyle(
-                  color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w800,
-                  height: 1.2),
-                maxLines: 2, overflow: TextOverflow.ellipsis),
-              if (storeName.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(storeName,
-                  style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
-              Builder(builder: (_) {
-                final _pr = (product["rating"] as num?)?.toDouble() ?? 0.0;
-                final _pc = (product["rating_count"] ?? product["review_count"] as num?)?.toInt() ?? 0;
-                if (_pr <= 0) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                    const SizedBox(width: 2),
-                    Text(_pr.toStringAsFixed(1),
-                      style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 10, fontWeight: FontWeight.w700)),
-                    if (_pc > 0) Text(" ($_pc)",
-                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
-                  ]),
-                );
-              }),
-              const SizedBox(height: 5),
-              Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                Text("Offer ",
-                  style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 8, fontWeight: FontWeight.w600)),
-                Text("₹${priceRaw.isNotEmpty ? priceRaw : '0'}",
-                  style: const TextStyle(
-                    color: Color(0xFF2c3e35), fontSize: 13, fontWeight: FontWeight.w900)),
-                if (origRaw.isNotEmpty) ...[
-                  const SizedBox(width: 5),
-                  Text("₹$origRaw",
-                    style: const TextStyle(
-                      color: Color(0xFF9aada8), fontSize: 10,
-                      decoration: TextDecoration.lineThrough)),
-                ],
-              ]),
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-class _VapSearchBar extends StatefulWidget {
-  const _VapSearchBar();
-  @override State<_VapSearchBar> createState() => _VapSearchBarState();
-}
-
-class _VapSearchBarState extends State<_VapSearchBar> {
-  // Note: search is managed at page level; this just triggers setState via callback
-  @override Widget build(BuildContext context) {
-    // Find parent _ProductViewAllPageState via context
-    final pageState = context.findAncestorStateOfType<_ProductViewAllPageState>();
-    return Container(
-      color: const Color(0xFFFDFBF6),
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-      child: TextField(
-        onChanged: (v) {
-          pageState?.setState(() => pageState._query = v);
-        },
-        style: const TextStyle(color: kText, fontSize: 13),
-        cursorColor: kPrimary,
-        decoration: InputDecoration(
-          hintText: "Search products...",
-          hintStyle: const TextStyle(color: kMuted, fontSize: 13),
-          prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 18),
-          filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorder)),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kPrimary)),
-        ),
-      ),
-    );
-  }
-}

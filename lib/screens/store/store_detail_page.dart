@@ -170,7 +170,8 @@ class _StoreDetailPageState extends State<StoreDetailPage>
   @override
   Widget build(BuildContext context) {
     final allImgs  = _allImages;
-    // FIX 8: Show deals from initial store data immediately — don't wait for _loading
+    // FIX 8: Always parse deals from _store immediately (initial data may already have deals)
+    // so StoreOffersSection renders without waiting for _fetchAll() to complete.
     final deals    = ((_store['deals'] as List?) ?? [])
             .map((d) => Map<String, dynamic>.from(d as Map))
             .toList();
@@ -208,8 +209,8 @@ class _StoreDetailPageState extends State<StoreDetailPage>
                 : StoreHighlights(store: _store),
           ),
 
-          // ── TODAY'S OFFERS (FIX ISSUE-5: only render after load to prevent layout flicker) ──
-          if (!_loading && deals.isNotEmpty)
+          // ── TODAY'S OFFERS — show immediately if initial store data has deals ──
+          if (deals.isNotEmpty)
             SliverToBoxAdapter(
               child: StoreOffersSection(
                       deals:     deals,
@@ -384,9 +385,9 @@ class _TabContentState extends State<_TabContent> {
             : StoreProductsSection(
               products: widget.products,
               token: widget.token,
-              onProductTap: widget.onProductTap != null
-                  ? (p) => widget.onProductTap!(p, widget.token)
-                  : null,
+              storeName: widget.store['store_name']?.toString() ?? '',
+              storeId: widget.storeId,
+              onProductTap: widget.onProductTap,
             );
       case 2:
         return widget.storeId.isNotEmpty

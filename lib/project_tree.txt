@@ -1,0 +1,73 @@
+Folder PATH listing for volume New Volume
+Volume serial number is E0BC-953E
+D:.
+|   main.dart
+|   project_tree.txt
+|   
++---core
+|   +---constants
+|   |       app_constants.dart
+|   |       
+|   +---services
+|   |       api_service.dart
+|   |       fav_state.dart
+|   |       fcm_service.dart
+|   |       prefs_service.dart
+|   |       
+|   \---widgets
+|           brand_logo.dart
+|           home_hero_section.dart
+|           store_cards.dart
+|           
+\---screens
+    +---auth
+    |       login_screen.dart
+    |       
+    +---detail
+    |       detail_page.dart
+    |       
+    +---favorites
+    |       favorites_page.dart
+    |       
+    +---loading
+    |       location_loading_screen.dart
+    |       
+    +---merchant
+    |       merchant_screens.dart
+    |       products_phase2.dart
+    |       
+    +---onboarding
+    |       onboarding_screen.dart
+    |       
+    +---payment
+    |       payment_success_screen.dart
+    |       
+    +---qr
+    |       qr_page.dart
+    |       
+    +---splash
+    |       splash_screen.dart
+    |       
+    +---store
+    |   |   store_detail_page.dart
+    |   |   
+    |   \---widgets
+    |           bottom_action_bar.dart
+    |           reward_points_section.dart
+    |           store_about_section.dart
+    |           store_header.dart
+    |           store_highlights.dart
+    |           store_location_section.dart
+    |           store_offers_section.dart
+    |           store_products_section.dart
+    |           store_reviews_section.dart
+    |           
+    +---voucher
+    |       voucher_view_all_page.dart
+    |       
+    +---wallet
+    |       wallet_page.dart
+    |       
+    \---widgets
+            banner_stores_block.dart
+            

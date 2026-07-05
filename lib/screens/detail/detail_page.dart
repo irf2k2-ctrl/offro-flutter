@@ -19,8 +19,16 @@ import '../../core/widgets/brand_logo.dart';
 import '../qr/qr_page.dart';
 import '../wallet/wallet_page.dart';
 import '../payment/payment_success_screen.dart';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import '../../core/services/fav_state.dart';
+import '../store/store_detail_page.dart';
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
+PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
+
 
 
 class DetailPage extends StatefulWidget {
@@ -1045,3 +1053,722 @@ class _RatingWidgetState extends State<RatingWidget>{
 
 
 // ─────────────────────── QR SCANNER ───────────────────────
+
+
+// ═══════════════════════════════════════════════════
+// ProductDetailsPage + _PremiumProductCard
+// ═══════════════════════════════════════════════════
+class ProductDetailsPage extends StatefulWidget {
+  final Map<String,dynamic> product;
+  final String token;
+  const ProductDetailsPage({super.key, required this.product, this.token = ""});
+  @override State<ProductDetailsPage> createState() => _ProductDetailsPageState();
+}
+
+class _ProductDetailsPageState extends State<ProductDetailsPage> {
+  bool _isFav = false;
+  double _userRating = 0;
+  double _avgRating  = 0;
+  int    _ratingCount = 0;
+  final TextEditingController _reviewCtrl = TextEditingController();
+  bool _reviewSubmitting = false;
+  bool _reviewSubmitted  = false;
+
+  @override void initState() {
+    super.initState();
+    _avgRating   = (widget.product["rating"] as num?)?.toDouble() ?? 0.0;
+    _ratingCount = (widget.product["rating_count"] as num?)?.toInt() ?? 0;
+    _loadFavStatus();
+  }
+
+  Future<void> _loadFavStatus() async {
+    if (widget.token.isEmpty) return;
+    final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+    if (pid.isEmpty) return;
+    final fav = await Api.isProductFavorite(widget.token, pid);
+    FavState.instance.setProduct(pid, fav);
+    if (mounted) setState(() => _isFav = fav);
+  }
+
+  @override void dispose() { _reviewCtrl.dispose(); super.dispose(); }
+
+  num? _numVal(List<String> keys) {
+    for (final k in keys) {
+      final raw = widget.product[k];
+      if (raw == null) continue;
+      if (raw is num) return raw;
+      final parsed = num.tryParse(raw.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+      if (parsed != null && parsed > 0) return parsed;
+    }
+    return null;
+  }
+
+  Widget _resolveImage() {
+    final keys = ["image_url","image_thumb","image","logo_url","logo"];
+    final storeObj = widget.product["store"];
+    if (storeObj is Map) {
+      for (final k in ["image_url","image_thumb","image","image2"]) {
+        final v = storeObj[k]?.toString() ?? "";
+        if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+          placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
+          errorWidget: (_, __, ___) => _fallbackImg());
+        if (v.startsWith("data:image")) {
+          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        }
+      }
+    }
+    for (final k in keys) {
+      final v = widget.product[k]?.toString() ?? "";
+      if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+        placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
+        errorWidget: (_, __, ___) => _fallbackImg());
+      if (v.startsWith("data:image")) {
+        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      }
+    }
+    return _fallbackImg();
+  }
+
+  // Full-screen contained version of product image (for the viewer dialog)
+  Widget _resolveImageContained() {
+    final keys = ["image_url","image_thumb","image","logo_url","logo"];
+    final storeObj = widget.product["store"];
+    if (storeObj is Map) {
+      for (final k in ["image_url","image_thumb","image","image2"]) {
+        final v = storeObj[k]?.toString() ?? "";
+        if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.contain,
+          placeholder: (_, __) => const SizedBox.shrink(),
+          errorWidget: (_, __, ___) => _fallbackImg());
+        if (v.startsWith("data:image")) {
+          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        }
+      }
+    }
+    for (final k in keys) {
+      final v = widget.product[k]?.toString() ?? "";
+      if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.contain,
+        placeholder: (_, __) => const SizedBox.shrink(),
+        errorWidget: (_, __, ___) => _fallbackImg());
+      if (v.startsWith("data:image")) {
+        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      }
+    }
+    return _fallbackImg();
+  }
+
+  Widget _fallbackImg() {
+    final name = widget.product["title"]?.toString() ?? widget.product["name"]?.toString() ?? "P";
+    return Container(
+      color: const Color(0xFFA9CDBA),
+      child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "P",
+        style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 48, fontWeight: FontWeight.w900))),
+    );
+  }
+
+  Future<void> _submitReview() async {
+    final text = _reviewCtrl.text.trim();
+    if (text.isEmpty || _userRating == 0) return;
+    final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+    if (pid.isEmpty) return;
+    setState(() => _reviewSubmitting = true);
+    try {
+      await Api.submitProductReview(widget.token, pid, _userRating, text);
+      // Update local avg optimistically
+      final newCount = _ratingCount + 1;
+      final newAvg   = ((_avgRating * _ratingCount) + _userRating) / newCount;
+      if (mounted) setState(() {
+        _reviewSubmitting = false;
+        _reviewSubmitted  = true;
+        _ratingCount      = newCount;
+        _avgRating        = double.parse(newAvg.toStringAsFixed(1));
+      });
+    } catch (_) {
+      if (mounted) setState(() => _reviewSubmitting = false);
+    }
+  }
+
+  @override Widget build(BuildContext context) {
+    final p = widget.product;
+    final title      = p["title"]?.toString() ?? p["name"]?.toString() ?? "Product";
+    final storeObj   = p["store"];
+    final storeName  = storeObj is Map
+        ? (storeObj["store_name"] ?? storeObj["business_name"] ?? storeObj["merchant_name"] ?? storeObj["name"] ?? "").toString()
+        : (p["store_name"] ?? p["business_name"] ?? p["merchant_name"] ?? "").toString();
+    final storeArea  = storeObj is Map ? (storeObj["area"] ?? "").toString() : (p["area"] ?? "").toString();
+    final storeCat   = storeObj is Map ? (storeObj["category"] ?? "").toString() : (p["category"] ?? "").toString();
+    final storeId    = storeObj is Map
+        ? (storeObj["_id"] ?? storeObj["id"] ?? "").toString()
+        : (widget.product["store_id"] ?? "").toString(); // merchant_id intentionally excluded (wrong entity)
+    final storeData  = storeObj is Map
+        ? (Map<String,dynamic>.from(storeObj as Map)..["_id"] ??= storeId)
+        : <String,dynamic>{"_id": storeId, "store_name": widget.product["store_name"] ?? "",
+                            "category": widget.product["category"] ?? "",
+                            "area": widget.product["area"] ?? ""};
+    // store_active: from API response (public.py attaches this — false if store status != active)
+    // Defaults to true if field absent (backward compat with older records)
+    final bool storeIsActive = widget.product["store_active"] as bool? ?? true;
+    final description = p["description"]?.toString() ?? p["details"]?.toString() ?? "";
+    final offerText  = p["offer"]?.toString() ?? "";
+    final discMatch  = RegExp(r'(\d+)%').firstMatch(offerText);
+    final discBadge  = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
+
+    final saleP = _numVal(["offer_price","sale_price","price","current_price"]); // ITEM10
+    final origP = _numVal(["original_price","mrp","was_price","compare_price"]);
+    final showOrig = origP != null && saleP != null && origP > saleP;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: CustomScrollView(slivers: [
+        // ── Hero image app bar ──
+        SliverAppBar(
+          expandedHeight: 300,
+          pinned: true,
+          backgroundColor: const Color(0xFF3E5F55),
+          leading: GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
+              child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18)),
+          ),
+          actions: [
+            // Share button
+            GestureDetector(
+              onTap: () {
+                final shareTitle = title.isNotEmpty ? title : "Product";
+                final shareLines = <String>[
+                  "🎁 $shareTitle",
+                  if (offerText.isNotEmpty) offerText,
+                  if (description.isNotEmpty)
+                    description.substring(0, description.length.clamp(0, 120)),
+                  if (storeName.isNotEmpty) "🏪 $storeName",
+                  if (saleP != null)
+                    "💰 ₹${saleP!.toStringAsFixed(0)}"
+                    "${showOrig ? " (MRP ₹${origP!.toStringAsFixed(0)})" : ""}",
+                  "",
+                  "Discover exclusive deals on OFFRO! 🛍️",
+                ];
+                Share.share(shareLines.where((s) => s.isNotEmpty).join("\n"),
+                  subject: "OFFRO – $shareTitle");
+              },
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
+                child: const Icon(Icons.share_rounded, color: Colors.white, size: 20)),
+            ),
+            // Favourite button
+            GestureDetector(
+              onTap: () async {
+                final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+                setState(() => _isFav = !_isFav); // optimistic
+                FavState.instance.toggleProduct(pid);
+                if (widget.token.isNotEmpty && pid.isNotEmpty) {
+                  await Api.toggleProductFavorite(widget.token, pid);
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
+                child: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  color: _isFav ? const Color(0xFFe74c3c) : Colors.white, size: 20)),
+            ),
+            const SizedBox(width: 4),
+          ],
+          flexibleSpace: FlexibleSpaceBar(
+            background: GestureDetector(
+              onTap: () => showDialog(
+                context: context,
+                barrierColor: Colors.black87,
+                builder: (ctx) => Dialog(
+                  backgroundColor: Colors.transparent,
+                  insetPadding: EdgeInsets.zero,
+                  child: Stack(children: [
+                    Positioned.fill(
+                      child: InteractiveViewer(
+                        minScale: 0.8, maxScale: 5.0,
+                        child: Center(
+                          child: _resolveImageContained(),
+                        ),
+                      ),
+                    ),
+                    Positioned(top: 40, right: 16,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 20)))),
+                  ]),
+                ),
+              ),
+              child: Stack(fit: StackFit.expand, children: [
+              _resolveImage(),
+              // Bottom scrim
+              Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.transparent, Colors.black.withValues(alpha: .55)],
+                  stops: const [0.0, 0.55, 1.0]),
+              ))),
+              // Discount badge
+              if (discBadge.isNotEmpty)
+                Positioned(bottom: 16, left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(8)),
+                    child: Text(discBadge, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+                  )),
+              ]),
+            ),
+          ),
+        ),
+
+        SliverToBoxAdapter(child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+            // ── Product name ──
+            Text(title,
+              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 22, fontWeight: FontWeight.w900, height: 1.25)),
+
+            const SizedBox(height: 10),
+
+            // ── Price row ──
+            if (saleP != null || showOrig)
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  // ── Price row: sale price + strikethrough orig on ONE line ──
+                  Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                    if (saleP != null)
+                      Text("₹${saleP.toStringAsFixed(0)}",
+                        style: const TextStyle(
+                          color: Color(0xFF2c7a4b), fontSize: 24, fontWeight: FontWeight.w900)),
+                    if (showOrig) ...[
+                      const SizedBox(width: 10),
+                      Text("₹${origP!.toStringAsFixed(0)}",
+                        style: const TextStyle(
+                          color: Color(0xFF9e9e9e), fontSize: 15, fontWeight: FontWeight.w500,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: Color(0xFF9e9e9e))),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFe74c3c),
+                          borderRadius: BorderRadius.circular(6)),
+                        child: Text(
+                          "${(((origP! - saleP!) / origP!) * 100).toStringAsFixed(0)}% off",
+                          style: const TextStyle(
+                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
+                    ],
+                  ]),
+                ]),
+                const SizedBox(height: 3),
+                Row(children: [
+                  if (saleP != null)
+                    const Text("Selling Price",
+                      style: TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w600)),
+                  if (showOrig) ...[
+                    const SizedBox(width: 12),
+                    Text("MRP ₹${origP!.toStringAsFixed(0)}",
+                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
+                  ],
+                ]),
+              ]),
+
+            const SizedBox(height: 14),
+
+            // ── Rating row ──
+            if (_avgRating > 0 || _ratingCount > 0)
+              Row(children: [
+                ...List.generate(5, (i) => Icon(
+                  i < _avgRating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: const Color(0xFFFFD700), size: 18)),
+                const SizedBox(width: 6),
+                Text(_avgRating.toStringAsFixed(1),
+                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w700)),
+                if (_ratingCount > 0) ...[
+                  const SizedBox(width: 4),
+                  Text("($_ratingCount reviews)",
+                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
+                ],
+              ]),
+
+            if (_avgRating > 0 || _ratingCount > 0) const SizedBox(height: 14),
+
+            // ── Description ──
+            if (description.isNotEmpty) ...[
+              const Text("About this product",
+                style: TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text(description,
+                style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.55)),
+              const SizedBox(height: 20),
+            ],
+
+            // ── Offer text ──
+            if (offerText.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFe8f5f0),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFA9CDBA)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.local_offer_rounded, color: Color(0xFF3E5F55), size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(offerText,
+                    style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 13, fontWeight: FontWeight.w600))),
+                ]),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // ── Divider ──
+            const Divider(color: Color(0xFFe8f5f0)),
+            const SizedBox(height: 16),
+
+            // ── Store section ──
+            const Text("Sold by",
+              style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 12, fontWeight: FontWeight.w600,
+                letterSpacing: .5)),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: (storeName.isNotEmpty || storeId.isNotEmpty)
+                ? () async {
+                    // Fetch full store data so the detail page has images/rating/etc.
+                    Map<String,dynamic> fullStore = storeData;
+                    if (storeId.isNotEmpty) {
+                      try {
+                        final fetched = await Api.fetchStoreDetail(storeId);
+                        if (fetched.isNotEmpty) {
+                          fullStore = Map<String,dynamic>.from(fetched);
+                          fullStore.putIfAbsent("_id", () => storeId);
+                        }
+                      } catch (_) {}
+                    }
+                    if (!context.mounted) return;
+                    Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => StoreDetailPage(
+                        store: fullStore,
+                        token: widget.token,
+                        userName: "",
+                        onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))))));
+                  }
+                : null,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFd4e8de)),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 10, offset: const Offset(0, 3))],
+                ),
+                child: Builder(builder: (_) {
+                  final storeRating = (storeData["rating"] as num?)?.toDouble() ??
+                                      (storeData["admin_rating"] as num?)?.toDouble() ?? 0.0;
+                  final storeDist   = (storeData["distance_km"] as num?)?.toDouble();
+                  final distLabel   = storeDist != null
+                    ? (storeDist < 1.0 ? "${(storeDist * 1000).toStringAsFixed(0)} m away"
+                                       : "${storeDist.toStringAsFixed(1)} km away")
+                    : "";
+                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      // Store avatar
+                      Container(
+                        width: 52, height: 52,
+                        decoration: BoxDecoration(
+                          color: storeIsActive ? const Color(0xFFe8f5f0) : const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Center(child: Text(
+                          storeName.isNotEmpty ? storeName[0].toUpperCase() : "S",
+                          style: TextStyle(
+                            color: storeIsActive ? const Color(0xFF3E5F55) : const Color(0xFF9E9E9E),
+                            fontSize: 22, fontWeight: FontWeight.w900))),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(storeName,
+                          style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
+                        if (storeArea.isNotEmpty || storeCat.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text("${storeCat.isNotEmpty ? storeCat : ''}${storeCat.isNotEmpty && storeArea.isNotEmpty ? '  ·  ' : ''}${storeArea}".trim(),
+                            style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
+                        ],
+                        const SizedBox(height: 5),
+                        Row(children: [
+                          if (storeRating > 0) ...[
+                            const Icon(Icons.star_rounded, color: Color(0xFFFFD700), size: 13),
+                            const SizedBox(width: 3),
+                            Text(storeRating.toStringAsFixed(1),
+                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w700)),
+                            if (distLabel.isNotEmpty) const SizedBox(width: 8),
+                          ],
+                          if (distLabel.isNotEmpty) ...[
+                            const Icon(Icons.near_me_rounded, color: Color(0xFF3E5F55), size: 12),
+                            const SizedBox(width: 3),
+                            Text(distLabel,
+                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500)),
+                          ],
+                        ]),
+                      ])),
+                      const Icon(Icons.chevron_right_rounded, color: Color(0xFF3E5F55), size: 22),
+                    ]),
+                    // ── Store inactive badge (shown only if store subscription expired) ──
+                    if (!storeIsActive) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF3E0),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: .4)),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.info_outline_rounded, size: 12, color: Color(0xFFE65100)),
+                          const SizedBox(width: 5),
+                          const Text("Store Currently Inactive",
+                            style: TextStyle(color: Color(0xFFE65100), fontSize: 11, fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                    ],
+                  ]);
+                }),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            // ── Rate & Review ──
+            const Text("Rate & Review",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 10),
+
+            // Star rating selector
+            Row(children: [
+              ...List.generate(5, (i) => GestureDetector(
+                onTap: () => setState(() => _userRating = i + 1.0),
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Icon(
+                    i < _userRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: const Color(0xFFFFD700), size: 30)),
+              )),
+              const SizedBox(width: 8),
+              Text(_userRating == 0 ? "Tap to rate" : ["","Poor","Fair","Good","Great","Excellent"][_userRating.toInt()],
+                style: TextStyle(
+                  color: _userRating == 0 ? const Color(0xFF9e9e9e) : const Color(0xFF3E5F55),
+                  fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+
+            const SizedBox(height: 12),
+
+            // Review text field
+            if (!_reviewSubmitted) ...[
+              TextField(
+                controller: _reviewCtrl,
+                maxLines: 3,
+                style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: "Share your experience with this product...",
+                  hintStyle: const TextStyle(color: Color(0xFFa0b8b0), fontSize: 13),
+                  filled: true,
+                  fillColor: const Color(0xFFF7FBF9),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFd4e8de))),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFFd4e8de))),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(color: Color(0xFF3E5F55), width: 1.5)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (_userRating > 0 && !_reviewSubmitting) ? _submitReview : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3E5F55),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: _reviewSubmitting
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text("Submit Review", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ] else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFe8f5f0),
+                  borderRadius: BorderRadius.circular(14)),
+                child: const Row(children: [
+                  Icon(Icons.check_circle_rounded, color: Color(0xFF3E5F55), size: 20),
+                  SizedBox(width: 10),
+                  Text("Thanks for your review!", style: TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+
+            const SizedBox(height: 100),
+          ]),
+        )),
+      ]),
+    );
+  }
+}
+
+class _PremiumProductCard extends StatelessWidget {
+  final Map<String,dynamic> product;
+  final int colorIdx;
+  const _PremiumProductCard({required this.product, this.colorIdx = 0});
+
+  static const _fallbackColors = [
+    [Color(0xFF3E5F55), Color(0xFF2c4a3e)],
+    [Color(0xFF5D4037), Color(0xFF3E2723)],
+    [Color(0xFF1565C0), Color(0xFF0D47A1)],
+    [Color(0xFF6A1B9A), Color(0xFF4A148C)],
+    [Color(0xFFC62828), Color(0xFFB71C1C)],
+    [Color(0xFF00695C), Color(0xFF004D40)],
+  ];
+
+  Widget _buildImage() {
+    final storeObj = product["store"];
+    if (storeObj is Map) {
+      for (final k in ["image2", "image", "photo"]) {
+        final si = storeObj[k]?.toString() ?? "";
+        if (si.startsWith("data:image")) {
+          try { return Image.memory(base64Decode(si.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        }
+        final url = si.startsWith("/") ? kBaseUrl + si : si;
+        if (url.startsWith("http")) {
+          return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+            placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
+            errorWidget: (_, __, ___) => _fallback());
+        }
+      }
+    }
+    for (final k in ["logo_url","logo_thumb","image_url","image_thumb","image2","image","logo"]) {
+      final img = product[k]?.toString() ?? "";
+      if (img.startsWith("data:image")) {
+        try { return Image.memory(base64Decode(img.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      }
+      final url = img.startsWith("/") ? kBaseUrl + img : img;
+      if (url.startsWith("http")) {
+        return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+          placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
+          errorWidget: (_, __, ___) => _fallback());
+      }
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
+    final pal = _fallbackColors[colorIdx % _fallbackColors.length];
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: pal, begin: Alignment.topLeft, end: Alignment.bottomRight),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final title     = product["title"]?.toString() ?? "";
+    final offerText = product["offer"]?.toString() ?? product["text"]?.toString() ?? "";
+    final storeName = (product["store"] is Map ? product["store"]["store_name"] : null)?.toString()
+        ?? product["store_name"]?.toString() ?? "";
+    final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
+    final discLabel = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
+
+    return Container(
+      width: 185,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 18, offset: const Offset(0, 5)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(fit: StackFit.expand, children: [
+          // Full-bleed image
+          _buildImage(),
+          // Bottom gradient
+          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.transparent,
+                Colors.black.withValues(alpha: .55),
+                Colors.black.withValues(alpha: .88),
+              ],
+              stops: const [0.0, 0.38, 0.70, 1.0],
+            ),
+          ))),
+          // Discount badge top-left
+          if (discLabel.isNotEmpty)
+            Positioned(top: 10, left: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFe74c3c),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.25), blurRadius: 6)],
+                ),
+                child: Text(discLabel,
+                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+              ),
+            ),
+          // Bottom content
+          Positioned(bottom: 12, left: 10, right: 10,
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              if (storeName.isNotEmpty)
+                Text(storeName,
+                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              if (title.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(title,
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, height: 1.2,
+                    shadows: [Shadow(blurRadius: 8, color: Colors.black87)]),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+              if (offerText.isNotEmpty && offerText != title) ...[
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white.withValues(alpha: .25)),
+                  ),
+                  child: Text(offerText,
+                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
+              ],
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+
+// ─────────────────────── VOUCHER VIEW ALL PAGE ───────────────────────

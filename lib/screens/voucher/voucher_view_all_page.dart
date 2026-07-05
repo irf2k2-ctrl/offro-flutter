@@ -10,6 +10,15 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import '../store/store_detail_page.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import '../../core/constants/app_constants.dart';
+import '../../core/services/api_service.dart';
+import '../../core/services/fav_state.dart';
+import '../detail/detail_page.dart';
 
 // ── OFFRO Brand Colors ──────────────────────────────────────────────────────
 const _kPrimary = Color(0xFF3E5F55);
@@ -20,6 +29,8 @@ const _kBg      = Color(0xFFFDFBF6);
 const _kText    = Color(0xFF2c3e35);
 const _kMuted   = Color(0xFF6b8c7e);
 const _kBorder  = Color(0xFFd4e8de);
+
+PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  VIEW ALL PAGE
@@ -150,6 +161,25 @@ bool _isVoucherExpired(String validity) {
   final dt = _parseValidityDate(validity);
   if (dt == null) return false;
   return DateTime.now().isAfter(dt.add(const Duration(days: 1)));
+}
+
+
+/// Top-level share helper used by _ProductCard.
+Future<void> _shareProduct(
+  BuildContext context,
+  String title,
+  String offer,
+  String valid,
+  String logo,
+  String phone,
+  String merchant,
+) async {
+  final text = '${title.isNotEmpty ? title : "Product"}'
+      '${offer.isNotEmpty    ? "\n🎁 $offer"           : ""}'
+      '${merchant.isNotEmpty ? "\n🏪 $merchant"        : ""}'
+      '${valid.isNotEmpty    ? "\nValid till: $valid"  : ""}'
+      '\n\nDiscover deals & earn points on OFFRO!';
+  await Share.share(text);
 }
 
 class _ProductCard extends StatelessWidget {
@@ -344,7 +374,7 @@ class _ProductCard extends StatelessWidget {
                         Row(children: [
                           const Icon(Icons.near_me_rounded, size: 12, color: _kMuted),
                           const SizedBox(width: 4),
-                          Text("\${(voucher["distance_km"] as num?)?.toStringAsFixed(1) ?? ""}km away",
+                          Text('${(voucher["distance_km"] as num?)?.toStringAsFixed(1) ?? ""}km away',
                             style: const TextStyle(color: _kMuted, fontSize: 11)),
                         ]),
                       ],
@@ -474,4 +504,425 @@ class _LogoWidget extends StatelessWidget {
       textAlign: TextAlign.center,
       style: TextStyle(fontSize: 28, height: 2.1)),
   );
+}
+
+
+// ═══════════════════════════════════════════════════
+// ProductViewAllPage + ProductDetailCard + _VapSearchBar
+// ═══════════════════════════════════════════════════
+class ProductViewAllPage extends StatefulWidget {
+  final List<Map<String,dynamic>> products; // initial list (may be partial)
+  final String token;
+  final String city; // city filter for full fetch
+  const ProductViewAllPage({required this.products, this.token = "", this.city = ""});
+  @override State<ProductViewAllPage> createState()=>_ProductViewAllPageState();
+}
+class _ProductViewAllPageState extends State<ProductViewAllPage>{
+  String _cat = "All";
+  String _query = "";
+  bool   _fetching = true;
+  List<Map<String,dynamic>> _all = [];
+
+  @override void initState() {
+    super.initState();
+    _all = List<Map<String,dynamic>>.from(widget.products); // show passed list instantly
+    _fetchAll();
+  }
+
+  // Fetch full product list from API filtered by city (home may have cached a partial set)
+  Future<void> _fetchAll() async {
+    try {
+      final fresh = await Api.getProductCards(city: widget.city);
+      if (mounted) setState(() {
+        _all = List<Map<String,dynamic>>.from(fresh);
+        _fetching = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _fetching = false);
+    }
+  }
+
+  List<String> get _cats {
+    final s = {"All"};
+    for(final v in _all){
+      final c = v["category"]?.toString() ?? "";
+      if(c.isNotEmpty) s.add(c);
+    }
+    return s.toList();
+  }
+  List<Map<String,dynamic>> get _filtered {
+    var list = _cat == "All"
+        ? _all
+        : _all.where((v) => (v["category"]?.toString() ?? "") == _cat).toList();
+    if (_query.isNotEmpty) {
+      final q = _query.toLowerCase();
+      list = list.where((v) =>
+        (v["title"]?.toString() ?? "").toLowerCase().contains(q) ||
+        (v["text"]?.toString() ?? "").toLowerCase().contains(q) ||
+        (v["store_name"]?.toString() ?? "").toLowerCase().contains(q) ||
+        ((v["store"] is Map ? v["store"]["store_name"] : null)?.toString() ?? "").toLowerCase().contains(q)
+      ).toList();
+    }
+    return list;
+  }
+
+  @override Widget build(BuildContext context){
+    return Scaffold(
+      backgroundColor: kBg,
+      body: CustomScrollView(slivers: [
+        // Glossy warm-tone SliverAppBar
+        SliverAppBar(
+          expandedHeight: 100,
+          pinned: true,
+          backgroundColor: const Color(0xFFFDFBF6),
+          foregroundColor: kText,
+          elevation: 0,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(52),
+            child: _VapSearchBar(),
+          ),
+          flexibleSpace: FlexibleSpaceBar(
+            title: const Text("See All Products",
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: kText)),
+            background: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: [Color(0xFFFDFBF6), Color(0xFFE7D7C8), Color(0xFFFDFBF6)],
+                ),
+              ),
+              child: Stack(children: [
+                Positioned(top: 0, left: 0, right: 0, child: Container(
+                  height: 55,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [Colors.white.withValues(alpha: .4), Colors.transparent],
+                    ),
+                  ),
+                )),
+              ]),
+            ),
+          ),
+        ),
+        // Category filter chips row
+        SliverToBoxAdapter(child: Container(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+          color: Colors.white,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(children: _cats.map((cat) => GestureDetector(
+              onTap: () => setState(() => _cat = cat),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                margin: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _cat == cat ? kPrimary : Colors.white,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: _cat == cat ? kPrimary : kBorder, width: 1.2),
+                  boxShadow: _cat == cat
+                    ? [BoxShadow(color: kPrimary.withValues(alpha: .25), blurRadius: 8, offset: const Offset(0,2))]
+                    : [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 4)],
+                ),
+                child: Text(cat, style: TextStyle(
+                  color: _cat == cat ? Colors.white : kMuted,
+                  fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
+            )).toList()),
+          ),
+        )),
+        // Content
+        if (_fetching && _all.isEmpty)
+          const SliverFillRemaining(
+            child: Center(child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2)))
+        else if (_filtered.isEmpty)
+          SliverFillRemaining(
+            child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Container(
+                width: 80, height: 80,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(colors: [Color(0xFFE7D7C8), Color(0xFFFDFBF6)]),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.storefront_outlined, color: Color(0xFFB8A090), size: 40)),
+              const SizedBox(height: 16),
+              const Text("No products found",
+                style: TextStyle(color: kText, fontSize: 16, fontWeight: FontWeight.w700)),
+            ])))
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 80),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.72,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => ProductDetailCard(
+                  product: Map<String,dynamic>.from(_filtered[i]),
+                  colorIdx: i,
+                  token: widget.token,
+                ),
+                childCount: _filtered.length,
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+
+// ─────────────────────── VOUCHER SUPPORT WIDGETS ───────────────────────
+
+class ProductDetailCard extends StatelessWidget {
+  final Map product;
+  final int colorIdx;
+  final String token;
+  const ProductDetailCard({required this.product, this.colorIdx = 0, this.token = ""});
+
+  static num? _numVal(Map v, List<String> keys) {
+    for (final k in keys) {
+      final raw = v[k];
+      if (raw == null) continue;
+      if (raw is num) return raw;
+      final parsed = num.tryParse(raw.toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+      if (parsed != null && parsed > 0) return parsed;
+    }
+    return null;
+  }
+
+  static const List<List<Color>> _palettes = [
+    [Color(0xFFCDEBD6), Color(0xFFA9CDBA)],
+    [Color(0xFFE7D7C8), Color(0xFFD4B896)],
+    [Color(0xFFD6EAF8), Color(0xFFAED6F1)],
+    [Color(0xFFFDE8E8), Color(0xFFF1ABAB)],
+    [Color(0xFFFFF3CD), Color(0xFFFFD966)],
+    [Color(0xFFEDE7F6), Color(0xFFCE93D8)],
+  ];
+
+  // Try to load store image (same chain as before, no gift box fallback)
+  Widget _imgWidget() {
+    final storeObj = product["store"];
+    if (storeObj is Map) {
+      for (final k in ["image2","image","img","photo"]) {
+        final si = storeObj[k]?.toString() ?? "";
+        if (si.startsWith("data:image")) {
+          try { return Image.memory(base64Decode(si.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        }
+        final siUrl = si.startsWith("/") ? "$kBaseUrl$si" : si;
+        if (siUrl.startsWith("http")) {
+          return CachedNetworkImage(imageUrl:siUrl, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
+            placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
+            errorWidget:(_,__,___)=>_brandedBg());
+        }
+      }
+    }
+    for (final key in ["logo_url","logo_thumb","logo","image_url","image_thumb","image2","store_image2","image","photo","img"]) {
+      final img = product[key]?.toString() ?? "";
+      if (img.startsWith("data:image")) {
+        try { return Image.memory(base64Decode(img.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      }
+      final imgUrl2 = img.startsWith("/") ? "$kBaseUrl$img" : img;
+      if (imgUrl2.startsWith("http")) {
+        return CachedNetworkImage(imageUrl:imgUrl2, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
+          placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
+          errorWidget:(_,__,___)=>_brandedBg());
+      }
+    }
+    return _brandedBg();
+  }
+
+  Widget _brandedBg() => Container(
+    decoration:const BoxDecoration(
+      gradient:LinearGradient(colors:[Color(0xFF3E5F55),Color(0xFF2a4a40)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
+  );
+
+  void _openDetail(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ProductDetailsPage(
+        product: Map<String,dynamic>.from(product as Map),
+        token: token,
+      ),
+    ));
+  }
+
+  @override Widget build(BuildContext context) {
+    final title    = product["title"]?.toString() ?? "";
+    final text     = product["text"]?.toString() ?? "";
+    final storeName = (product["store"] is Map
+        ? product["store"]["store_name"]
+        : null)?.toString() ?? product["store_name"]?.toString() ?? "";
+    final saleP = _numVal(product, ["offer_price","sale_price","price","current_price"]);
+    final origP0 = _numVal(product, ["original_price","mrp","was_price","compare_price"]);
+    final origP  = (origP0 != null && saleP != null && origP0 > saleP) ? origP0 : null;
+    final discount = product["discount"]?.toString() ?? "";
+    final isBestSeller = (product["best_seller"] == true) ||
+        (product["tag"]?.toString().toLowerCase() == "best seller");
+    final rating = (product["rating"] as num?)?.toDouble() ?? 0.0;
+    final ratingCount = (product["rating_count"] as num?)?.toInt() ?? 0;
+
+    // Badge label + color
+    String badgeLabel = "";
+    Color  badgeColor = const Color(0xFFFF6B35);
+    if (isBestSeller) {
+      badgeLabel = "BEST SELLER";
+      badgeColor = const Color(0xFFFFBF00);
+    } else if (discount.isNotEmpty && discount != "0") {
+      badgeLabel = "$discount% OFF";
+      badgeColor = const Color(0xFFFF6B35);
+    } else if (text.isNotEmpty) {
+      badgeLabel = text.length > 10 ? text.substring(0,10) : text;
+      badgeColor = kPrimary;
+    }
+
+    return GestureDetector(
+      onTap: () => _openDetail(context),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFd4e8de), width: 1),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha:.08), blurRadius:12, offset: const Offset(0,4)),
+            BoxShadow(color: Colors.white.withValues(alpha:.9),  blurRadius:1,  offset: const Offset(0,-1)),
+          ],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // ── Top: Product image with badge overlay ──
+          Stack(children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              child: SizedBox(
+                height: 110,
+                width: double.infinity,
+                child: _imgWidget(),
+              ),
+            ),
+            // Offer badge top-left
+            if (badgeLabel.isNotEmpty)
+              Positioned(top: 7, left: 7, child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: badgeColor,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [BoxShadow(color: badgeColor.withValues(alpha:.4), blurRadius:6)],
+                ),
+                child: Text(badgeLabel,
+                  style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900),
+                  maxLines: 1),
+              )),
+            // Heart icon top-right
+            Positioned(top: 7, right: 7, child: Container(
+              width: 26, height: 26,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha:.85),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius:4)],
+              ),
+              child: const Icon(Icons.favorite_border_rounded,
+                color: Color(0xFF3E5F55), size: 14),
+            )),
+          ]),
+
+          // ── Bottom: text content ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Product title
+              Text(
+                title.isNotEmpty ? title : (text.isNotEmpty ? text : "Special Offer"),
+                style: const TextStyle(
+                  color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w800,
+                  height: 1.2),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+              if (storeName.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(storeName,
+                  style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+              if (rating > 0 || ratingCount > 0) ...[
+                const SizedBox(height: 4),
+                Row(children: [
+                  ...List.generate(5, (i) => Icon(
+                    i < rating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
+                    color: const Color(0xFFFFD700), size: 10)),
+                  const SizedBox(width: 3),
+                  Text(rating.toStringAsFixed(1),
+                    style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 9, fontWeight: FontWeight.w700)),
+                  if (ratingCount > 0) ...[
+                    const SizedBox(width: 2),
+                    Text("($ratingCount)",
+                      style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 9)),
+                  ],
+                ]),
+              ],
+              if (saleP != null || origP != null) ...[
+                const SizedBox(height: 5),
+                Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                  if (origP != null) ...[
+                    Text("₹${origP.toStringAsFixed(0)}",
+                      style: const TextStyle(
+                        color: Color(0xFF9e9e9e), fontSize: 10, fontWeight: FontWeight.w500,
+                        decoration: TextDecoration.lineThrough,
+                        decorationColor: Color(0xFF9e9e9e))),
+                    const SizedBox(width: 4),
+                  ],
+                  if (saleP != null)
+                    Text("₹${saleP.toStringAsFixed(0)}",
+                      style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 13, fontWeight: FontWeight.w900)),
+                ]),
+              ],
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _VapSearchBar extends StatefulWidget {
+  const _VapSearchBar();
+  @override State<_VapSearchBar> createState() => _VapSearchBarState();
+}
+
+class _VapSearchBarState extends State<_VapSearchBar> {
+  // Note: search is managed at page level; this just triggers setState via callback
+  @override Widget build(BuildContext context) {
+    // Find parent _ProductViewAllPageState via context
+    final pageState = context.findAncestorStateOfType<_ProductViewAllPageState>();
+    return Container(
+      color: const Color(0xFFFDFBF6),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: TextField(
+        onChanged: (v) {
+          pageState?.setState(() => pageState._query = v);
+        },
+        style: const TextStyle(color: kText, fontSize: 13),
+        cursorColor: kPrimary,
+        decoration: InputDecoration(
+          hintText: "Search products...",
+          hintStyle: const TextStyle(color: kMuted, fontSize: 13),
+          prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 18),
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: kBorder)),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: kBorder)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: kPrimary)),
+        ),
+      ),
+    );
+  }
 }
