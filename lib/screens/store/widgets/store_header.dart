@@ -324,6 +324,73 @@ class StoreHeader extends StatelessWidget {
 
         const SizedBox(height: 8),
 
+        // ── Open/close status ──
+        Builder(builder: (ctx) {
+          final openTime  = store['open_time']?.toString()  ?? '';
+          final closeTime = store['close_time']?.toString() ?? '';
+          if (closeTime.isEmpty ||
+              (openTime == '00:00' && closeTime == '00:00') ||
+              (openTime.isEmpty  && closeTime == '00:00')) {
+            return const SizedBox.shrink();
+          }
+          try {
+            final now      = TimeOfDay.now();
+            final nowMins  = now.hour * 60 + now.minute;
+            final cParts   = closeTime.split(':');
+            final cH       = int.parse(cParts[0]);
+            final cM       = cParts.length > 1 ? int.parse(cParts[1]) : 0;
+            final closeMins = cH * 60 + cM;
+            final cSuffix   = cH >= 12 ? 'PM' : 'AM';
+            final cH12      = cH > 12 ? cH - 12 : (cH == 0 ? 12 : cH);
+            final cMinStr   = cM > 0 ? ':${cM.toString().padLeft(2, '0')}' : '';
+            final bool isOpen = nowMins < closeMins;
+            String sub = isOpen ? 'Closes $cH12$cMinStr $cSuffix' : '';
+            if (!isOpen && openTime.isNotEmpty) {
+              final oParts  = openTime.split(':');
+              final oH      = int.parse(oParts[0]);
+              final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
+              final oSuffix = oH >= 12 ? 'PM' : 'AM';
+              final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
+              final oMinStr = oM > 0 ? ':${oM.toString().padLeft(2, '0')}' : '';
+              sub = 'Opens $oH12$oMinStr $oSuffix';
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isOpen ? const Color(0xFFe8f5ee) : const Color(0xFFfdf0f0),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 6, height: 6,
+                    decoration: BoxDecoration(
+                      color: isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b),
+                      shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(isOpen ? 'Open' : 'Closed',
+                    style: TextStyle(
+                      color: isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b),
+                      fontSize: 11, fontWeight: FontWeight.w800)),
+                  if (sub.isNotEmpty) ...[
+                    Text(' · ',
+                      style: TextStyle(
+                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)).withValues(alpha: .6),
+                        fontSize: 11)),
+                    Text(sub,
+                      style: TextStyle(
+                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)).withValues(alpha: .75),
+                        fontSize: 11, fontWeight: FontWeight.w600)),
+                  ],
+                ]),
+              ),
+            );
+          } catch (_) {
+            return const SizedBox.shrink();
+          }
+        }),
         // ─── Action Buttons: Call · WhatsApp · Visit Store ────
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),

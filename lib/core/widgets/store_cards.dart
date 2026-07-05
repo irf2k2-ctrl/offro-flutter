@@ -16,6 +16,44 @@ import 'package:offro_user/screens/store/store_detail_page.dart';
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
 
+// ── Open/close status helper ──────────────────────────────────────────────────
+({bool? isOpen, String label, String sub}) _getStoreStatus(Map store) {
+  final openTime  = store['open_time']?.toString()  ?? '';
+  final closeTime = store['close_time']?.toString() ?? '';
+  if (closeTime.isEmpty ||
+      (openTime == '00:00' && closeTime == '00:00') ||
+      (openTime.isEmpty  && closeTime == '00:00')) {
+    return (isOpen: null, label: '', sub: '');
+  }
+  try {
+    final now      = TimeOfDay.now();
+    final nowMins  = now.hour * 60 + now.minute;
+    final cParts   = closeTime.split(':');
+    final cH       = int.parse(cParts[0]);
+    final cM       = cParts.length > 1 ? int.parse(cParts[1]) : 0;
+    final closeMins = cH * 60 + cM;
+    final cSuffix   = cH >= 12 ? 'PM' : 'AM';
+    final cH12      = cH > 12 ? cH - 12 : (cH == 0 ? 12 : cH);
+    final cMinStr   = cM > 0 ? ':${cM.toString().padLeft(2, '0')}' : '';
+    if (nowMins < closeMins) {
+      return (isOpen: true,  label: 'Open',   sub: 'Closes $cH12$cMinStr $cSuffix');
+    } else {
+      String sub = '';
+      if (openTime.isNotEmpty) {
+        final oParts  = openTime.split(':');
+        final oH      = int.parse(oParts[0]);
+        final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
+        final oSuffix = oH >= 12 ? 'PM' : 'AM';
+        final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
+        final oMinStr = oM > 0 ? ':${oM.toString().padLeft(2, '0')}' : '';
+        sub = 'Opens $oH12$oMinStr $oSuffix';
+      }
+      return (isOpen: false, label: 'Closed', sub: sub);
+    }
+  } catch (_) {
+    return (isOpen: null, label: '', sub: '');
+  }
+}
 
 // PromoSliderCard, NitHorizontalCard, ProductViewAllPage
 class PromoSliderCard extends StatelessWidget {
@@ -207,6 +245,32 @@ class NitHorizontalCard extends StatelessWidget {
                       style: TextStyle(color: Colors.white.withValues(alpha:.80), fontSize: 9, fontWeight: FontWeight.w600)),
                   ],
                 ]),
+                // ── Open/close status ──
+                Builder(builder: (_) {
+                  final st = _getStoreStatus(store);
+                  if (st.label.isEmpty) return const SizedBox.shrink();
+                  final isOpen = st.isOpen == true;
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: .55),
+                        borderRadius: BorderRadius.circular(5),
+                        border: Border.all(
+                          color: isOpen
+                            ? const Color(0xFF6FFFA0).withValues(alpha: .5)
+                            : const Color(0xFFFF9090).withValues(alpha: .5),
+                          width: 0.8),
+                      ),
+                      child: Text(
+                        st.sub.isNotEmpty ? '${st.label} · ${st.sub}' : st.label,
+                        style: TextStyle(
+                          color: isOpen ? const Color(0xFF6FFFA0) : const Color(0xFFFF9090),
+                          fontSize: 8, fontWeight: FontWeight.w700)),
+                    ),
+                  );
+                }),
               ]),
             )),
           ]),
@@ -1169,7 +1233,7 @@ class TopStoreCard extends StatelessWidget {
           _statusLabel = "Open";
           _statusBg    = const Color(0xFFe8f5ee);
           _statusTxt   = const Color(0xFF2e7d52);
-          _statusSub   = "Closes \$_cH12\$_cMin \$_cSuf";
+          _statusSub   = "Closes $_cH12$_cMin $_cSuf";
         } else {
           _statusLabel = "Closed";
           _statusBg    = const Color(0xFFfce8e6);
@@ -1181,7 +1245,7 @@ class TopStoreCard extends StatelessWidget {
             final _oSuf = _oH >= 12 ? "PM" : "AM";
             final _oH12 = _oH > 12 ? _oH - 12 : (_oH == 0 ? 12 : _oH);
             final _oMin = _oM > 0 ? ":\${_oM.toString().padLeft(2,'0')}" : "";
-            _statusSub  = "Opens \$_oH12\$_oMin \$_oSuf";
+            _statusSub  = "Opens $_oH12$_oMin $_oSuf";
           }
         }
       } catch (_) {}
