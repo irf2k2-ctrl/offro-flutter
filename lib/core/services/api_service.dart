@@ -343,6 +343,10 @@ class Api {
   static Future<Map<String,dynamic>> updateMerchantProfile(String token, Map<String,dynamic> data) async {
     try { return Map<String,dynamic>.from(await _put("/merchant/profile", data, token: token)); } catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
   }
+
+  static Future<Map<String,dynamic>?> getMerchantProfile(String token) async {
+    try { return Map<String,dynamic>.from(await _get("/merchant/profile/me", token: token)); } catch(_) { return null; }
+  }
   static Future<String> getAboutUs() async {
     try { final d = await _get("/about"); return d["content"] ?? ""; } catch (_) { return ""; }
   }

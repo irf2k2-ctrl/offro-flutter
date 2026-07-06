@@ -4553,10 +4553,25 @@ class MerchantProfilePage extends StatefulWidget {
 class _MerchantProfileState extends State<MerchantProfilePage> {
   String? _imgB64;
   bool _uploading = false;
+  late Map<String, dynamic> _merchantData;
 
   @override void initState() {
     super.initState();
-    _imgB64 = widget.merchant["profile_image"] as String?;
+    _merchantData = Map<String, dynamic>.from(widget.merchant);
+    _imgB64 = _merchantData["profile_image"] as String?;
+    _fetchLatestProfile();
+  }
+
+  Future<void> _fetchLatestProfile() async {
+    try {
+      final fresh = await Api.getMerchantProfile(widget.token);
+      if (fresh != null && mounted) {
+        setState(() {
+          _merchantData = fresh;
+          _imgB64 = fresh["profile_image"] as String?;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _pickProfileImage() async {
@@ -4573,6 +4588,7 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
     setState(() { _uploading = true; _imgB64 = b64; });
     try {
       await Api.updateMerchantProfile(widget.token, {"profile_image": b64});
+      await _fetchLatestProfile();
     } catch(_) {}
     if (mounted) setState(() => _uploading = false);
   }
@@ -4595,10 +4611,10 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
                 child: _uploading ? const Padding(padding:EdgeInsets.all(4),child:CircularProgressIndicator(strokeWidth:2,color:kPrimary)) : const Icon(Icons.camera_alt,size:16,color:kPrimary)),
             ])),
           const SizedBox(height:8),
-          Text(widget.merchant["name"]??"",style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.bold)),
-          Text(widget.merchant["phone"]??"",style:const TextStyle(color:kAccent)),
-          if((widget.merchant["city"]??'').isNotEmpty)
-            Text("${widget.merchant['city']}, ${widget.merchant['area']??''}",style:const TextStyle(color:kAccent,fontSize:12)),
+          Text(_merchantData["name"]??"",style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.bold)),
+          Text(_merchantData["phone"]??"",style:const TextStyle(color:kAccent)),
+          if((_merchantData["city"]??'').isNotEmpty)
+            Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:kAccent,fontSize:12)),
           const SizedBox(height:4),
           const Text("Tap photo to change",style:TextStyle(color:kLight,fontSize:10)),
         ])),
