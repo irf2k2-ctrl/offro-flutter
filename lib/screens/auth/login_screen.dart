@@ -280,7 +280,7 @@ class _ContinueAsState extends State<ContinueAsScreen>
     setState(() => _loading = true);
     try {
       await widget.onRoleSelected(_selected!, _remember);
-    } catch (_) {
+    } finally {
       if (mounted) setState(() => _loading = false);
     }
   }

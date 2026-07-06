@@ -1197,7 +1197,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     final current = v["is_active"] as bool? ?? true;
     setState(() { v["is_active"] = !current; _applyFilters(); });
     try {
-      await Api.updateMerchantProduct(widget.token, pid, {"is_active": !current});
+      await Api.setProductAvailability(widget.token, pid, !current);
     } catch (e) {
       if (mounted) setState(() { v["is_active"] = current; _applyFilters(); });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
