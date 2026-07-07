@@ -262,6 +262,7 @@ class _ContinueAsState extends State<ContinueAsScreen>
   String? _selected; // 'user' | 'merchant'
   bool _remember = false;
   bool _loading  = false;
+  String _err    = '';
   late AnimationController _fadeCtrl;
   late Animation<double>   _fadeAnim;
 
@@ -277,9 +278,11 @@ class _ContinueAsState extends State<ContinueAsScreen>
 
   Future<void> _proceed() async {
     if (_selected == null || _loading) return;
-    setState(() => _loading = true);
+    setState(() { _loading = true; _err = ''; });
     try {
       await widget.onRoleSelected(_selected!, _remember);
+    } catch (e) {
+      if (mounted) setState(() => _err = e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -391,6 +394,22 @@ class _ContinueAsState extends State<ContinueAsScreen>
                 ]),
               ),
             ),
+
+            // ── Error banner ──
+            if (_err.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFfde8e6),
+                    borderRadius: BorderRadius.circular(10)),
+                  child: Text(_err,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                ),
+              ),
 
             // ── Sticky Continue button ──
             Padding(
@@ -884,42 +903,30 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _handleRoleSelected(String phone, String role, bool remember) async {
-    try {
-      Map<String, dynamic> d;
-      String token, name, userId;
-      Map? merchantMap;
+    // Always use unified /account-login — one token for all roles.
+    // Errors propagate up to _ContinueAsState._proceed() which shows them in-screen.
+    final d     = await Api.loginAccount(phone);
+    final token = d['token']?.toString() ?? '';
+    final name  = d['name']?.toString()  ?? '';
+    if (token.isEmpty) throw Exception('Login failed — please try again.');
 
-      // Always use unified /account-login — one token for all roles
-      d     = await Api.loginAccount(phone);
-      token = d['token']?.toString() ?? '';
-      name  = d['name']?.toString()  ?? '';
-      if (token.isEmpty) throw Exception('Login failed: no token received.');
+    final roles      = (d['roles'] as List?)?.map((r) => r.toString()).toList() ?? [role];
+    final isMerchant = roles.contains('merchant');
+    final userId     = isMerchant
+        ? (d['merchant_id']?.toString() ?? d['account_id']?.toString() ?? '')
+        : (d['user_id']?.toString()     ?? d['account_id']?.toString() ?? '');
 
-      final roles       = (d['roles'] as List?)?.map((r) => r.toString()).toList() ?? [role];
-      final isMerchant  = roles.contains('merchant');
-      userId            = isMerchant
-          ? (d['merchant_id']?.toString() ?? d['account_id']?.toString() ?? '')
-          : (d['user_id']?.toString()     ?? d['account_id']?.toString() ?? '');
+    await Prefs.save(token, name, phone, role, userId: userId);
+    await Prefs.saveRoles(roles);
+    if (isMerchant) await Prefs.saveMerchantId(d['merchant_id']?.toString() ?? '');
+    await Prefs.saveMode(role);
+    await Prefs.saveRememberMode(remember);
 
-      await Prefs.save(token, name, phone, role, userId: userId);
-      await Prefs.saveRoles(roles);
-      if (isMerchant) await Prefs.saveMerchantId(d['merchant_id']?.toString() ?? '');
-      await Prefs.saveMode(role);
-      await Prefs.saveRememberMode(remember);
-
-      if (mounted && widget.onSuccess != null) {
-        // Pop ContinueAsScreen cleanly before navigating to home/merchant
-        // so the stack doesn't have stale screens causing infinite loading
-        Navigator.of(context).popUntil((r) => r.isFirst);
-        widget.onSuccess!(token, name, phone, userId, role);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: Colors.red.shade700,
-        ));
-      }
+    // Do NOT popUntil here — the destination screen (goMerchantViaUnified /
+    // goHome) already calls pushAndRemoveUntil((r) => false) which clears the
+    // entire stack including OtpScreen and ContinueAsScreen.
+    if (mounted && widget.onSuccess != null) {
+      widget.onSuccess!(token, name, phone, userId, role);
     }
   }
 
