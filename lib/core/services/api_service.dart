@@ -512,8 +512,18 @@ class Api {
     } catch (_) { return []; }
   }
 
-  static Future<void> toggleProductFavorite(String token, String productId) async {
-    try { await _post("/user/product-favorites/$productId", {}, token: token); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+  // FIX Bug-2: return the server-confirmed is_favorite state (null on failure)
+  // instead of firing-and-forgetting — callers need this to detect a silently
+  // failed write and revert their optimistic UI instead of showing a favorite
+  // that was never actually persisted.
+  static Future<bool?> toggleProductFavorite(String token, String productId) async {
+    try {
+      final d = await _post("/user/product-favorites/$productId", {}, token: token);
+      return d["is_favorite"] as bool?;
+    } catch (_) {
+      if (kDebugMode) debugPrint('[Offro] suppressed error');
+      return null;
+    }
   }
 
   static Future<bool> isProductFavorite(String token, String productId) async {

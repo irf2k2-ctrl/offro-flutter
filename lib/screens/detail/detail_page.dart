@@ -1074,19 +1074,37 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   bool _reviewSubmitting = false;
   bool _reviewSubmitted  = false;
 
+  String get _productId =>
+      widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+
   @override void initState() {
     super.initState();
     _avgRating   = (widget.product["rating"] as num?)?.toDouble() ?? 0.0;
     _ratingCount = (widget.product["rating_count"] as num?)?.toInt() ?? 0;
     _loadFavStatus();
+    // FIX Bug-1: restore the user's own previously-submitted rating/review —
+    // without this, re-opening the page always showed "Tap to rate" even
+    // after a successful submit, because widget.product's rating/count
+    // reflect the overall average, not "did I personally already rate this".
+    _loadMyRating();
+  }
+
+  Future<void> _loadMyRating() async {
+    if (widget.token.isEmpty || _productId.isEmpty) return;
+    final d = await Api.getMyProductReview(widget.token, _productId);
+    if (mounted && d.isNotEmpty) {
+      setState(() {
+        _userRating      = (d["rating"] as num?)?.toDouble() ?? 0;
+        _reviewCtrl.text = d["text"]?.toString() ?? "";
+        _reviewSubmitted = _userRating > 0;
+      });
+    }
   }
 
   Future<void> _loadFavStatus() async {
-    if (widget.token.isEmpty) return;
-    final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-    if (pid.isEmpty) return;
-    final fav = await Api.isProductFavorite(widget.token, pid);
-    FavState.instance.setProduct(pid, fav);
+    if (widget.token.isEmpty || _productId.isEmpty) return;
+    final fav = await Api.isProductFavorite(widget.token, _productId);
+    FavState.instance.setProduct(_productId, fav);
     if (mounted) setState(() => _isFav = fav);
   }
 
@@ -1260,11 +1278,23 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             // Favourite button
             GestureDetector(
               onTap: () async {
-                final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+                final pid = _productId;
+                final prev = _isFav;
                 setState(() => _isFav = !_isFav); // optimistic
                 FavState.instance.toggleProduct(pid);
                 if (widget.token.isNotEmpty && pid.isNotEmpty) {
-                  await Api.toggleProductFavorite(widget.token, pid);
+                  // FIX Bug-2: trust the server's confirmed state instead of
+                  // assuming the optimistic flip always succeeded — if the
+                  // write silently failed, revert instead of leaving the UI
+                  // showing a favorite that was never actually saved.
+                  final confirmed = await Api.toggleProductFavorite(widget.token, pid);
+                  if (confirmed != null && mounted && confirmed != _isFav) {
+                    setState(() => _isFav = confirmed);
+                    FavState.instance.setProduct(pid, confirmed);
+                  } else if (confirmed == null && mounted) {
+                    setState(() => _isFav = prev); // request failed — revert
+                    FavState.instance.setProduct(pid, prev);
+                  }
                 }
               },
               child: Container(
