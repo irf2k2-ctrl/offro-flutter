@@ -6107,25 +6107,48 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     "limited_offer": {"label": "⏳ LIMITED OFFER"},
   };
 
+  // FIX Issue-5: once a badge (esp. "newly_added") is resolved for a store,
+  // remember it here. Some refresh cycles hand back a store map missing
+  // created_at/badge momentarily (merge from a lighter-weight fetch) which
+  // made the ribbon flash and then disappear. Sticking to the last known
+  // good badge per store id prevents that flicker.
+  static final Map<String, String> _badgeStickyCache = {};
+
   String? _resolveStoreBadge(Map<String,dynamic> s) {
+    final String sid = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
+    String? resolved;
     // 1. Explicit admin badge — highest priority
     final badge = s["badge"]?.toString() ?? "";
-    if (badge.isNotEmpty && _badgeRibbonMeta.containsKey(badge)) return badge;
+    if (badge.isNotEmpty && _badgeRibbonMeta.containsKey(badge)) {
+      resolved = badge;
+    }
     // 2. Auto: show "newly_added" if store was created within last 10 days
-    try {
-      final raw = s["created_at"]?.toString() ?? "";
-      if (raw.isNotEmpty) {
-        final dt = DateTime.tryParse(raw);
-        if (dt != null && DateTime.now().difference(dt).inDays < 10) {
-          return "newly_added";
+    if (resolved == null) {
+      try {
+        final raw = s["created_at"]?.toString() ?? "";
+        if (raw.isNotEmpty) {
+          final dt = DateTime.tryParse(raw);
+          if (dt != null && DateTime.now().difference(dt).inDays < 10) {
+            resolved = "newly_added";
+          }
         }
-      }
-    } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    }
     // 3. Manual boolean flags
-    if (s["is_new_in_town"] == true) return "new_store";
-    if (s["is_trending"] == true) return "trending";
-    if (s["is_popular"] == true) return "popular";
-    return null;
+    if (resolved == null) {
+      if (s["is_new_in_town"] == true) resolved = "new_store";
+      else if (s["is_trending"] == true) resolved = "trending";
+      else if (s["is_popular"] == true) resolved = "popular";
+    }
+    if (sid.isNotEmpty) {
+      if (resolved != null) {
+        _badgeStickyCache[sid] = resolved;
+      } else if (_badgeStickyCache.containsKey(sid)) {
+        // Keep showing the last known badge instead of letting it vanish
+        resolved = _badgeStickyCache[sid];
+      }
+    }
+    return resolved;
   }
 
   Widget _storeCard(BuildContext ctx, Map<String,dynamic> s) {
