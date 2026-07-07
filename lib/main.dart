@@ -5303,9 +5303,14 @@ class _DiscoverProductsSection extends StatelessWidget {
                                 FavState.instance.toggleProduct(pid);
                                 try {
                                   await Api.toggleProductFavorite(token, pid);
-                                } catch (_) {
+                                } catch (e) {
                                   setH(() { v["_isFav"] = !next; _pFav = !next; });
                                   FavState.instance.toggleProduct(pid);
+                                  ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
+                                    content: Text("Couldn't save favorite: ${e.toString()}"),
+                                    backgroundColor: Colors.red.shade700,
+                                    duration: const Duration(seconds: 12),
+                                    showCloseIcon: true));
                                 }
                               },
                               child: Container(
@@ -6671,7 +6676,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           setState(() => _reviewSubmitting = false);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(result["error"].toString()),
-            backgroundColor: Colors.red.shade700));
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 12),
+            showCloseIcon: true));
         }
         return;
       }
@@ -6690,7 +6697,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       if (mounted) {
         setState(() => _reviewSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString()), backgroundColor: Colors.red.shade700));
+          content: Text(e.toString()),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 12),
+          showCloseIcon: true));
       }
     }
   }
@@ -6759,10 +6769,17 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       setState(() => _isFav = confirmed);
                       FavState.instance.setProduct(pid, confirmed);
                     }
-                  } catch (_) {
+                  } catch (e) {
+                    // FIX: was a silent revert with no feedback at all — now
+                    // surface the real reason so failures are diagnosable.
                     if (mounted) {
                       setState(() => _isFav = prev);
                       FavState.instance.setProduct(pid, prev);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text("Couldn't save favorite: ${e.toString()}"),
+                        backgroundColor: Colors.red.shade700,
+                        duration: const Duration(seconds: 12),
+                        showCloseIcon: true));
                     }
                   }
                 }
@@ -7720,9 +7737,14 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                 FavState.instance.setProduct(pid, next);
                 try {
                   await Api.toggleProductFavorite(widget.token, pid);
-                } catch (_) {
+                } catch (e) {
                   setState(() => _isFav = !next);
                   FavState.instance.setProduct(pid, !next);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text("Couldn't save favorite: ${e.toString()}"),
+                    backgroundColor: Colors.red.shade700,
+                    duration: const Duration(seconds: 12),
+                    showCloseIcon: true));
                 }
               },
               child: Container(

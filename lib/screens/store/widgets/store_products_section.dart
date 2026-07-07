@@ -40,9 +40,9 @@ class StoreProductsSection extends StatelessWidget {
               style: TextStyle(color: kMuted, fontSize: 12)),
         ]),
       ),
-      // FIX Issue-1: height 210 → 260 → 225 (tightened white space below product, issue-4)
+      // FIX Issue-1: height 210 → 260
       SizedBox(
-        height: 225,
+        height: 260,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -128,8 +128,17 @@ class _ProductCardState extends State<_ProductCard> {
     setState(() { _isFav = !_isFav; _favLoading = true; });
     try {
       await Api.toggleProductFavorite(widget.token, _productId);
-    } catch (_) {
-      if (mounted) setState(() => _isFav = prev);
+    } catch (e) {
+      // FIX: was a silent revert with zero feedback — now surface the real
+      // reason so a failed save is actually diagnosable instead of invisible.
+      if (mounted) {
+        setState(() => _isFav = prev);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Couldn't save favorite: ${e.toString()}"),
+          backgroundColor: const Color(0xFFc0392b),
+          duration: const Duration(seconds: 12),
+          showCloseIcon: true));
+      }
     } finally {
       if (mounted) setState(() => _favLoading = false);
     }
@@ -199,13 +208,11 @@ class _ProductCardState extends State<_ProductCard> {
   Widget build(BuildContext context) {
     final p        = widget.product;
     final title    = p['title']?.toString() ?? '';
-    // FIX Issue-1: merchant-entered "offer text" subtitle shown below the title
-    final subtitle = p['offer_text']?.toString() ?? '';
     final price    = p['price']?.toString() ?? '';
     final origPrice = p['original_price']?.toString() ?? '';
     final discount  = p['discount']?.toString() ?? '';
     final validity  = _isPremium ? '' : (p['validity']?.toString() ?? '');
-    // FIX Issue-3: read rating from product data
+    // FIX Issue-2: read rating from product data
     final rating    = (p['rating'] as num?)?.toDouble() ?? 0.0;
 
     String discLabel = discount;
@@ -328,15 +335,10 @@ class _ProductCardState extends State<_ProductCard> {
             ),
 
             // ── Info ───────────────────────────────────────────
-            // FIX Issue-4: Flexible+min instead of Expanded+Spacer so the
-            // white area below the image hugs its content instead of
-            // stretching to fill the leftover card height.
-            Flexible(
-              fit: FlexFit.loose,
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
@@ -347,36 +349,23 @@ class _ProductCardState extends State<_ProductCard> {
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             height: 1.3)),
-                    // FIX Issue-1: merchant "offer text" subtitle, shown below title
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: kMuted,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500)),
-                    ],
-                    const SizedBox(height: 6),
+                    const Spacer(),
                     if (price.isNotEmpty) ...[
                       Row(
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            // FIX Issue-2: offer price font increased 13 → 17
                             Text('₹$price',
                                 style: const TextStyle(
                                     color: kPrimary,
-                                    fontSize: 17,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w900)),
                             if (origPrice.isNotEmpty) ...[
-                              const SizedBox(width: 5),
-                              // FIX Issue-2: original price kept smaller (strike-through)
+                              const SizedBox(width: 4),
                               Text('₹$origPrice',
                                   style: TextStyle(
                                       color: kMuted.withValues(alpha: .7),
-                                      fontSize: 9,
+                                      fontSize: 10,
                                       decoration:
                                           TextDecoration.lineThrough)),
                             ],
