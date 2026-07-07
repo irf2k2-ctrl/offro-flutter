@@ -40,9 +40,9 @@ class StoreProductsSection extends StatelessWidget {
               style: TextStyle(color: kMuted, fontSize: 12)),
         ]),
       ),
-      // FIX Issue-1: height 210 → 260 → 225 (tightened white space below product, issue-4)
+      // FIX Issue-1: height 210 → 260
       SizedBox(
-        height: 225,
+        height: 260,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -199,13 +199,11 @@ class _ProductCardState extends State<_ProductCard> {
   Widget build(BuildContext context) {
     final p        = widget.product;
     final title    = p['title']?.toString() ?? '';
-    // FIX Issue-1: merchant-entered "offer text" subtitle shown below the title
-    final subtitle = p['offer_text']?.toString() ?? '';
     final price    = p['price']?.toString() ?? '';
     final origPrice = p['original_price']?.toString() ?? '';
     final discount  = p['discount']?.toString() ?? '';
     final validity  = _isPremium ? '' : (p['validity']?.toString() ?? '');
-    // FIX Issue-3: read rating from product data
+    // FIX Issue-2: read rating from product data
     final rating    = (p['rating'] as num?)?.toDouble() ?? 0.0;
 
     String discLabel = discount;
@@ -328,15 +326,10 @@ class _ProductCardState extends State<_ProductCard> {
             ),
 
             // ── Info ───────────────────────────────────────────
-            // FIX Issue-4: Flexible+min instead of Expanded+Spacer so the
-            // white area below the image hugs its content instead of
-            // stretching to fill the leftover card height.
-            Flexible(
-              fit: FlexFit.loose,
+            Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
@@ -347,36 +340,23 @@ class _ProductCardState extends State<_ProductCard> {
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             height: 1.3)),
-                    // FIX Issue-1: merchant "offer text" subtitle, shown below title
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: kMuted,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500)),
-                    ],
-                    const SizedBox(height: 6),
+                    const Spacer(),
                     if (price.isNotEmpty) ...[
                       Row(
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            // FIX Issue-2: offer price font increased 13 → 17
                             Text('₹$price',
                                 style: const TextStyle(
                                     color: kPrimary,
-                                    fontSize: 17,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w900)),
                             if (origPrice.isNotEmpty) ...[
-                              const SizedBox(width: 5),
-                              // FIX Issue-2: original price kept smaller (strike-through)
+                              const SizedBox(width: 4),
                               Text('₹$origPrice',
                                   style: TextStyle(
                                       color: kMuted.withValues(alpha: .7),
-                                      fontSize: 9,
+                                      fontSize: 10,
                                       decoration:
                                           TextDecoration.lineThrough)),
                             ],
@@ -459,9 +439,20 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
   Future<void> _submitRating() async {
     if (_userRating == 0 || widget.token.isEmpty || _productId.isEmpty) return;
     setState(() => _submitting = true);
-    await Api.submitProductReview(
-        widget.token, _productId, _userRating, _reviewCtrl.text.trim());
-    if (mounted) setState(() { _submitting = false; _submitted = true; });
+    try {
+      await Api.submitProductReview(
+          widget.token, _productId, _userRating, _reviewCtrl.text.trim());
+      if (mounted) setState(() { _submitting = false; _submitted = true; });
+    } catch (e) {
+      // FIX: submitProductReview now throws on real failure instead of being
+      // silently swallowed — show the actual reason instead of a fake success.
+      if (mounted) {
+        setState(() => _submitting = false);
+        final msg = e.toString().replaceFirst("Exception: ", "");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Couldn't submit rating: $msg"), backgroundColor: const Color(0xFFc0392b)));
+      }
+    }
   }
 
   @override

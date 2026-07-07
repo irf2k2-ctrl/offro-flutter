@@ -6743,10 +6743,28 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             GestureDetector(
               onTap: () async {
                 final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+                final prev = _isFav;
                 setState(() => _isFav = !_isFav); // optimistic
                 FavState.instance.toggleProduct(pid);
+                // FIX: toggleProductFavorite used to swallow every error
+                // silently and never throw — this onTap had NO try/catch at
+                // all, so a failed save was invisible until the screen was
+                // reopened later and the heart had quietly reverted itself.
+                // Now the call actually throws on failure and returns the
+                // server's DB-verified state on success, so we can trust it.
                 if (widget.token.isNotEmpty && pid.isNotEmpty) {
-                  await Api.toggleProductFavorite(widget.token, pid);
+                  try {
+                    final confirmed = await Api.toggleProductFavorite(widget.token, pid);
+                    if (mounted && confirmed != _isFav) {
+                      setState(() => _isFav = confirmed);
+                      FavState.instance.setProduct(pid, confirmed);
+                    }
+                  } catch (_) {
+                    if (mounted) {
+                      setState(() => _isFav = prev);
+                      FavState.instance.setProduct(pid, prev);
+                    }
+                  }
                 }
               },
               child: Container(

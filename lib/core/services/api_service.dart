@@ -484,16 +484,17 @@ class Api {
   }
 
   // ── Product Reviews ──
+  // FIX: this used to swallow every error (auth failure, validation error,
+  // network timeout) and return a plain {"error": ...} map that most callers
+  // never checked — so the UI could show "Thanks for your review!" even when
+  // nothing was actually saved. Now it rethrows so callers can react to real
+  // failures instead of silently lying to the user.
   static Future<Map<String,dynamic>> submitProductReview(
       String token, String productId, double rating, String text, {String userName = ""}) async {
-    try {
-      return Map<String,dynamic>.from(await _post(
-        "/products/$productId/review",
-        {"rating": rating, "text": text, "user_name": userName},
-        token: token));
-    } catch (e) {
-      return {"error": e.toString()};
-    }
+    return Map<String,dynamic>.from(await _post(
+      "/products/$productId/review",
+      {"rating": rating, "text": text, "user_name": userName},
+      token: token));
   }
 
   static Future<Map<String,dynamic>> getMyProductReview(String token, String productId) async {
@@ -512,18 +513,15 @@ class Api {
     } catch (_) { return []; }
   }
 
-  // FIX Bug-2: return the server-confirmed is_favorite state (null on failure)
-  // instead of firing-and-forgetting — callers need this to detect a silently
-  // failed write and revert their optimistic UI instead of showing a favorite
-  // that was never actually persisted.
-  static Future<bool?> toggleProductFavorite(String token, String productId) async {
-    try {
-      final d = await _post("/user/product-favorites/$productId", {}, token: token);
-      return d["is_favorite"] as bool?;
-    } catch (_) {
-      if (kDebugMode) debugPrint('[Offro] suppressed error');
-      return null;
-    }
+  // FIX: this used to swallow every error, which meant existing try/catch
+  // revert blocks elsewhere in the app for the favorite heart could NEVER
+  // fire (there was never an exception to catch) — a failed save looked
+  // identical to a successful one until the next screen visit exposed the
+  // real, unsaved state. Now it throws on failure and returns the server's
+  // DB-verified is_favorite state on success.
+  static Future<bool> toggleProductFavorite(String token, String productId) async {
+    final d = await _post("/user/product-favorites/$productId", {}, token: token);
+    return d["is_favorite"] == true;
   }
 
   static Future<bool> isProductFavorite(String token, String productId) async {
