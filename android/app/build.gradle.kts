@@ -1,34 +1,36 @@
-// ==========================================
-// FILE: android/app/build.gradle.kts  (APP level)
-// Flutter Android build config for Offro
-// ==========================================
-
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
     id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied AFTER the Android and Kotlin
-    // Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    // Firebase plugins
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
 }
 
+val keystoreProperties = Properties()
+
+// key.properties is located in D:/projects/Offro/
+val keystorePropertiesFile = rootProject.rootDir.parentFile.resolve("key.properties")
+
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
+
     namespace = "com.offro.app"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
-    // (1) Java source/target compatibility
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-	isCoreLibraryDesugaringEnabled = true 
+        isCoreLibraryDesugaringEnabled = true
     }
 
-    // (2) Kotlin jvmTarget via Android DSL
     kotlinOptions {
         jvmTarget = "17"
     }
@@ -42,16 +44,29 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+
+        create("release") {
+
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storePassword = keystoreProperties["storePassword"] as String
+
+            // upload-keystore.jks is also in D:/projects/Offro/
+            storeFile = rootProject.rootDir.parentFile.resolve(
+                keystoreProperties["storeFile"] as String
+            )
+        }
+    }
+
     buildTypes {
-        release {
-            // TODO: replace with your release signing config before publishing.
-            signingConfig = signingConfigs.getByName("debug")
-            // Explicitly disable BOTH. AGP requires them to match:
-            // if `isShrinkResources` is true anywhere, `isMinifyEnabled` must
-            // also be true. Setting both to false avoids the mismatch.
+
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
         }
+
         getByName("debug") {
             isMinifyEnabled = false
             isShrinkResources = false
@@ -59,9 +74,6 @@ android {
     }
 }
 
-// (3) Belt-and-suspenders: force every Kotlin compile task to use jvmTarget 17,
-//     regardless of whether kotlinOptions above is respected by the current
-//     Kotlin Gradle Plugin version.
 tasks.withType<KotlinCompile>().configureEach {
     kotlinOptions {
         jvmTarget = "17"
@@ -74,5 +86,5 @@ flutter {
 
 dependencies {
     implementation("androidx.multidex:multidex:2.0.1")
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4") 	
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
