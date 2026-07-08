@@ -40,9 +40,9 @@ class StoreProductsSection extends StatelessWidget {
               style: TextStyle(color: kMuted, fontSize: 12)),
         ]),
       ),
-      // FIX Issue-1: height 210 → 260
+      // FIX Issue-1: height 210 → 260 → 225 (tightened white space below product, issue-4)
       SizedBox(
-        height: 260,
+        height: 225,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -212,7 +212,9 @@ class _ProductCardState extends State<_ProductCard> {
     final origPrice = p['original_price']?.toString() ?? '';
     final discount  = p['discount']?.toString() ?? '';
     final validity  = _isPremium ? '' : (p['validity']?.toString() ?? '');
-    // FIX Issue-2: read rating from product data
+    // FIX Issue-1: merchant-entered "offer text" subtitle shown below the title
+    final subtitle = p['offer_text']?.toString() ?? '';
+    // FIX Issue-3: read rating from product data
     final rating    = (p['rating'] as num?)?.toDouble() ?? 0.0;
 
     String discLabel = discount;
@@ -335,10 +337,12 @@ class _ProductCardState extends State<_ProductCard> {
             ),
 
             // ── Info ───────────────────────────────────────────
-            Expanded(
+            Flexible(
+              fit: FlexFit.loose,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title,
@@ -349,7 +353,18 @@ class _ProductCardState extends State<_ProductCard> {
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             height: 1.3)),
-                    const Spacer(),
+                    // FIX Issue-1: merchant "offer text" subtitle, shown below title
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: kMuted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500)),
+                    ],
+                    const SizedBox(height: 6),
                     if (price.isNotEmpty) ...[
                       Row(
                           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -358,14 +373,16 @@ class _ProductCardState extends State<_ProductCard> {
                             Text('₹$price',
                                 style: const TextStyle(
                                     color: kPrimary,
-                                    fontSize: 13,
+                            // FIX Issue-2: offer price font increased 13 → 17
+                                    fontSize: 17,
                                     fontWeight: FontWeight.w900)),
                             if (origPrice.isNotEmpty) ...[
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 5),
+                              // FIX Issue-2: original price kept smaller (strike-through)
                               Text('₹$origPrice',
                                   style: TextStyle(
                                       color: kMuted.withValues(alpha: .7),
-                                      fontSize: 10,
+                                      fontSize: 9,
                                       decoration:
                                           TextDecoration.lineThrough)),
                             ],

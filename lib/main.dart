@@ -510,6 +510,7 @@ class MyApp extends StatelessWidget {
   @override Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
     navigatorKey: navigatorKey,
+    navigatorObservers: [routeObserver],
     theme: ThemeData(
       primaryColor: kPrimary,
       colorScheme: ColorScheme.fromSeed(seedColor: kPrimary),

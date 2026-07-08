@@ -42,7 +42,7 @@ class StoreDetailPage extends StatefulWidget {
 }
 
 class _StoreDetailPageState extends State<StoreDetailPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   Map<String, dynamic> _store = {};
   bool  _loading   = true;
   bool  _isFav     = false;
@@ -62,7 +62,27 @@ class _StoreDetailPageState extends State<StoreDetailPage>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // FIX: subscribe so didPopNext() fires when the user returns here after
+    // e.g. rating a product on the ProductDetailsPage — previously the
+    // product list (with its rating) was only ever fetched once in
+    // initState(), so a newly-submitted rating never appeared until the
+    // Store Detail page was fully closed and reopened.
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) routeObserver.subscribe(this, route);
+  }
+
+  @override
+  void didPopNext() {
+    // Called when a screen pushed on top of this one (e.g. product details)
+    // is popped and this Store Detail page becomes visible again.
+    _fetchAll();
+  }
+
+  @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _imgPc.dispose();
     _tabCtrl.dispose();
     super.dispose();

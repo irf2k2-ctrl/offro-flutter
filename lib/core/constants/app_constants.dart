@@ -17,3 +17,8 @@ const Color kBg      = Color(0xFFFDFBF6);
 const Color kText    = Color(0xFF2c3e35);
 const Color kMuted   = Color(0xFF6b8c7e);
 const Color kBorder  = Color(0xFFd4e8de);
+
+// FIX: shared RouteObserver so screens (e.g. StoreDetailPage) can detect
+// when the user navigates back to them (e.g. after rating a product) and
+// refresh their data instead of showing stale info until a full re-open.
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
