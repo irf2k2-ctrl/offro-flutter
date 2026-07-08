@@ -2351,7 +2351,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           const Divider(height:1),
           Expanded(child:ListView(controller:sc,children:[
             _pItem(ctx,Icons.search_rounded,"Search Stores",()=>_searchStores(ctx)),
-            _pItem(ctx,Icons.account_balance_wallet_rounded,"My Wallet",()=>Navigator.push(ctx,_route(WalletPage(token:widget.token)))),
+            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",()=>Navigator.push(ctx,_route(WalletPage(token:widget.token)))),
             _pItem(ctx,Icons.history_rounded,"Scan History",()=>Navigator.push(ctx,_route(HistoryPage(token:widget.token)))),
             _pItem(ctx,Icons.favorite_rounded,"My Favourites",()=>Navigator.push(ctx,_route(FavoritesPage(token:widget.token)))),
             _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,_route(NotificationsPage()))),
@@ -3125,11 +3125,6 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
   List<Map<String,dynamic>> _stores = [];
   bool _loading = true;
   String _q = "";
-  // FIX: surface real failures instead of silently showing "No stores found"
-  // for both network errors AND genuine zero-match cases.
-  String? _error;
-  int _totalFetchedInCity = 0;
-  List<String> _categoriesSeen = [];
 
   @override void initState() { super.initState(); _load(); }
 
@@ -3142,7 +3137,6 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
   }
 
   Future<void> _load() async {
-    if (mounted) setState(() { _error = null; });
     try {
       // Fetch ALL city stores — same call as home screen, reuses its 3-min cache instantly.
       // We then apply flexible client-side filtering so category mismatches in the DB
@@ -3180,33 +3174,9 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
         return m;
       }).toList();
 
-      // FIX: diagnostic info so a genuine zero-match (as opposed to a fetch
-      // failure) is immediately explainable on-screen — no DB access needed.
-      final catsSeen = all
-          .map((s) => (s["category"] ?? "").toString().trim())
-          .where((c) => c.isNotEmpty)
-          .toSet()
-          .toList()
-        ..sort();
-
-      if (mounted) {
-        setState(() {
-          _stores = result;
-          _totalFetchedInCity = all.length;
-          _categoriesSeen = catsSeen;
-          _loading = false;
-        });
-      }
-    } catch (e) {
-      // FIX: was a silent swallow (`catch (_)`) — a network/parsing failure
-      // looked EXACTLY like "no stores in this category", making the two
-      // impossible to tell apart. Now the real reason is shown on-screen.
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _loading = false;
-        });
-      }
+      if (mounted) setState(() { _stores = result; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -3249,51 +3219,9 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
         Expanded(
           child: _loading
             ? const Center(child: CircularProgressIndicator(color: kPrimary))
-            // FIX: real fetch/parse failure — now shown explicitly with Retry,
-            // instead of looking identical to "0 stores in this category".
-            : _error != null
-              ? Center(child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.error_outline_rounded, color: Color(0xFFc0392b), size: 40),
-                    const SizedBox(height: 10),
-                    const Text("Couldn't load stores", style: TextStyle(color: kText, fontWeight: FontWeight.w700, fontSize: 15)),
-                    const SizedBox(height: 6),
-                    Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: kMuted, fontSize: 12)),
-                    const SizedBox(height: 14),
-                    ElevatedButton(
-                      onPressed: () => setState(() { _loading = true; _load(); }),
-                      style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
-                      child: const Text("Retry"),
-                    ),
-                  ]),
-                ))
-              : _filtered.isEmpty
-              ? Center(child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text("No ${widget.categoryName} stores found",
-                        style: const TextStyle(color: kMuted, fontSize: 14)),
-                    // FIX: diagnostic — reveals the actual category strings stored
-                    // in this city so a text-mismatch (e.g. "Restaurant " with a
-                    // trailing space, or a wrong category assigned to a store) is
-                    // visible on-screen immediately, without needing DB access.
-                    if (_totalFetchedInCity > 0) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        "Found $_totalFetchedInCity store(s) in this city, but none matched \"${widget.categoryName}\".",
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: kMuted, fontSize: 11)),
-                      if (_categoriesSeen.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          "Categories found: ${_categoriesSeen.join(', ')}",
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: kMuted, fontSize: 11, fontStyle: FontStyle.italic)),
-                      ],
-                    ],
-                  ]),
-                ))
+            : _filtered.isEmpty
+              ? Center(child: Text("No ${widget.categoryName} stores found",
+                  style: const TextStyle(color: kMuted, fontSize: 14)))
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
                   itemCount: _filtered.length,

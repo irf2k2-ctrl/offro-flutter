@@ -16,17 +16,20 @@ class _WalletState extends State<WalletPage>{
   @override void initState(){super.initState();_load();}
   Future<void> _load() async { try{final d=await Api.getWallet(widget.token);if(mounted)setState((){vp=d["visit_points"]??0;pp=d["pool_points"]??0;loading=false;});}catch(_){if(mounted)setState(()=>loading=false);} }
   Future<void> _withdraw() async {
+    // NOTE: function kept named _withdraw() internally and still calls Api.withdraw()
+    // (same backend endpoint) — this is purely a UI/wording change for Google Play
+    // policy compliance. No business logic, API, or DB fields were changed.
     try{final r=await Api.withdraw(widget.token,200);if(!mounted)return;ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(r["message"]??"Done")));_load();}
     catch(e){if(!mounted)return;ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceAll("Exception: ",""))));}
   }
   @override Widget build(BuildContext ctx){
     int total=vp;
-    return Scaffold(appBar:AppBar(title:const Text("My Wallet"),backgroundColor:kPrimary,foregroundColor:Colors.white),backgroundColor:kBg,
+    return Scaffold(appBar:AppBar(title:const Text("My Rewards"),backgroundColor:kPrimary,foregroundColor:Colors.white),backgroundColor:kBg,
       body:loading?const Center(child:CircularProgressIndicator(color:kPrimary)):SingleChildScrollView(padding:const EdgeInsets.all(20),child:Column(children:[
         const SizedBox(height:10),
         Container(width:double.infinity,padding:const EdgeInsets.all(24),decoration:BoxDecoration(color:kPrimary,borderRadius:BorderRadius.circular(18)),
           child:Column(children:[
-            const Text("Total Points",style:TextStyle(color:kLight,fontSize:14)),
+            const Text("Available Reward Points",style:TextStyle(color:kLight,fontSize:14)),
             const SizedBox(height:8),
             Text("$total",style:const TextStyle(color:Colors.white,fontSize:46,fontWeight:FontWeight.bold)),
             const Text("points",style:TextStyle(color:kAccent)),
@@ -34,18 +37,23 @@ class _WalletState extends State<WalletPage>{
         const SizedBox(height:20),
         Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            const Text("💡 Points Info",style:TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:14)),const SizedBox(height:8),
-            _info("💰 Conversion","10 Points = ₹1 of Gift Voucher"),_info("📤 Min Withdrawal","200 Points = ₹20 Gift Voucher"),
-            _info("🎁 Reward","Amazon or Flipkart Gift Vouchers"),_info("⏱️ Validity","Points never expire"),
-            _info("📋 Processing","Delivery of Gift Voucher: 3-5 Business days"),
+            const Text("💡 Reward Information",style:TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:14)),const SizedBox(height:8),
+            _info("🎁","200 Reward Points can be redeemed for a ₹20 promotional Gift Voucher."),
+            _info("✅ Redeem after","200 Reward Points"),
+            _info("🎁 Reward","Amazon or Flipkart Gift Vouchers"),
+            _info("⏱️","Reward Points Never Expire"),
+            _info("📋","Gift Voucher Delivery: 3-5 Business Days"),
           ])),
         const SizedBox(height:20),
         SizedBox(width:double.infinity,child:ElevatedButton(
           onPressed:total>=200?_withdraw:null,
           style:ElevatedButton.styleFrom(backgroundColor:kPrimary,padding:const EdgeInsets.symmetric(vertical:14),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),disabledBackgroundColor:kAccent),
-          child:Text(total>=200?"Withdraw (200 pts = ₹20 Gift Voucher)":"Need ${200-total} more pts to redeem Gift Voucher",style:const TextStyle(color:Colors.white,fontSize:14)))),
+          child:Text(total>=200?"Redeem Rewards (200 Reward Points = ₹20 Gift Voucher)":"Earn ${200-total} more reward points to redeem a Gift Voucher",style:const TextStyle(color:Colors.white,fontSize:14)))),
         const SizedBox(height:8),
-        const Text("10 pts = ₹1 Gift Voucher  •  Min 200 pts  •  3-5 business days delivery",textAlign:TextAlign.center,style:TextStyle(color:kMuted,fontSize:11)),
+        const Text("Redeem after 200 Reward Points  •  Gift Voucher delivered within 3-5 business days",textAlign:TextAlign.center,style:TextStyle(color:kMuted,fontSize:11)),
+        const SizedBox(height:14),
+        const Text("Reward points are promotional loyalty points. They cannot be purchased, transferred, or exchanged for cash.",
+          textAlign:TextAlign.center,style:TextStyle(color:kMuted,fontSize:10,fontStyle:FontStyle.italic)),
       ])));
   }
   Widget _box(String t,int v,Color bg,IconData ico)=>Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:bg,borderRadius:BorderRadius.circular(14)),
