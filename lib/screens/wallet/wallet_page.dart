@@ -38,9 +38,9 @@ class _WalletState extends State<WalletPage>{
         Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             const Text("💡 Reward Information",style:TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:14)),const SizedBox(height:8),
-            _info("🎁","200 Reward Points can be redeemed for a ₹20 promotional Gift Voucher."),
+            _info("🎁","Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher."),
             _info("✅ Redeem after","200 Reward Points"),
-            _info("🎁 Reward","Amazon or Flipkart Gift Vouchers"),
+            _info("🎁 Promotional Gift Voucher","Amazon or Flipkart"),
             _info("⏱️","Reward Points Never Expire"),
             _info("📋","Gift Voucher Delivery: 3-5 Business Days"),
           ])),
