@@ -5753,8 +5753,9 @@ class _ExploreAreasSection extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 12),
-        // REDESIGN (2026-07-10): glossy coloured square cards with green store-count
-        // badge on the left. Tapping opens all stores for that area.
+        // REDESIGN (2026-07-10 v2): pill-style horizontal cards matching user reference.
+        // Layout per card: [dark-green count badge] [area name on semi-black bg] [light-green distance circle]
+        // Card background: white with shadow (same as floating store cards).
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -5762,7 +5763,18 @@ class _ExploreAreasSection extends StatelessWidget {
             final idx   = e.key;
             final area  = e.value.key;
             final count = e.value.value;
-            final color = _areaColors[idx % _areaColors.length];
+
+            // Nearest distance for this area (min distance_km among its stores)
+            double? nearestKm;
+            for (final s in stores) {
+              if ((s["area"]?.toString() ?? "").trim().toLowerCase() != area.toLowerCase()) continue;
+              final d = (s["distance_km"] as num?)?.toDouble();
+              if (d != null && (nearestKm == null || d < nearestKm)) nearestKm = d;
+            }
+            final distLabel = nearestKm != null
+                ? (nearestKm < 1.0 ? "${(nearestKm * 1000).toStringAsFixed(0)} m" : "${nearestKm.toStringAsFixed(1)} km")
+                : null;
+
             return GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(
                 builder: (_) => _AreaDetailScreen(
@@ -5771,61 +5783,89 @@ class _ExploreAreasSection extends StatelessWidget {
                     (s["area"]?.toString() ?? "").trim().toLowerCase() == area.toLowerCase()).toList(),
                   token: token))),
               child: Container(
-                width: 120,
-                height: 72,
-                margin: const EdgeInsets.only(right: 12),
+                // Width grows to fit content; constrain with IntrinsicWidth
+                margin: const EdgeInsets.only(right: 10, bottom: 4),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: LinearGradient(
-                    colors: [color.withValues(alpha: .85), color.withValues(alpha: .55)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(50), // pill shape
                   boxShadow: [
-                    BoxShadow(color: color.withValues(alpha: .35), blurRadius: 10, offset: const Offset(0, 4)),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .10),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
                   ],
                 ),
-                child: Stack(children: [
-                  // Glossy sheen overlay
-                  Positioned.fill(child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        height: 36,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.white.withValues(alpha: .28), Colors.white.withValues(alpha: .0)],
-                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                          ),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    // ① Dark-green count badge (left, vertically centered)
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3E5F55),
+                        borderRadius: BorderRadius.circular(50),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        "$count",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
-                  )),
-                  // Content: green count badge left + area name right
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                      // Green store-count badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1a7a4a),
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .18), blurRadius: 4, offset: const Offset(0, 2))],
-                        ),
-                        child: Text("$count",
-                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                    const SizedBox(width: 8),
+                    // ② Area name — semi-transparent black background (like "Newly Added" badge)
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 110, minWidth: 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.62),
+                        borderRadius: BorderRadius.circular(8),
                       ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        area,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    // ③ Distance circle (light green, same palette as kLight/kAccent)
+                    if (distLabel != null) ...[
                       const SizedBox(width: 8),
-                      // Area name
-                      Expanded(child: Text(area,
-                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, height: 1.25),
-                        maxLines: 2, overflow: TextOverflow.ellipsis)),
-                    ]),
-                  ),
-                ]),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCDEBD6), // kLight — light green
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.location_on_rounded,
+                            color: Color(0xFF3E5F55), size: 11),
+                          const SizedBox(width: 3),
+                          Text(distLabel,
+                            style: const TextStyle(
+                              color: Color(0xFF3E5F55),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            )),
+                        ]),
+                      ),
+                      const SizedBox(width: 4),
+                    ] else
+                      const SizedBox(width: 4),
+                  ]),
+                ),
               ),
             );
           }).toList()),
