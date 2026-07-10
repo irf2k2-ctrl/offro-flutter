@@ -3112,6 +3112,17 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
+// FIX (2026-07-09): root cause of "type 'String' is not a subtype of type
+// 'num?' in type cast" crash on the category-stores screen — some store
+// records have latitude/longitude stored as a String instead of a number.
+// A direct `as num?` cast throws in that case; this helper accepts either.
+double? _safeDouble(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v.trim());
+  return null;
+}
+
 class _CategoryStoresScreen extends StatefulWidget {
   final String categoryName;
   final String token;
@@ -3125,6 +3136,11 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
   List<Map<String,dynamic>> _stores = [];
   bool _loading = true;
   String _q = "";
+  // FIX: surface real failures instead of silently showing "No stores found"
+  // for both network/parsing errors AND genuine zero-match cases.
+  String? _error;
+  int _totalFetchedInCity = 0;
+  List<String> _categoriesSeen = [];
 
   @override void initState() { super.initState(); _load(); }
 
@@ -3137,6 +3153,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() { _error = null; });
     try {
       // Fetch ALL city stores — same call as home screen, reuses its 3-min cache instantly.
       // We then apply flexible client-side filtering so category mismatches in the DB
@@ -3158,11 +3175,14 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
       );
 
       // Compute distance_km client-side if GPS is available
+      // FIX (2026-07-09): was `(m["latitude"] as num?)` — crashes with
+      // "type 'String' is not a subtype of type 'num?' in type cast" when a
+      // store's lat/lng is stored as a String. _safeDouble() handles both.
       final result = filtered.map((s) {
         final m = Map<String,dynamic>.from(s);
         if (widget.userLat != null && widget.userLng != null && m["distance_km"] == null) {
-          final lat = (m["latitude"] as num?)?.toDouble() ?? (m["lat"] as num?)?.toDouble();
-          final lng = (m["longitude"] as num?)?.toDouble() ?? (m["lng"] as num?)?.toDouble();
+          final lat = _safeDouble(m["latitude"]) ?? _safeDouble(m["lat"]);
+          final lng = _safeDouble(m["longitude"]) ?? _safeDouble(m["lng"]);
           if (lat != null && lng != null) {
             final dlat = (widget.userLat! - lat) * 0.01745329251;
             final dlng = (widget.userLng! - lng) * 0.01745329251;
@@ -3174,9 +3194,33 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
         return m;
       }).toList();
 
-      if (mounted) setState(() { _stores = result; _loading = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      // FIX: diagnostic info so a genuine zero-match (as opposed to a fetch
+      // failure) is immediately explainable on-screen — no DB access needed.
+      final catsSeen = all
+          .map((s) => (s["category"] ?? "").toString().trim())
+          .where((c) => c.isNotEmpty)
+          .toSet()
+          .toList()
+        ..sort();
+
+      if (mounted) {
+        setState(() {
+          _stores = result;
+          _totalFetchedInCity = all.length;
+          _categoriesSeen = catsSeen;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      // FIX: was a silent swallow (`catch (_)`) — a real crash/network error
+      // looked EXACTLY like "no stores in this category," making the two
+      // impossible to tell apart. Now the real reason is shown on-screen.
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -3219,9 +3263,51 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
         Expanded(
           child: _loading
             ? const Center(child: CircularProgressIndicator(color: kPrimary))
-            : _filtered.isEmpty
-              ? Center(child: Text("No ${widget.categoryName} stores found",
-                  style: const TextStyle(color: kMuted, fontSize: 14)))
+            // FIX: real fetch/crash failure — now shown explicitly with Retry,
+            // instead of looking identical to "0 stores in this category".
+            : _error != null
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.error_outline_rounded, color: Color(0xFFc0392b), size: 40),
+                    const SizedBox(height: 10),
+                    const Text("Couldn't load stores", style: TextStyle(color: kText, fontWeight: FontWeight.w700, fontSize: 15)),
+                    const SizedBox(height: 6),
+                    Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: kMuted, fontSize: 12)),
+                    const SizedBox(height: 14),
+                    ElevatedButton(
+                      onPressed: () => setState(() { _loading = true; _load(); }),
+                      style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
+                      child: const Text("Retry"),
+                    ),
+                  ]),
+                ))
+              : _filtered.isEmpty
+              ? Center(child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Text("No ${widget.categoryName} stores found",
+                        style: const TextStyle(color: kMuted, fontSize: 14)),
+                    // FIX: diagnostic — reveals the actual category strings stored
+                    // in this city so a text-mismatch (e.g. "Restaurant " with a
+                    // trailing space, or a wrong category assigned to a store) is
+                    // visible on-screen immediately, without needing DB access.
+                    if (_totalFetchedInCity > 0) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        "Found $_totalFetchedInCity store(s) in this city, but none matched \"${widget.categoryName}\".",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: kMuted, fontSize: 11)),
+                      if (_categoriesSeen.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          "Categories found: ${_categoriesSeen.join(', ')}",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: kMuted, fontSize: 11, fontStyle: FontStyle.italic)),
+                      ],
+                    ],
+                  ]),
+                ))
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(14, 8, 14, 24),
                   itemCount: _filtered.length,
