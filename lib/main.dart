@@ -850,44 +850,32 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Map<String,dynamic>> get _sl => _cityFiltered;
   // Nearby Stores: if GPS known, show stores within 5km sorted by distance.
   // If GPS unavailable, fall back to top 10 stores so section is never blank.
+  // FIX (2026-07-10): This getter no longer applies _radiusKm — it only computes
+  // distances and sorts. All radius filtering is done ONCE inside _NearbyStoresSection
+  // so there is exactly one source of truth and no conflicting fallbacks.
+  // City filtering is preserved via _cityFiltered.
   List<Map<String,dynamic>> get _nearbyStores {
     final base = _cityFiltered;
-    if (_userLat != null && _userLng != null) {
-      // TASK 2 FIX: compute distance on-the-fly for stores missing distance_km
-      // so 10km filter catches all stores regardless of when _rebuildCaches ran
-      final withCoords = <Map<String,dynamic>>[];
-      final noCoords   = <Map<String,dynamic>>[];
-      for (final s in base) {
-        final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
-        final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
-        if (lat != null && lng != null) {
-          // Always recompute for accuracy
-          s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
-          withCoords.add(s);
-        } else {
-          noCoords.add(s);
-        }
-      }
-      withCoords.sort((a,b) {
-        final da=(a["distance_km"] as num?)?.toDouble()??9999.0;
-        final db=(b["distance_km"] as num?)?.toDouble()??9999.0;
-        return da.compareTo(db);
-      });
-      // Apply radius filter — stores with no lat/lng coords are shown only when "All" selected
-      final filtered = _radiusKm > 0
-          ? withCoords.where((s) {
-              final d = (s["distance_km"] as num?)?.toDouble() ?? 9999.0;
-              return d <= _radiusKm;
-            }).toList()
-          : [...withCoords, ...noCoords];
-      if (filtered.isNotEmpty) return filtered;
-      // If radius filter returns nothing (all stores beyond radius), show nearest 5
-      if (_radiusKm > 0 && withCoords.isNotEmpty) {
-        return withCoords.take(5).toList();
+    if (_userLat == null || _userLng == null) return base; // GPS unavailable → show all
+    final withCoords = <Map<String,dynamic>>[];
+    final noCoords   = <Map<String,dynamic>>[];
+    for (final s in base) {
+      final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
+      final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
+      if (lat != null && lng != null) {
+        s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
+        withCoords.add(s);
+      } else {
+        noCoords.add(s);
       }
     }
-    // GPS unavailable — show all stores
-    return base;
+    withCoords.sort((a, b) {
+      final da = (a["distance_km"] as num?)?.toDouble() ?? 9999.0;
+      final db = (b["distance_km"] as num?)?.toDouble() ?? 9999.0;
+      return da.compareTo(db);
+    });
+    // Stores without coords appended — appear only when "All" chip selected
+    return [...withCoords, ...noCoords];
   }
 
   @override void initState() {
@@ -5514,20 +5502,22 @@ class _NearbyStoresSection extends StatelessWidget {
       {"label": "5 km",   "val": 5.0},
       {"label": "10 km",  "val": 10.0},
     ];
-    // ITEM6: filter by distance_km; only fall back to all stores if GPS is completely unavailable
+    // FIX (2026-07-10): One clean filter. No silent fallback that overrides the
+    // user's chip selection. The getter already sorted by distance; widget just slices.
+    // "All" or GPS unavailable → show everything; specific radius → strict filter.
     final bool _gpsKnown = stores.any((s) => s["distance_km"] != null);
-    List<Map<String,dynamic>> filtered;
+    final List<Map<String,dynamic>> filtered;
     if (radiusKm == 0.0 || !_gpsKnown) {
-      filtered = stores; // All chip selected, or GPS unavailable
+      // "All" selected, or no GPS — show every city store
+      filtered = stores;
     } else {
+      // STRICT radius filter — stores beyond the selected radius are hidden.
+      // If every store is beyond the radius the section shows an empty state.
       filtered = stores.where((s) {
         final d = (s["distance_km"] as num?)?.toDouble();
         return d != null && d <= radiusKm;
       }).toList();
-      // Only fall back if literally zero stores match (GPS failure mid-session)
-      if (filtered.isEmpty) filtered = stores;
     }
-    final visible = filtered.take(5).toList();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
@@ -5578,7 +5568,24 @@ class _NearbyStoresSection extends StatelessWidget {
           }).toList()),
         ),
         const SizedBox(height: 12),
-        // Same style as Explore Stores: horizontal scroll, 140px gradient cards
+        // FIX: show a clear message if no stores fall within the chosen radius.
+        // Previously a hidden fallback silently showed all stores, making the
+        // distance chips appear broken.
+        if (filtered.isEmpty && radiusKm > 0) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            alignment: Alignment.center,
+            child: Column(children: [
+              const Icon(Icons.location_off_outlined, color: Color(0xFF6b8c7e), size: 32),
+              const SizedBox(height: 8),
+              Text("No stores within ${radiusKm.toInt()} km",
+                style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              const Text("Try a larger radius or tap All",
+                style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 11)),
+            ]),
+          ),
+        ] else
         SizedBox(
           height: 175,
           child: ListView.builder(
@@ -5746,6 +5753,8 @@ class _ExploreAreasSection extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 12),
+        // REDESIGN (2026-07-10): glossy coloured square cards with green store-count
+        // badge on the left. Tapping opens all stores for that area.
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
@@ -5754,32 +5763,68 @@ class _ExploreAreasSection extends StatelessWidget {
             final area  = e.value.key;
             final count = e.value.value;
             final color = _areaColors[idx % _areaColors.length];
-            final initials = area.trim().split(RegExp(r'\s+')).take(2).map((w) => w.isNotEmpty ? w[0].toUpperCase() : "").join();
             return GestureDetector(
               onTap: () => Navigator.push(context, MaterialPageRoute(
                 builder: (_) => _AreaDetailScreen(
-                  areaName: area, stores: stores.where((s) =>
+                  areaName: area,
+                  stores: stores.where((s) =>
                     (s["area"]?.toString() ?? "").trim().toLowerCase() == area.toLowerCase()).toList(),
                   token: token))),
               child: Container(
-                width: 80, margin: const EdgeInsets.only(right: 12),
-                child: Column(children: [
-                  Container(
-                    width: 56, height: 56,
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: .22),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: color.withValues(alpha: .40), width: 1.5),
-                    ),
-                    child: Center(child: Text(initials,
-                      style: TextStyle(color: color.withValues(alpha: 1.0), fontSize: 16, fontWeight: FontWeight.w800))),
+                width: 120,
+                height: 72,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(
+                    colors: [color.withValues(alpha: .85), color.withValues(alpha: .55)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 6),
-                  Text(area, style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 11, fontWeight: FontWeight.w700),
-                    maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
-                  Text("$count Store${count == 1 ? '' : 's'}",
-                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
-                    textAlign: TextAlign.center),
+                  boxShadow: [
+                    BoxShadow(color: color.withValues(alpha: .35), blurRadius: 10, offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Stack(children: [
+                  // Glossy sheen overlay
+                  Positioned.fill(child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        height: 36,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.white.withValues(alpha: .28), Colors.white.withValues(alpha: .0)],
+                            begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                          ),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                        ),
+                      ),
+                    ),
+                  )),
+                  // Content: green count badge left + area name right
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      // Green store-count badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1a7a4a),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .18), blurRadius: 4, offset: const Offset(0, 2))],
+                        ),
+                        child: Text("$count",
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                      ),
+                      const SizedBox(width: 8),
+                      // Area name
+                      Expanded(child: Text(area,
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, height: 1.25),
+                        maxLines: 2, overflow: TextOverflow.ellipsis)),
+                    ]),
+                  ),
                 ]),
               ),
             );
