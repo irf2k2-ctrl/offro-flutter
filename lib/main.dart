@@ -5753,18 +5753,18 @@ class _ExploreAreasSection extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 12),
-        // REDESIGN (2026-07-10 v2): pill-style horizontal cards matching user reference.
-        // Layout per card: [dark-green count badge] [area name on semi-black bg] [light-green distance circle]
-        // Card background: white with shadow (same as floating store cards).
+        // REDESIGN (2026-07-10 v3): dark card matching user mockup.
+        // Dark outer card (solid equiv of "Newly Added" badge black) | left: green square badge
+        // (count + "Store") | thin divider | right: area name + light-green distance pill.
+        // Width is content-driven (mainAxisSize.min) — no excess padding.
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           child: Row(children: areas.take(8).toList().asMap().entries.map((e) {
-            final idx   = e.key;
             final area  = e.value.key;
             final count = e.value.value;
 
-            // Nearest distance for this area (min distance_km among its stores)
+            // Nearest distance for this area
             double? nearestKm;
             for (final s in stores) {
               if ((s["area"]?.toString() ?? "").trim().toLowerCase() != area.toLowerCase()) continue;
@@ -5772,7 +5772,9 @@ class _ExploreAreasSection extends StatelessWidget {
               if (d != null && (nearestKm == null || d < nearestKm)) nearestKm = d;
             }
             final distLabel = nearestKm != null
-                ? (nearestKm < 1.0 ? "${(nearestKm * 1000).toStringAsFixed(0)} m" : "${nearestKm.toStringAsFixed(1)} km")
+                ? (nearestKm < 1.0
+                    ? "${(nearestKm * 1000).toStringAsFixed(0)} m"
+                    : "${nearestKm.toStringAsFixed(1)} km")
                 : null;
 
             return GestureDetector(
@@ -5783,89 +5785,103 @@ class _ExploreAreasSection extends StatelessWidget {
                     (s["area"]?.toString() ?? "").trim().toLowerCase() == area.toLowerCase()).toList(),
                   token: token))),
               child: Container(
-                // Width grows to fit content; constrain with IntrinsicWidth
                 margin: const EdgeInsets.only(right: 10, bottom: 4),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(50), // pill shape
+                  // Solid dark — same visual as floating badge "Newly Added" black overlay
+                  color: const Color(0xFF1C2B26),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: .10),
+                      color: Colors.black.withValues(alpha: .22),
                       blurRadius: 10,
-                      offset: const Offset(0, 3),
+                      offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    // ① Dark-green count badge (left, vertically centered)
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3E5F55),
-                        borderRadius: BorderRadius.circular(50),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  // ① Dark-green square badge — count (large) + "Store" label below
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3E5F55),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(
                         "$count",
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 20,
                           fontWeight: FontWeight.w900,
+                          height: 1.1,
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    // ② Area name — semi-transparent black background (like "Newly Added" badge)
-                    Container(
-                      constraints: const BoxConstraints(maxWidth: 110, minWidth: 48),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.62),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        area,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.1,
+                      const Text(
+                        "Store",
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.3,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
                       ),
-                    ),
-                    // ③ Distance circle (light green, same palette as kLight/kAccent)
-                    if (distLabel != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFCDEBD6), // kLight — light green
-                          borderRadius: BorderRadius.circular(50),
+                    ]),
+                  ),
+                  // Thin vertical divider
+                  Container(
+                    width: 1,
+                    height: 46,
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                  // ② Right side: area name + distance pill
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 120),
+                        child: Text(
+                          area,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.1,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.location_on_rounded,
-                            color: Color(0xFF3E5F55), size: 11),
-                          const SizedBox(width: 3),
-                          Text(distLabel,
-                            style: const TextStyle(
-                              color: Color(0xFF3E5F55),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            )),
-                        ]),
                       ),
-                      const SizedBox(width: 4),
-                    ] else
-                      const SizedBox(width: 4),
-                  ]),
-                ),
+                      if (distLabel != null) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFCDEBD6),
+                            borderRadius: BorderRadius.circular(50),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.location_on_rounded,
+                              color: Color(0xFF3E5F55), size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              distLabel,
+                              style: const TextStyle(
+                                color: Color(0xFF3E5F55),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ]),
+                        ),
+                      ],
+                    ],
+                  ),
+                ]),
               ),
             );
           }).toList()),
