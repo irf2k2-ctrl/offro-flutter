@@ -5275,13 +5275,22 @@ class _DiscoverProductsSection extends StatelessWidget {
     ];
 
     return Container(
-      color: const Color(0xFFF0FAF5),
+      // FIX 2: rich bright green-mint block background
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFE8F8F0), Color(0xFFD4F0E4), Color(0xFFE8F8F0)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Padding(
-      padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 18), // FIX 1: bottom 18 = space before banner
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Row(children: [
+            const Icon(Icons.grid_view_rounded, color: Color(0xFF3E5F55), size: 18),
+            const SizedBox(width: 7),
             const Text("Discover Products",
               style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
           ]),
@@ -6683,11 +6692,34 @@ class _PromoSliderSection extends StatelessWidget {
 
   @override Widget build(BuildContext context) {
     if (sliders.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+    return Container(
+      // FIX 3: bright warm accent background for the banner section
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFFFF8E7), Color(0xFFFFF3D0), Color(0xFFFFF8E7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(0, 20, 0, 14), // FIX 1: top=20 gives gap from DiscoverProducts
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Section label
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Row(children: [
+            Icon(Icons.local_offer_rounded, color: Color(0xFFD4A017), size: 17),
+            SizedBox(width: 6),
+            Text("Featured Banners",
+              style: TextStyle(
+                color: Color(0xFF7A5000),
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              )),
+          ]),
+        ),
         SizedBox(
-          height: 160,
+          height: 170,
           child: PageView.builder(
             controller: sliderPc,
             clipBehavior: Clip.none,
@@ -6718,16 +6750,16 @@ class _PromoSliderSection extends StatelessWidget {
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: pg == i ? 18 : 6, height: 6,
+                  width: pg == i ? 20 : 6, height: 6,
                   decoration: BoxDecoration(
-                    color: pg == i ? const Color(0xFF3E5F55) : const Color(0xFFd4e8de),
+                    color: pg == i ? const Color(0xFFD4A017) : const Color(0xFFe8d9a0),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
             ]);
           },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
       ]),
     );
   }
