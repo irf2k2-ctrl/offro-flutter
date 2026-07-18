@@ -1463,7 +1463,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _startSliderAutoPlay(){
     _sliderTimer?.cancel();
-    if(_sliders.length>1){
+    // Auto-play even for 1 item (will loop to same) — only skip if empty
+    if(_sliders.isNotEmpty){
       _sliderTimer=Timer.periodic(const Duration(seconds:5),(_){
         if(_sliderPc.hasClients){
           _sliderPc.nextPage(duration:const Duration(milliseconds:500),curve:Curves.easeInOut);
@@ -6704,7 +6705,7 @@ class _PromoSliderSection extends StatelessWidget {
           child: PageView.builder(
             controller: sliderPc,
             clipBehavior: Clip.none,
-            itemCount: sliders.length > 1 ? 99999 : sliders.length,
+            itemCount: sliders.isNotEmpty ? 99999 : 0, // always loop
             onPageChanged: onSliderPageChanged,
             itemBuilder: (_, i) {
               final s = sliders[i % sliders.length];
