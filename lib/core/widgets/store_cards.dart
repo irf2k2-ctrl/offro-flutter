@@ -84,9 +84,12 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
   bool _videoReady = false;
 
   static bool _isVideo(String url) =>
-      url.isNotEmpty && (url.toLowerCase().endsWith(".mp4") ||
-      url.toLowerCase().contains(".mp4?") ||
-      url.toLowerCase().contains("video/mp4"));
+      url.isNotEmpty && (
+        url.toLowerCase().endsWith(".mp4") ||
+        url.toLowerCase().contains(".mp4?") ||
+        url.toLowerCase().contains("video/mp4") ||
+        url.startsWith("data:video")   // base64-encoded video blob
+      );
 
   @override void initState() {
     super.initState();
@@ -98,6 +101,29 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     widget.slider["image"]?.toString() ?? widget.slider["image_url"]?.toString() ?? "";
 
   void _initVideo(String url) {
+    if (url.startsWith("data:video")) {
+      // base64 video blob — decode to bytes and use file-based controller
+      try {
+        final commaIdx = url.indexOf(",");
+        if (commaIdx == -1) return;
+        final b64 = url.substring(commaIdx + 1);
+        final bytes = base64Decode(b64);
+        _vpc = VideoPlayerController.contentUri(
+          Uri.dataFromBytes(bytes, mimeType: "video/mp4"))
+          ..initialize().then((_) {
+            if (!mounted) return;
+            _vpc!.setLooping(true);
+            _vpc!.setVolume(0);
+            _vpc!.play();
+            setState(() => _videoReady = true);
+          }).catchError((e) {
+            if (kDebugMode) debugPrint("[Offro] base64 video init error: \$e");
+          });
+      } catch (e) {
+        if (kDebugMode) debugPrint("[Offro] base64 decode error: \$e");
+      }
+      return;
+    }
     _vpc = VideoPlayerController.networkUrl(Uri.parse(url))
       ..initialize().then((_) {
         if (!mounted) return;
@@ -106,7 +132,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         _vpc!.play();
         setState(() => _videoReady = true);
       }).catchError((e) {
-        if (kDebugMode) debugPrint("[Offro] video init error: $e");
+        if (kDebugMode) debugPrint("[Offro] video init error: \$e");
       });
   }
 

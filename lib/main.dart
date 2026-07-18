@@ -1088,11 +1088,17 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         final _mbRaw = defaults["merchant_banner"];
         if (_mbRaw is List) {
           _mbFallbackSliders = _mbRaw
-              .where((u) => u is String && (u as String).startsWith("http"))
-              .map<Map<String,dynamic>>((u) => {
-                "id": "default", "title": "", "subtitle": "",
-                "image": u.toString(), "image_url": u.toString(),
-                "link_url": "", "bg_color": "", "sort_order": 0, "city": "",
+              .where((u) {
+                if (u is! String) return false;
+                final s = u as String;
+                // Allow http URLs AND base64 images/videos
+                return s.startsWith("http") || s.startsWith("data:image") || s.startsWith("data:video");
+              })
+              .map<Map<String,dynamic>>((u) {
+                final uid = "mb_${(u as String).hashCode.abs()}";
+                return {"id": uid, "title": "", "subtitle": "",
+                  "image": u, "image_url": u,
+                  "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
               }).toList();
         } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
           _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
@@ -1830,10 +1836,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF5FBF7),
         body: _locationDenied
           ? _locationDeniedState()
           : Stack(children: [
+              // ── Premium abstract gradient background ──────────────────
+              Positioned.fill(child: CustomPaint(painter: _OffroHomeBgPainter())),
               _loading
               ? LayoutBuilder(builder: (ctx, bc) => SizedBox(
                   width: bc.maxWidth,
@@ -1896,6 +1904,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                     )),
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
                     SliverToBoxAdapter(child: _PromoSliderSection(
                       sliders: _sliders,
                       sliderPc: _sliderPc,
@@ -5275,25 +5284,14 @@ class _DiscoverProductsSection extends StatelessWidget {
     ];
 
     return Container(
-      // FIX 2: rich bright green-mint block background
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFE8F8F0), Color(0xFFD4F0E4), Color(0xFFE8F8F0)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
+      color: Colors.transparent,
       child: Padding(
-      padding: const EdgeInsets.fromLTRB(0, 18, 0, 18), // FIX 1: bottom 18 = space before banner
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 24), // extra bottom space before banners
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Row(children: [
-            const Icon(Icons.grid_view_rounded, color: Color(0xFF3E5F55), size: 18),
-            const SizedBox(width: 7),
-            const Text("Discover Products",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-          ]),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Text("Discover Products",
+            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
         ),
         SizedBox(
           height: 170, // ITEM8: reduced card height
@@ -6693,30 +6691,13 @@ class _PromoSliderSection extends StatelessWidget {
   @override Widget build(BuildContext context) {
     if (sliders.isEmpty) return const SizedBox.shrink();
     return Container(
-      // FIX 3: bright warm accent background for the banner section
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFFFFF8E7), Color(0xFFFFF3D0), Color(0xFFFFF8E7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(0, 20, 0, 14), // FIX 1: top=20 gives gap from DiscoverProducts
+      color: Colors.transparent,
+      padding: const EdgeInsets.fromLTRB(0, 16, 0, 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Section label
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Row(children: [
-            Icon(Icons.local_offer_rounded, color: Color(0xFFD4A017), size: 17),
-            SizedBox(width: 6),
-            Text("Featured Banners",
-              style: TextStyle(
-                color: Color(0xFF7A5000),
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              )),
-          ]),
+          child: Text("Featured Banners",
+            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
         ),
         SizedBox(
           height: 170,
@@ -8093,4 +8074,111 @@ class _VapSearchBarState extends State<_VapSearchBar> {
       ),
     );
   }
+}
+// ═══════════════════════════════════════════════════════════════
+// OFFRO HOME BACKGROUND — premium abstract green gradient
+// Light, modern, elegant: soft circles + flowing curved wave lines
+// ═══════════════════════════════════════════════════════════════
+class _OffroHomeBgPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // ── Base gradient fill ──────────────────────────────────────
+    final bgPaint = Paint()
+      ..shader = LinearGradient(
+        colors: const [
+          Color(0xFFF0FAF5),
+          Color(0xFFE8F7F0),
+          Color(0xFFF5FBF8),
+          Color(0xFFECF9F2),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
+
+    // ── Large soft circle — top left ──────────────────────────
+    final c1 = Paint()
+      ..shader = RadialGradient(
+        colors: const [Color(0x28A9CDBA), Color(0x00A9CDBA)],
+        center: Alignment.topLeft,
+        radius: 1.0,
+      ).createShader(Rect.fromLTWH(-w * 0.1, -h * 0.05, w * 0.75, w * 0.75));
+    canvas.drawCircle(Offset(w * 0.05, h * 0.08), w * 0.38, c1);
+
+    // ── Medium circle — top right ────────────────────────────
+    final c2 = Paint()
+      ..shader = RadialGradient(
+        colors: const [Color(0x223E5F55), Color(0x003E5F55)],
+        center: Alignment.topRight,
+        radius: 1.0,
+      ).createShader(Rect.fromLTWH(w * 0.55, -h * 0.02, w * 0.55, w * 0.55));
+    canvas.drawCircle(Offset(w * 0.85, h * 0.06), w * 0.28, c2);
+
+    // ── Small accent circle — mid left ──────────────────────
+    final c3 = Paint()
+      ..shader = RadialGradient(
+        colors: const [Color(0x1ACDEBD6), Color(0x00CDEBD6)],
+      ).createShader(Rect.fromLTWH(0, h * 0.28, w * 0.4, w * 0.4));
+    canvas.drawCircle(Offset(w * 0.08, h * 0.38), w * 0.22, c3);
+
+    // ── Small circle — lower right ───────────────────────────
+    final c4 = Paint()
+      ..shader = RadialGradient(
+        colors: const [Color(0x18A9CDBA), Color(0x00A9CDBA)],
+      ).createShader(Rect.fromLTWH(w * 0.6, h * 0.55, w * 0.5, w * 0.5));
+    canvas.drawCircle(Offset(w * 0.9, h * 0.68), w * 0.26, c4);
+
+    // ── Dot grid (top right area) ────────────────────────────
+    final dotPaint = Paint()..color = const Color(0x223E5F55);
+    for (int row = 0; row < 5; row++) {
+      for (int col = 0; col < 4; col++) {
+        canvas.drawCircle(
+          Offset(w * 0.68 + col * 14.0, h * 0.04 + row * 14.0),
+          2.0, dotPaint);
+      }
+    }
+
+    // ── Wave 1 — large sweeping curve (bottom third) ─────────
+    final wave1 = Paint()
+      ..shader = LinearGradient(
+        colors: const [Color(0x1A3E5F55), Color(0x0A3E5F55)],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      ).createShader(Rect.fromLTWH(0, h * 0.5, w, h * 0.5))
+      ..style = PaintingStyle.fill;
+    final wPath1 = Path();
+    wPath1.moveTo(0, h * 0.72);
+    wPath1.cubicTo(w * 0.25, h * 0.60, w * 0.55, h * 0.84, w, h * 0.68);
+    wPath1.lineTo(w, h);
+    wPath1.lineTo(0, h);
+    wPath1.close();
+    canvas.drawPath(wPath1, wave1);
+
+    // ── Wave 2 — lighter higher curve ───────────────────────
+    final wave2 = Paint()
+      ..color = const Color(0x0F3E5F55)
+      ..style = PaintingStyle.fill;
+    final wPath2 = Path();
+    wPath2.moveTo(0, h * 0.62);
+    wPath2.cubicTo(w * 0.30, h * 0.54, w * 0.65, h * 0.74, w, h * 0.58);
+    wPath2.lineTo(w, h * 0.68);
+    wPath2.cubicTo(w * 0.55, h * 0.84, w * 0.25, h * 0.60, 0, h * 0.72);
+    wPath2.close();
+    canvas.drawPath(wPath2, wave2);
+
+    // ── Thin curved accent line ──────────────────────────────
+    final linePaint = Paint()
+      ..color = const Color(0x1A3E5F55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final linePath = Path();
+    linePath.moveTo(0, h * 0.45);
+    linePath.cubicTo(w * 0.2, h * 0.38, w * 0.75, h * 0.52, w, h * 0.42);
+    canvas.drawPath(linePath, linePaint);
+  }
+
+  @override bool shouldRepaint(_OffroHomeBgPainter old) => false;
 }
