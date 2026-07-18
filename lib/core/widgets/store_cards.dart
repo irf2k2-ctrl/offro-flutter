@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import 'package:video_player/video_player.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import 'package:offro_user/screens/detail/detail_page.dart';
@@ -60,11 +61,14 @@ PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
 }
 
 // PromoSliderCard, NitHorizontalCard, ProductViewAllPage
-class PromoSliderCard extends StatelessWidget {
+// ── PromoSliderCard: supports images (jpg/webp/png) AND mp4 videos
+// Videos autoplay, loop, and are muted (required for autoplay on iOS/Android).
+// ──────────────────────────────────────────────────────────────────────────────
+class PromoSliderCard extends StatefulWidget {
   final Map<String,dynamic> slider;
   final String token;
-  final bool squareCorners; // true = no rounding (full-width banner)
-  final bool hideText;      // true = suppress title/subtitle overlay
+  final bool squareCorners;
+  final bool hideText;
   const PromoSliderCard({
     required this.slider,
     this.token = "",
@@ -72,19 +76,77 @@ class PromoSliderCard extends StatelessWidget {
     this.hideText = false,
     Key? key,
   }) : super(key: key);
+  @override State<PromoSliderCard> createState() => _PromoSliderCardState();
+}
 
-  Widget _buildImg(String imgUrl) {
-    if (imgUrl.isEmpty) return Container(
+class _PromoSliderCardState extends State<PromoSliderCard> {
+  VideoPlayerController? _vpc;
+  bool _videoReady = false;
+
+  static bool _isVideo(String url) =>
+      url.isNotEmpty && (url.toLowerCase().endsWith(".mp4") ||
+      url.toLowerCase().contains(".mp4?") ||
+      url.toLowerCase().contains("video/mp4"));
+
+  @override void initState() {
+    super.initState();
+    final url = _mediaUrl();
+    if (_isVideo(url)) _initVideo(url);
+  }
+
+  String _mediaUrl() =>
+    widget.slider["image"]?.toString() ?? widget.slider["image_url"]?.toString() ?? "";
+
+  void _initVideo(String url) {
+    _vpc = VideoPlayerController.networkUrl(Uri.parse(url))
+      ..initialize().then((_) {
+        if (!mounted) return;
+        _vpc!.setLooping(true);
+        _vpc!.setVolume(0); // muted for autoplay
+        _vpc!.play();
+        setState(() => _videoReady = true);
+      }).catchError((e) {
+        if (kDebugMode) debugPrint("[Offro] video init error: $e");
+      });
+  }
+
+  @override void dispose() {
+    _vpc?.dispose();
+    super.dispose();
+  }
+
+  Widget _buildMedia(String url) {
+    if (url.isEmpty) return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(colors: [Color(0xFF2c4a3e), Color(0xFF3E5F55)],
           begin: Alignment.topLeft, end: Alignment.bottomRight)));
-    if (imgUrl.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(imgUrl.split(",").last),
-        fit: BoxFit.cover, width: double.infinity, height: double.infinity, gaplessPlayback: true); }
-      catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+
+    // Video
+    if (_isVideo(url)) {
+      if (_videoReady && _vpc != null && _vpc!.value.isInitialized) {
+        return FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: _vpc!.value.size.width,
+            height: _vpc!.value.size.height,
+            child: VideoPlayer(_vpc!),
+          ),
+        );
+      }
+      // While video loads → green placeholder
+      return Container(color: const Color(0xFF3E5F55));
     }
+
+    // base64 image
+    if (url.startsWith("data:image")) {
+      try { return Image.memory(base64Decode(url.split(",").last),
+        fit: BoxFit.cover, width: double.infinity, height: double.infinity, gaplessPlayback: true); }
+      catch (_) { if (kDebugMode) debugPrint("[Offro] suppressed error"); }
+    }
+
+    // Network image
     return CachedNetworkImage(
-      imageUrl: imgUrl, fit: BoxFit.cover,
+      imageUrl: url, fit: BoxFit.cover,
       width: double.infinity, height: double.infinity, memCacheWidth: 900,
       placeholder: (_, __) => Container(color: const Color(0xFF3E5F55)),
       errorWidget: (_, __, ___) => Container(
@@ -95,12 +157,11 @@ class PromoSliderCard extends StatelessWidget {
   }
 
   @override Widget build(BuildContext context) {
-    final imgUrl   = slider["image"]?.toString() ?? slider["image_url"]?.toString() ?? "";
-    final storeId  = slider["store_id"]?.toString() ?? "";
-    final title    = slider["title"]?.toString() ?? "";
-    final subtitle = slider["subtitle"]?.toString() ?? slider["text"]?.toString() ?? "";
-
-    final radius = squareCorners ? 0.0 : 20.0;
+    final mediaUrl = _mediaUrl();
+    final storeId  = widget.slider["store_id"]?.toString() ?? "";
+    final title    = widget.slider["title"]?.toString() ?? "";
+    final subtitle = widget.slider["subtitle"]?.toString() ?? widget.slider["text"]?.toString() ?? "";
+    final radius   = widget.squareCorners ? 0.0 : 20.0;
 
     return GestureDetector(
       onTap: storeId.isNotEmpty ? () async {
@@ -108,33 +169,31 @@ class PromoSliderCard extends StatelessWidget {
           final store = await Api.fetchStoreDetail(storeId);
           if (context.mounted) {
             Navigator.push(context, _offroRoute(
-              StoreDetailPage(store: Map<String,dynamic>.from(store as Map), token: token, userName: "")));
+              StoreDetailPage(store: Map<String,dynamic>.from(store as Map), token: widget.token, userName: "")));
           }
-        } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        } catch(_) { if (kDebugMode) debugPrint("[Offro] suppressed error"); }
       } : null,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: Stack(fit: StackFit.expand, children: [
-          // Full-bleed clear image
-          _buildImg(imgUrl),
+          _buildMedia(mediaUrl),
 
-          // Downward gradient overlay: transparent top → dark bottom
-          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.transparent,
-                Colors.black.withValues(alpha: .55),
-                Colors.black.withValues(alpha: .80),
-              ],
-              stops: const [0.0, 0.40, 0.75, 1.0],
-            ),
-          ))),
+          // Gradient overlay (skip for video to keep it clean)
+          if (!_isVideo(mediaUrl))
+            Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent, Colors.transparent,
+                  Colors.black.withValues(alpha: .55),
+                  Colors.black.withValues(alpha: .80),
+                ],
+                stops: const [0.0, 0.40, 0.75, 1.0],
+              ),
+            ))),
 
-          // Bottom text overlay — suppressed when hideText is true
-          if (!hideText && (title.isNotEmpty || subtitle.isNotEmpty))
+          // Text overlay
+          if (!widget.hideText && (title.isNotEmpty || subtitle.isNotEmpty))
             Positioned(bottom: 14, left: 14, right: 14,
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                 if (title.isNotEmpty)

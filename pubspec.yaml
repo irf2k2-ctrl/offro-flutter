@@ -42,6 +42,9 @@ dependencies:
   # Shimmer skeleton loading effect
   shimmer: ^3.0.0
 
+  # Video playback — for mp4 banner/slider support
+  video_player: ^2.8.6
+
   # Firebase push notifications
   firebase_core: ^3.6.0
   firebase_messaging: ^15.1.3

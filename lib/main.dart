@@ -802,7 +802,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
   String _defaultCityImageUrl = "";    // fallback from /admin/default-images
   String _defaultProductImageUrl = ""; // default product image from /admin/default-images
-  String _mbFallbackUrl = "";          // default merchant banner image
+  List<Map<String,dynamic>> _mbFallbackSliders = []; // default merchant banners (may be multiple, images OR videos)
   int _sliderPage=0;
   final PageController _sliderPc = PageController(initialPage: 49999); // FIX 5: start at midpoint for infinite scroll
   Timer? _sliderTimer;
@@ -1084,7 +1084,21 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
           if (defProd.isNotEmpty) _defaultProductImageUrl = defProd;
         });
-        _mbFallbackUrl = (defaults["merchant_banner"] ?? "").toString().trim();
+        // merchant_banner is now an array of URLs (images or mp4 videos)
+        final _mbRaw = defaults["merchant_banner"];
+        if (_mbRaw is List) {
+          _mbFallbackSliders = _mbRaw
+              .where((u) => u is String && (u as String).startsWith("http"))
+              .map<Map<String,dynamic>>((u) => {
+                "id": "default", "title": "", "subtitle": "",
+                "image": u.toString(), "image_url": u.toString(),
+                "link_url": "", "bg_color": "", "sort_order": 0, "city": "",
+              }).toList();
+        } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
+          _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
+        } else {
+          _mbFallbackSliders = [];
+        }
       } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getDefaultImages error: $e"); }
 
       final cats = cats2;
@@ -1101,9 +1115,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           return sCity.isEmpty || sCity == c.toLowerCase().trim();
         }).toList();
       }
-      // Issue 4: Fallback — when no active banners exist for the city, show the default merchant banner
-      if (slides.isEmpty && _mbFallbackUrl.startsWith("http")) {
-        slides = [{"id": "default", "title": "", "subtitle": "", "image": _mbFallbackUrl, "image_url": _mbFallbackUrl, "link_url": "", "bg_color": "", "sort_order": 0, "city": ""}];
+      // Fallback — when no active banners exist for the city, show default merchant banners (images or videos)
+      if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
+        slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
       }
       // Retry admin banners once if empty (large base64 image can timeout)
       if (adminBannerList.isEmpty) {
@@ -1397,7 +1411,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         else if (_richCats.isEmpty) Api.clearCache(); // force refetch
       // Apply city-filtered sliders; use fallback if empty and URL already known
       _sliders  = filteredSliders.isNotEmpty ? filteredSliders
-          : (_mbFallbackUrl.startsWith("http") ? [{"id":"default","title":"","subtitle":"","image":_mbFallbackUrl,"image_url":_mbFallbackUrl,"link_url":"","bg_color":"","sort_order":0,"city":""}] : filteredSliders);
+          : (_mbFallbackSliders.isNotEmpty ? List<Map<String,dynamic>>.from(_mbFallbackSliders) : filteredSliders);
       _products = productList;
       _productsLoading = false;
       _loading  = false;
