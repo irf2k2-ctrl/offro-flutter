@@ -69,11 +69,14 @@ class PromoSliderCard extends StatefulWidget {
   final String token;
   final bool squareCorners;
   final bool hideText;
+  /// Called when a video finishes playing — use to advance to next slide.
+  final VoidCallback? onVideoComplete;
   const PromoSliderCard({
     required this.slider,
     this.token = "",
     this.squareCorners = false,
     this.hideText = false,
+    this.onVideoComplete,
     Key? key,
   }) : super(key: key);
   @override State<PromoSliderCard> createState() => _PromoSliderCardState();
@@ -112,9 +115,10 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
           Uri.dataFromBytes(bytes, mimeType: "video/mp4"))
           ..initialize().then((_) {
             if (!mounted) return;
-            _vpc!.setLooping(true);
+            _vpc!.setLooping(false); // no loop — advance to next slide on complete
             _vpc!.setVolume(0);
             _vpc!.play();
+            _vpc!.addListener(_onVideoPositionChanged);
             setState(() => _videoReady = true);
           }).catchError((e) {
             if (kDebugMode) debugPrint("[Offro] base64 video init error: \$e");
@@ -127,16 +131,32 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     _vpc = VideoPlayerController.networkUrl(Uri.parse(url))
       ..initialize().then((_) {
         if (!mounted) return;
-        _vpc!.setLooping(true);
+        _vpc!.setLooping(false); // no loop — advance to next slide on complete
         _vpc!.setVolume(0); // muted for autoplay
         _vpc!.play();
+        _vpc!.addListener(_onVideoPositionChanged);
         setState(() => _videoReady = true);
       }).catchError((e) {
         if (kDebugMode) debugPrint("[Offro] video init error: \$e");
       });
   }
 
+  bool _videoEndFired = false;
+
+  void _onVideoPositionChanged() {
+    if (_vpc == null || !_vpc!.value.isInitialized) return;
+    final dur = _vpc!.value.duration;
+    final pos = _vpc!.value.position;
+    // Fire when within last 200ms of video duration (avoids missing exact end)
+    if (!_videoEndFired && dur.inMilliseconds > 0 &&
+        pos.inMilliseconds >= dur.inMilliseconds - 200) {
+      _videoEndFired = true;
+      widget.onVideoComplete?.call();
+    }
+  }
+
   @override void dispose() {
+    _vpc?.removeListener(_onVideoPositionChanged);
     _vpc?.dispose();
     super.dispose();
   }

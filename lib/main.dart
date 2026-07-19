@@ -1465,7 +1465,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _sliderTimer?.cancel();
     // Auto-play even for 1 item (will loop to same) — only skip if empty
     if(_sliders.isNotEmpty){
-      _sliderTimer=Timer.periodic(const Duration(seconds:5),(_){
+      _sliderTimer=Timer.periodic(const Duration(seconds:10),(_){
         if(_sliderPc.hasClients){
           _sliderPc.nextPage(duration:const Duration(milliseconds:500),curve:Curves.easeInOut);
         }
@@ -5440,8 +5440,9 @@ class _DiscoverProductsSection extends StatelessWidget {
                             maxLines: 2, overflow: TextOverflow.ellipsis),
                           // ── FIX 6: Rating below title ──
                           Builder(builder: (_ctx) {
-                            final _pr = (v["rating"] as num?)?.toDouble() ?? 0.0;
-                            final _pc = (v["rating_count"] ?? v["review_count"] as num?)?.toInt() ?? 0;
+                            // FIX: safe parse — rating may be stored as String
+                            final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
+                            final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
                             if (_pr <= 0) return const SizedBox.shrink();
                             return Padding(
                               padding: const EdgeInsets.only(top: 3),
@@ -5462,10 +5463,10 @@ class _DiscoverProductsSection extends StatelessWidget {
                               maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
                           ],
-                          Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                          if (saleP != null && saleP > 0) Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                             Text("Offer ",
                               style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 8, fontWeight: FontWeight.w600)),
-                            Text("₹${saleP?.toStringAsFixed(0) ?? '0'}",
+                            Text("₹${saleP.toStringAsFixed(0)}",
                               style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w900)),
                             if (origP != null) ...[
                               const SizedBox(width: 4),
@@ -6716,6 +6717,14 @@ class _PromoSliderSection extends StatelessWidget {
                   token: token,
                   squareCorners: false,
                   hideText: false,
+                  // Auto-advance to next slide when video finishes
+                  onVideoComplete: () {
+                    if (sliderPc.hasClients) {
+                      sliderPc.nextPage(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeInOut);
+                    }
+                  },
                 ),
               );
             },
@@ -6773,8 +6782,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
   @override void initState() {
     super.initState();
-    _avgRating   = (widget.product["rating"] as num?)?.toDouble() ?? 0.0;
-    _ratingCount = (widget.product["rating_count"] as num?)?.toInt() ?? 0;
+    // FIX: safe parse — rating may be stored as String "4.2"
+    final _rRaw = widget.product["rating"]; _avgRating = (_rRaw is num) ? _rRaw.toDouble() : (double.tryParse(_rRaw?.toString() ?? "") ?? 0.0);
+    final _rcRaw = widget.product["rating_count"]; _ratingCount = (_rcRaw is num) ? _rcRaw.toInt() : (int.tryParse(_rcRaw?.toString() ?? "") ?? 0);
     _loadFavStatus();
     _loadMyReview();
   }
@@ -7006,6 +7016,30 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
                 child: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                   color: _isFav ? const Color(0xFFe74c3c) : Colors.white, size: 20)),
+            ),
+            // ── Share button ──
+            GestureDetector(
+              onTap: () {
+                final _title   = widget.product["title"]?.toString() ?? widget.product["name"]?.toString() ?? "Product";
+                final _store   = (widget.product["store"] is Map
+                    ? widget.product["store"]["store_name"]
+                    : widget.product["store_name"])?.toString() ?? "";
+                final _saleP   = _numVal(["offer_price","sale_price","price","current_price"]);
+                final _offerTx = widget.product["offer"]?.toString() ?? "";
+                final parts    = <String>[
+                  "🛍️ $_title",
+                  if (_store.isNotEmpty) "📍 Store: $_store",
+                  if (_saleP != null && _saleP > 0) "💰 Offer Price: ₹${_saleP.toStringAsFixed(0)}",
+                  if (_offerTx.isNotEmpty) "🎁 $_offerTx",
+                  "\nDownload OFFRO app to explore more deals!",
+                ];
+                Share.share(parts.join("\n"), subject: "OFFRO – $_title");
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
+                child: const Icon(Icons.share_rounded, color: Colors.white, size: 20)),
             ),
             const SizedBox(width: 4),
           ],
