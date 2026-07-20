@@ -1118,7 +1118,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       final endRaw = v["end_date"]?.toString() ?? "";
       if (endRaw.isNotEmpty) {
         final dt = _parseAnyDate(endRaw);
-        if (dt != null && DateTime.now().isAfter(dt)) st = "expired";
+        if (dt != null) {
+          // FIX: expires at END of the end_date day (23:59:59), not start.
+          // e.g. "20-07-2026" means live all day July 20, expires July 21 00:00.
+          final endOfDay = DateTime(dt.year, dt.month, dt.day, 23, 59, 59);
+          if (DateTime.now().isAfter(endOfDay)) st = "expired";
+        }
       }
     }
     return st;
@@ -1138,7 +1143,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         case "approved":        return st == "approved";
         case "pending_approval":return st == "pending_approval";
         case "expired":         return st == "expired";
-        default:                return st != "expired";
+        default:                return true; // "All" shows everything including expired
       }
     }).toList();
   }
@@ -1490,7 +1495,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   Icon(Icons.event_rounded, size: 11,
                     color: isExpired ? Colors.red : kMuted),
                   const SizedBox(width: 3),
-                  Text("Expires: \$expiryLabel",
+                  Text("Expires: $expiryLabel",
                     style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w600,
                       color: isExpired ? Colors.red : kMuted)),
@@ -1502,7 +1507,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 final sCity = (v["city"] ?? "").toString().trim();
                 if (sName.isEmpty && sCity.isEmpty) return const SizedBox.shrink();
                 final label = sName.isNotEmpty && sCity.isNotEmpty
-                    ? "\$sName  •  \$sCity"
+                    ? "$sName  •  $sCity"
                     : sName.isNotEmpty ? sName : sCity;
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
