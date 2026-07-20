@@ -577,6 +577,11 @@ class Api {
     catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
   }
 
+  static Future<Map<String,dynamic>> toggleMerchantBanner(String token, String bannerId) async {
+    try { return Map<String,dynamic>.from(await _put("/merchant/banners/" + bannerId + "/toggle", {}, token: token)); }
+    catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
+  }
+
   // ══════════════════════════════════════════════
   // FULL INVOICES (banner + product + store)
   // ══════════════════════════════════════════════

@@ -320,10 +320,19 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         if (DateTime.now().isAfter(_bEnd)) rawStatus = "expired";
                       } catch (_) {}
                     }
-                    final (Color sc, String sl, IconData si) = switch(rawStatus) {
+                    // Override rawStatus with is_active / deleted_by_admin flags
+                    final bool _bIsActive      = b["is_active"] != false;
+                    final bool _bDeletedByAdmin = b["deleted_by_admin"] == true;
+                    final String displayStatus = _bDeletedByAdmin
+                        ? "removed"
+                        : (!_bIsActive ? "off" : rawStatus);
+
+                    final (Color sc, String sl, IconData si) = switch(displayStatus) {
                       "approved"  => (const Color(0xFF1a6640),"Approved — Live", Icons.check_circle),
                       "rejected"  => (Colors.red, "Rejected", Icons.cancel),
                       "expired"   => (Colors.grey.shade600, "Expired", Icons.event_busy_rounded),
+                      "removed"   => (Colors.red.shade700, "Removed by Admin", Icons.block_rounded),
+                      "off"       => (Colors.grey.shade500, "Turned Off", Icons.pause_circle_outline_rounded),
                       "pending_approval" || "pending" => (const Color(0xFF856404),"Pending Approval", Icons.access_time_rounded),
                       _ => (kMuted,"Submitted", Icons.hourglass_empty),
                     };
@@ -423,6 +432,51 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
                                 minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
                             ),
+                            // Toggle button — only show for approved banners, not removed by admin
+                            if (displayStatus == "approved" || displayStatus == "off") ...[
+                              const SizedBox(width:8),
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  final isOn = _bIsActive;
+                                  final confirm = await showDialog<bool>(context:context,
+                                    builder:(_)=>AlertDialog(
+                                      title:Text(isOn?"Turn Off Banner?":"Turn On Banner?",
+                                        style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                                      content:Text(isOn
+                                        ?"This banner will be hidden from stores until you turn it back on."
+                                        :"This banner will go live again in stores."),
+                                      actions:[
+                                        TextButton(onPressed:()=>Navigator.pop(context,false),
+                                          child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                                        ElevatedButton(
+                                          style:ElevatedButton.styleFrom(
+                                            backgroundColor:isOn?Colors.orange:kPrimary),
+                                          onPressed:()=>Navigator.pop(context,true),
+                                          child:Text(isOn?"Turn Off":"Turn On",
+                                            style:const TextStyle(color:Colors.white))),
+                                      ],
+                                    ));
+                                  if (confirm==true) {
+                                    try {
+                                      await Api.toggleMerchantBanner(widget.token, b["_id"]??"");
+                                      _load();
+                                    } catch(e) {
+                                      if(mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
+                                    }
+                                  }
+                                },
+                                icon:Icon(_bIsActive?Icons.pause_circle_outline:Icons.play_circle_outline,
+                                  size:14,color:_bIsActive?Colors.orange:kPrimary),
+                                label:Text(_bIsActive?"Turn Off":"Turn On",
+                                  style:TextStyle(color:_bIsActive?Colors.orange:kPrimary,fontSize:12)),
+                                style:OutlinedButton.styleFrom(
+                                  side:BorderSide(color:_bIsActive?Colors.orange:kPrimary),
+                                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
+                                  padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
+                                  minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                              ),
+                            ],
                           ]),
                         ])),
                       ]),
