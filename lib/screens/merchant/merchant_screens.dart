@@ -1448,7 +1448,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 140),
                     itemCount: _filtered.length,
                     itemBuilder: (_, i) => _buildCard(_filtered[i]),
                   ),
