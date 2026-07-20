@@ -1490,12 +1490,31 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   Icon(Icons.event_rounded, size: 11,
                     color: isExpired ? Colors.red : kMuted),
                   const SizedBox(width: 3),
-                  Text("Expires: $expiryLabel",
+                  Text("Expires: \$expiryLabel",
                     style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w600,
                       color: isExpired ? Colors.red : kMuted)),
                 ]),
               ],
+              // Store name + city below expiry
+              Builder(builder: (_ctx) {
+                final sName = (v["store_name"] ?? "").toString().trim();
+                final sCity = (v["city"] ?? "").toString().trim();
+                if (sName.isEmpty && sCity.isEmpty) return const SizedBox.shrink();
+                final label = sName.isNotEmpty && sCity.isNotEmpty
+                    ? "\$sName  •  \$sCity"
+                    : sName.isNotEmpty ? sName : sCity;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(children: [
+                    Icon(Icons.store_mall_directory_rounded, size: 11, color: kMuted),
+                    const SizedBox(width: 3),
+                    Expanded(child: Text(label,
+                      style: const TextStyle(fontSize: 11, color: kMuted),
+                      maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ]),
+                );
+              }),
               // FIX1: price line removed
             ])),
 
