@@ -77,7 +77,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
 
   // FIX7: never treat load-error as "new merchant" — only show onboarding if stores truly empty
   bool get _hasEligibleStore => !_loadError && _stores.any((s)=>
-    ["active","inactive","waiting_approval","paid"].contains(s["status"]));
+    ["active","inactive","waiting_approval","paid","draft","pending_subscription","pending"].contains(s["status"]));
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
@@ -270,14 +270,27 @@ class MerchantBannersPage extends StatefulWidget {
   @override State<MerchantBannersPage> createState() => _MerchantBannersState();
 }
 class _MerchantBannersState extends State<MerchantBannersPage> {
-  List<Map<String,dynamic>> _banners = []; bool _loading = true;
+  List<Map<String,dynamic>> _banners = []; 
+  bool _loading = true;
+  bool _loadError = false;
 
   @override void initState() { super.initState(); _load(); }
 
-  Future<void> _load() async {
-    setState(()=>_loading=true);
-    _banners = List<Map<String,dynamic>>.from(await Api.getMerchantBanners(widget.token));
-    if (mounted) setState(()=>_loading=false);
+  Future<void> _load({int retry = 0}) async {
+    if (mounted) setState((){_loading=true; _loadError=false;});
+    try {
+      final data = List<Map<String,dynamic>>.from(
+        await Api.getMerchantBanners(widget.token).timeout(const Duration(seconds:15))
+      );
+      if (mounted) setState((){_banners=data; _loading=false; _loadError=false;});
+    } catch(e) {
+      debugPrint('[MerchantBanners] _load error (attempt ${retry+1}): $e');
+      if (retry==0 && mounted) {
+        await Future.delayed(const Duration(seconds:2));
+        return _load(retry:1);
+      }
+      if (mounted) setState((){_loading=false; _loadError=true;});
+    }
   }
 
   @override Widget build(BuildContext context) => Scaffold(
@@ -293,6 +306,15 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
     ),
     body:_loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
+      : _loadError
+          ? Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
+              const Icon(Icons.wifi_off_rounded,color:kMuted,size:48),
+              const SizedBox(height:12),
+              const Text("Couldn't load banners",style:TextStyle(color:kText,fontSize:15,fontWeight:FontWeight.w700)),
+              const SizedBox(height:8),
+              ElevatedButton.icon(onPressed:()=>_load(),icon:const Icon(Icons.refresh),label:const Text("Retry"),
+                style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white)),
+            ]))
       : Column(children:[
           Expanded(child:_banners.isEmpty
             ? const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
@@ -1098,21 +1120,31 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   @override void initState() { super.initState(); _load(); }
   @override void dispose()   { _searchCtrl.dispose(); super.dispose(); }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  bool _loadError = false;
+
+  Future<void> _load({int retry = 0}) async {
+    if (mounted) setState(() { _loading = true; _loadError = false; });
     try {
       final results = await Future.wait([
-        Api.getMerchantProducts(widget.token),
-        Api.checkProductExpiry(widget.token),
-        Api.getMerchantStores(widget.token),   // needed for standard product store expiry
+        Api.getMerchantProducts(widget.token).timeout(const Duration(seconds:15)),
+        Api.checkProductExpiry(widget.token).timeout(const Duration(seconds:10)),
+        Api.getMerchantStores(widget.token).timeout(const Duration(seconds:10)),
       ]);
       _products = List<Map<String,dynamic>>.from(results[0] as Iterable);
       final exp = results[1];
       _expiryWarnings = exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[];
       _stores = List<Map<String,dynamic>>.from(results[2] as Iterable);
-    } catch (_) {}
-    _applyFilters();
-    if (mounted) setState(() => _loading = false);
+      _applyFilters();
+      if (mounted) setState(() { _loading = false; _loadError = false; });
+    } catch(e) {
+      debugPrint('[MerchantProducts] _load error (attempt ${retry+1}): $e');
+      if (retry == 0 && mounted) {
+        await Future.delayed(const Duration(seconds:2));
+        return _load(retry:1);
+      }
+      _applyFilters();
+      if (mounted) setState(() { _loading = false; _loadError = true; });
+    }
   }
 
   // Returns formatted expiry label for a STANDARD product from the store's subscription_end.
@@ -1434,6 +1466,15 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         // ── List ──
         Expanded(child: _loading
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
+          : _loadError
+              ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.wifi_off_rounded, color: kMuted, size: 48),
+                  const SizedBox(height: 12),
+                  const Text("Couldn't load products", style: TextStyle(color: kText, fontSize: 15, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  ElevatedButton.icon(onPressed: ()=>_load(), icon: const Icon(Icons.refresh), label: const Text("Retry"),
+                    style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white)),
+                ]))
           : _filtered.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Icon(Icons.local_activity_outlined, size: 64, color: kAccent),
@@ -1448,7 +1489,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               : RefreshIndicator(
                   onRefresh: _load,
                   child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 140),
+                    padding: const EdgeInsets.fromLTRB(14, 4, 14, 180),
                     itemCount: _filtered.length,
                     itemBuilder: (_, i) => _buildCard(_filtered[i]),
                   ),
@@ -2937,10 +2978,17 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                   ])),
               const SizedBox(height:10),
               Row(children:[
-                if (status=="draft"||status=="inactive") Expanded(child:ElevatedButton.icon(
-                  icon:const Icon(Icons.payment,size:16), label:const Text("Subscribe"),
-                  style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
-                  onPressed:()=>Navigator.push(context,_offroRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
+                if (status=="draft"||status=="inactive"||status=="pending_subscription") ...[
+                  Expanded(child:ElevatedButton.icon(
+                    icon:const Icon(Icons.payment,size:16), label:const Text("Subscribe"),
+                    style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                    onPressed:()=>Navigator.push(context,_offroRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
+                  const SizedBox(width:8),
+                  OutlinedButton.icon(
+                    icon:const Icon(Icons.edit,size:16,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary)),
+                    style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                    onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load())),
+                ],
                 if (status=="waiting_approval") Expanded(child:Container(
                   padding:const EdgeInsets.symmetric(vertical:8),
                   alignment:Alignment.center,
