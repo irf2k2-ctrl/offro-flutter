@@ -298,11 +298,19 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
     appBar:AppBar(
       title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("My Banners",style:TextStyle(fontWeight:FontWeight.w800))]),
       backgroundColor: Colors.white, foregroundColor: kText,
-    ),
-    floatingActionButton:FloatingActionButton.extended(
-      backgroundColor: Colors.white, foregroundColor: kText,
-      icon:const Icon(Icons.add), label:const Text("New Banner"),
-      onPressed:()=>Navigator.push(context,_offroRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
+      actions:[
+        Padding(
+          padding:const EdgeInsets.only(right:12),
+          child:ElevatedButton.icon(
+            icon:const Icon(Icons.add,size:16),
+            label:const Text("New Banner",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600)),
+            onPressed:()=>Navigator.push(context,_offroRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
+            style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white,
+              padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
+              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+          ),
+        ),
+      ],
     ),
     body:_loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
@@ -1378,7 +1386,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         ]),
         backgroundColor: Colors.white, foregroundColor: kText,
         actions: [
-          // Filter button with active indicator
+          Padding(
+            padding:const EdgeInsets.only(right:4),
+            child:ElevatedButton.icon(
+              icon:const Icon(Icons.add,size:16),
+              label:const Text("New Product",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600)),
+              onPressed:()=>_showProductTypeDialog(context, widget.token, _load),
+              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white,
+                padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+            ),
+          ),
+                    // Filter button with active indicator
           Stack(clipBehavior: Clip.none, children: [
             IconButton(
               icon: const Icon(Icons.filter_list_rounded),
@@ -1392,12 +1411,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   decoration: const BoxDecoration(color: kPrimary, shape: BoxShape.circle))),
           ]),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.white, foregroundColor: kText,
-        icon: const Icon(Icons.add),
-        label: const Text("New Product"),
-        onPressed: () => _showProductTypeDialog(context, widget.token, _load),
       ),
       body: Column(children: [
         // ── Expiry warning banner ──
@@ -2918,11 +2931,20 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
     appBar: AppBar(title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("My Stores",style:TextStyle(fontWeight:FontWeight.w800))]),
-        backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false),
-    floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Colors.white, foregroundColor: kText,
-        icon:const Icon(Icons.add), label:const Text("Add Store"),
-        onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token))).then((_)=>_load())),
+        backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
+        actions:[
+          Padding(
+            padding:const EdgeInsets.only(right:12),
+            child:ElevatedButton.icon(
+              icon:const Icon(Icons.add_business,size:16),
+              label:const Text("New Store",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600)),
+              onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
+              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white,
+                padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+            ),
+          ),
+        ]),
     body: loading ? const Center(child:CircularProgressIndicator(color:kPrimary)) :
       stores.isEmpty ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
         buildLogo(44,kAccent), const SizedBox(height:12),
