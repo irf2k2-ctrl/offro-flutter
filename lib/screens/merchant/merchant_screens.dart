@@ -301,11 +301,11 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
       actions:[
         Padding(
           padding:const EdgeInsets.only(right:12),
-          child:ElevatedButton.icon(
-            icon:const Icon(Icons.add,size:16),
-            label:const Text("New Banner",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600)),
+          child:OutlinedButton.icon(
+            icon:const Icon(Icons.add,size:16,color:kPrimary),
+            label:const Text("New Banner",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:kPrimary)),
             onPressed:()=>Navigator.push(context,_offroRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
-            style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white,
+            style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
               padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
               shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
           ),
@@ -1388,11 +1388,11 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         actions: [
           Padding(
             padding:const EdgeInsets.only(right:4),
-            child:ElevatedButton.icon(
-              icon:const Icon(Icons.add,size:16),
-              label:const Text("New Product",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600)),
+            child:OutlinedButton.icon(
+              icon:const Icon(Icons.add,size:16,color:kPrimary),
+              label:const Text("New Product",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:kPrimary)),
               onPressed:()=>_showProductTypeDialog(context, widget.token, _load),
-              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white,
+              style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
                 padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
             ),
@@ -2295,10 +2295,12 @@ class _StandardProductState extends State<StandardProductPage> {
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: Image.memory(base64Decode(_logoB64!.split(',').last), fit: BoxFit.cover))
-                  : const Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.add_photo_alternate_outlined, color: kMuted, size: 28),
-                      SizedBox(height: 4),
-                      Text("Tap to upload", style: TextStyle(color: kMuted, fontSize: 12)),
+                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const Icon(Icons.add_photo_alternate_outlined, color: kMuted, size: 28),
+                      const SizedBox(height: 4),
+                      const Text("Tap to upload", style: TextStyle(color: kMuted, fontSize: 12)),
+                      const SizedBox(height: 4),
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [_InfoChip("📐 400×400px (1:1)"), SizedBox(width: 6), _InfoChip("📦 Max 1MB")]),
                     ]),
             ),
           ),
@@ -2935,11 +2937,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
         actions:[
           Padding(
             padding:const EdgeInsets.only(right:12),
-            child:ElevatedButton.icon(
-              icon:const Icon(Icons.add_business,size:16),
-              label:const Text("New Store",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600)),
+            child:OutlinedButton.icon(
+              icon:const Icon(Icons.add_business,size:16,color:kPrimary),
+              label:const Text("New Store",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:kPrimary)),
               onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
-              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white,
+              style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
                 padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
             ),
@@ -2965,8 +2967,17 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           else if (status=="draft") { sc=kMuted; sl="📝 Draft"; }
           else if (status=="inactive") { sc=Colors.red.shade700; sl="❌ Inactive"; }
           else if (status=="pending") { sc=kMuted; sl="🕐 Pending"; }
+          final storeImg = (s["image"]??"").toString();
           return Card(elevation:2,margin:const EdgeInsets.only(bottom:12),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-            child:Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+            clipBehavior:Clip.antiAlias,
+            child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+              if (storeImg.isNotEmpty)
+                storeImg.startsWith("data:")
+                  ? Image.memory(base64Decode(storeImg.split(",").last),height:140,width:double.infinity,fit:BoxFit.cover,
+                      errorBuilder:(_,__,___) => const SizedBox.shrink())
+                  : Image.network(storeImg,height:140,width:double.infinity,fit:BoxFit.cover,
+                      errorBuilder:(_,__,___) => const SizedBox.shrink()),
+              Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
               Row(children:[
                 Expanded(child:Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kText))),
                 Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
@@ -3041,7 +3052,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                         } catch(e){ if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: $e"))); }
                       })],
               ]),
-            ])));
+            ]))]));
         },
       )),
   );
@@ -3292,8 +3303,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     if ((s["image"]??'').isNotEmpty) _imgB64 = s["image"];
     if ((s["image2"]??'').isNotEmpty) _img2B64 = s["image2"];
     _about.text = s["about"]??"";
-    _openTime  = s["open_time"]?.toString();
-    _closeTime = s["close_time"]?.toString();
+    final rawOpen  = s["open_time"]?.toString();
+    final rawClose = s["close_time"]?.toString();
+    _openTime  = rawOpen!=null  ? rawOpen.split(":").take(2).join(":") : null;
+    _closeTime = rawClose!=null ? rawClose.split(":").take(2).join(":") : null;
   }
 
   Future<void> _fetchFullStoreDetail() async {
@@ -3923,7 +3936,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder,style:BorderStyle.solid)),
         child: _imgB64!=null
             ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_imgB64!.split(",").last),fit:BoxFit.cover,width:double.infinity))
-            : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMuted,size:36),const SizedBox(height:8),const Text("Image 1 — Main display card image",style:TextStyle(color:kMuted,fontSize:13))]))),
+            : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // Second image picker — optional logo
       const Text("Upload Logo [Optional]",style:TextStyle(color:kMuted,fontSize:12,fontWeight:FontWeight.w600)),
@@ -3936,7 +3949,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                   onTap:(){setState(()=>_img2B64=null);},
                   child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:Colors.black54,shape:BoxShape.circle),child:const Icon(Icons.close,color:Colors.white,size:14)))),
               ])
-            : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMuted,fontSize:12))]))),
+            : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // ── Opening & Closing Time ──────────────────────────────────────
       const SizedBox(height:12),
