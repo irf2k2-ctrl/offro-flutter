@@ -5125,7 +5125,7 @@ class _BannerSection extends StatelessWidget {
     return Column(children: [
       const SizedBox(height: 16),
       SizedBox(
-        height: 200,
+        height: 160,
         child: PageView.builder(
           controller: sliderPc,
           clipBehavior: Clip.hardEdge,

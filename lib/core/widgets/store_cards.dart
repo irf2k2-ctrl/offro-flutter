@@ -186,15 +186,15 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     // base64 image
     if (url.startsWith("data:image")) {
       try { return Image.memory(base64Decode(url.split(",").last),
-        fit: BoxFit.contain, width: double.infinity, height: double.infinity, alignment: Alignment.center, gaplessPlayback: true); }
+        fit: BoxFit.cover, width: double.infinity, height: double.infinity, gaplessPlayback: true); }
       catch (_) { if (kDebugMode) debugPrint("[Offro] suppressed error"); }
     }
 
     // Network image
     return CachedNetworkImage(
-      imageUrl: url, fit: BoxFit.contain,
+      imageUrl: url, fit: BoxFit.cover,
       width: double.infinity, height: double.infinity, memCacheWidth: 900,
-      alignment: Alignment.center,
+      
       placeholder: (_, __) => Container(color: const Color(0xFF3E5F55)),
       errorWidget: (_, __, ___) => Container(
         decoration: const BoxDecoration(
