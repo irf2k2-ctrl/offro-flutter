@@ -5119,34 +5119,29 @@ class _BannerSection extends StatelessWidget {
 
   @override Widget build(BuildContext context) {
     if (sliders.isEmpty) {
-      return const SizedBox(height: 138,
+      return const SizedBox(height: 190,
         child: Center(child: CircularProgressIndicator(color: Color(0xFFA9CDBA), strokeWidth: 2)));
     }
     return Column(children: [
       const SizedBox(height: 16),
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final bannerHeight = (constraints.maxWidth - 20) / (16 / 6);
-          return SizedBox(
-            height: bannerHeight.clamp(120.0, 200.0),
-            child: PageView.builder(
-              controller: sliderPc,
-              clipBehavior: Clip.hardEdge,
-              itemCount: sliders.length > 1 ? 99999 : sliders.length,
-              onPageChanged: onSliderPageChanged,
-              itemBuilder: (_, i) {
-                final s = sliders[i % sliders.length];
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-                  child: PromoSliderCard(
-                    slider: Map<String,dynamic>.from(s as Map),
-                    token: token,
-                  ),
-                );
-              },
-            ),
-          );
-        },
+      SizedBox(
+        height: 190,
+        child: PageView.builder(
+          controller: sliderPc,
+          clipBehavior: Clip.hardEdge,
+          itemCount: sliders.length > 1 ? 99999 : sliders.length,
+          onPageChanged: onSliderPageChanged,
+          itemBuilder: (_, i) {
+            final s = sliders[i % sliders.length];
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+              child: PromoSliderCard(
+                slider: Map<String,dynamic>.from(s as Map),
+                token: token,
+              ),
+            );
+          },
+        ),
       ),
       if (sliders.length > 1) ...[
         const SizedBox(height: 8),
