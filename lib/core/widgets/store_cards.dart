@@ -222,43 +222,8 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       } : null,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(radius),
-        child: Stack(fit: StackFit.expand, children: [
-          _buildMedia(mediaUrl),
-
-          // Gradient overlay (skip for video to keep it clean)
-          if (!_isVideo(mediaUrl))
-            Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent, Colors.transparent,
-                  Colors.black.withValues(alpha: .55),
-                  Colors.black.withValues(alpha: .80),
-                ],
-                stops: const [0.0, 0.40, 0.75, 1.0],
-              ),
-            ))),
-
-          // Text overlay
-          if (!widget.hideText && (title.isNotEmpty || subtitle.isNotEmpty))
-            Positioned(bottom: 14, left: 14, right: 14,
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                if (title.isNotEmpty)
-                  Text(title,
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900,
-                      height: 1.2, shadows: [Shadow(blurRadius: 8, color: Colors.black87)]),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                if (subtitle.isNotEmpty && subtitle != title) ...[
-                  const SizedBox(height: 3),
-                  Text(subtitle,
-                    style: TextStyle(color: Colors.white.withValues(alpha: .80), fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      shadows: const [Shadow(blurRadius: 6, color: Colors.black54)]),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ],
-              ]),
-            ),
-        ]),
+        // No overlays — image shown exactly as designed, colors preserved
+        child: _buildMedia(mediaUrl),
       ),
     );
   }
