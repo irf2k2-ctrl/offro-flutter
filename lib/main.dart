@@ -5119,29 +5119,35 @@ class _BannerSection extends StatelessWidget {
 
   @override Widget build(BuildContext context) {
     if (sliders.isEmpty) {
-      return const SizedBox(height: 190,
+      return const SizedBox(height: 170,
         child: Center(child: CircularProgressIndicator(color: Color(0xFFA9CDBA), strokeWidth: 2)));
     }
     return Column(children: [
       const SizedBox(height: 16),
-      SizedBox(
-        height: 190,
-        child: PageView.builder(
-          controller: sliderPc,
-          clipBehavior: Clip.hardEdge,
-          itemCount: sliders.length > 1 ? 99999 : sliders.length,
-          onPageChanged: onSliderPageChanged,
-          itemBuilder: (_, i) {
-            final s = sliders[i % sliders.length];
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-              child: PromoSliderCard(
-                slider: Map<String,dynamic>.from(s as Map),
-                token: token,
-              ),
-            );
-          },
-        ),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final bannerWidth  = constraints.maxWidth - 20; // 10px padding each side
+          final bannerHeight = (bannerWidth / 2.35).clamp(140.0, 220.0);
+          return SizedBox(
+            height: bannerHeight,
+            child: PageView.builder(
+              controller: sliderPc,
+              clipBehavior: Clip.hardEdge,
+              itemCount: sliders.length > 1 ? 99999 : sliders.length,
+              onPageChanged: onSliderPageChanged,
+              itemBuilder: (_, i) {
+                final s = sliders[i % sliders.length];
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+                  child: PromoSliderCard(
+                    slider: Map<String,dynamic>.from(s as Map),
+                    token: token,
+                  ),
+                );
+              },
+            ),
+          );
+        },
       ),
       if (sliders.length > 1) ...[
         const SizedBox(height: 8),
@@ -6701,34 +6707,41 @@ class _PromoSliderSection extends StatelessWidget {
           child: Text("Featured Banners",
             style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
         ),
-        SizedBox(
-          height: 170,
-          child: PageView.builder(
-            controller: sliderPc,
-            clipBehavior: Clip.none,
-            itemCount: sliders.isNotEmpty ? 99999 : 0, // always loop
-            onPageChanged: onSliderPageChanged,
-            itemBuilder: (_, i) {
-              final s = sliders[i % sliders.length];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: PromoSliderCard(
-                  slider: Map<String,dynamic>.from(s as Map),
-                  token: token,
-                  squareCorners: false,
-                  hideText: false,
-                  // Auto-advance to next slide when video finishes
-                  onVideoComplete: () {
-                    if (sliderPc.hasClients) {
-                      sliderPc.nextPage(
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeInOut);
-                    }
-                  },
-                ),
-              );
-            },
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Banner aspect ratio 2.35:1 — matches typical promotional banner dimensions
+            // This ensures the full image is shown without top/bottom letterboxing or cropping
+            final bannerWidth  = constraints.maxWidth - 32; // 16px padding each side
+            final bannerHeight = (bannerWidth / 2.35).clamp(140.0, 220.0);
+            return SizedBox(
+              height: bannerHeight,
+              child: PageView.builder(
+                controller: sliderPc,
+                clipBehavior: Clip.none,
+                itemCount: sliders.isNotEmpty ? 99999 : 0, // always loop
+                onPageChanged: onSliderPageChanged,
+                itemBuilder: (_, i) {
+                  final s = sliders[i % sliders.length];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: PromoSliderCard(
+                      slider: Map<String,dynamic>.from(s as Map),
+                      token: token,
+                      squareCorners: false,
+                      hideText: false,
+                      onVideoComplete: () {
+                        if (sliderPc.hasClients) {
+                          sliderPc.nextPage(
+                            duration: const Duration(milliseconds: 500),
+                            curve: Curves.easeInOut);
+                        }
+                      },
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
         // Dots
         const SizedBox(height: 10),
