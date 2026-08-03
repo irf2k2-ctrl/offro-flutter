@@ -296,17 +296,20 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kBg,
     appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("My Banners",style:TextStyle(fontWeight:FontWeight.w800))]),
+      titleSpacing:8,
+      title:Row(children:[buildImageLogo(height:22,white:true),const SizedBox(width:6),
+        const Flexible(child:Text("My Banners",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:16)))]),
       backgroundColor: Colors.white, foregroundColor: kText,
       actions:[
         Padding(
-          padding:const EdgeInsets.only(right:12),
+          padding:const EdgeInsets.only(right:8),
           child:OutlinedButton.icon(
-            icon:const Icon(Icons.add,size:16,color:kPrimary),
-            label:const Text("New Banner",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:kPrimary)),
+            icon:const Icon(Icons.add,size:14,color:kPrimary),
+            label:const Text("New Banner",style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,color:kPrimary)),
             onPressed:()=>Navigator.push(context,_offroRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
             style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
-              padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
+              padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+              minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap,
               shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
           ),
         ),
@@ -1379,21 +1382,23 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
+        titleSpacing:8,
         title: Row(children: [
-          buildImageLogo(height: 24, white: true),
-          const SizedBox(width: 8),
-          const Text("My Products", style: TextStyle(fontWeight: FontWeight.w800)),
+          buildImageLogo(height: 22, white: true),
+          const SizedBox(width: 6),
+          const Flexible(child:Text("My Products", overflow:TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800,fontSize:16))),
         ]),
         backgroundColor: Colors.white, foregroundColor: kText,
         actions: [
           Padding(
             padding:const EdgeInsets.only(right:4),
             child:OutlinedButton.icon(
-              icon:const Icon(Icons.add,size:16,color:kPrimary),
-              label:const Text("New Product",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:kPrimary)),
+              icon:const Icon(Icons.add,size:14,color:kPrimary),
+              label:const Text("New Product",style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,color:kPrimary)),
               onPressed:()=>_showProductTypeDialog(context, widget.token, _load),
               style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
-                padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
+                padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap,
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
             ),
           ),
@@ -2932,17 +2937,19 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
-    appBar: AppBar(title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("My Stores",style:TextStyle(fontWeight:FontWeight.w800))]),
+    appBar: AppBar(titleSpacing:8,title:Row(children:[buildImageLogo(height:22,white:true),const SizedBox(width:6),
+        const Flexible(child:Text("My Stores",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:16)))]),
         backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
         actions:[
           Padding(
-            padding:const EdgeInsets.only(right:12),
+            padding:const EdgeInsets.only(right:8),
             child:OutlinedButton.icon(
-              icon:const Icon(Icons.add_business,size:16,color:kPrimary),
-              label:const Text("New Store",style:TextStyle(fontSize:12,fontWeight:FontWeight.w600,color:kPrimary)),
+              icon:const Icon(Icons.add_business,size:14,color:kPrimary),
+              label:const Text("New Store",style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,color:kPrimary)),
               onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
               style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
-                padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
+                padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap,
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
             ),
           ),
