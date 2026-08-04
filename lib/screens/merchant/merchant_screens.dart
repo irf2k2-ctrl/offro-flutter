@@ -28,6 +28,31 @@ import 'products_phase2.dart';
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
 
+/// PERMANENT HEADER REDESIGN: small circular filled "+" action button used
+/// in place of the old large outlined "New X" buttons across merchant list
+/// screens (My Stores / My Products / My Banners / etc). 42-44px perfect
+/// circle, primary green fill, white icon.
+Widget offroHeaderAddButton({
+  required IconData icon,
+  required VoidCallback onPressed,
+  String tooltip = "Add",
+  double size = 44,
+}) {
+  final btn = Material(
+    color: kPrimary,
+    shape: const CircleBorder(),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onPressed,
+      child: SizedBox(
+        width: size, height: size,
+        child: Icon(icon, color: Colors.white, size: size * 0.5),
+      ),
+    ),
+  );
+  return Tooltip(message: tooltip, child: btn);
+}
+
 // ══════════════════════════════════════════════════════════
 // MERCHANT HOME PAGE — 3 section cards
 // ══════════════════════════════════════════════════════════
@@ -296,21 +321,18 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kBg,
     appBar:AppBar(
-      titleSpacing:8,
-      title:Row(children:[buildImageLogo(height:22,white:true),const SizedBox(width:6),
-        const Flexible(child:Text("My Banners",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:16)))]),
+      toolbarHeight:58,
+      titleSpacing:16,
+      centerTitle:true,
+      title:const Text("My Banners",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
       backgroundColor: Colors.white, foregroundColor: kText,
       actions:[
         Padding(
-          padding:const EdgeInsets.only(right:8),
-          child:OutlinedButton.icon(
-            icon:const Icon(Icons.add,size:14,color:kPrimary),
-            label:const Text("New Banner",style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,color:kPrimary)),
+          padding:const EdgeInsets.only(right:18),
+          child:offroHeaderAddButton(
+            icon:Icons.add,
+            tooltip:"New Banner",
             onPressed:()=>Navigator.push(context,_offroRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
-            style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
-              padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-              minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap,
-              shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
           ),
         ),
       ],
@@ -343,15 +365,23 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                   itemBuilder:(_,i){
                     final b = _banners[i];
                     // FIX 1: use approval_status as primary, fall back to status
-                    // TASK 4: expired check
+                    // PERMANENT FIX: trust the server's authoritative "is_expired"
+                    // flag first (it parses end_date in ANY stored format —
+                    // ISO or "%d %b %Y" — so it's always correct, unlike a local
+                    // DateTime.parse() which silently fails on non-ISO strings).
                     String rawStatus = (b["approval_status"]??"") != ""
                         ? (b["approval_status"] ?? "pending")
                         : (b["status"] ?? "pending");
-                    final _bEndRaw = b["end_date"]?.toString() ?? "";
-                    if (rawStatus == "approved" && _bEndRaw.isNotEmpty) {
-                      try { final _bEnd = DateTime.parse(_bEndRaw);
-                        if (DateTime.now().isAfter(_bEnd)) rawStatus = "expired";
-                      } catch (_) {}
+                    if (b["is_expired"] == true) {
+                      rawStatus = "expired";
+                    } else if (rawStatus == "approved") {
+                      // Fallback for older backend responses without is_expired
+                      final _bEndRaw = b["end_date"]?.toString() ?? "";
+                      if (_bEndRaw.isNotEmpty) {
+                        try { final _bEnd = DateTime.parse(_bEndRaw);
+                          if (DateTime.now().isAfter(_bEnd)) rawStatus = "expired";
+                        } catch (_) {}
+                      }
                     }
                     // Override rawStatus with is_active / deleted_by_admin flags
                     final bool _bIsActive      = b["is_active"] != false;
@@ -1382,27 +1412,13 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
-        titleSpacing:8,
-        title: Row(children: [
-          buildImageLogo(height: 22, white: true),
-          const SizedBox(width: 6),
-          const Flexible(child:Text("My Products", overflow:TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800,fontSize:16))),
-        ]),
+        toolbarHeight:58,
+        titleSpacing:16,
+        centerTitle:true,
+        title: const Text("My Products", overflow:TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800,fontSize:17)),
         backgroundColor: Colors.white, foregroundColor: kText,
         actions: [
-          Padding(
-            padding:const EdgeInsets.only(right:4),
-            child:OutlinedButton.icon(
-              icon:const Icon(Icons.add,size:14,color:kPrimary),
-              label:const Text("New Product",style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,color:kPrimary)),
-              onPressed:()=>_showProductTypeDialog(context, widget.token, _load),
-              style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
-                padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap,
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
-            ),
-          ),
-                    // Filter button with active indicator
+          // Filter button with active indicator — unchanged, kept before the + button
           Stack(clipBehavior: Clip.none, children: [
             IconButton(
               icon: const Icon(Icons.filter_list_rounded),
@@ -1415,6 +1431,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 child: Container(width: 8, height: 8,
                   decoration: const BoxDecoration(color: kPrimary, shape: BoxShape.circle))),
           ]),
+          Padding(
+            padding:const EdgeInsets.only(right:18),
+            child:offroHeaderAddButton(
+              icon:Icons.add,
+              tooltip:"New Product",
+              onPressed:()=>_showProductTypeDialog(context, widget.token, _load),
+            ),
+          ),
         ],
       ),
       body: Column(children: [
@@ -2937,20 +2961,19 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
-    appBar: AppBar(titleSpacing:8,title:Row(children:[buildImageLogo(height:22,white:true),const SizedBox(width:6),
-        const Flexible(child:Text("My Stores",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:16)))]),
+    appBar: AppBar(
+        toolbarHeight:58,
+        titleSpacing:16,
+        centerTitle:true,
+        title:const Text("My Stores",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
         backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
         actions:[
           Padding(
-            padding:const EdgeInsets.only(right:8),
-            child:OutlinedButton.icon(
-              icon:const Icon(Icons.add_business,size:14,color:kPrimary),
-              label:const Text("New Store",style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,color:kPrimary)),
+            padding:const EdgeInsets.only(right:18),
+            child:offroHeaderAddButton(
+              icon:Icons.add_business,
+              tooltip:"New Store",
               onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
-              style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),foregroundColor:kPrimary,
-                padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap,
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
             ),
           ),
         ]),
