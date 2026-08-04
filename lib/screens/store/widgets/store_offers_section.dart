@@ -25,7 +25,7 @@ class StoreOffersSection extends StatelessWidget {
     try {
       final dt = DateTime.parse(raw.substring(0, 10));
       const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return '\${dt.day} \${m[dt.month - 1]} \${dt.year}';
+      return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
     } catch (_) {}
     // Already in "dd MMM yyyy" format — return as-is
     return raw;
@@ -264,7 +264,7 @@ class StoreOffersSection extends StatelessWidget {
                                     const SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
-                                        'Valid till \${_formatDate(endDate)}',
+                                        'Valid till ${_formatDate(endDate)}',
                                         style: const TextStyle(
                                             color: kPrimary,
                                             fontSize: 10,

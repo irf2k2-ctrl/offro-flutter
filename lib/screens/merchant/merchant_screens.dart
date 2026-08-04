@@ -4969,6 +4969,32 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
     if (mounted) setState(() => _loading = false);
   }
 
+  /// Parse "yyyy-MM-dd" or "dd MMM yyyy" without a third-party date library.
+  static DateTime? _parseDealDate(String s) {
+    s = s.trim();
+    if (s.isEmpty) return null;
+    try { return DateTime.parse(s.substring(0, 10)); } catch (_) {}
+    final months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                    "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+    final parts = s.split(RegExp(r"[\s/-]+"));
+    if (parts.length == 3) {
+      try {
+        final day = int.parse(parts[0]);
+        final mon = months[parts[1].toLowerCase().substring(0,3)] ?? 0;
+        final yr  = int.parse(parts[2]);
+        if (mon > 0) return DateTime(yr, mon, day);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  static String _formatDealDate(String raw) {
+    final dt = _parseDealDate(raw);
+    if (dt == null) return raw;
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${m[dt.month - 1]} ${dt.year}";
+  }
+
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
     appBar: AppBar(
@@ -5021,7 +5047,35 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                 child: Center(child: Text("${d['discount'] ?? 0}%",
                   style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13)))),
               title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kText)),
-              subtitle: Text("${d['store_name'] ?? ''} • ${d['category'] ?? ''}", style: const TextStyle(color: kMuted, fontSize: 12)),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text("${d['store_name'] ?? ''} • ${d['category'] ?? ''}", style: const TextStyle(color: kMuted, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Builder(builder: (_) {
+                    final endStr = d["end_date"]?.toString() ?? "";
+                    final endDt = _parseDealDate(endStr);
+                    final isExpired = endDt != null && endDt.isBefore(DateTime.now());
+                    return Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (endStr.isNotEmpty) ...[
+                        const Icon(Icons.calendar_today_rounded, size: 11, color: kMuted),
+                        const SizedBox(width: 4),
+                        Text("Ends ${_formatDealDate(endStr)}", style: const TextStyle(color: kMuted, fontSize: 11)),
+                        const SizedBox(width: 8),
+                      ],
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isExpired ? Colors.red.withValues(alpha: .12) : Colors.green.withValues(alpha: .12),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(isExpired ? "Expired" : "Active",
+                          style: TextStyle(color: isExpired ? Colors.red.shade700 : Colors.green.shade700, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ),
+                    ]);
+                  }),
+                ]),
+              ),
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, color: kPrimary),
@@ -5185,7 +5239,7 @@ class _AddDealState extends State<AddDealPage> {
     if (_storeExpiryDate != null) {
       final endDt = DateTime.tryParse(_endDate);
       if (endDt != null && endDt.isAfter(_storeExpiryDate!)) {
-        setState(() => _msg = "End date cannot exceed store expiry ($_storeExpiryDisplay())");
+        setState(() => _msg = "End date cannot exceed store expiry (${_storeExpiryDisplay()})");
         return;
       }
     }
@@ -5272,12 +5326,18 @@ class _AddDealState extends State<AddDealPage> {
           child: Row(children: [
             const Icon(Icons.calendar_today_rounded, color: kMuted, size: 20),
             const SizedBox(width: 12),
-            Text(_endDate.isEmpty ? "Select End Date" : _formatEndDateDisplay(),
-              style: TextStyle(color: _endDate.isEmpty ? kMuted : kText, fontSize: 14, fontWeight: FontWeight.w600)),
-            const Spacer(),
-            if (_storeExpiryDate != null)
-              Text("Max: $_storeExpiryDisplay()",
+            Expanded(
+              child: Text(_endDate.isEmpty ? "Select End Date" : _formatEndDateDisplay(),
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: _endDate.isEmpty ? kMuted : kText, fontSize: 14, fontWeight: FontWeight.w600)),
+            ),
+            if (_storeExpiryDate != null) ...[
+              const SizedBox(width: 8),
+              Text("Max: ${_storeExpiryDisplay()}",
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
                 style: const TextStyle(color: kMuted, fontSize: 10)),
+            ],
           ]))),
       const SizedBox(height: 20),
       SizedBox(height: 50, child: ElevatedButton(
