@@ -18,6 +18,19 @@ class StoreOffersSection extends StatelessWidget {
     this.storeId = '',
   });
 
+  /// Format a date string (yyyy-MM-dd or dd MMM yyyy) as "d MMM yyyy"
+  static String _formatDate(String raw) {
+    if (raw.isEmpty) return '';
+    // Try yyyy-MM-dd
+    try {
+      final dt = DateTime.parse(raw.substring(0, 10));
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '\${dt.day} \${m[dt.month - 1]} \${dt.year}';
+    } catch (_) {}
+    // Already in "dd MMM yyyy" format — return as-is
+    return raw;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -251,7 +264,7 @@ class StoreOffersSection extends StatelessWidget {
                                     const SizedBox(width: 4),
                                     Flexible(
                                       child: Text(
-                                        'Valid till $endDate',
+                                        'Valid till \${_formatDate(endDate)}',
                                         style: const TextStyle(
                                             color: kPrimary,
                                             fontSize: 10,

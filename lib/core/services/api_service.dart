@@ -210,6 +210,21 @@ class Api {
   }
   static Future<Map<String,dynamic>> addDeal(String token, Map<String,dynamic> data) =>
       _post("/merchant/deals", data, token: token);
+  static Future<void> updateDeal(String token, String dealId, Map<String,dynamic> data) async {
+    try {
+      final r = await http.put(Uri.parse("$kBaseUrl/merchant/deals/$dealId"),
+          headers: {..._h(token), 'Content-Type': 'application/json'},
+          body: jsonEncode(data)).timeout(const Duration(seconds: 20));
+      if (r.statusCode >= 400) {
+        final body = jsonDecode(r.body);
+        throw Exception(body['detail'] ?? 'Failed to update deal');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Failed to update deal: $e');
+    }
+  }
+
   static Future<void> deleteDeal(String token, String dealId) async {
     try {
       final r = await http.delete(Uri.parse("$kBaseUrl/merchant/deals/$dealId"), headers: _h(token)).timeout(const Duration(seconds: 20));

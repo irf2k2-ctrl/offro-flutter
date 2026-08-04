@@ -229,17 +229,16 @@ class _StoreDetailPageState extends State<StoreDetailPage>
                 : StoreHighlights(store: _store),
           ),
 
-          // ── TODAY'S OFFERS — show immediately if initial store data has deals ──
-          if (deals.isNotEmpty)
-            SliverToBoxAdapter(
-              child: StoreOffersSection(
+          // ── TODAY'S OFFERS — always show (template card when no deals yet) ──
+          SliverToBoxAdapter(
+            child: StoreOffersSection(
                       deals:     deals,
                       storeName: _store['store_name']?.toString() ?? '',
                       storeArea: _store['area']?.toString() ?? '',
                       storeCity: _store['city']?.toString() ?? '',
                       storeId:   storeId,
                     ),
-            ),
+          ),
 
           // ── TABS: About · Products · Reviews · Rewards ──
           SliverToBoxAdapter(

@@ -4971,24 +4971,35 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
-    appBar: AppBar(title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("My Deals",style:TextStyle(fontWeight:FontWeight.w800))]), backgroundColor: Colors.white, foregroundColor: kText, automaticallyImplyLeading:false),
-    floatingActionButton: FloatingActionButton.extended(
-      backgroundColor: Colors.white, foregroundColor: kText,
-      icon: const Icon(Icons.add), label: const Text("Add Deal"),
-      onPressed: () {
-        final activeStores = _stores.where((s) => s["status"] == "active").toList();
-        if (activeStores.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("You need an active store to add deals."), backgroundColor: Colors.orange));
-          return;
-        }
-        Navigator.push(context, _offroRoute(AddDealPage(
-          token: widget.token,
-          storeId: activeStores[0]["_id"] ?? "",
-          storeName: activeStores[0]["store_name"] ?? "",
-          stores: activeStores,
-        ))).then((_) => _load());
-      }),
+    appBar: AppBar(
+        toolbarHeight:58,
+        titleSpacing:16,
+        centerTitle:true,
+        title:const Text("My Deals",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
+        backgroundColor: Colors.white, foregroundColor: kText, automaticallyImplyLeading:false,
+        actions:[
+          Padding(
+            padding:const EdgeInsets.only(right:18),
+            child:offroHeaderAddButton(
+              icon:Icons.add,
+              tooltip:"Add Deal",
+              onPressed: () {
+                final activeStores = _stores.where((s) => s["status"] == "active").toList();
+                if (activeStores.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text("You need an active store to add deals."), backgroundColor: Colors.orange));
+                  return;
+                }
+                Navigator.push(context, _offroRoute(AddDealPage(
+                  token: widget.token,
+                  storeId: activeStores[0]["_id"] ?? "",
+                  storeName: activeStores[0]["store_name"] ?? "",
+                  stores: activeStores,
+                ))).then((_) => _load());
+              },
+            ),
+          ),
+        ]),
     body: _loading ? const Center(child: CircularProgressIndicator(color: kPrimary)) :
       _deals.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         const Icon(Icons.local_offer_outlined, size: 64, color: kAccent),
@@ -5011,35 +5022,50 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                   style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13)))),
               title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kText)),
               subtitle: Text("${d['store_name'] ?? ''} • ${d['category'] ?? ''}", style: const TextStyle(color: kMuted, fontSize: 12)),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                onPressed: () async {
-                  final confirm = await showDialog<bool>(context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text("Delete Deal?"),
-                      content: Text("Delete \"${d['title']}\"?"),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-                        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          onPressed: () => Navigator.pop(context, true), child: const Text("Delete", style: TextStyle(color: Colors.white))),
-                      ]));
-                  if (confirm == true) {
-                    await Api.deleteDeal(widget.token, d["_id"]);
-                    _load();
-                  }
-                }),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, color: kPrimary),
+                  tooltip: "Edit Deal",
+                  onPressed: () {
+                    Navigator.push(context, _offroRoute(AddDealPage(
+                      token: widget.token,
+                      storeId: d["store_id"]?.toString() ?? "",
+                      storeName: d["store_name"]?.toString() ?? "",
+                      stores: _stores.where((s) => s["status"] == "active").toList(),
+                      editDeal: Map<String,dynamic>.from(d),
+                    ))).then((_) => _load());
+                  }),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text("Delete Deal?"),
+                        content: Text("Delete \"${d['title']}\"?"),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            onPressed: () => Navigator.pop(context, true), child: const Text("Delete", style: TextStyle(color: Colors.white))),
+                        ]));
+                    if (confirm == true) {
+                      await Api.deleteDeal(widget.token, d["_id"]);
+                      _load();
+                    }
+                  }),
+              ]),
             ));
         },
       )),
   );
 }
 
-// ─────────────────────── ADD DEAL PAGE ───────────────────────
+// ─────────────────────── ADD / EDIT DEAL PAGE ───────────────────────
 class AddDealPage extends StatefulWidget {
   final String token; final String storeId; final String storeName;
   final List<Map<String,dynamic>> stores;
+  final Map<String,dynamic>? editDeal;  // null = add mode, non-null = edit mode
   const AddDealPage({super.key, required this.token, required this.storeId,
-    required this.storeName, this.stores = const <Map<String,dynamic>>[]});
+    required this.storeName, this.stores = const <Map<String,dynamic>>[], this.editDeal});
   @override State<AddDealPage> createState() => _AddDealState();
 }
 class _AddDealState extends State<AddDealPage> {
@@ -5050,14 +5076,103 @@ class _AddDealState extends State<AddDealPage> {
   List<dynamic> _categories = [];
   late String _selectedStoreId;
   late String _selectedStoreName;
+  late String _endDate;
+  DateTime? _storeExpiryDate;
 
-  @override void initState() {
+  bool get _isEdit => widget.editDeal != null;
+
+  @override
+  void initState() {
     super.initState();
     _selectedStoreId = widget.storeId;
     _selectedStoreName = widget.storeName;
+
+    if (_isEdit) {
+      final d = widget.editDeal!;
+      _title.text = d["title"]?.toString() ?? "";
+      _desc.text  = d["description"]?.toString() ?? "";
+      _disc.text  = d["discount"]?.toString() ?? "";
+      _category  = d["category"]?.toString() ?? "";
+      _endDate   = d["end_date"]?.toString() ?? "";
+      _selectedStoreId = d["store_id"]?.toString() ?? widget.storeId;
+      _selectedStoreName = d["store_name"]?.toString() ?? widget.storeName;
+    } else {
+      _endDate = DateTime.now().add(const Duration(days: 30)).toIso8601String().substring(0, 10);
+    }
+
+    _loadStoreExpiry();
     Api.fetchCategories(token: widget.token).then((v) { if (mounted) setState(() => _categories = v as List); });
   }
+
+  void _loadStoreExpiry() {
+    for (final s in widget.stores) {
+      if (s["_id"]?.toString() == _selectedStoreId) {
+        final subEnd = s["subscription_end"]?.toString() ?? "";
+        if (subEnd.isNotEmpty) {
+          _storeExpiryDate = _parseDateString(subEnd);
+        }
+        break;
+      }
+    }
+  }
+
+  /// Parse "dd MMM yyyy" (e.g. "02 Aug 2026") or "yyyy-MM-dd" without intl.
+  static DateTime? _parseDateString(String s) {
+    s = s.trim();
+    // Try yyyy-MM-dd
+    try { return DateTime.parse(s.substring(0, 10)); } catch (_) {}
+    // Try "dd MMM yyyy"
+    final months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                    "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+    final parts = s.split(RegExp(r"[\s/-]+"));
+    if (parts.length == 3) {
+      try {
+        final day = int.parse(parts[0]);
+        final mon = months[parts[1].toLowerCase().substring(0,3)] ?? 0;
+        final yr  = int.parse(parts[2]);
+        if (mon > 0) return DateTime(yr, mon, day);
+      } catch (_) {}
+      // Also try yyyy-MM-dd format where parts are split by -
+      if (parts[0].length == 4) {
+        try { return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2])); } catch (_) {}
+      }
+    }
+    return null;
+  }
+
   @override void dispose() { _title.dispose(); _desc.dispose(); _disc.dispose(); super.dispose(); }
+
+  Future<void> _pickEndDate() async {
+    final now = DateTime.now();
+    final initial = DateTime.tryParse(_endDate) ?? now.add(const Duration(days: 30));
+    DateTime maxDate = _storeExpiryDate ?? now.add(const Duration(days: 365));
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial.isAfter(maxDate) ? maxDate : (initial.isBefore(now) ? now : initial),
+      firstDate: now,
+      lastDate: maxDate,
+      builder: (ctx, child) => Theme(data: Theme.of(ctx).copyWith(
+        colorScheme: ColorScheme.light(primary: kPrimary, onPrimary: Colors.white),
+      ), child: child!),
+    );
+    if (picked != null) {
+      setState(() => _endDate = picked.toIso8601String().substring(0, 10));
+    }
+  }
+
+  String _formatEndDateDisplay() {
+    final dt = DateTime.tryParse(_endDate);
+    if (dt == null) return _endDate;
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
+  }
+
+  String _storeExpiryDisplay() {
+    if (_storeExpiryDate == null) return "";
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${_storeExpiryDate!.day} ${months[_storeExpiryDate!.month - 1]} ${_storeExpiryDate!.year}";
+  }
 
   Future<void> _save() async {
     final discVal = int.tryParse(_disc.text.trim()) ?? 0;
@@ -5065,20 +5180,38 @@ class _AddDealState extends State<AddDealPage> {
     if (_disc.text.trim().isEmpty)  { setState(() => _msg = "Discount % is required"); return; }
     if (discVal <= 0)               { setState(() => _msg = "Discount must be greater than 0%"); return; }
     if (discVal > 100)              { setState(() => _msg = "Discount cannot exceed 100%"); return; }
+    if (_endDate.isEmpty)           { setState(() => _msg = "End date is required"); return; }
+
+    if (_storeExpiryDate != null) {
+      final endDt = DateTime.tryParse(_endDate);
+      if (endDt != null && endDt.isAfter(_storeExpiryDate!)) {
+        setState(() => _msg = "End date cannot exceed store expiry ($_storeExpiryDisplay())");
+        return;
+      }
+    }
+
     setState(() => _loading = true); _msg = "";
     try {
-      await Api.addDeal(widget.token, {
+      final payload = {
         "store_id":    _selectedStoreId,
         "title":       _title.text.trim(),
         "description": _desc.text.trim(),
         "discount":    discVal,
         "category":    _category,
-        "start_date":  DateTime.now().toIso8601String().substring(0, 10),
-        "end_date":    DateTime.now().add(const Duration(days: 30)).toIso8601String().substring(0, 10),
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("✅ Deal added successfully!"), backgroundColor: Color(0xFF1a6640)));
+        "start_date":  _isEdit ? (widget.editDeal!["start_date"]?.toString() ?? DateTime.now().toIso8601String().substring(0, 10)) : DateTime.now().toIso8601String().substring(0, 10),
+        "end_date":    _endDate,
+      };
+      if (_isEdit) {
+        await Api.updateDeal(widget.token, widget.editDeal!["_id"].toString(), payload);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Deal updated!"), backgroundColor: Color(0xFF1a6640)));
+      } else {
+        await Api.addDeal(widget.token, payload);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Deal added!"), backgroundColor: Color(0xFF1a6640)));
+      }
       Navigator.pop(context);
     } catch (e) { setState(() => _msg = e.toString().replaceAll("Exception: ", "")); }
     if (mounted) setState(() => _loading = false);
@@ -5086,7 +5219,7 @@ class _AddDealState extends State<AddDealPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
-    appBar: AppBar(title: const Text("Add Deal"), backgroundColor: Colors.white, foregroundColor: kText),
+    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)), backgroundColor: Colors.white, foregroundColor: kText),
     body: SingleChildScrollView(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.stores.length > 1) ...[
         DropdownButtonFormField<String>(
@@ -5095,7 +5228,7 @@ class _AddDealState extends State<AddDealPage> {
           items: widget.stores.map<DropdownMenuItem<String>>((s) =>
             DropdownMenuItem<String>(value: s["_id"]?.toString() ?? "",
               child: Text(s["store_name"]?.toString() ?? "", overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: (v) { if (v != null) { final s = widget.stores.firstWhere((s) => s["_id"] == v, orElse: () => <String,dynamic>{}); setState(() { _selectedStoreId = v; _selectedStoreName = s["store_name"] ?? ""; }); }},
+          onChanged: (v) { if (v != null) { final s = widget.stores.firstWhere((s) => s["_id"] == v, orElse: () => <String,dynamic>{}); setState(() { _selectedStoreId = v; _selectedStoreName = s["store_name"] ?? ""; }); _loadStoreExpiry(); } },
           decoration: InputDecoration(labelText: "Store", prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
             filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
@@ -5104,8 +5237,7 @@ class _AddDealState extends State<AddDealPage> {
         Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(color: kLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(10)),
           child: Row(children: [const Icon(Icons.store, color: kPrimary, size: 18), const SizedBox(width: 8),
-            Text(_selectedStoreName, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w600))]),
-        ),
+            Text(_selectedStoreName, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w600))])),
       TextField(controller: _title,
         decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
@@ -5129,15 +5261,34 @@ class _AddDealState extends State<AddDealPage> {
         decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+      const SizedBox(height: 12),
+      InkWell(
+        onTap: _pickEndDate,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white, borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: kBorder)),
+          child: Row(children: [
+            const Icon(Icons.calendar_today_rounded, color: kMuted, size: 20),
+            const SizedBox(width: 12),
+            Text(_endDate.isEmpty ? "Select End Date" : _formatEndDateDisplay(),
+              style: TextStyle(color: _endDate.isEmpty ? kMuted : kText, fontSize: 14, fontWeight: FontWeight.w600)),
+            const Spacer(),
+            if (_storeExpiryDate != null)
+              Text("Max: $_storeExpiryDisplay()",
+                style: const TextStyle(color: kMuted, fontSize: 10)),
+          ]))),
       const SizedBox(height: 20),
       SizedBox(height: 50, child: ElevatedButton(
         onPressed: _loading ? null : _save,
         style: ElevatedButton.styleFrom(backgroundColor: kPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
         child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-          : const Text("Add Deal", style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)))),
+          : Text(_isEdit ? "Save Changes" : "Add Deal", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)))),
       if (_msg.isNotEmpty) ...[const SizedBox(height: 10),
         Text(_msg, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 13))],
       const SizedBox(height: 24),
     ])),
   );
+
 }
