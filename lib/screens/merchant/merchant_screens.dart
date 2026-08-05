@@ -2989,100 +2989,177 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
         itemBuilder:(_,i){
           final s = stores[i] as Map;
           final status = s["status"]??"draft";
+          // Status badge config — small, consistent, colored
           Color sc = kMuted;
           String sl = status;
-          if (status=="active") { sc=const Color(0xFF1a6640); sl="✅ Active"; }
-          else if (status=="waiting_approval") { sc=const Color(0xFF856404); sl="⏳ Pending Approval"; }
-          else if (status=="paid") { sc=const Color(0xFF856404); sl="✅ Payment Confirmed"; }
-          else if (status=="draft") { sc=kMuted; sl="📝 Draft"; }
-          else if (status=="inactive") { sc=Colors.red.shade700; sl="❌ Inactive"; }
-          else if (status=="pending") { sc=kMuted; sl="🕐 Pending"; }
+          if (status=="active") { sc=const Color(0xFF1a6640); sl="Active"; }
+          else if (status=="waiting_approval") { sc=const Color(0xFF856404); sl="Pending"; }
+          else if (status=="paid") { sc=const Color(0xFF856404); sl="Paid"; }
+          else if (status=="draft") { sc=kMuted; sl="Draft"; }
+          else if (status=="inactive") { sc=Colors.red.shade700; sl="Inactive"; }
+          else if (status=="pending") { sc=kMuted; sl="Pending"; }
+
           final storeImg = (s["image"]??"").toString();
-          return Card(elevation:2,margin:const EdgeInsets.only(bottom:12),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-            clipBehavior:Clip.antiAlias,
-            child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              if (storeImg.isNotEmpty)
-                storeImg.startsWith("data:")
-                  ? Image.memory(base64Decode(storeImg.split(",").last),height:140,width:double.infinity,fit:BoxFit.cover,
-                      errorBuilder:(_,__,___) => const SizedBox.shrink())
-                  : Image.network(storeImg,height:140,width:double.infinity,fit:BoxFit.cover,
-                      errorBuilder:(_,__,___) => const SizedBox.shrink()),
-              Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Row(children:[
-                Expanded(child:Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kText))),
-                Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
-                    decoration:BoxDecoration(color:sc.withValues(alpha: .12),borderRadius:BorderRadius.circular(20)),
-                    child:Text(sl,style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w600))),
-              ]),
-              const SizedBox(height:6),
-              Text("${s['city']??''}, ${s['area']??''}",style:const TextStyle(color:kMuted,fontSize:12)),
-              Text(s["category"]??"",style:const TextStyle(color:kMuted,fontSize:12)),
-              if ((s["deal_count"] as int? ?? 0) > 0) ...[
-                const SizedBox(height:5),
-                Container(
-                  padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
-                  decoration:BoxDecoration(color:const Color(0xFFFFF0D0),borderRadius:BorderRadius.circular(8),border:Border.all(color:const Color(0xFFE6A817))),
-                  child:Row(mainAxisSize:MainAxisSize.min,children:[
-                    const Icon(Icons.local_offer,size:12,color:Color(0xFFB87A00)),
-                    const SizedBox(width:4),
-                    Text("${s['deal_count']??0} Deal${((s['deal_count']??0)>1)?'s':''} Active",style:const TextStyle(color:Color(0xFFB87A00),fontSize:11,fontWeight:FontWeight.w700)),
-                  ])),
-              ],
-              if ((s["subscription_end"]??'').isNotEmpty)
-                Container(margin:const EdgeInsets.only(top:5),padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                  decoration:BoxDecoration(
-                    color: status=="active" ? const Color(0xFFd1f0e0) : const Color(0xFFFFF3CD),
-                    borderRadius:BorderRadius.circular(8)),
-                  child:Row(mainAxisSize:MainAxisSize.min,children:[
-                    Icon(Icons.event_available,size:13,color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404)),
-                    const SizedBox(width:4),
-                    Text("${status=='active'?'Active till':'Expires'}: ${(s['subscription_end']?.toString() ?? '').split('T').first}",
-                      style:TextStyle(color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404),fontSize:11.5,fontWeight:FontWeight.w700)),
-                  ])),
-              const SizedBox(height:10),
-              Row(children:[
-                if (status=="draft"||status=="inactive"||status=="pending_subscription") ...[
-                  Expanded(child:ElevatedButton.icon(
-                    icon:const Icon(Icons.payment,size:16), label:const Text("Subscribe"),
-                    style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
-                    onPressed:()=>Navigator.push(context,_offroRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
-                  const SizedBox(width:8),
-                  OutlinedButton.icon(
-                    icon:const Icon(Icons.edit,size:16,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary)),
-                    style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
-                    onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load())),
+          Widget _thumb;
+          if (storeImg.isNotEmpty) {
+            _thumb = storeImg.startsWith("data:")
+              ? Image.memory(base64Decode(storeImg.split(",").last),width:80,height:80,fit:BoxFit.cover,
+                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22)))))
+              : Image.network(storeImg,width:80,height:80,fit:BoxFit.cover,
+                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22)))));
+          } else {
+            _thumb = Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22))));
+          }
+
+          // Category icon mapping
+          final cat = (s["category"]??"").toString().toLowerCase();
+          IconData catIcon = Icons.store;
+          if (cat.contains("restaurant")) catIcon = Icons.restaurant;
+          else if (cat.contains("bakery")) catIcon = Icons.bakery_dining;
+          else if (cat.contains("cafe")||cat.contains("coffee")) catIcon = Icons.coffee;
+          else if (cat.contains("grocery")||cat.contains("mart")||cat.contains("super")) catIcon = Icons.local_grocery_store;
+          else if (cat.contains("pharmacy")||cat.contains("medical")) catIcon = Icons.local_pharmacy;
+          else if (cat.contains("salon")||cat.contains("spa")||cat.contains("beauty")) catIcon = Icons.spa;
+          else if (cat.contains("gym")||cat.contains("fitness")) catIcon = Icons.fitness_center;
+          else if (cat.contains("cloth")||cat.contains("fashion")) catIcon = Icons.checkroom;
+          else if (cat.contains("electronic")||cat.contains("mobile")) catIcon = Icons.devices;
+          else if (cat.contains("book")) catIcon = Icons.menu_book;
+          else if (cat.contains("toy")) catIcon = Icons.toys;
+
+          // Build action-buttons row as a plain variable (avoids fragile inline
+          // collection-if/else-if chains inside list literals, which are easy to
+          // break with a stray trailing comma and hard for the Dart parser to recover from).
+          Widget _actionButtons;
+          if (status=="draft"||status=="inactive"||status=="pending_subscription") {
+            _actionButtons = Row(children:[
+              Expanded(child:OutlinedButton.icon(
+                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+              const SizedBox(width:6),
+              Expanded(child:ElevatedButton.icon(
+                icon:const Icon(Icons.payment,size:15), label:const Text("Subscribe",style:TextStyle(fontSize:12)),
+                style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                onPressed:()=>Navigator.push(context,_offroRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
+            ]);
+          } else if (status=="waiting_approval") {
+            _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:Color(0xFF856404),fontSize:11,fontWeight:FontWeight.w600))));
+          } else if (status=="active") {
+            _actionButtons = Row(children:[
+              Expanded(child:OutlinedButton.icon(
+                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+              const SizedBox(width:6),
+              Expanded(child:OutlinedButton.icon(
+                icon:const Icon(Icons.add_shopping_cart,size:15,color:kPrimary),label:const Text("Deals",style:TextStyle(color:kPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                onPressed:()=>Navigator.push(context,_offroRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
+              const SizedBox(width:6),
+              Expanded(child:OutlinedButton.icon(
+                icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kPrimary),
+                label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                onPressed:(s["qr_code"]??'').isNotEmpty
+                  ?()=>_showQR(context,s["store_name"]??"",s["qr_code"]??'')
+                  :() async {
+                      final sid = s["_id"]??"";
+                      try {
+                        final res = await Api.resetStoreQr(sid, widget.token);
+                        final qr = res["qr_code"]??"";
+                        if(qr.isNotEmpty){ setState(()=>s["qr_code"]=qr); if(mounted)_showQR(context,s["store_name"]??"",qr); }
+                      } catch(e){ if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: $e"))); }
+                    })),
+            ]);
+          } else {
+            _actionButtons = Row(children:[
+              Expanded(child:OutlinedButton.icon(
+                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+            ]);
+          }
+
+          return Container(
+            margin:const EdgeInsets.only(bottom:10),
+            decoration:BoxDecoration(
+              color:Colors.white,
+              borderRadius:BorderRadius.circular(12),
+              boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.06),blurRadius:8,offset:const Offset(0,2))],
+            ),
+            child:IntrinsicHeight(
+              child:Row(
+                crossAxisAlignment:CrossAxisAlignment.start,
+                children:[
+                  // Green vertical accent line (4px)
+                  Container(width:4,decoration:BoxDecoration(color:kPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
+                  // Thumbnail
+                  Padding(
+                    padding:const EdgeInsets.all(10),
+                    child:ClipRRect(borderRadius:BorderRadius.circular(10),child:_thumb),
+                  ),
+                  // Content area
+                  Expanded(child:Padding(
+                    padding:const EdgeInsets.fromLTRB(0,10,12,10),
+                    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                      // Row 1: Store name + status badge
+                      Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                        Expanded(child:Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:20,color:kText),maxLines:1,overflow:TextOverflow.ellipsis)),
+                        Container(
+                          padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                          decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),
+                          child:Text(sl,style:TextStyle(color:sc,fontSize:10,fontWeight:FontWeight.w700)),
+                        ),
+                      ]),
+                      const SizedBox(height:4),
+                      // Location
+                      Text("${s['city']??''}, ${s['area']??''}",style:const TextStyle(color:kMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis),
+                      const SizedBox(height:2),
+                      // Category with icon
+                      Row(children:[
+                        Icon(catIcon,size:14,color:kMuted),
+                        const SizedBox(width:4),
+                        Flexible(child:Text(s["category"]??"",style:const TextStyle(color:kMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis)),
+                      ]),
+                      const SizedBox(height:6),
+                      // Compact deal + subscription badges
+                      Row(children:[
+                        if ((s["deal_count"] as int? ?? 0) > 0)
+                          Container(
+                            padding:const EdgeInsets.symmetric(horizontal:7,vertical:2),
+                            decoration:BoxDecoration(color:const Color(0xFFFFF0D0),borderRadius:BorderRadius.circular(6),border:Border.all(color:const Color(0xFFE6A817),width:.5)),
+                            child:Row(mainAxisSize:MainAxisSize.min,children:[
+                              const Icon(Icons.local_offer,size:11,color:Color(0xFFB87A00)),
+                              const SizedBox(width:3),
+                              Text("${s['deal_count']??0} Deal${((s['deal_count']??0)>1)?'s':''}",style:const TextStyle(color:Color(0xFFB87A00),fontSize:10,fontWeight:FontWeight.w700)),
+                            ])),
+                        if ((s["deal_count"] as int? ?? 0) > 0 && (s["subscription_end"]??'').isNotEmpty)
+                          const SizedBox(width:6),
+                        if ((s["subscription_end"]??'').isNotEmpty)
+                          Container(
+                            padding:const EdgeInsets.symmetric(horizontal:7,vertical:2),
+                            decoration:BoxDecoration(
+                              color: status=="active" ? const Color(0xFFd1f0e0) : const Color(0xFFFFF3CD),
+                              borderRadius:BorderRadius.circular(6)),
+                            child:Row(mainAxisSize:MainAxisSize.min,children:[
+                              Icon(Icons.event_available,size:11,color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404)),
+                              const SizedBox(width:3),
+                              Text("${status=='active'?'Till':'Exp'}: ${(s['subscription_end']?.toString() ?? '').split('T').first}",
+                                style:TextStyle(color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404),fontSize:10,fontWeight:FontWeight.w700)),
+                            ])),
+                      ]),
+                      // Divider above buttons
+                      const SizedBox(height:8),
+                      const Divider(height:1,thickness:.5,color:Color(0xFFd4e8de)),
+                      const SizedBox(height:8),
+                      // Action buttons — computed above as a plain widget variable
+                      _actionButtons,
+                    ]),
+                  )),
                 ],
-                if (status=="waiting_approval") Expanded(child:Container(
-                  padding:const EdgeInsets.symmetric(vertical:8),
-                  alignment:Alignment.center,
-                  child:const Text("⏳ Awaiting Admin Approval",style:TextStyle(color:Color(0xFF856404),fontSize:12,fontWeight:FontWeight.w600)))),
-                if (status=="active") ...[
-                  Expanded(child:OutlinedButton.icon(
-                    icon:const Icon(Icons.edit,size:16,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary)),
-                    style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
-                    onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
-                  const SizedBox(width:8),
-                  OutlinedButton.icon(
-                    icon:const Icon(Icons.add_shopping_cart,size:16,color:kPrimary),label:const Text("Deals",style:TextStyle(color:kPrimary,fontSize:12)),
-                    style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
-                    onPressed:()=>Navigator.push(context,_offroRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??"")))),
-                ],
-                if (s["status"]=="active") ...[const SizedBox(width:8),OutlinedButton.icon(
-                  icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:16,color:kPrimary),
-                  label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kPrimary,fontSize:12)),
-                  style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
-                  onPressed:(s["qr_code"]??'').isNotEmpty
-                    ?()=>_showQR(context,s["store_name"]??"",s["qr_code"]??'')
-                    :() async {
-                        final sid = s["_id"]??"";
-                        try {
-                          final res = await Api.resetStoreQr(sid, widget.token);
-                          final qr = res["qr_code"]??"";
-                          if(qr.isNotEmpty){ setState(()=>s["qr_code"]=qr); if(mounted)_showQR(context,s["store_name"]??"",qr); }
-                        } catch(e){ if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: $e"))); }
-                      })],
-              ]),
-            ]))]));
+              ),
+            ),
+          );
         },
       )),
   );
@@ -3322,12 +3399,30 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     _name.text  = s["store_name"]??"";
     final rawState = (s["state"]??"").toString().trim();
     final rawCity  = (s["city"]??"").toString().trim();
-    _selState   = rawState.isNotEmpty ? rawState : null;
-    _selCity    = rawCity.isNotEmpty  ? rawCity  : null;
+    // Case-insensitive match against kIndiaStates so dropdown shows the saved value
+    if (rawState.isNotEmpty) {
+      final matched = kIndiaStates.firstWhere(
+        (st) => st.toLowerCase() == rawState.toLowerCase(),
+        orElse: () => rawState,
+      );
+      _selState = matched;
+    } else {
+      _selState = null;
+    }
+    // Case-insensitive match against city list for the matched state
+    if (rawCity.isNotEmpty) {
+      final stateKey = _selState ?? '';
+      final cities = kIndiaCities[stateKey] ?? [];
+      final matchedCity = cities.firstWhere(
+        (c) => c.toLowerCase() == rawCity.toLowerCase(),
+        orElse: () => rawCity,
+      );
+      _selCity = matchedCity;
+      if (matchedCity.isNotEmpty) _loadAreas(matchedCity);
+    } else {
+      _selCity = null;
+    }
     _area.text  = s["area"]??"";       _addr.text = s["address"]??"";
-    // Load area dropdown for the store's city (async, non-blocking)
-    final _storedCity = (s["city"]??"").toString().trim();
-    if (_storedCity.isNotEmpty) _loadAreas(_storedCity);
     _phone.text = s["phone"]??"";      _lat.text  = s["lat"]??"";
     _lng.text   = s["lng"]??"";        _category  = s["category"]??"";
     if ((s["image"]??'').isNotEmpty) _imgB64 = s["image"];
