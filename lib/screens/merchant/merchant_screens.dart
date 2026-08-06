@@ -1242,7 +1242,13 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                               "submitted", "new", "under_review", "in_review"};
     if (pendingVariants.contains(st)) st = "pending_approval";
     if (st == "approved") {
-      final endRaw = v["end_date"]?.toString() ?? "";
+      final isStandard = (v["product_type"]?.toString() ?? "") == "standard";
+      // FIX: Standard products always have end_date:"" from the backend — their
+      // real expiry is the PARENT STORE's subscription_end, not the product's
+      // own end_date (that field is only populated for Premium products). Not
+      // checking the store date meant a Standard product kept showing "Live"
+      // forever, even after the store's subscription lapsed.
+      final endRaw = isStandard ? _storeExpiryRaw(v) : (v["end_date"]?.toString() ?? "");
       if (endRaw.isNotEmpty) {
         final dt = _parseAnyDate(endRaw);
         if (dt != null) {
@@ -1254,6 +1260,20 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       }
     }
     return st;
+  }
+
+  // Returns the RAW (unformatted) store subscription_end string for a standard
+  // product — used by _effectiveStatus() for expiry comparison. Unlike
+  // _storeExpiryLabel(), this does not reformat the date, so _parseAnyDate can
+  // parse either ISO or "dd MMM yyyy" forms directly.
+  String _storeExpiryRaw(Map<String,dynamic> v) {
+    final storeId = (v["store_id"] ?? "").toString();
+    if (storeId.isEmpty) return "";
+    try {
+      final store = _stores.firstWhere((s) =>
+        (s["_id"] ?? s["id"] ?? "").toString() == storeId);
+      return (store["subscription_end"] ?? "").toString().trim();
+    } catch (_) { return ""; }
   }
 
   void _applyFilters() {
@@ -1556,6 +1576,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     final (Color sc, String sl, IconData si) = isStd
         ? switch(status) {
             "approved"             => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
+            "expired"              => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
             "subscription_expired" => (Colors.grey.shade600,    "Paused",  Icons.pause_circle_rounded),
             _                      => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
           }
@@ -3249,6 +3270,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   final _phone= TextEditingController(); final _lat  = TextEditingController();
   final _lng  = TextEditingController();
   String _category = ""; String? _imgB64; String? _img2B64; bool _loading = false; String _msg = "";
+  // FIX (blank Edit screen): the store's image can be EITHER a base64 data
+  // URI (freshly picked, not yet saved) OR a Cloudinary CDN URL (already
+  // saved). Previously both were dumped into _imgB64 and unconditionally
+  // passed to base64Decode() — decoding a URL string threw a FormatException
+  // during build, which in a release APK renders as a silent blank screen.
+  // Keep them in separate fields so the UI renders Image.network for URLs
+  // and Image.memory only for genuine base64.
+  String? _imgUrl; String? _img2Url;
   List<dynamic> _categories = [];
   String? _selState; String? _selCity;
   List<String> _areas = []; bool _areasLoading = false;
@@ -3435,8 +3464,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     _area.text  = _sv(s["area"]);       _addr.text = _sv(s["address"]);
     _phone.text = _sv(s["phone"]);      _lat.text  = _sv(s["lat"]);
     _lng.text   = _sv(s["lng"]);        _category  = _sv(s["category"]);
-    if (_sv(s["image"]).isNotEmpty) _imgB64 = _sv(s["image"]);
-    if (_sv(s["image2"]).isNotEmpty) _img2B64 = _sv(s["image2"]);
+    // FIX: route to the correct field based on actual content — never let a
+    // Cloudinary URL end up in the base64 variable (see _imgUrl comment above).
+    final rawImg  = _sv(s["image"]);
+    final rawImg2 = _sv(s["image2"]);
+    if (rawImg.startsWith("data:")) { _imgB64 = rawImg; _imgUrl = null; }
+    else if (rawImg.isNotEmpty)      { _imgUrl = rawImg; _imgB64 = null; }
+    if (rawImg2.startsWith("data:")) { _img2B64 = rawImg2; _img2Url = null; }
+    else if (rawImg2.isNotEmpty)     { _img2Url = rawImg2; _img2B64 = null; }
     _about.text = _sv(s["about"]);
     final rawOpen  = s["open_time"] == null ? null : _sv(s["open_time"]);
     final rawClose = s["close_time"] == null ? null : _sv(s["close_time"]);
@@ -3812,7 +3847,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         content: Text("Image too large. Max 2MB allowed."), backgroundColor: Colors.red));
       return;
     }
-    setState(() => _imgB64 = "data:image/jpeg;base64,${base64Encode(bytes)}");
+    setState(() { _imgB64 = "data:image/jpeg;base64,${base64Encode(bytes)}"; _imgUrl = null; });
   }
 
 
@@ -3821,7 +3856,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 800);
     if (img == null) return;
     final bytes = await File(img.path).readAsBytes();
-    setState(() => _img2B64 = "data:image/jpeg;base64,${base64Encode(bytes)}");
+    setState(() { _img2B64 = "data:image/jpeg;base64,${base64Encode(bytes)}"; _img2Url = null; });
   }
 
   Future<void> _save() async {
@@ -4071,7 +4106,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder,style:BorderStyle.solid)),
         child: _imgB64!=null
             ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_imgB64!.split(",").last),fit:BoxFit.cover,width:double.infinity))
-            : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+            : (_imgUrl!=null && _imgUrl!.isNotEmpty)
+                ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_imgUrl!,fit:BoxFit.cover,width:double.infinity,
+                    errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMuted,size:36),const SizedBox(height:8),const Text("Tap to change image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600))])))
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // Second image picker — optional logo
       const Text("Upload Logo [Optional]",style:TextStyle(color:kMuted,fontSize:12,fontWeight:FontWeight.w600)),
@@ -4084,7 +4122,15 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                   onTap:(){setState(()=>_img2B64=null);},
                   child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:Colors.black54,shape:BoxShape.circle),child:const Icon(Icons.close,color:Colors.white,size:14)))),
               ])
-            : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+            : (_img2Url!=null && _img2Url!.isNotEmpty)
+                ? Stack(children:[
+                    ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_img2Url!,fit:BoxFit.cover,width:double.infinity,height:110,
+                      errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to change logo",style:TextStyle(color:kMuted,fontSize:12))]))),
+                    Positioned(top:6,right:6,child:GestureDetector(
+                      onTap:(){setState(()=>_img2Url=null);},
+                      child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:Colors.black54,shape:BoxShape.circle),child:const Icon(Icons.close,color:Colors.white,size:14)))),
+                  ])
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // ── Opening & Closing Time ──────────────────────────────────────
       const SizedBox(height:12),
