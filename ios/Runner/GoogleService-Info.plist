@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.offro.app</string>
+	<string>com.mibtech.offro</string>
 	<key>PROJECT_ID</key>
 	<string>offro-e1d3c</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1013219872602:ios:e20e14a7fbebba7bbb6d63</string>
+	<string>1:1013219872602:ios:ca407cba236d3757bb6d63</string>
 </dict>
 </plist>
