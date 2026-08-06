@@ -37,6 +37,7 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
+import 'package:offro_user/firebase_options.dart';
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -177,7 +178,7 @@ double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
 // Background FCM handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   if (kDebugMode) debugPrint('[FCM] Background message: \${message.notification?.title}');
   // Issue 2: Save notification to local history
   try {
@@ -194,8 +195,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Initialize Firebase
-  await Firebase.initializeApp();
+  // 1. Initialize Firebase (iOS needs explicit options — see firebase_options.dart)
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // 2. Register background message handler (must be before runApp)
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
