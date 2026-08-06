@@ -2993,11 +2993,14 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           Color sc = kMuted;
           String sl = status;
           if (status=="active") { sc=const Color(0xFF1a6640); sl="Active"; }
+          else if (status=="expired") { sc=Colors.red.shade700; sl="Expired"; }
           else if (status=="waiting_approval") { sc=const Color(0xFF856404); sl="Pending"; }
           else if (status=="paid") { sc=const Color(0xFF856404); sl="Paid"; }
           else if (status=="draft") { sc=kMuted; sl="Draft"; }
           else if (status=="inactive") { sc=Colors.red.shade700; sl="Inactive"; }
           else if (status=="pending") { sc=kMuted; sl="Pending"; }
+          else if (status=="deleted") { sc=Colors.red.shade400; sl="Deleted"; }
+          else if (status=="removed") { sc=Colors.red.shade400; sl="Removed"; }
 
           final storeImg = (s["image"]??"").toString();
           Widget _thumb;
@@ -3030,7 +3033,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           // collection-if/else-if chains inside list literals, which are easy to
           // break with a stray trailing comma and hard for the Dart parser to recover from).
           Widget _actionButtons;
-          if (status=="draft"||status=="inactive"||status=="pending_subscription") {
+          if (status=="draft"||status=="inactive"||status=="pending_subscription"||status=="expired") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
@@ -3395,10 +3398,17 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     }
   }
 
+  // Safe string coercion — backend fields occasionally come back as numbers
+  // (e.g. lat/lng saved as double for legacy/admin-created stores) instead of
+  // strings. Assigning a non-String directly to TextEditingController.text
+  // throws a type error mid-setState, which in a release APK renders as a
+  // blank screen with no visible crash log. Always coerce via toString().
+  static String _sv(dynamic v) => v == null ? "" : v.toString();
+
   void _populateFromStore(Map s) {
-    _name.text  = s["store_name"]??"";
-    final rawState = (s["state"]??"").toString().trim();
-    final rawCity  = (s["city"]??"").toString().trim();
+    _name.text  = _sv(s["store_name"]);
+    final rawState = _sv(s["state"]).trim();
+    final rawCity  = _sv(s["city"]).trim();
     // Case-insensitive match against kIndiaStates so dropdown shows the saved value
     if (rawState.isNotEmpty) {
       final matched = kIndiaStates.firstWhere(
@@ -3422,14 +3432,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     } else {
       _selCity = null;
     }
-    _area.text  = s["area"]??"";       _addr.text = s["address"]??"";
-    _phone.text = s["phone"]??"";      _lat.text  = s["lat"]??"";
-    _lng.text   = s["lng"]??"";        _category  = s["category"]??"";
-    if ((s["image"]??'').isNotEmpty) _imgB64 = s["image"];
-    if ((s["image2"]??'').isNotEmpty) _img2B64 = s["image2"];
-    _about.text = s["about"]??"";
-    final rawOpen  = s["open_time"]?.toString();
-    final rawClose = s["close_time"]?.toString();
+    _area.text  = _sv(s["area"]);       _addr.text = _sv(s["address"]);
+    _phone.text = _sv(s["phone"]);      _lat.text  = _sv(s["lat"]);
+    _lng.text   = _sv(s["lng"]);        _category  = _sv(s["category"]);
+    if (_sv(s["image"]).isNotEmpty) _imgB64 = _sv(s["image"]);
+    if (_sv(s["image2"]).isNotEmpty) _img2B64 = _sv(s["image2"]);
+    _about.text = _sv(s["about"]);
+    final rawOpen  = s["open_time"] == null ? null : _sv(s["open_time"]);
+    final rawClose = s["close_time"] == null ? null : _sv(s["close_time"]);
     _openTime  = rawOpen!=null  ? rawOpen.split(":").take(2).join(":") : null;
     _closeTime = rawClose!=null ? rawClose.split(":").take(2).join(":") : null;
   }
