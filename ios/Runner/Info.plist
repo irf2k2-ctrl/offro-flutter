@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Localsaver User</string>
+	<string>OffrO</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>localsaver_user</string>
+	<string>offro</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -56,8 +56,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -66,5 +64,30 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- ── iOS Permission Descriptions (Apple REQUIRES these or the app crashes) ── -->
+	<!-- Camera — used by QR code scanner (mobile_scanner) -->
+	<key>NSCameraUsageDescription</key>
+	<string>OffrO needs camera access to scan QR codes for store offers and vouchers.</string>
+	<!-- Location — used by geolocator for nearby stores -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>OffrO needs your location to show nearby stores, deals, and offers around you.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>OffrO needs your location to show nearby stores, deals, and offers around you.</string>
+	<!-- Photo Library — used by image_picker for store/merchant photos -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OffrO needs photo library access to let you upload store images and product photos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>OffrO needs photo library access to save vouchers and invoices to your photos.</string>
+	<!-- Microphone — video_player may request this for video content -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>OffrO may use the microphone for video banner content.</string>
+	<!-- App Transport Security — allow HTTP for development (Railway uses HTTPS so this is a safety net) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
