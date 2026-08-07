@@ -30,7 +30,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       default:
-        throw UnsupportedException(
+        throw UnsupportedError(
           'DefaultFirebaseOptions are not configured for platform '
           '$defaultTargetPlatform.',
         );
