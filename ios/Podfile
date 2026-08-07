@@ -1,6 +1,3 @@
-# Uncomment this line to define a global platform for your project
-# platform :ios, '16.0'
-
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
@@ -11,9 +8,19 @@ project 'Runner', {
 }
 
 def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __dir__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  # Try multiple possible locations for Generated.xcconfig
+  # Standard: ios/Flutter/Generated.xcconfig (when __dir__ = ios/)
+  # Some environments resolve ../Flutter/ to project root instead
+  possible_paths = [
+    File.expand_path(File.join('Flutter', 'Generated.xcconfig'), __dir__),
+    File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __dir__),
+  ]
+
+  generated_xcode_build_settings_path = possible_paths.find { |p| File.exist?(p) }
+
+  unless generated_xcode_build_settings_path
+    tried = possible_paths.join(' or ')
+    raise "#{tried} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
   end
 
   File.foreach(generated_xcode_build_settings_path) do |line|
@@ -27,13 +34,11 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 
 flutter_ios_podfile_setup
 
-# ── iOS 16+ deployment target (per user requirement) ──
-# This must match IPHONEOS_DEPLOYMENT_TARGET in project.pbxproj
+# iOS 16+ deployment target (per user requirement)
 platform :ios, '16.0'
 
 target 'Runner' do
   use_frameworks!
-  use_frameworks! :linkage => :static if ENV['STATIC_FRAMEWORK'] == 'true'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
@@ -42,14 +47,10 @@ target 'Runner' do
 end
 
 post_install do |installer|
-  # Force all pods to use iOS 16 minimum
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'
-      # Fix for Xcode 15+ which requires this for all pods
-      config.build_settings['DEVELOPMENT_TEAM'] = 'ENTER_YOUR_TEAM_ID_HERE'
-      # Fix for pods that use older Swift versions
       config.build_settings['SWIFT_VERSION'] = '5.0'
     end
   end
