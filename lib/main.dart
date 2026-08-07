@@ -16,6 +16,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
@@ -37,7 +38,6 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
-import 'package:offro_user/firebase_options.dart';
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -178,7 +178,7 @@ double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
 // Background FCM handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await Firebase.initializeApp();
   if (kDebugMode) debugPrint('[FCM] Background message: \${message.notification?.title}');
   // Issue 2: Save notification to local history
   try {
@@ -193,85 +193,123 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-
-  // 1. Initialize Firebase (iOS needs explicit options — see firebase_options.dart)
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  // 2. Register background message handler (must be before runApp)
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // 3. Initialize flutter_local_notifications + create high-importance channel
-  await initLocalNotifications();
-  // Wire local notification tap → navigate to NotificationsPage
-  onLocalNotifTap = (payload) {
-    MyApp.navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => const NotificationsPage()),
-    );
+  // ── Global error handlers — catch ANY unhandled exception ──
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('[OFFRO] FlutterError: ${details.exception}');
+    debugPrint('[OFFRO] Stack: ${details.stack}');
   };
 
-  // 4. Configure FCM foreground presentation (iOS only — Android needs local notif)
-  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-    alert: true, badge: true, sound: true,
-  );
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // 5. Request Android 13+ POST_NOTIFICATIONS permission early
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true, badge: true, sound: true,
-    announcement: false, carPlay: false, criticalAlert: false, provisional: false,
-  );
+  // ── 1. Initialize Firebase (with error handling) ──
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint('[OFFRO] ✅ Firebase initialized');
+  } catch (e, st) {
+    debugPrint('[OFFRO] ❌ Firebase init failed: $e');
+    debugPrint('[OFFRO] Stack: $st');
+  }
 
-  // 6. Handle notification that LAUNCHED the app (cold start / terminated state tap)
-  final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
-  if (initialMsg != null) {
-    if (kDebugMode) debugPrint('[FCM] App launched from notification: \${initialMsg.notification?.title}');
-    final _it = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
-    final _ib = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
-    final _ii = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
-    if (_it.isNotEmpty) {
-      await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii);
-      await Prefs.incrementUnread();
-    }
-    // Navigate to NotificationsPage after app fully loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  // ── 2. Register background FCM handler ──
+  try {
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('[OFFRO] Background FCM handler registration failed: $e');
+  }
+
+  // ── 3. Initialize local notifications ──
+  try {
+    await initLocalNotifications();
+    onLocalNotifTap = (payload) {
       MyApp.navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const NotificationsPage()),
       );
-    });
+    };
+    debugPrint('[OFFRO] ✅ Local notifications initialized');
+  } catch (e) {
+    debugPrint('[OFFRO] ❌ Local notifications init failed: $e');
   }
 
-  // 7. Foreground message listener — show local notification manually
+  // ── 4. Configure FCM foreground presentation ──
+  try {
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+      alert: true, badge: true, sound: true,
+    );
+  } catch (e) {
+    debugPrint('[OFFRO] FCM foreground presentation failed: $e');
+  }
+
+  // ── 5. Request notification permission ──
+  try {
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true, badge: true, sound: true,
+      announcement: false, carPlay: false, criticalAlert: false, provisional: false,
+    );
+    debugPrint('[OFFRO] ✅ Notification permission requested');
+  } catch (e) {
+    debugPrint('[OFFRO] ❌ Notification permission failed: $e');
+  }
+
+  // ── 6. Handle notification that LAUNCHED the app ──
+  try {
+    final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMsg != null) {
+      debugPrint('[FCM] App launched from notification');
+      final _it = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
+      final _ib = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
+      final _ii = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
+      if (_it.isNotEmpty) {
+        await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii);
+        await Prefs.incrementUnread();
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        MyApp.navigatorKey.currentState?.push(
+          MaterialPageRoute(builder: (_) => const NotificationsPage()),
+        );
+      });
+    }
+  } catch (e) {
+    debugPrint('[OFFRO] Initial message handling failed: $e');
+  }
+
+  // ── 7. Foreground message listener ──
   FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
-    if (kDebugMode) debugPrint('[FCM] ▶ Foreground message received: \${msg.notification?.title} | \${msg.notification?.body}');
-    if (kDebugMode) debugPrint('[FCM] Data payload: \${msg.data}');
-    showLocalNotification(msg); // show banner while app is open
-    // Save to notification history (must await inside async listener)
-    final _t = msg.notification?.title ?? msg.data['title'] ?? '';
-    final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
-    final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-    if (_t.isNotEmpty) {
-      await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
-      await Prefs.incrementUnread(); // Prefs is static — safe to call anywhere
-      _unreadNotifier.value++; // Update UI badge in real time
+    if (kDebugMode) debugPrint('[FCM] Foreground message: ${msg.notification?.title}');
+    try {
+      showLocalNotification(msg);
+      final _t = msg.notification?.title ?? msg.data['title'] ?? '';
+      final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
+      final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
+      if (_t.isNotEmpty) {
+        await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
+        await Prefs.incrementUnread();
+        _unreadNotifier.value++;
+      }
+    } catch (e) {
+      debugPrint('[OFFRO] Foreground message error: $e');
     }
   });
 
-  // 8. Background-to-foreground tap listener (app was in background, user tapped)
+  // ── 8. Background-to-foreground tap listener ──
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) async {
-    if (kDebugMode) debugPrint('[FCM] 🔔 User tapped notification (from background): \${msg.notification?.title}');
-    if (kDebugMode) debugPrint('[FCM] Data: \${msg.data}');
-    // Save to notification history (await to ensure SharedPreferences write completes)
-    final _t = msg.notification?.title ?? msg.data['title'] ?? '';
-    final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
-    final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-    if (_t.isNotEmpty) {
-      await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
-      await Prefs.incrementUnread();
+    debugPrint('[FCM] User tapped notification from background');
+    try {
+      final _t = msg.notification?.title ?? msg.data['title'] ?? '';
+      final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
+      final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
+      if (_t.isNotEmpty) {
+        await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
+        await Prefs.incrementUnread();
+      }
+      MyApp.navigatorKey.currentState?.push(
+        MaterialPageRoute(builder: (_) => const NotificationsPage()),
+      );
+    } catch (e) {
+      debugPrint('[OFFRO] Notification tap error: $e');
     }
-    // Navigate to NotificationsPage when user taps notification from background
-    MyApp.navigatorKey.currentState?.push(
-      MaterialPageRoute(builder: (_) => const NotificationsPage()),
-    );
   });
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

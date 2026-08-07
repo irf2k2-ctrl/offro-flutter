@@ -64,30 +64,28 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<!-- ── iOS Permission Descriptions (Apple REQUIRES these or the app crashes) ── -->
-	<!-- Camera — used by QR code scanner (mobile_scanner) -->
-	<key>NSCameraUsageDescription</key>
-	<string>OffrO needs camera access to scan QR codes for store offers and vouchers.</string>
-	<!-- Location — used by geolocator for nearby stores -->
+
+	<!-- ── iOS Permission Descriptions (REQUIRED — app crashes without these) ── -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>OffrO needs your location to show nearby stores, deals, and offers around you.</string>
+	<string>OffrO needs your location to show nearby stores and deals in your city.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>OffrO needs your location to show nearby stores, deals, and offers around you.</string>
-	<!-- Photo Library — used by image_picker for store/merchant photos -->
+	<string>OffrO needs your location to show nearby stores and deals in your city.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>OffrO needs camera access so you can take photos for your store profile and product listings.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>OffrO needs photo library access to let you upload store images and product photos.</string>
+	<string>OffrO needs photo library access so you can select images for your store profile and product listings.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>OffrO needs photo library access to save vouchers and invoices to your photos.</string>
-	<!-- Microphone — video_player may request this for video content -->
+	<string>OffrO needs photo library access to save vouchers and offers.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>OffrO may use the microphone for video banner content.</string>
-	<!-- App Transport Security — allow HTTP for development (Railway uses HTTPS so this is a safety net) -->
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-		<key>NSAllowsArbitraryLoadsInWebContent</key>
-		<true/>
-	</dict>
+	<string>OffrO needs microphone access for video recording.</string>
+
+	<!-- ── Firebase Messaging (push notifications) ── -->
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
 </dict>
 </plist>
