@@ -26,6 +26,9 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- ── UIScene Configuration ── -->
+	<!-- Per Flutter docs: use FlutterSceneDelegate directly, NOT a custom subclass -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -40,13 +43,14 @@
 					<key>UISceneConfigurationName</key>
 					<string>flutter</string>
 					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+					<string>FlutterSceneDelegate</string>
 					<key>UISceneStoryboardFile</key>
 					<string>Main</string>
 				</dict>
 			</array>
 		</dict>
 	</dict>
+
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -65,7 +69,7 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
-	<!-- ── iOS Permission Descriptions (REQUIRED — app crashes without these) ── -->
+	<!-- ── iOS Permission Descriptions ── -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>OffrO needs your location to show nearby stores and deals in your city.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
@@ -79,7 +83,7 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>OffrO needs microphone access for video recording.</string>
 
-	<!-- ── Firebase Messaging (push notifications) ── -->
+	<!-- ── Firebase Messaging ── -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
 	<key>UIBackgroundModes</key>

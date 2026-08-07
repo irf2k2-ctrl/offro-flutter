@@ -196,7 +196,6 @@ Future<void> main() async {
   // ── STEP 0: Flutter binding MUST be first ──
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ── Global error handlers ──
   FlutterError.onError = (FlutterErrorDetails details) {
     debugPrint('[OFFRO] FlutterError: ${details.exception}');
     if (kDebugMode) debugPrint('[OFFRO] Stack: ${details.stack}');
@@ -205,149 +204,77 @@ Future<void> main() async {
   // ── STEP 1: Firebase ──
   bool firebaseReady = false;
   try {
-    debugPrint('[OFFRO] Step 1: Initializing Firebase with explicit options...');
+    debugPrint('[OFFRO] Step 1: Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     firebaseReady = true;
-    debugPrint('[OFFRO] Step 1: ✅ Firebase initialized');
+    debugPrint('[OFFRO] Step 1: Firebase initialized OK');
   } catch (e, st) {
-    debugPrint('[OFFRO] Step 1: ❌ Firebase init FAILED: $e');
-    debugPrint('[OFFRO] Step 1: Stack: $st');
-    // Continue — app works without Firebase (no push notifications)
+    debugPrint('[OFFRO] Step 1: Firebase FAILED: $e');
   }
 
-  // ── STEP 2: Background FCM handler (only if Firebase is ready) ──
+  // ── STEP 2-8: All FCM/notification setup gated by firebaseReady ──
   if (firebaseReady) {
-    try {
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-      debugPrint('[OFFRO] Step 2: ✅ Background FCM registered');
-    } catch (e) {
-      debugPrint('[OFFRO] Step 2: ❌ Background FCM failed: $e');
-    }
+    try { FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler); } catch (e) { debugPrint('[OFFRO] Step 2 failed: $e'); }
   }
 
-  // ── STEP 3: Local notifications ──
   try {
-    debugPrint('[OFFRO] Step 3: Initializing local notifications...');
     await initLocalNotifications();
     onLocalNotifTap = (payload) {
       MyApp.navigatorKey.currentState?.push(
         MaterialPageRoute(builder: (_) => const NotificationsPage()),
       );
     };
-    debugPrint('[OFFRO] Step 3: ✅ Local notifications initialized');
-  } catch (e, st) {
-    debugPrint('[OFFRO] Step 3: ❌ Local notifications failed: $e');
-    debugPrint('[OFFRO] Step 3: Stack: $st');
-  }
+    debugPrint('[OFFRO] Step 3: Local notifications OK');
+  } catch (e) { debugPrint('[OFFRO] Step 3 failed: $e'); }
 
-  // ── STEP 4: FCM foreground presentation (only if Firebase is ready) ──
   if (firebaseReady) {
     try {
-      debugPrint('[OFFRO] Step 4: Configuring FCM foreground...');
-      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
-        alert: true, badge: true, sound: true,
-      );
-      debugPrint('[OFFRO] Step 4: ✅ FCM foreground configured');
-    } catch (e) {
-      debugPrint('[OFFRO] Step 4: ❌ FCM foreground failed: $e');
-    }
-  }
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+      await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true, announcement: false, carPlay: false, criticalAlert: false, provisional: false);
+      debugPrint('[OFFRO] Step 4-5: FCM permissions OK');
+    } catch (e) { debugPrint('[OFFRO] Step 4-5 failed: $e'); }
 
-  // ── STEP 5: Notification permission (only if Firebase is ready) ──
-  if (firebaseReady) {
     try {
-      debugPrint('[OFFRO] Step 5: Requesting notification permission...');
-      await FirebaseMessaging.instance.requestPermission(
-        alert: true, badge: true, sound: true,
-        announcement: false, carPlay: false, criticalAlert: false, provisional: false,
-      );
-      debugPrint('[OFFRO] Step 5: ✅ Permission requested');
-    } catch (e) {
-      debugPrint('[OFFRO] Step 5: ❌ Permission request failed: $e');
-    }
-  }
-
-  // ── STEP 6: Handle notification that launched the app ──
-  if (firebaseReady) {
-    try {
-      debugPrint('[OFFRO] Step 6: Checking initial message...');
       final initialMsg = await FirebaseMessaging.instance.getInitialMessage();
       if (initialMsg != null) {
-        debugPrint('[OFFRO] Step 6: App launched from notification');
         final _it = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
         final _ib = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
         final _ii = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
-        if (_it.isNotEmpty) {
-          await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii);
-          await Prefs.incrementUnread();
-        }
+        if (_it.isNotEmpty) { await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii); await Prefs.incrementUnread(); }
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          MyApp.navigatorKey.currentState?.push(
-            MaterialPageRoute(builder: (_) => const NotificationsPage()),
-          );
+          MyApp.navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
         });
       }
-      debugPrint('[OFFRO] Step 6: ✅ Initial message handled');
-    } catch (e) {
-      debugPrint('[OFFRO] Step 6: ❌ Initial message failed: $e');
-    }
-  }
+    } catch (e) { debugPrint('[OFFRO] Step 6 failed: $e'); }
 
-  // ── STEP 7: Foreground message listener ──
-  if (firebaseReady) {
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
-      debugPrint('[OFFRO] Step 7: Foreground message received');
       try {
         showLocalNotification(msg);
         final _t = msg.notification?.title ?? msg.data['title'] ?? '';
         final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
         final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-        if (_t.isNotEmpty) {
-          await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
-          await Prefs.incrementUnread();
-          _unreadNotifier.value++;
-        }
-      } catch (e) {
-        debugPrint('[OFFRO] Step 7: ❌ Foreground message error: $e');
-      }
+        if (_t.isNotEmpty) { await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i); await Prefs.incrementUnread(); _unreadNotifier.value++; }
+      } catch (e) { debugPrint('[OFFRO] Step 7 error: $e'); }
     });
-  }
 
-  // ── STEP 8: Background-to-foreground tap listener ──
-  if (firebaseReady) {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) async {
-      debugPrint('[OFFRO] Step 8: Notification tapped from background');
       try {
         final _t = msg.notification?.title ?? msg.data['title'] ?? '';
         final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
         final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-        if (_t.isNotEmpty) {
-          await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i);
-          await Prefs.incrementUnread();
-        }
-        MyApp.navigatorKey.currentState?.push(
-          MaterialPageRoute(builder: (_) => const NotificationsPage()),
-        );
-      } catch (e) {
-        debugPrint('[OFFRO] Step 8: ❌ Notification tap error: $e');
-      }
+        if (_t.isNotEmpty) { await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i); await Prefs.incrementUnread(); }
+        MyApp.navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
+      } catch (e) { debugPrint('[OFFRO] Step 8 error: $e'); }
     });
   }
 
-  // ── STEP 9: System UI ──
   try {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ));
-  } catch (e) {
-    debugPrint('[OFFRO] Step 9: SystemUI error: $e');
-  }
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light));
+  } catch (e) { debugPrint('[OFFRO] Step 9 error: $e'); }
 
-  // ── FINAL: ALWAYS run the app, no matter what happened above ──
-  debugPrint('[OFFRO] ✅ Starting app (Firebase ready: $firebaseReady)');
+  debugPrint('[OFFRO] Starting app, Firebase ready: $firebaseReady');
   runApp(const MyApp());
 }
 
