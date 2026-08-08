@@ -56,7 +56,7 @@ Future<void> initLocalNotifications() async {
     requestSoundPermission: false,
   );
   await offroLocalNotif.initialize(
-    const InitializationSettings(android: android, iOS: ios),
+    initializationSettings: const InitializationSettings(android: android, iOS: ios),
     onDidReceiveNotificationResponse: (resp) {
       debugPrint('[LOCAL-NOTIF] tapped: payload=\${resp.payload}');
       // Delegate navigation to main.dart (avoids circular imports)
@@ -109,7 +109,10 @@ void _showNotifText(int id, String title, String body, String payload) {
     styleInformation: BigTextStyleInformation(body),
   );
   offroLocalNotif.show(
-      id, title, body, NotificationDetails(android: android),
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: NotificationDetails(android: android),
       payload: payload);
   debugPrint('[LOCAL-NOTIF] Text notif shown: $title');
 }
@@ -142,7 +145,10 @@ Future<void> _showNotifWithImage(
       );
       // Replace the text version with the image version (same notification id)
       await offroLocalNotif.show(
-          id, title, body, NotificationDetails(android: android),
+          id: id,
+          title: title,
+          body: body,
+          notificationDetails: NotificationDetails(android: android),
           payload: payload);
       debugPrint('[LOCAL-NOTIF] ✅ Image notif shown: $title');
     }
