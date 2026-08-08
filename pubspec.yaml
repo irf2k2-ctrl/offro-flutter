@@ -2,7 +2,7 @@ name: offro_user
 description: Offro - Smart Savings Nearby
 
 publish_to: 'none'
-version: 1.0.1+11
+version: 1.0.1+12
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -15,7 +15,7 @@ dependencies:
   http: ^1.1.0
 
   # QR Scanner
-  mobile_scanner: ^3.5.6
+  mobile_scanner: ^7.4.0
 
   # Location
   geolocator: ^11.0.0
