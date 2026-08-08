@@ -243,19 +243,7 @@ Future<void> main() async {
       });
       await FirebaseMessaging.instance
           .requestPermission(alert: true, badge: true, sound: true, announcement: false, carPlay: false, criticalAlert: false, provisional: false)
-          .timeout(const Duration(seconds: 3), onTimeout: () {
-        debugPrint('[OFFRO] Step 5: requestPermission timed out');
-        return const NotificationSettings(
-          authorizationStatus: AuthorizationStatus.notDetermined,
-          alert: false,
-          announcement: false,
-          badge: false,
-          carPlay: false,
-          criticalAlert: false,
-          provisional: false,
-          sound: false,
-        );
-      });
+          .timeout(const Duration(seconds: 3));  // throws TimeoutException -> caught by try/catch below
       debugPrint('[OFFRO] Step 4-5: FCM permissions OK');
     } catch (e) { debugPrint('[OFFRO] Step 4-5 failed: $e'); }
 
