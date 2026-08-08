@@ -56,7 +56,7 @@ Future<void> initLocalNotifications() async {
     requestSoundPermission: false,
   );
   await offroLocalNotif.initialize(
-    initializationSettings: const InitializationSettings(android: android, iOS: ios),
+    settings: const InitializationSettings(android: android, iOS: ios),
     onDidReceiveNotificationResponse: (resp) {
       debugPrint('[LOCAL-NOTIF] tapped: payload=\${resp.payload}');
       // Delegate navigation to main.dart (avoids circular imports)
