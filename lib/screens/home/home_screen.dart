@@ -3352,7 +3352,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     if (dt == null) return "";
     final months = ["Jan","Feb","Mar","Apr","May","Jun",
                     "Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "\${dt.day} \${months[dt.month-1]} \${dt.year}";
+    return "${dt.day} ${months[dt.month-1]} ${dt.year}";
   }
 
   bool _isExpired(String s) {
@@ -3547,7 +3547,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                                   Icon(Icons.calendar_today_rounded, size: 11,
                                     color: expired ? Colors.red : kMuted),
                                   const SizedBox(width: 4),
-                                  Text("Valid till ${_fmtDate(endDate)}",
+                                  Text("Valid until ${_fmtDate(endDate)}",
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: expired ? Colors.red : kMuted,

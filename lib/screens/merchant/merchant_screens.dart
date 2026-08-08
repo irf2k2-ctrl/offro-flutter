@@ -15,6 +15,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
@@ -403,17 +405,24 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                     final fromDate = b["from_date"]?.toString() ?? b["start_date"]?.toString() ?? "";
                     final endDate  = b["end_date"]?.toString() ?? "";
                     final imgUrl   = b["image_url"]?.toString() ?? "";
+                    final bool _isVideo = imgUrl.isNotEmpty && (
+                      imgUrl.toLowerCase().endsWith(".mp4") ||
+                      imgUrl.toLowerCase().contains(".mp4?") ||
+                      imgUrl.toLowerCase().contains("video/mp4") ||
+                      imgUrl.startsWith("data:video"));
                     return Card(elevation:2,margin:const EdgeInsets.only(bottom:14),
                       shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
                       child:Column(children:[
                         if (imgUrl.isNotEmpty)
                           ClipRRect(
                             borderRadius:const BorderRadius.vertical(top:Radius.circular(14)),
-                            child:imgUrl.startsWith("data:image")
-                              ? Image.memory(base64Decode(imgUrl.split(",").last),
-                                  width:double.infinity,height:120,fit:BoxFit.cover)
-                              : Image.network(imgUrl,width:double.infinity,height:120,fit:BoxFit.cover,
-                                  errorBuilder:(_,__,___) => Container(height:80,color:kLight,child:const Icon(Icons.image_not_supported,color:kMuted))),
+                            child: _isVideo
+                              ? _BannerVideoTile(url: imgUrl)
+                              : (imgUrl.startsWith("data:image")
+                                ? Image.memory(base64Decode(imgUrl.split(",").last),
+                                    width:double.infinity,height:120,fit:BoxFit.cover)
+                                : Image.network(imgUrl,width:double.infinity,height:120,fit:BoxFit.cover,
+                                    errorBuilder:(_,__,___) => Container(height:80,color:kLight,child:const Icon(Icons.image_not_supported,color:kMuted)))),
                           ),
                         Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                           Row(children:[
@@ -3888,7 +3897,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
-    appBar: AppBar(title:Text(_isEdit?"Edit Store":"Add Store"),backgroundColor: Colors.white, foregroundColor: kText),
+    appBar: AppBar(
+        title:Text(_isEdit?"Edit Store":"Add Store"),
+        backgroundColor: Colors.white, foregroundColor: kText,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
     body: SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       _field(_name,"Store Name *",Icons.store),
       const SizedBox(height:12),
@@ -5500,6 +5516,147 @@ class _AddDealState extends State<AddDealPage> {
         Text(_msg, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 13))],
       const SizedBox(height: 24),
     ])),
+  );
+
+}
+
+
+// ── Banner Video Tile (merchant banner list) ──────────────────────────────
+class _BannerVideoTile extends StatefulWidget {
+  final String url;
+  const _BannerVideoTile({required this.url});
+  @override State<_BannerVideoTile> createState() => _BannerVideoTileState();
+}
+
+class _BannerVideoTileState extends State<_BannerVideoTile> {
+  VideoPlayerController? _vpc;
+  bool _initialized = false;
+
+  @override void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  void _initVideo() {
+    if (widget.url.startsWith("data:video")) {
+      try {
+        final commaIdx = widget.url.indexOf(",");
+        if (commaIdx == -1) return;
+        final bytes = base64Decode(widget.url.substring(commaIdx + 1));
+        _vpc = VideoPlayerController.contentUri(
+          Uri.dataFromBytes(bytes, mimeType: "video/mp4"))
+          ..initialize().then((_) {
+            if (mounted) setState(() => _initialized = true);
+          }).catchError((_) {});
+      } catch (_) {}
+      return;
+    }
+    _vpc = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) setState(() => _initialized = true);
+      }).catchError((_) {});
+  }
+
+  @override void dispose() {
+    _vpc?.dispose();
+    super.dispose();
+  }
+
+  void _openFullScreen() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => _FullScreenVideoPage(url: widget.url)));
+  }
+
+  @override Widget build(BuildContext context) {
+    if (_initialized && _vpc != null && _vpc!.value.isInitialized) {
+      return GestureDetector(
+        onTap: _openFullScreen,
+        child: Stack(alignment: Alignment.center, children: [
+          SizedBox(
+            width: double.infinity, height: 120,
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _vpc!.value.size.width,
+                height: _vpc!.value.size.height,
+                child: VideoPlayer(_vpc!),
+              ),
+            ),
+          ),
+          // Play icon overlay
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: .5),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
+          ),
+        ]),
+      );
+    }
+    // Loading placeholder
+    return Container(
+      width: double.infinity, height: 120,
+      color: const Color(0xFF3E5F55),
+      child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+    );
+  }
+}
+
+// ── Full Screen Video Player ──────────────────────────────────────────────
+class _FullScreenVideoPage extends StatefulWidget {
+  final String url;
+  const _FullScreenVideoPage({required this.url});
+  @override State<_FullScreenVideoPage> createState() => _FullScreenVideoPageState();
+}
+
+class _FullScreenVideoPageState extends State<_FullScreenVideoPage> {
+  VideoPlayerController? _vpc;
+  bool _initialized = false;
+
+  @override void initState() {
+    super.initState();
+    if (widget.url.startsWith("data:video")) {
+      try {
+        final commaIdx = widget.url.indexOf(",");
+        if (commaIdx != -1) {
+          final bytes = base64Decode(widget.url.substring(commaIdx + 1));
+          _vpc = VideoPlayerController.contentUri(
+            Uri.dataFromBytes(bytes, mimeType: "video/mp4"))
+            ..initialize().then((_) {
+              if (mounted) { setState(() => _initialized = true); _vpc!.play(); }
+            }).catchError((_) {});
+        }
+      } catch (_) {}
+      return;
+    }
+    _vpc = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize().then((_) {
+        if (mounted) { setState(() => _initialized = true); _vpc!.play(); }
+      }).catchError((_) {});
+  }
+
+  @override void dispose() {
+    _vpc?.dispose();
+    super.dispose();
+  }
+
+  @override Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    body: Stack(children: [
+      Center(child: _initialized && _vpc != null && _vpc!.value.isInitialized
+        ? GestureDetector(
+            onTap: () { setState(() { _vpc!.value.isPlaying ? _vpc!.pause() : _vpc!.play(); }); },
+            child: AspectRatio(aspectRatio: _vpc!.value.aspectRatio, child: VideoPlayer(_vpc!)))
+        : const CircularProgressIndicator(color: Colors.white)),
+      Positioned(top: 0, left: 0, right: 0,
+        child: SafeArea(child: Padding(padding: const EdgeInsets.all(8),
+          child: Align(alignment: Alignment.topLeft,
+            child: GestureDetector(onTap: () => Navigator.pop(context),
+              child: Container(width: 38, height: 38,
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .5), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 20))))))),
+    ]),
   );
 
 }

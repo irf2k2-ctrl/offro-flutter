@@ -120,7 +120,8 @@ class _StoreDetailPageState extends State<StoreDetailPage>
           }
           // Preserve is_new_in_town flag so "Newly Added" badge stays visible after detail load
           if ((full['is_new_in_town'] == null || full['is_new_in_town'] == false)
-              && (savedIsNew == true || widget.store['is_new_in_town'] == true)) {
+              && (savedIsNew == true || widget.store['is_new_in_town'] == true
+                  || widget.store['is_new'] == true)) {
             _store['is_new_in_town'] = true;
           }
           _isFav    = isFav;

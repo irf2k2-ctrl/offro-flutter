@@ -45,7 +45,7 @@ class _SplashState extends State<SplashScreen> with SingleTickerProviderStateMix
   @override void dispose() { _ctrl.dispose(); super.dispose(); }
 
   Future<void> _checkLogin() async {
-    await Future.delayed(const Duration(milliseconds: 2200));
+    await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     final u = await Prefs.get();
     final token = u["token"];

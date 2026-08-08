@@ -93,9 +93,12 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
   Future<void> _proceed() async {
     if (_days < 1) { setState(() => _msg = "Enter a valid number of days"); return; }
     // Show summary BEFORE API call using Flutter-calculated values
+    final bool isFree = _total <= 0;
     final confirmed = await _showProductSummaryDialog(
       from: _fromDate, to: _endDate,
-      note: "Razorpay opens. Product goes live after admin approval.",
+      note: isFree
+          ? "Total is ₹0. Your upgrade will be submitted for admin approval."
+          : "Razorpay opens. Product goes live after admin approval.",
     );
     if (!confirmed || !mounted) return;
 
@@ -126,10 +129,20 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
         return;
       } else if (paise == 0) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("Upgrade submitted for approval!"),
-            backgroundColor: Color(0xFF1a6640)));
-          Navigator.pop(context, true);
+          showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
+            title: const Text("Upgrade Submitted", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+            content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Your premium upgrade request has been submitted for admin review.", style: TextStyle(fontSize: 14, color: kText)),
+              SizedBox(height: 12),
+              Text("The product will go live once approved by the admin team.", style: TextStyle(fontSize: 12, color: kMuted)),
+            ]),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+                onPressed: () { Navigator.pop(ctx); Navigator.pop(context, true); },
+                child: const Text("OK", style: TextStyle(color: Colors.white))),
+            ],
+          ));
         }
       } else {
         if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
@@ -180,7 +193,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
             onPressed: () => Navigator.pop(context, true),
-            child: Text("Pay ₹${_total.toStringAsFixed(1)}",
+            child: Text(_total <= 0 ? "Submit for Approval" : "Pay ₹${_total.toStringAsFixed(1)}",
               style: const TextStyle(color: Colors.white))),
         ],
       ),

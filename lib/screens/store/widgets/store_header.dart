@@ -269,6 +269,7 @@ class StoreHeader extends StatelessWidget {
                 'new_store':     '🆕 NEW STORE',
                 'just_opened':   '🎉 JUST OPENED',
                 'newly_added':   '✨ NEWLY ADDED',
+                'newly_opened':  '🎉 NEWLY OPENED',
                 'trending':      '🔥 TRENDING',
                 'popular':       '⭐ POPULAR',
                 'top_rated':     '🏆 TOP RATED',
@@ -292,7 +293,11 @@ class StoreHeader extends StatelessWidget {
                   }
                 } catch (_) {}
                 if (_key == null) {
-                  if (store['is_new_in_town'] == true)   _key = 'new_store';
+                  final _isNewInTown = store['is_new_in_town'] == true
+                    || store['is_new_in_town']?.toString() == 'true'
+                    || store['is_new'] == true
+                    || store['is_new']?.toString() == 'true';
+                if (_isNewInTown)   _key = 'new_store';
                   else if (store['is_trending'] == true) _key = 'trending';
                   else if (store['is_popular']  == true) _key = 'popular';
                 }
@@ -385,8 +390,8 @@ class StoreHeader extends StatelessWidget {
                         fontSize: 11)),
                     Text(sub,
                       style: TextStyle(
-                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)).withValues(alpha: .75),
-                        fontSize: 11, fontWeight: FontWeight.w600)),
+                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)),
+                        fontSize: 11, fontWeight: FontWeight.w800)),
                   ],
                 ]),
               ),
