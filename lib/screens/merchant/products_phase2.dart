@@ -524,10 +524,13 @@ class _RenewProductPageState extends State<RenewProductPage> {
 
   Future<void> _proceed() async {
     if (_days < 1) { setState(() => _msg = "Enter a valid number of days"); return; }
+    final bool isFree = _total <= 0;
     // Show summary BEFORE API call using Flutter-calculated values
     final confirmed = await _showProductSummaryDialog(
       from: _renewFrom, to: _newEnd,
-      note: "Razorpay opens. Listing renewed after payment.",
+      note: isFree
+          ? "Total is ₹0. Your renewal will be applied instantly."
+          : "Razorpay opens. Listing renewed after payment.",
     );
     if (!confirmed || !mounted) return;
 
