@@ -2389,7 +2389,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             const Divider(height:1),
             _pItem(ctx,Icons.info_outline_rounded,"About Us",()async{final c=await Api.getAboutUs();if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"About Us",body:c.isEmpty?"Offro connects local stores with customers through deals and loyalty points.":c));}),
             _pItem(ctx,Icons.description_rounded,"Terms & Conditions",()async{final c=await Api.fetchTerms("user");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Terms & Conditions",body:c));}),
-            _pItem(ctx,Icons.privacy_tip_rounded,"Privacy Policy",()=>Navigator.push(ctx,_route(PrivacyPolicyPage(token:widget.token))),
+            _pItem(ctx,Icons.privacy_tip_rounded,"Privacy Policy",()=>Navigator.push(ctx,_route(PrivacyPolicyPage(token:widget.token)))),
             _pItem(ctx,Icons.receipt_rounded,"Refund Policy",()async{final c=await Api.fetchPolicy("refund");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Refund Policy",body:c));}),
             const Divider(height:1),
             // ── Switch Mode ──
