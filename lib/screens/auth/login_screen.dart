@@ -144,7 +144,7 @@ class _OtpScreenState extends State<OtpScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
               const SizedBox(height: 20),
-              buildImageLogo(height: 65, white: true),
+              buildImageLogo(height: 90, white: true),
               const SizedBox(height: 32),
               Container(
                 width: 72, height: 72,
@@ -303,7 +303,7 @@ class _ContinueAsState extends State<ContinueAsScreen>
                 child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
 
                   // Logo
-                  buildImageLogo(height: 56, white: false),
+                  buildImageLogo(height: 90, white: false),
                   const SizedBox(height: 28),
 
                   // Welcome heading
@@ -617,7 +617,7 @@ class _MerchantLoadingState extends State<MerchantLoadingScreen>
           child: Center(child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              buildImageLogo(height: 72, white: true),
+              buildImageLogo(height: 90, white: true),
               const SizedBox(height: 40),
               Container(
                 width: 80, height: 80,
@@ -957,7 +957,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
           child: Column(children: [
             // ── TOP: Logo area ──
             const SizedBox(height: 36),
-            buildImageLogo(height: 58, white: true),
+            buildImageLogo(height: 90, white: true),
             const SizedBox(height: 8),
             const Text('Discover · Save · Earn',
               style: TextStyle(color: Colors.white38, fontSize: 11.5, letterSpacing: 1.6)),

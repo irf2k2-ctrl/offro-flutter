@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../main.dart' show MyApp;
 import 'package:printing/printing.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -4616,14 +4618,141 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
     Share.share(text, subject: "OFFRO Invoice ${inv['invoice_no']??''}");
   }
 
-  // FIX 14: Print/Download PDF
+  // FIX 14: Print/Download PDF — direct PDF generation (avoids iOS convertHtml crash)
   Future<void> _printInvoice(Map inv) async {
-    await Printing.layoutPdf(
-      onLayout: (fmt) async => await Printing.convertHtml(
-        format: fmt,
-        html: _buildInvoiceHtml(inv),
-      ),
-      name: "OFFRO_Invoice_${inv['invoice_no']??''}",
+    try {
+      final doc = pw.Document();
+
+      // OFFRO brand colors
+      const green = PdfColor.fromInt(0xFF3E5F55);
+      const lightGreen = PdfColor.fromInt(0xFFCDEBD6);
+      const textColor = PdfColor.fromInt(0xFF2c3e35);
+      const mutedColor = PdfColor.fromInt(0xFF6b8c7e);
+
+      final invoiceNo = inv['invoice_no']?.toString() ?? '';
+      final storeName = inv['store_name']?.toString() ?? '';
+      final plan = inv['plan']?.toString() ?? '';
+      final fromDate = inv['from_date']?.toString() ?? '';
+      final endDate = inv['end_date']?.toString() ?? '';
+      final createdAt = inv['created_at']?.toString() ?? '';
+      final dateStr = createdAt.length >= 10 ? createdAt.substring(0, 10) : '';
+      final basePrice = inv['base_price']?.toString() ?? '0';
+      final gst = inv['gst']?.toString() ?? '0';
+      final total = inv['total']?.toString() ?? '0';
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(20),
+                  decoration: pw.BoxDecoration(
+                    color: green,
+                    borderRadius: pw.BorderRadius.circular(10),
+                  ),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('OFFRO', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.white)),
+                      pw.SizedBox(height: 4),
+                      pw.Text('Tax Invoice', style: pw.TextStyle(fontSize: 13, color: PdfColors.white)),
+                      pw.SizedBox(height: 2),
+                      pw.Text(invoiceNo, style: pw.TextStyle(fontSize: 13, color: PdfColors.white)),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 24),
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColor.fromInt(0xFFd4e8de)),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      _pdfRow('Store', storeName, textColor, mutedColor),
+                      pw.SizedBox(height: 6),
+                      _pdfRow('Plan', plan, textColor, mutedColor),
+                      pw.SizedBox(height: 6),
+                      _pdfRow('Period', '$fromDate \u2013 $endDate', textColor, mutedColor),
+                      pw.SizedBox(height: 6),
+                      _pdfRow('Date', dateStr, textColor, mutedColor),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 16),
+                pw.Container(
+                  width: double.infinity,
+                  padding: const pw.EdgeInsets.all(16),
+                  decoration: pw.BoxDecoration(
+                    border: pw.Border.all(color: PdfColor.fromInt(0xFFd4e8de)),
+                    borderRadius: pw.BorderRadius.circular(8),
+                  ),
+                  child: pw.Column(
+                    children: [
+                      _pdfRow('Base Amount', 'Rs. $basePrice', textColor, mutedColor),
+                      pw.SizedBox(height: 6),
+                      _pdfRow('GST (18%)', 'Rs. $gst', textColor, mutedColor),
+                      pw.SizedBox(height: 12),
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.all(10),
+                        decoration: pw.BoxDecoration(
+                          color: lightGreen,
+                          borderRadius: pw.BorderRadius.circular(6),
+                        ),
+                        child: pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('Total Paid', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: textColor)),
+                            pw.Text('Rs. $total', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16, color: green)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.Spacer(),
+                pw.Center(
+                  child: pw.Column(
+                    children: [
+                      pw.Text('OFFRO — Thank you for your business!',
+                        style: pw.TextStyle(fontSize: 11, color: mutedColor)),
+                      pw.SizedBox(height: 2),
+                      pw.Text('This is a system-generated invoice.',
+                        style: pw.TextStyle(fontSize: 11, color: mutedColor)),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      await Printing.layoutPdf(
+        onLayout: (fmt) async => doc.save(),
+        name: "OFFRO_Invoice_$invoiceNo",
+      );
+    } catch (e) {
+      debugPrint('PDF generation error: $e');
+      _shareInvoice(inv);
+    }
+  }
+
+  // Helper for PDF rows
+  pw.Widget _pdfRow(String label, String value, PdfColor textColor, PdfColor mutedColor) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(label, style: pw.TextStyle(color: mutedColor, fontSize: 13)),
+        pw.Text(value, style: pw.TextStyle(color: textColor, fontSize: 13, fontWeight: pw.FontWeight.bold)),
+      ],
     );
   }
 
