@@ -4278,21 +4278,55 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     ).toList();
   }
 
-  // Parse validity date string to DateTime
+  // Parse validity date string to DateTime — handles multiple formats
   DateTime? _parseDate(String s) {
     if (s.isEmpty) return null;
-    try { return DateTime.parse(s); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    // 1. Try ISO-8601
+    try { return DateTime.parse(s); } catch (_) {}
+    // 2. Try DD-MM-YYYY or DD/MM/YYYY
+    try {
+      final p = s.split(RegExp('[-/]'));
+      if (p.length == 3 && int.tryParse(p[0]) != null) {
+        final d = int.parse(p[0]); final m = int.parse(p[1]); final y = int.parse(p[2]);
+        if (d <= 31 && m <= 12 && y > 2000) return DateTime(y, m, d);
+      }
+    } catch (_) {}
+    // 3. Try "15 Aug 2026"
+    try {
+      final months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                      "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+      final m = RegExp(r'(\d{1,2})\s+(\w+)\s+(\d{4})').firstMatch(s);
+      if (m != null) {
+        final d = int.parse(m.group(1)!);
+        final mon = months[m.group(2)!.toLowerCase().substring(0,3)];
+        final y = int.parse(m.group(3)!);
+        if (mon != null) return DateTime(y, mon, d);
+      }
+    } catch (_) {}
+    // 4. Try "Aug 15, 2026"
+    try {
+      final months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                      "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+      final m = RegExp(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})').firstMatch(s);
+      if (m != null) {
+        final mon = months[m.group(1)!.toLowerCase().substring(0,3)];
+        final d = int.parse(m.group(2)!);
+        final y = int.parse(m.group(3)!);
+        if (mon != null) return DateTime(y, mon, d);
+      }
+    } catch (_) {}
+    if (kDebugMode) debugPrint('[Offro] _parseDate: unparseable date: $s');
     return null;
   }
 
   String _fmtDate(String s) {
     // Guard: reject raw Dart template strings stored accidentally in DB
-    if (s.contains('dt.day') || s.contains('months[') || (s.contains('{') && s.contains('}'))) return "";
+    if (s.contains('dt.day') || s.contains('months[') || s.contains(r'\$') || (s.contains('{') && s.contains('}'))) return "";
     final dt = _parseDate(s);
     if (dt == null) return "";
     final months = ["Jan","Feb","Mar","Apr","May","Jun",
                     "Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "\${dt.day} \${months[dt.month-1]} \${dt.year}";
+    return "${dt.day} ${months[dt.month-1]} ${dt.year}";
   }
 
   bool _isExpired(String s) {
@@ -7827,7 +7861,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       try {
         final _vdt = DateTime.parse(_validSafe);
         const _vmo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        validity = "\${_vdt.day} \${_vmo[_vdt.month-1]} \${_vdt.year}";
+        validity = "${_vdt.day} ${_vmo[_vdt.month-1]} ${_vdt.year}";
       } catch (_) {
         // Not ISO format — try dd/mm/yyyy or dd-mm-yyyy
         try {
@@ -7835,7 +7869,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
           if (parts.length == 3) {
             const _vmo2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
             final d = int.parse(parts[0]); final m = int.parse(parts[1]); final y = int.parse(parts[2]);
-            if (m >= 1 && m <= 12) validity = "\$d \${_vmo2[m-1]} \$y";
+            if (m >= 1 && m <= 12) validity = "$d ${_vmo2[m-1]} $y";
           }
         } catch (_) { validity = ""; } // suppress raw strings entirely
       }
@@ -7948,7 +7982,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       try {
         final _vdt = DateTime.parse(_validSafe);
         const _vmo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-        validity = "\${_vdt.day} \${_vmo[_vdt.month-1]} \${_vdt.year}";
+        validity = "${_vdt.day} ${_vmo[_vdt.month-1]} ${_vdt.year}";
       } catch (_) {
         // Not ISO format — try dd/mm/yyyy or dd-mm-yyyy
         try {
@@ -7956,7 +7990,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
           if (parts.length == 3) {
             const _vmo2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
             final d = int.parse(parts[0]); final m = int.parse(parts[1]); final y = int.parse(parts[2]);
-            if (m >= 1 && m <= 12) validity = "\$d \${_vmo2[m-1]} \$y";
+            if (m >= 1 && m <= 12) validity = "$d ${_vmo2[m-1]} $y";
           }
         } catch (_) { validity = ""; } // suppress raw strings entirely
       }
