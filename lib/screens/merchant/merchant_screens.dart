@@ -2996,7 +2996,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
         titleSpacing:16,
         centerTitle:true,
         title:const Text("My Stores",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
+        backgroundColor: Colors.white, foregroundColor: kText,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions:[
           Padding(
             padding:const EdgeInsets.only(right:18),

@@ -3341,7 +3341,41 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
   // Parse validity date string to DateTime
   DateTime? _parseDate(String s) {
     if (s.isEmpty) return null;
-    try { return DateTime.parse(s); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    // 1. Try ISO-8601
+    try { return DateTime.parse(s); } catch (_) {}
+    // 2. Try DD-MM-YYYY or DD/MM/YYYY
+    try {
+      final p = s.split(RegExp('[-/]'));
+      if (p.length == 3 && int.tryParse(p[0]) != null) {
+        final d = int.parse(p[0]); final m = int.parse(p[1]); final y = int.parse(p[2]);
+        if (d <= 31 && m <= 12 && y > 2000) return DateTime(y, m, d);
+      }
+    } catch (_) {}
+    // 3. Try "15 Aug 2026"
+    try {
+      final months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                      "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+      final m = RegExp(r'(\d{1,2})\s+(\w+)\s+(\d{4})').firstMatch(s);
+      if (m != null) {
+        final d = int.parse(m.group(1)!);
+        final mon = months[m.group(2)!.toLowerCase().substring(0,3)];
+        final y = int.parse(m.group(3)!);
+        if (mon != null) return DateTime(y, mon, d);
+      }
+    } catch (_) {}
+    // 4. Try "Aug 15, 2026"
+    try {
+      final months = {"jan":1,"feb":2,"mar":3,"apr":4,"may":5,"jun":6,
+                      "jul":7,"aug":8,"sep":9,"oct":10,"nov":11,"dec":12};
+      final m = RegExp(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})').firstMatch(s);
+      if (m != null) {
+        final mon = months[m.group(1)!.toLowerCase().substring(0,3)];
+        final d = int.parse(m.group(2)!);
+        final y = int.parse(m.group(3)!);
+        if (mon != null) return DateTime(y, mon, d);
+      }
+    } catch (_) {}
+    if (kDebugMode) debugPrint('[Offro] _parseDate: unparseable date: $s');
     return null;
   }
 
@@ -5277,6 +5311,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     "new_store":     {"label": "🆕 NEW STORE"},
     "just_opened":   {"label": "🎉 JUST OPENED"},
     "newly_added":   {"label": "✨ NEWLY ADDED"},
+    "newly_opened":  {"label": "🎉 NEWLY OPENED"},
+    "newly_open":    {"label": "🎉 NEWLY OPENED"},
+    "new_open":      {"label": "🎉 NEWLY OPENED"},
+    "opened":        {"label": "🎉 NEWLY OPENED"},
     "trending":      {"label": "🔥 TRENDING"},
     "popular":       {"label": "⭐ POPULAR"},
     "top_rated":     {"label": "🏆 TOP RATED"},
@@ -5299,9 +5337,13 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
       }
     } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
     // 3. Manual boolean flags
-    if (s["is_new_in_town"] == true) return "new_store";
-    if (s["is_trending"] == true) return "trending";
-    if (s["is_popular"] == true) return "popular";
+    final _isNew = s["is_new_in_town"] == true
+        || s["is_new_in_town"]?.toString() == 'true'
+        || s["is_new"] == true
+        || s["is_new"]?.toString() == 'true';
+    if (_isNew) return "new_store";
+    if (s["is_trending"] == true || s["is_trending"]?.toString() == 'true') return "trending";
+    if (s["is_popular"] == true || s["is_popular"]?.toString() == 'true') return "popular";
     return null;
   }
 

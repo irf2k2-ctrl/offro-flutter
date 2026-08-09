@@ -6341,6 +6341,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     "new_store":     {"label": "🆕 NEW STORE"},
     "just_opened":   {"label": "🎉 JUST OPENED"},
     "newly_added":   {"label": "✨ NEWLY ADDED"},
+    "newly_opened":  {"label": "🎉 NEWLY OPENED"},
+    "newly_open":    {"label": "🎉 NEWLY OPENED"},
+    "new_open":      {"label": "🎉 NEWLY OPENED"},
+    "opened":        {"label": "🎉 NEWLY OPENED"},
     "trending":      {"label": "🔥 TRENDING"},
     "popular":       {"label": "⭐ POPULAR"},
     "top_rated":     {"label": "🏆 TOP RATED"},
@@ -6375,11 +6379,15 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         }
       } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
     }
-    // 3. Manual boolean flags
+    // 3. Manual boolean flags (robust: handle string "true" too)
     if (resolved == null) {
-      if (s["is_new_in_town"] == true) resolved = "new_store";
-      else if (s["is_trending"] == true) resolved = "trending";
-      else if (s["is_popular"] == true) resolved = "popular";
+      final _isNew = s["is_new_in_town"] == true
+          || s["is_new_in_town"]?.toString() == 'true'
+          || s["is_new"] == true
+          || s["is_new"]?.toString() == 'true';
+      if (_isNew) resolved = "new_store";
+      else if (s["is_trending"] == true || s["is_trending"]?.toString() == 'true') resolved = "trending";
+      else if (s["is_popular"] == true || s["is_popular"]?.toString() == 'true') resolved = "popular";
     }
     if (sid.isNotEmpty) {
       if (resolved != null) {

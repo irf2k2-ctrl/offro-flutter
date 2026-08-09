@@ -386,8 +386,8 @@ class StoreHeader extends StatelessWidget {
                   if (sub.isNotEmpty) ...[
                     Text(' · ',
                       style: TextStyle(
-                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)).withValues(alpha: .6),
-                        fontSize: 11)),
+                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)),
+                        fontSize: 11, fontWeight: FontWeight.w800)),
                     Text(sub,
                       style: TextStyle(
                         color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)),

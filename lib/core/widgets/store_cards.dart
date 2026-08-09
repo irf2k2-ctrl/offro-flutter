@@ -1115,12 +1115,20 @@ class _BigCarouselCardState extends State<BigCarouselCard> {
           Builder(builder:(ctx){
             String badge = (store["badge"] ?? "").toString();
             // Fallback: if no badge set but store is marked new in town, use newly_added
-            if (badge.isEmpty && store["is_new_in_town"] == true) badge = "newly_added";
+            final _isNew = store["is_new_in_town"] == true
+                || store["is_new_in_town"]?.toString() == 'true'
+                || store["is_new"] == true
+                || store["is_new"]?.toString() == 'true';
+            if (badge.isEmpty && _isNew) badge = "newly_added";
             if (badge.isEmpty) return const SizedBox.shrink();
             final Map<String,Map<String,dynamic>> badgeMeta = {
               "new_store":    {"label":"New Store",    "color":const Color(0xFF1DB954)},
               "just_opened":  {"label":"Just Opened",  "color":const Color(0xFFE91E8C)},
               "newly_added":  {"label":"Newly Added",  "color":const Color(0xFF111111)},
+              "newly_opened": {"label":"Newly Opened","color":const Color(0xFFE91E8C)},
+              "newly_open":   {"label":"Newly Opened","color":const Color(0xFFE91E8C)},
+              "new_open":     {"label":"Newly Opened","color":const Color(0xFFE91E8C)},
+              "opened":       {"label":"Newly Opened","color":const Color(0xFFE91E8C)},
               "trending":     {"label":"🔥 Trending",  "color":const Color(0xFFFF6B35)},
               "popular":      {"label":"⭐ Popular",   "color":const Color(0xFFFFB400)},
               "top_rated":    {"label":"🏆 Top Rated", "color":const Color(0xFF8B5CF6)},
@@ -1232,7 +1240,8 @@ class TopStoreCard extends StatelessWidget {
   String? _badgeLabel() {
     final badge = store["badge"]?.toString() ?? "";
     if (badge.isNotEmpty) return badge;
-    if (store["is_new_in_town"] == true) return "New Store";
+    if (store["is_new_in_town"] == true || store["is_new_in_town"]?.toString() == 'true'
+        || store["is_new"] == true || store["is_new"]?.toString() == 'true') return "New Store";
     if (store["is_trending"] == true) return "Trending";
     if (store["is_popular"] == true) return "Popular";
     // "NEWLY ADDED" if created within last 7 days
@@ -1608,7 +1617,10 @@ class _StoreCardItemState extends State<StoreCardItem> {
     final String area      = store["area"]?.toString() ?? "";
     final String category  = store["category"]?.toString() ?? "";
 
-    final bool isNew       = store["is_new_in_town"] == true;
+    final bool isNew       = store["is_new_in_town"] == true
+        || store["is_new_in_town"]?.toString() == 'true'
+        || store["is_new"] == true
+        || store["is_new"]?.toString() == 'true';
     final String offerStr  = (store["offer"] ?? "") as String;
     final int dealCount    = ((store["deal_count"] ?? 0) as num).toInt();
     final bool hasDeal     = offerStr.isNotEmpty && dealCount > 0;

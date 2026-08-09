@@ -115,7 +115,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
       final amtRupees  = (order["amount"] as num?)?.toDouble() ?? 0;
       final paise      = (amtRupees * 100).toInt();
 
-      if (rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
+      if (!isFree && rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
         _pendingOrder = Map<String,dynamic>.from(order);
         _razorpay.open({
           "key":         rzpKey,
@@ -127,7 +127,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
           "theme":       {"color": "#3E5F55"},
         });
         return;
-      } else if (paise == 0) {
+      } else if (isFree || paise == 0) {
         if (mounted) {
           showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
             title: const Text("Upgrade Submitted", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
@@ -543,7 +543,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
       final amtRupees  = (order["amount"] as num?)?.toDouble() ?? 0;
       final paise      = (amtRupees * 100).toInt();
 
-      if (rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
+      if (!isFree && rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
         _pendingOrder = Map<String,dynamic>.from(order);
         _razorpay.open({
           "key":         rzpKey,
@@ -555,7 +555,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
           "theme":       {"color": "#3E5F55"},
         });
         return;
-      } else if (paise == 0) {
+      } else if (isFree || paise == 0) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text("✅ Renewed successfully!"),
