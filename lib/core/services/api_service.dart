@@ -339,6 +339,10 @@ class Api {
   static Future<Map<String,dynamic>> getSocialLinks() async {
     try { return Map<String,dynamic>.from(await _get("/social")); } catch(_){ return {}; }
   }
+
+  static Future<Map<String,dynamic>> requestDeleteAccount(String token, String reason, {String feedback = ""}) async {
+    return _post("/user/request-delete", {"reason": reason, "feedback": feedback}, token: token);
+  }
   static Future<Map<String,dynamic>?> getMe(String token) async {
     try {
       return Map<String,dynamic>.from(await _get("/user/me", token: token));
