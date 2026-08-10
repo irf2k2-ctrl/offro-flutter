@@ -128,21 +128,33 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
         });
         return;
       } else if (isFree || paise == 0) {
-        if (mounted) {
-          showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
-            title: const Text("Upgrade Submitted", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
-            content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text("Your premium upgrade request has been submitted for admin review.", style: TextStyle(fontSize: 14, color: kText)),
-              SizedBox(height: 12),
-              Text("The product will go live once approved by the admin team.", style: TextStyle(fontSize: 12, color: kMuted)),
-            ]),
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
-                onPressed: () { Navigator.pop(ctx); Navigator.pop(context, true); },
-                child: const Text("OK", style: TextStyle(color: Colors.white))),
-            ],
-          ));
+        // Free order (₹0 after discount) — call verify endpoint directly
+        // to move the product to premium + create admin approval request.
+        try {
+          final result = await Api.verifyUpgradePayment(widget.token, _pid, {
+            "razorpay_order_id":   rzpOrderId,
+            "razorpay_payment_id": "",
+            "razorpay_signature":  "",
+            "plan":                "1month",
+          });
+          if (mounted) {
+            showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
+              title: const Text("Upgrade Submitted", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+              content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(result["message"]?.toString() ?? "Your premium upgrade request has been submitted for admin review.", style: const TextStyle(fontSize: 14, color: kText)),
+                const SizedBox(height: 12),
+                const Text("The product will go live once approved by the admin team.", style: TextStyle(fontSize: 12, color: kMuted)),
+              ]),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+                  onPressed: () { Navigator.pop(ctx); Navigator.pop(context, true); },
+                  child: const Text("OK", style: TextStyle(color: Colors.white))),
+              ],
+            ));
+          }
+        } catch (e) {
+          if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
         }
       } else {
         if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
@@ -559,11 +571,22 @@ class _RenewProductPageState extends State<RenewProductPage> {
         });
         return;
       } else if (isFree || paise == 0) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("✅ Renewed successfully!"),
-            backgroundColor: Color(0xFF1a6640)));
-          Navigator.pop(context, true);
+        // Free renewal (₹0 after discount) — call verify endpoint directly
+        try {
+          final result = await Api.verifyRenewalPayment(widget.token, _pid, {
+            "razorpay_order_id":   rzpOrderId,
+            "razorpay_payment_id": "",
+            "razorpay_signature":  "",
+            "plan":                "1month",
+          });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(result["message"]?.toString() ?? "✅ Renewed successfully!"),
+              backgroundColor: const Color(0xFF1a6640)));
+            Navigator.pop(context, true);
+          }
+        } catch (e) {
+          if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
         }
       } else {
         if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");

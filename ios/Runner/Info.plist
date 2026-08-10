@@ -85,7 +85,7 @@
 
 	<!-- ── Firebase Messaging ── -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
-	<false/>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

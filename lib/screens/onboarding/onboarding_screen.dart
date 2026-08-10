@@ -157,11 +157,11 @@ class _GetStartedButtonState extends State<_GetStartedButton> {
   }
   @override Widget build(BuildContext context) => GestureDetector(
     onTap: _tapped ? null : _handle,
-    behavior: HitTestBehavior.translucent,   // captures taps even over transparent area
+    behavior: HitTestBehavior.opaque,     // captures ALL taps in the zone, not just on painted pixels
     child: AnimatedOpacity(
       opacity: _tapped ? 0.0 : 1.0,
       duration: const Duration(milliseconds: 200),
-      child: const SizedBox.expand(),        // fills the tap zone, invisible over the image
+      child: const SizedBox.expand(),      // fills the entire Positioned tap zone
     ),
   );
 }
@@ -279,10 +279,12 @@ class _OnboardingSlideSt extends State<_OnboardingSlide> {
     if (widget.isLast && widget.onGetStarted != null) {
       return Stack(children: [
         Positioned.fill(child: imageWidget),
-        // Transparent tap zone covers the bottom ~25% of screen (button area)
+        // Transparent tap zone covers the bottom ~35% of screen (button area).
+        // Increased so the user can tap anywhere in the
+        // visible "Get Started" button area, not just a small specific spot.
         Positioned(
           left: 0, right: 0, bottom: 0,
-          height: mq.size.height * 0.20,
+          height: mq.size.height * 0.35,
           child: _GetStartedButton(onTap: widget.onGetStarted!),
         ),
       ]);

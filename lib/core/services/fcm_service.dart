@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 import 'dart:async';
 // lib/core/services/fcm_service.dart
@@ -213,6 +214,29 @@ class FcmService {
       }
 
       // 4. Get FCM device token — retry up to 5x with 3-second delay
+      // On iOS, the APNs token must be registered first before FCM can
+      // generate an FCM token. With FirebaseAppDelegateProxyEnabled = true,
+      // the plugin auto-registers, but we add a small delay on iOS to ensure
+      // the APNs token is ready before requesting the FCM token.
+      if (Platform.isIOS) {
+        debugPrint('[FCM] iOS: waiting for APNs token registration...');
+        // Wait for APNs token to be available before requesting FCM token
+        String? apnsToken;
+        for (int i = 0; i < 10; i++) {
+          try {
+            apnsToken = await _fcm.getAPNSToken().timeout(const Duration(seconds: 2));
+            if (apnsToken != null) break;
+          } catch (e) {
+            debugPrint('[FCM] iOS APNs token attempt $i: $e');
+          }
+          await Future.delayed(const Duration(seconds: 1));
+        }
+        debugPrint('[FCM] iOS APNs token: ${apnsToken != null ? "received" : "not received yet"}');
+        if (apnsToken == null) {
+          debugPrint('[FCM] iOS: APNs token not ready, proceeding with getToken anyway...');
+        }
+      }
+
       String? fcmToken;
       for (int attempt = 1; attempt <= 5; attempt++) {
         try {
