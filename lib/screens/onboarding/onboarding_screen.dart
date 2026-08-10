@@ -22,6 +22,7 @@ class _OnboardingState extends State<OnboardingScreen> {
 
   @override void initState() {
     super.initState();
+    _OnboardingSlideSt._pageController = _pc;
     // Force transparent status bar so images fill edge-to-edge
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -180,6 +181,7 @@ class _OnboardingSlide extends StatefulWidget {
 }
 
 class _OnboardingSlideSt extends State<_OnboardingSlide> {
+  static PageController? _pageController;
   bool _webpFailed = false;
   bool _pngFailed  = false;
 
@@ -276,20 +278,39 @@ class _OnboardingSlideSt extends State<_OnboardingSlide> {
 
     // For the last slide: wrap with tap zone at the bottom so "Let's Get Started"
     // button baked into the image is tappable → navigates to login.
+    // For non-last slides: add a tap-to-advance zone in the bottom area.
     if (widget.isLast && widget.onGetStarted != null) {
       return Stack(children: [
         Positioned.fill(child: imageWidget),
-        // Transparent tap zone covers the bottom ~35% of screen (button area).
-        // Increased so the user can tap anywhere in the
-        // visible "Get Started" button area, not just a small specific spot.
+        // Transparent tap zone covers the bottom ~42% of screen (generous area
+        // so the user can tap anywhere near the button, not just on a tiny spot).
         Positioned(
           left: 0, right: 0, bottom: 0,
-          height: mq.size.height * 0.35,
+          height: mq.size.height * 0.42,
           child: _GetStartedButton(onTap: widget.onGetStarted!),
         ),
       ]);
     }
-    return imageWidget;
+    // Non-last slide: tap-to-advance in bottom 42% area (not just swipe)
+    return Stack(children: [
+      Positioned.fill(child: imageWidget),
+      Positioned(
+        left: 0, right: 0, bottom: 0,
+        height: mq.size.height * 0.42,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            if (_OnboardingSlideSt._pageController != null) {
+              _OnboardingSlideSt._pageController!.nextPage(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }
+          },
+          child: const SizedBox.expand(),
+        ),
+      ),
+    ]);
   }
 }
 
