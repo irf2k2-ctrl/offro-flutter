@@ -205,6 +205,9 @@ class Api {
   static Future<String> getMerchantTerms() async {
     try { final d = await _get("/merchant/terms"); return d["content"] ?? ""; } catch (_) { return ""; }
   }
+  static Future<Map<String,dynamic>?> acceptMerchantTerms(String token) async {
+    try { return Map<String,dynamic>.from(await _post("/merchant/accept-terms", {"version": "1.0"}, token: token)); } catch (_) { return null; }
+  }
   static Future<List> getMerchantDeals(String token) async {
     try { return await _get("/merchant/deals", token: token); } catch (_) { return []; }
   }
@@ -364,7 +367,7 @@ class Api {
   }
 
   static Future<Map<String,dynamic>?> getMerchantProfile(String token) async {
-    try { return Map<String,dynamic>.from(await _get("/merchant/profile/me", token: token)); } catch(_) { return null; }
+    try { return Map<String,dynamic>.from(await _get("/merchant/me", token: token)); } catch(_) { return null; }
   }
   static Future<String> getAboutUs() async {
     try { final d = await _get("/about"); return d["content"] ?? ""; } catch (_) { return ""; }

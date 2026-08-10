@@ -1,5 +1,6 @@
 // lib/core/widgets/store_cards.dart
 import 'dart:async';
+import 'dart:io';
 import 'dart:convert';
 import 'package:share_plus/share_plus.dart';
 import 'dart:typed_data';
@@ -10,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import 'package:video_player/video_player.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import 'package:offro_user/screens/detail/detail_page.dart';
@@ -91,6 +93,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         url.toLowerCase().endsWith(".mp4") ||
         url.toLowerCase().contains(".mp4?") ||
         url.toLowerCase().contains("video/mp4") ||
+        url.toLowerCase().contains("/video/upload/") ||  // Cloudinary video URL
         url.startsWith("data:video")   // base64-encoded video blob
       );
 
@@ -105,24 +108,16 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
 
   void _initVideo(String url) {
     if (url.startsWith("data:video")) {
-      // base64 video blob — decode to bytes and use file-based controller
+      // base64 video blob — decode to bytes and write to temp file.
+      // iOS AVPlayer cannot play from data: URIs (VideoPlayerController.contentUri
+      // fails silently on iOS). Writing to a temp file and using file() works
+      // on both iOS and Android.
       try {
         final commaIdx = url.indexOf(",");
         if (commaIdx == -1) return;
         final b64 = url.substring(commaIdx + 1);
         final bytes = base64Decode(b64);
-        _vpc = VideoPlayerController.contentUri(
-          Uri.dataFromBytes(bytes, mimeType: "video/mp4"))
-          ..initialize().then((_) {
-            if (!mounted) return;
-            _vpc!.setLooping(false); // no loop — advance to next slide on complete
-            _vpc!.setVolume(0);
-            _vpc!.play();
-            _vpc!.addListener(_onVideoPositionChanged);
-            setState(() => _videoReady = true);
-          }).catchError((e) {
-            if (kDebugMode) debugPrint("[Offro] base64 video init error: \$e");
-          });
+        _initVideoFromBytes(bytes);
       } catch (e) {
         if (kDebugMode) debugPrint("[Offro] base64 decode error: \$e");
       }
@@ -140,6 +135,29 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       }).catchError((e) {
         if (kDebugMode) debugPrint("[Offro] video init error: \$e (url: \$url)");
       });
+  }
+
+  Future<void> _initVideoFromBytes(Uint8List bytes) async {
+    try {
+      // Use path_provider's getTemporaryDirectory() — more reliable on iOS than
+      // Directory.systemTemp. iOS sandbox may restrict access to /tmp in some cases.
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/offro_video_${DateTime.now().millisecondsSinceEpoch}.mp4');
+      await tempFile.writeAsBytes(bytes);
+      _vpc = VideoPlayerController.file(tempFile)
+        ..initialize().then((_) {
+          if (!mounted) return;
+          _vpc!.setLooping(false);
+          _vpc!.setVolume(0);
+          _vpc!.play();
+          _vpc!.addListener(_onVideoPositionChanged);
+          setState(() => _videoReady = true);
+        }).catchError((e) {
+          if (kDebugMode) debugPrint("[Offro] file video init error: \$e");
+        });
+    } catch (e) {
+      if (kDebugMode) debugPrint("[Offro] temp file video error: \$e");
+    }
   }
 
   bool _videoEndFired = false;

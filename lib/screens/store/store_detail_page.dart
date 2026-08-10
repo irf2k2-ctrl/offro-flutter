@@ -107,22 +107,31 @@ class _StoreDetailPageState extends State<StoreDetailPage>
       final isFav  = results[1] as bool;
       final wallet = results[2] as Map<String, dynamic>;
 
-      final savedDist     = _store['distance_km'];
-      final savedBadge    = _store['badge'];
-      final savedIsNew    = _store['is_new_in_town'];
+      final savedDist      = _store['distance_km'];
+      final savedBadge     = _store['badge'] ?? widget.store['badge'];
+      final savedIsNew     = _store['is_new_in_town'] ?? widget.store['is_new_in_town'];
+      final savedCreatedAt = _store['created_at'] ?? widget.store['created_at'] ?? widget.store['created_date'];
       if (mounted) {
         setState(() {
           _store = Map<String, dynamic>.from(full);
           if (savedDist  != null) _store['distance_km'] = savedDist;
-          // Preserve badge + is_new_in_town from initial store data if API response omits them
-          if ((full['badge'] == null || full['badge'].toString().isEmpty) && savedBadge != null) {
-            _store['badge'] = savedBadge;
-          }
+          // Preserve badge from initial store data (home screen list or widget.store)
+          // if API response omits it or returns empty
+          final effectiveBadge = (full['badge'] == null || full['badge'].toString().isEmpty)
+              ? (savedBadge ?? '') : full['badge'];
+          _store['badge'] = effectiveBadge;
           // Preserve is_new_in_town flag so "Newly Added" badge stays visible after detail load
-          if ((full['is_new_in_town'] == null || full['is_new_in_town'] == false)
-              && (savedIsNew == true || widget.store['is_new_in_town'] == true
-                  || widget.store['is_new'] == true)) {
-            _store['is_new_in_town'] = true;
+          final isNewFromFull = full['is_new_in_town'] == true
+              || full['is_new_in_town']?.toString() == 'true';
+          final isNewFromSaved = savedIsNew == true
+              || savedIsNew?.toString() == 'true'
+              || widget.store['is_new_in_town'] == true
+              || widget.store['is_new'] == true;
+          _store['is_new_in_town'] = isNewFromFull || isNewFromSaved;
+          // Preserve created_at from initial store data — store detail API may not
+          // return it, but it's needed for auto-computing the 'NEWLY ADDED' badge
+          if (full['created_at'] == null || full['created_at'].toString().isEmpty) {
+            _store['created_at'] = savedCreatedAt ?? '';
           }
           _isFav    = isFav;
           FavState.instance.setStore(id, isFav);

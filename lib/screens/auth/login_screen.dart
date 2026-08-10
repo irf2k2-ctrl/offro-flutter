@@ -684,6 +684,23 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
     if (role == widget.currentMode || _loading) return;
     setState(() { _loading = true; _msg = ''; });
     try {
+      if (role == 'merchant') {
+        // Check if user has accepted merchant terms
+        final me = await Api.getMe(widget.token);
+        if (me != null && me['merchant_terms_accepted'] != true) {
+          if (mounted) {
+            final accepted = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => _MerchantTermsDialog(token: widget.token),
+            );
+            if (accepted != true) {
+              setState(() { _loading = false; });
+              return;
+            }
+          }
+        }
+      }
       // One account, one identity — no separate merchant record needed.
       // Any registered user can switch to merchant mode freely.
       await Prefs.saveMode(role);
@@ -1001,9 +1018,13 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                     if (_isReg) ...[
                       _label('Your Name'),
                       _field(_nameC, 'e.g. Rahul Kumar', Icons.person_outline_rounded,
-                        keyboardType: TextInputType.name,
+                        keyboardType: TextInputType.text,
                         focusNode: _nameFocus,
-                        textCapitalization: TextCapitalization.words),
+                        textCapitalization: TextCapitalization.words,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                          LengthLimitingTextInputFormatter(40),
+                        ]),
                       const SizedBox(height: 16),
                     ],
 
@@ -1032,9 +1053,13 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                           Expanded(child: Wrap(children: [
                             const Text('I agree to the ', style: TextStyle(fontSize: 12, color: kMuted)),
                             GestureDetector(
-                              onTap: () => _showPolicy('Terms', Api.fetchTerms('user')),
-                              child: const Text('Terms', style: TextStyle(fontSize: 12, color: kPrimary, decoration: TextDecoration.underline, fontWeight: FontWeight.bold))),
-                            const Text(' & ', style: TextStyle(fontSize: 12, color: kMuted)),
+                              onTap: () => _showPolicy('User Terms', Api.fetchTerms('user')),
+                              child: const Text('User Terms', style: TextStyle(fontSize: 12, color: kPrimary, decoration: TextDecoration.underline, fontWeight: FontWeight.bold))),
+                            const Text(' | ', style: TextStyle(fontSize: 12, color: kMuted)),
+                            GestureDetector(
+                              onTap: () => _showPolicy('Merchant Terms', Api.getMerchantTerms()),
+                              child: const Text('Merchant Terms', style: TextStyle(fontSize: 12, color: kPrimary, decoration: TextDecoration.underline, fontWeight: FontWeight.bold))),
+                            const Text(' | ', style: TextStyle(fontSize: 12, color: kMuted)),
                             GestureDetector(
                               onTap: () => _showPolicy('Privacy Policy', Api.fetchPolicy('privacy')),
                               child: const Text('Privacy Policy', style: TextStyle(fontSize: 12, color: kPrimary, decoration: TextDecoration.underline, fontWeight: FontWeight.bold))),
@@ -1119,12 +1144,14 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   Widget _field(TextEditingController c, String hint, IconData icon,
       {TextInputType keyboardType = TextInputType.text,
        FocusNode? focusNode,
-       TextCapitalization textCapitalization = TextCapitalization.none}) =>
+       TextCapitalization textCapitalization = TextCapitalization.none,
+       List<TextInputFormatter>? inputFormatters}) =>
     TextField(
       controller: c,
       keyboardType: keyboardType,
       focusNode: focusNode,
       textCapitalization: textCapitalization,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 14, color: kText),
       decoration: InputDecoration(
         hintText: hint,
@@ -1173,16 +1200,21 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   }
 
   /// Normalises the social-media value stored in the database into a
-  /// fully-qualified HTTPS URL.  The admin dashboard saves *full* URLs
-  /// (e.g. "https://www.facebook.com/Offro") but older entries may store
-  /// just a handle/username, so we handle both cases.
+  /// fully-qualified HTTPS URL.  Handles:
+  ///   1. Full URLs:  "https://www.facebook.com/Offro"  →  as-is
+  ///   2. Domain-only: "www.facebook.com/Offro"          →  prepend https://
+  ///   3. Handle-only: "@offro" or "offro"               →  prepend fallbackPrefix
   String _normaliseSocialUrl(String raw, String fallbackPrefix) {
     final v = raw.trim();
     if (v.isEmpty) return '';
     // Already a full URL?  Use as-is.
     if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    // Domain-like value (contains a dot, e.g. "www.facebook.com/Offro") — prepend https://
+    if (v.contains('.') && !v.startsWith('@')) return 'https://' + v;
     // Handle-style value (e.g. "@offro" or "offro") — prepend the prefix.
-    return fallbackPrefix + v;
+    // Strip leading @ if present since the prefix may already include it.
+    final handle = v.startsWith('@') ? v.substring(1) : v;
+    return fallbackPrefix + handle;
   }
 
   Widget _socialBar() {
@@ -1216,20 +1248,43 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   Widget _socialIcon(String url, Color color, IconData icon, String label, {bool active = false}) {
     if (!active) return const SizedBox.shrink();
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () async {
         if (url.isEmpty) return;
         debugPrint('[Social] Launching: ' + url);
+        final uri = Uri.parse(url);
+        debugPrint('[Social] Parsed URI: scheme=' + (uri.scheme) + ' host=' + (uri.host) + ' path=' + (uri.path));
         try {
+          // Try external application first (opens Safari or native app)
           final launched = await launchUrl(
-            Uri.parse(url),
+            uri,
             mode: LaunchMode.externalApplication,
           );
-          debugPrint('[Social] launchUrl returned: ' + launched.toString());
+          debugPrint('[Social] launchUrl(externalApplication) returned: ' + launched.toString());
           if (!launched) {
-            debugPrint('[Social] launchUrl failed for: ' + url);
+            // Fallback: try in-app browser view (bypasses universal link issues)
+            debugPrint('[Social] externalApplication failed, trying inAppBrowserView...');
+            final launched2 = await launchUrl(
+              uri,
+              mode: LaunchMode.inAppBrowserView,
+            );
+            debugPrint('[Social] launchUrl(inAppBrowserView) returned: ' + launched2.toString());
+            if (!launched2) {
+              debugPrint('[Social] All launch modes failed for: ' + url);
+            }
           }
         } catch (e) {
           debugPrint('[Social] launchUrl exception for ' + url + ': ' + e.toString());
+          // Last-resort fallback
+          try {
+            final launched3 = await launchUrl(
+              uri,
+              mode: LaunchMode.inAppBrowserView,
+            );
+            debugPrint('[Social] fallback inAppBrowserView returned: ' + launched3.toString());
+          } catch (e2) {
+            debugPrint('[Social] all fallbacks failed: ' + e2.toString());
+          }
         }
       },
       child: Container(
@@ -1256,4 +1311,93 @@ class OffroDialog extends StatelessWidget {
       child: const Text('Close', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)))],
     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
   );
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MERCHANT TERMS DIALOG — shown when switching to merchant mode without
+// prior acceptance of merchant terms
+// ══════════════════════════════════════════════════════════════════════════════
+class _MerchantTermsDialog extends StatefulWidget {
+  final String token;
+  const _MerchantTermsDialog({required this.token});
+  @override State<_MerchantTermsDialog> createState() => _MerchantTermsDialogState();
+}
+
+class _MerchantTermsDialogState extends State<_MerchantTermsDialog> {
+  bool _loading = true;
+  bool _agreed = false;
+  String _content = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTerms();
+  }
+
+  Future<void> _loadTerms() async {
+    final c = await Api.getMerchantTerms();
+    if (mounted) setState(() { _content = c; _loading = false; });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Merchant Terms & Conditions',
+        style: TextStyle(fontWeight: FontWeight.w800, color: kPrimary)),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _loading
+          ? const Center(child: CircularProgressIndicator(color: kPrimary))
+          : Column(mainAxisSize: MainAxisSize.min, children: [
+            Expanded(child: SingleChildScrollView(
+              child: Text(
+                _content.isEmpty
+                  ? 'Merchant terms and conditions will be posted here.'
+                  : _content,
+                style: const TextStyle(fontSize: 13, color: kText, height: 1.5),
+              ),
+            )),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () => setState(() => _agreed = !_agreed),
+              child: Row(children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: 18, height: 18,
+                  decoration: BoxDecoration(
+                    color: _agreed ? kPrimary : Colors.transparent,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: _agreed ? kPrimary : kBorder, width: 1.6)),
+                  child: _agreed
+                    ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
+                    : null,
+                ),
+                const SizedBox(width: 8),
+                const Text('I agree to the Merchant Terms',
+                  style: TextStyle(fontSize: 12, color: kMuted)),
+              ]),
+            ),
+          ]),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel', style: TextStyle(color: kMuted)),
+        ),
+        ElevatedButton(
+          onPressed: _agreed ? () async {
+            await Api.acceptMerchantTerms(widget.token);
+            if (mounted) Navigator.pop(context, true);
+          } : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kPrimary,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.grey.shade300,
+          ),
+          child: const Text('Accept & Continue'),
+        ),
+      ],
+    );
+  }
 }
