@@ -128,7 +128,8 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       }
       return;
     }
-    _vpc = VideoPlayerController.networkUrl(Uri.parse(url))
+    _vpc = VideoPlayerController.networkUrl(Uri.parse(url),
+        httpHeaders: {"User-Agent": "OffroApp/1.0"})
       ..initialize().then((_) {
         if (!mounted) return;
         _vpc!.setLooping(false); // no loop — advance to next slide on complete
@@ -137,7 +138,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         _vpc!.addListener(_onVideoPositionChanged);
         setState(() => _videoReady = true);
       }).catchError((e) {
-        if (kDebugMode) debugPrint("[Offro] video init error: \$e");
+        if (kDebugMode) debugPrint("[Offro] video init error: \$e (url: \$url)");
       });
   }
 

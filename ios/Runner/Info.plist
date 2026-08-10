@@ -91,5 +91,15 @@
 		<string>remote-notification</string>
 		<string>fetch</string>
 	</array>
+
+	<!-- ── App Transport Security ── -->
+	<!-- Allow video/media playback from CDN URLs that may redirect through HTTP.
+	     Cloudinary serves HTTPS but CDN edge nodes can redirect. Without this,
+	     iOS silently blocks video playback in AVPlayer (video_player package). -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsForMedia</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

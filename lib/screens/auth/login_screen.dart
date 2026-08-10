@@ -810,6 +810,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   String _msg   = '';
   bool _msgOk   = false;
   final _phoneC = TextEditingController();
+  final FocusNode _nameFocus = FocusNode();
 
   // Registration mode
   bool _isReg = false;
@@ -839,7 +840,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
 
   @override void dispose() {
     _slideCtrl.dispose(); _fadeCtrl.dispose();
-    _phoneC.dispose(); _nameC.dispose();
+    _phoneC.dispose(); _nameC.dispose(); _nameFocus.dispose();
     super.dispose();
   }
 
@@ -985,7 +986,13 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(14)),
                       child: Row(children: [
                         _tabBtn('Login', !_isReg, () => setState(() { _isReg = false; _msg = ''; })),
-                        _tabBtn('Register', _isReg,  () => setState(() { _isReg = true;  _msg = ''; })),
+                        _tabBtn('Register', _isReg,  () {
+                          FocusScope.of(context).unfocus();
+                          setState(() { _isReg = true;  _msg = ''; });
+                          Future.delayed(const Duration(milliseconds: 300), () {
+                            if (mounted && _isReg) FocusScope.of(context).requestFocus(_nameFocus);
+                          });
+                        }),
                       ]),
                     ),
                     const SizedBox(height: 24),
@@ -993,7 +1000,10 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                     // Name field (register only)
                     if (_isReg) ...[
                       _label('Your Name'),
-                      _field(_nameC, 'e.g. Rahul Kumar', Icons.person_outline_rounded, keyboardType: TextInputType.name),
+                      _field(_nameC, 'e.g. Rahul Kumar', Icons.person_outline_rounded,
+                        keyboardType: TextInputType.name,
+                        focusNode: _nameFocus,
+                        textCapitalization: TextCapitalization.words),
                       const SizedBox(height: 16),
                     ],
 
@@ -1106,10 +1116,15 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     padding: const EdgeInsets.only(bottom: 8),
     child: Text(text, style: const TextStyle(color: kText, fontWeight: FontWeight.w700, fontSize: 13.5)));
 
-  Widget _field(TextEditingController c, String hint, IconData icon, {TextInputType keyboardType = TextInputType.text}) =>
+  Widget _field(TextEditingController c, String hint, IconData icon,
+      {TextInputType keyboardType = TextInputType.text,
+       FocusNode? focusNode,
+       TextCapitalization textCapitalization = TextCapitalization.none}) =>
     TextField(
       controller: c,
       keyboardType: keyboardType,
+      focusNode: focusNode,
+      textCapitalization: textCapitalization,
       style: const TextStyle(fontSize: 14, color: kText),
       decoration: InputDecoration(
         hintText: hint,
