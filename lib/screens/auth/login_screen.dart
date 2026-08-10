@@ -1157,6 +1157,19 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     showDialog(context: context, builder: (_) => OffroDialog(title: title, body: c));
   }
 
+  /// Normalises the social-media value stored in the database into a
+  /// fully-qualified HTTPS URL.  The admin dashboard saves *full* URLs
+  /// (e.g. "https://www.facebook.com/Offro") but older entries may store
+  /// just a handle/username, so we handle both cases.
+  String _normaliseSocialUrl(String raw, String fallbackPrefix) {
+    final v = raw.trim();
+    if (v.isEmpty) return '';
+    // Already a full URL?  Use as-is.
+    if (v.startsWith('http://') || v.startsWith('https://')) return v;
+    // Handle-style value (e.g. "@offro" or "offro") — prepend the prefix.
+    return fallbackPrefix + v;
+  }
+
   Widget _socialBar() {
     return FutureBuilder<Map<String, dynamic>>(
       future: _socialFuture,
@@ -1166,11 +1179,20 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         final insta = (links['instagram'] ?? '') as String;
         final fb    = (links['facebook']  ?? '') as String;
         final yt    = (links['youtube']   ?? '') as String;
+
+        // WhatsApp: admin stores a phone number, so always wrap with wa.me
+        final waUrl  = wa.isNotEmpty ? 'https://wa.me/' + wa.replaceAll(RegExp(r'[^0-9]'), '') : '';
+        // The other three: admin stores full URLs — use as-is, but handle
+        // legacy handle-only values gracefully.
+        final instaUrl = _normaliseSocialUrl(insta, 'https://instagram.com/');
+        final fbUrl    = _normaliseSocialUrl(fb,    'https://facebook.com/');
+        final ytUrl    = _normaliseSocialUrl(yt,    'https://youtube.com/@');
+
         return Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
-          _socialIcon(wa.isNotEmpty ? 'https://wa.me/$wa' : '', const Color(0xFF25D366), Icons.chat_rounded, 'WhatsApp', active: wa.isNotEmpty),
-          _socialIcon(insta.isNotEmpty ? 'https://instagram.com/$insta' : '', const Color(0xFFE1306C), Icons.camera_alt_rounded, 'Instagram', active: insta.isNotEmpty),
-          _socialIcon(fb.isNotEmpty ? 'https://facebook.com/$fb' : '', const Color(0xFF1877F2), Icons.facebook_rounded, 'Facebook', active: fb.isNotEmpty),
-          _socialIcon(yt.isNotEmpty ? 'https://youtube.com/@$yt' : '', const Color(0xFFFF0000), Icons.play_circle_fill_rounded, 'YouTube', active: yt.isNotEmpty),
+          _socialIcon(waUrl,     const Color(0xFF25D366), Icons.chat_rounded,         'WhatsApp',  active: waUrl.isNotEmpty),
+          _socialIcon(instaUrl,   const Color(0xFFE1306C), Icons.camera_alt_rounded,  'Instagram', active: instaUrl.isNotEmpty),
+          _socialIcon(fbUrl,      const Color(0xFF1877F2), Icons.facebook_rounded,    'Facebook',  active: fbUrl.isNotEmpty),
+          _socialIcon(ytUrl,      const Color(0xFFFF0000), Icons.play_circle_fill_rounded, 'YouTube', active: ytUrl.isNotEmpty),
         ]));
       },
     );
@@ -1181,7 +1203,19 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     return GestureDetector(
       onTap: () async {
         if (url.isEmpty) return;
-        try { await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication); } catch(_) {}
+        debugPrint('[Social] Launching: ' + url);
+        try {
+          final launched = await launchUrl(
+            Uri.parse(url),
+            mode: LaunchMode.externalApplication,
+          );
+          debugPrint('[Social] launchUrl returned: ' + launched.toString());
+          if (!launched) {
+            debugPrint('[Social] launchUrl failed for: ' + url);
+          }
+        } catch (e) {
+          debugPrint('[Social] launchUrl exception for ' + url + ': ' + e.toString());
+        }
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 6),
