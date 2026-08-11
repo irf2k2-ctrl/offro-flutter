@@ -5400,7 +5400,7 @@ class _DiscoverProductsSection extends StatelessWidget {
               final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
               final storeName = _resolveStoreName(v);
               final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
-              final badge     = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
+              final badge     = discMatch != null ? "${discMatch.group(1)}%" : "";
               // Also check discount_label from API
               final discLabel = v["discount_label"]?.toString() ?? "";
               final finalBadge = badge.isNotEmpty ? badge : (discLabel.isNotEmpty ? discLabel : "");
@@ -5497,57 +5497,62 @@ class _DiscoverProductsSection extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          // Title — bigger and bolder (50% larger)
+                          // Title — single line only, ellipsis if long (offer/description text removed from card; still shown on detail page)
                           if (title.isNotEmpty)
                             Text(title,
                               style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w800, height: 1.25),
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
-                          // Offer text — shown separately, not as title fallback
-                          if (offerText.isNotEmpty && offerText != title) ...[
-                            const SizedBox(height: 3),
-                            Text(offerText,
-                              style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 17, fontWeight: FontWeight.w700, height: 1.3),
-                              maxLines: 2, overflow: TextOverflow.ellipsis),
-                          ],
-                          // ── FIX 6: Rating below title ──
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          // Seller line — moved up directly below name — with rating pill (green bg) on the right
                           Builder(builder: (_ctx) {
-                            // FIX: safe parse — rating may be stored as String
                             final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
                             final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
-                            if (_pr <= 0) return const SizedBox.shrink();
+                            if (storeName.isEmpty && _pr <= 0) return const SizedBox.shrink();
                             return Padding(
                               padding: const EdgeInsets.only(top: 4),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 13),
-                                const SizedBox(width: 3),
-                                Text(_pr.toStringAsFixed(1),
-                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 11, fontWeight: FontWeight.w700)),
-                                if (_pc > 0) Text(" ($_pc)",
-                                  style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 10)),
+                              child: Row(children: [
+                                if (storeName.isNotEmpty)
+                                  Expanded(child: Text("Seller: " + storeName,
+                                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                                    maxLines: 1, overflow: TextOverflow.ellipsis))
+                                else
+                                  const Spacer(),
+                                if (_pr > 0) ...[
+                                  const SizedBox(width: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
+                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                      const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
+                                      const SizedBox(width: 2),
+                                      Text(_pr.toStringAsFixed(1),
+                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                                      if (_pc > 0) Text(" ($_pc)",
+                                        style: const TextStyle(color: Colors.white70, fontSize: 9)),
+                                    ]),
+                                  ),
+                                ],
                               ]),
                             );
                           }),
-                          if (storeName.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text("Seller: " + storeName,
-                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 5),
-                          ],
-                          if (saleP != null && saleP > 0) Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                            Text("Offer ",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 14, fontWeight: FontWeight.w700)),
-                            Text("₹${saleP.toStringAsFixed(0)}",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 20, fontWeight: FontWeight.w900)),
-                            if (origP != null) ...[
-                              const SizedBox(width: 5),
-                              Text("₹${origP.toStringAsFixed(0)}",
-                                style: const TextStyle(
-                                  color: Color(0xFF9e9e9e), fontSize: 15,
-                                  decoration: TextDecoration.lineThrough,
-                                  decorationColor: Color(0xFF9e9e9e))),
-                            ],
-                          ]),
+                          if (saleP != null && saleP > 0) Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
+                                child: Text("₹${saleP.toStringAsFixed(0)}",
+                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w900)),
+                              ),
+                              if (origP != null) ...[
+                                const SizedBox(width: 6),
+                                Text("₹${origP.toStringAsFixed(0)}",
+                                  style: const TextStyle(
+                                    color: Color(0xFF9e9e9e), fontSize: 14,
+                                    decoration: TextDecoration.lineThrough,
+                                    decorationColor: Color(0xFF9e9e9e))),
+                              ],
+                            ]),
+                          ),
                         ]),
                       );
                     }),
@@ -8062,7 +8067,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       badgeLabel = "BEST SELLER";
       badgeColor = const Color(0xFFFFBF00);
     } else if (discount.isNotEmpty && discount != "0") {
-      badgeLabel = discount.contains("%") ? discount : "$discount% OFF";
+      badgeLabel = discount.contains("%") ? discount.replaceAll(RegExp(r'\s*OFF\s*', caseSensitive: false), "") : "$discount%";
       badgeColor = const Color(0xFFFF6B35);
     }
 
@@ -8143,58 +8148,65 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Product title
+              // Product title — single line only, ellipsis if long (offer/description text removed from card; still shown on detail page)
               if (title.isNotEmpty)
                 Text(title,
                   style: const TextStyle(
                     color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800,
                     height: 1.25),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              // Offer text — shown separately below title
-              if (text.isNotEmpty && text != title) ...[
-                const SizedBox(height: 3),
-                Text(text,
-                  style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500, height: 1.3),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              ],
-              if (storeName.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(storeName,
-                  style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              ],
+              // Seller line — moved up directly below name — with rating pill (green bg) on the right
               Builder(builder: (_) {
                 final _pr = (product["rating"] as num?)?.toDouble() ?? 0.0;
                 final _pc = (product["rating_count"] ?? product["review_count"] as num?)?.toInt() ?? 0;
-                if (_pr <= 0) return const SizedBox.shrink();
+                if (storeName.isEmpty && _pr <= 0) return const SizedBox.shrink();
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 13),
-                    const SizedBox(width: 3),
-                    Text(_pr.toStringAsFixed(1),
-                      style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 11, fontWeight: FontWeight.w700)),
-                    if (_pc > 0) Text(" ($_pc)",
-                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 10)),
+                  child: Row(children: [
+                    if (storeName.isNotEmpty)
+                      Expanded(child: Text("Seller: " + storeName,
+                        style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis))
+                    else
+                      const Spacer(),
+                    if (_pr > 0) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
+                          const SizedBox(width: 2),
+                          Text(_pr.toStringAsFixed(1),
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                          if (_pc > 0) Text(" ($_pc)",
+                            style: const TextStyle(color: Colors.white70, fontSize: 9)),
+                        ]),
+                      ),
+                    ],
                   ]),
                 );
               }),
               if (priceRaw.isNotEmpty && priceRaw != "0") ...[
-                const SizedBox(height: 6),
-                Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                  Text("Offer ",
-                    style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 9, fontWeight: FontWeight.w600)),
-                  Text("₹$priceRaw",
-                    style: const TextStyle(
-                      color: Color(0xFF2c7a4b), fontSize: 14, fontWeight: FontWeight.w900)),
-                  if (origRaw.isNotEmpty && origRaw != "0") ...[
-                    const SizedBox(width: 5),
-                    Text("₹$origRaw",
-                      style: const TextStyle(
-                        color: Color(0xFF9aada8), fontSize: 11,
-                        decoration: TextDecoration.lineThrough)),
-                  ],
-                ]),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(7)),
+                      child: Text("₹$priceRaw",
+                        style: const TextStyle(
+                          color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w900)),
+                    ),
+                    if (origRaw.isNotEmpty && origRaw != "0") ...[
+                      const SizedBox(width: 5),
+                      Text("₹$origRaw",
+                        style: const TextStyle(
+                          color: Color(0xFF9aada8), fontSize: 11,
+                          decoration: TextDecoration.lineThrough)),
+                    ],
+                  ]),
+                ),
               ],
             ]),
           ),
