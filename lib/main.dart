@@ -5354,7 +5354,7 @@ class _DiscoverProductsSection extends StatelessWidget {
             style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
         ),
         SizedBox(
-          height: 170, // ITEM8: reduced card height
+          height: 185, // increased for better UX with bigger fonts
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -5397,10 +5397,13 @@ class _DiscoverProductsSection extends StatelessWidget {
               }
               final v = Map<String,dynamic>.from(products[i] as Map);
               final title     = _resolveTitle(v);
-              final offerText = v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
+              final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
               final storeName = _resolveStoreName(v);
               final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
               final badge     = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
+              // Also check discount_label from API
+              final discLabel = v["discount_label"]?.toString() ?? "";
+              final finalBadge = badge.isNotEmpty ? badge : (discLabel.isNotEmpty ? discLabel : "");
               final imgSrc    = _resolveImg(v);
               final grad      = _cardGrads[i % _cardGrads.length];
 
@@ -5408,7 +5411,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                 onTap: () => Navigator.push(ctx, MaterialPageRoute(
                   builder: (_) => ProductDetailsPage(product: v, token: token))),
                 child: Container(
-                  width: 140,
+                  width: 155,
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -5423,15 +5426,15 @@ class _DiscoverProductsSection extends StatelessWidget {
                       ClipRRect(
                         borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
                         child: SizedBox(
-                          width: 140, height: 84, // ITEM8: reduced image height
+                          width: 155, height: 95, // increased for better UX
                           child: imgSrc.startsWith("http")
                             ? CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
-                                width: 140, height: 84,
+                                width: 155, height: 95,
                                 placeholder: (_, __) => Container(width:140, height:84, color: grad[1]),
                                 errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]]))
                             : imgSrc.startsWith("data:image")
                               ? _b64Img(imgSrc, _fallback(title, [grad[0], grad[1]]))
-                              : Container(width:140, height:84,
+                              : Container(width:155, height:95,
                                   decoration: BoxDecoration(gradient: LinearGradient(colors:[grad[0],grad[1]], begin:Alignment.topLeft, end:Alignment.bottomRight)),
                                   child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
                                     style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 26, fontWeight: FontWeight.w900)))),
@@ -5492,11 +5495,20 @@ class _DiscoverProductsSection extends StatelessWidget {
                       num? origP = _numVal(v, ["original_price","mrp","was_price","compare_price"]);
                       if (origP != null && saleP != null && origP <= saleP) origP = null;
                       return Padding(
-                        padding: const EdgeInsets.fromLTRB(9, 5, 9, 6), // ITEM8: tighter
+                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          Text(title.isNotEmpty ? title : offerText,
-                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w800),
-                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                          // Title — bigger and bolder
+                          if (title.isNotEmpty)
+                            Text(title,
+                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800, height: 1.25),
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                          // Offer text — shown separately, not as title fallback
+                          if (offerText.isNotEmpty && offerText != title) ...[
+                            const SizedBox(height: 3),
+                            Text(offerText,
+                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500, height: 1.3),
+                              maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ],
                           // ── FIX 6: Rating below title ──
                           Builder(builder: (_ctx) {
                             // FIX: safe parse — rating may be stored as String
@@ -5504,34 +5516,34 @@ class _DiscoverProductsSection extends StatelessWidget {
                             final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
                             if (_pr <= 0) return const SizedBox.shrink();
                             return Padding(
-                              padding: const EdgeInsets.only(top: 3),
+                              padding: const EdgeInsets.only(top: 4),
                               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                                const SizedBox(width: 2),
+                                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 13),
+                                const SizedBox(width: 3),
                                 Text(_pr.toStringAsFixed(1),
-                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 10, fontWeight: FontWeight.w700)),
+                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 11, fontWeight: FontWeight.w700)),
                                 if (_pc > 0) Text(" ($_pc)",
-                                  style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
+                                  style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 10)),
                               ]),
                             );
                           }),
                           if (storeName.isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Text(storeName,
-                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 4),
+                            Text(storeName,
+                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                            const SizedBox(height: 5),
                           ],
                           if (saleP != null && saleP > 0) Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                             Text("Offer ",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 8, fontWeight: FontWeight.w600)),
+                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 9, fontWeight: FontWeight.w600)),
                             Text("₹${saleP.toStringAsFixed(0)}",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w900)),
+                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 13, fontWeight: FontWeight.w900)),
                             if (origP != null) ...[
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 5),
                               Text("₹${origP.toStringAsFixed(0)}",
                                 style: const TextStyle(
-                                  color: Color(0xFF9e9e9e), fontSize: 9,
+                                  color: Color(0xFF9e9e9e), fontSize: 10,
                                   decoration: TextDecoration.lineThrough,
                                   decorationColor: Color(0xFF9e9e9e))),
                             ],
@@ -8000,7 +8012,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
         : null)?.toString() ?? product["store_name"]?.toString() ?? "";
     final priceRaw = product["price"]?.toString() ?? "";
     final origRaw  = product["original_price"]?.toString() ?? product["mrp"]?.toString() ?? "";
-    final discount = product["discount"]?.toString() ?? "";
+    final discount = product["discount_label"]?.toString() ?? product["discount"]?.toString() ?? "";
     final isBestSeller = (product["best_seller"] == true) ||
         (product["tag"]?.toString().toLowerCase() == "best seller");
 
@@ -8011,7 +8023,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       badgeLabel = "BEST SELLER";
       badgeColor = const Color(0xFFFFBF00);
     } else if (discount.isNotEmpty && discount != "0") {
-      badgeLabel = "$discount% OFF";
+      badgeLabel = discount.contains("%") ? discount : "$discount% OFF";
       badgeColor = const Color(0xFFFF6B35);
     }
 
@@ -8090,19 +8102,26 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
 
           // ── Bottom: text content ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // Product title
-              Text(
-                title.isNotEmpty ? title : (text.isNotEmpty ? text : "Special Offer"),
-                style: const TextStyle(
-                  color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w800,
-                  height: 1.2),
-                maxLines: 2, overflow: TextOverflow.ellipsis),
+              if (title.isNotEmpty)
+                Text(title,
+                  style: const TextStyle(
+                    color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800,
+                    height: 1.25),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              // Offer text — shown separately below title
+              if (text.isNotEmpty && text != title) ...[
+                const SizedBox(height: 3),
+                Text(text,
+                  style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500, height: 1.3),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
               if (storeName.isNotEmpty) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(storeName,
-                  style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
+                  style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
               Builder(builder: (_) {
@@ -8110,32 +8129,34 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                 final _pc = (product["rating_count"] ?? product["review_count"] as num?)?.toInt() ?? 0;
                 if (_pr <= 0) return const SizedBox.shrink();
                 return Padding(
-                  padding: const EdgeInsets.only(top: 3),
+                  padding: const EdgeInsets.only(top: 4),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                    const SizedBox(width: 2),
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 13),
+                    const SizedBox(width: 3),
                     Text(_pr.toStringAsFixed(1),
-                      style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 10, fontWeight: FontWeight.w700)),
+                      style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 11, fontWeight: FontWeight.w700)),
                     if (_pc > 0) Text(" ($_pc)",
-                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
+                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 10)),
                   ]),
                 );
               }),
-              const SizedBox(height: 5),
-              Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
-                Text("Offer ",
-                  style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 8, fontWeight: FontWeight.w600)),
-                Text("₹${priceRaw.isNotEmpty ? priceRaw : '0'}",
-                  style: const TextStyle(
-                    color: Color(0xFF2c3e35), fontSize: 13, fontWeight: FontWeight.w900)),
-                if (origRaw.isNotEmpty) ...[
-                  const SizedBox(width: 5),
-                  Text("₹$origRaw",
+              if (priceRaw.isNotEmpty && priceRaw != "0") ...[
+                const SizedBox(height: 6),
+                Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
+                  Text("Offer ",
+                    style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 9, fontWeight: FontWeight.w600)),
+                  Text("₹$priceRaw",
                     style: const TextStyle(
-                      color: Color(0xFF9aada8), fontSize: 10,
-                      decoration: TextDecoration.lineThrough)),
-                ],
-              ]),
+                      color: Color(0xFF2c7a4b), fontSize: 14, fontWeight: FontWeight.w900)),
+                  if (origRaw.isNotEmpty && origRaw != "0") ...[
+                    const SizedBox(width: 5),
+                    Text("₹$origRaw",
+                      style: const TextStyle(
+                        color: Color(0xFF9aada8), fontSize: 11,
+                        decoration: TextDecoration.lineThrough)),
+                  ],
+                ]),
+              ],
             ]),
           ),
         ]),
