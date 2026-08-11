@@ -660,8 +660,10 @@ class Api {
   }
 
   static Future<List> getProductCards({String city = ''}) async {
-    // Delegates to getPublicProducts — /products-public does not exist
-    return getPublicProducts(city: city);
+    // FIX: use fetchPublicProducts (cached) instead of getPublicProducts (uncached)
+    // — getPublicProducts silently swallows errors and returns [], which would
+    // cause ProductViewAllPage to overwrite its initial product list with an empty list.
+    return fetchPublicProducts(city: city);
   }
 
   static Future<Map<String,dynamic>> getUserReview(String token, String storeId) async {

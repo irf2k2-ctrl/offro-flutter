@@ -6980,6 +6980,17 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     if (text.length < 3 || _userRating == 0) return;
     final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
     if (pid.isEmpty) return;
+    // FIX: check token before submitting — prevents confusing "Session expired" error
+    if (widget.token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: const Text("Please log in to submit a review."),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 5),
+          showCloseIcon: true));
+      }
+      return;
+    }
     setState(() => _reviewSubmitting = true);
     try {
       final result = await Api.submitProductReview(widget.token, pid, _userRating, text);
@@ -7008,11 +7019,22 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _reviewSubmitting = false);
+        // FIX: detect "Session expired" and show a user-friendly message with login prompt
+        final errStr = e.toString();
+        final isSessionExpired = errStr.contains("Session expired") || errStr.contains("401");
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString()),
+          content: Text(isSessionExpired
+              ? "Your session has expired. Please log in again to submit a review."
+              : errStr.replaceFirst("Exception: ", "")),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 12),
-          showCloseIcon: true));
+          showCloseIcon: true,
+          action: isSessionExpired ? SnackBarAction(
+            label: "Login",
+            textColor: Colors.white,
+            onPressed: () => MyApp.goLogin(),
+          ) : null,
+        ));
       }
     }
   }
@@ -7653,10 +7675,15 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
     try {
       final fresh = await Api.getProductCards(city: widget.city);
       if (mounted) setState(() {
-        _all = List<Map<String,dynamic>>.from(fresh);
+        // FIX: only overwrite if the fresh list is non-empty — prevents wiping
+        // the initial (cached) product list when the API has a transient error
+        if (fresh.isNotEmpty) {
+          _all = List<Map<String,dynamic>>.from(fresh);
+        }
         _fetching = false;
       });
     } catch (_) {
+      // FIX: keep the initial product list on error instead of showing empty
       if (mounted) setState(() => _fetching = false);
     }
   }
