@@ -1087,6 +1087,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     // after a successful submit, because widget.product's rating/count
     // reflect the overall average, not "did I personally already rate this".
     _loadMyRating();
+    // FIX: fire "view" analytics event
+    if (_productId.isNotEmpty) Api.trackProductEvent(_productId, "view");
   }
 
   Future<void> _loadMyRating() async {
@@ -1268,6 +1270,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ];
                 Share.share(shareLines.where((s) => s.isNotEmpty).join("\n"),
                   subject: "OFFRO – $shareTitle");
+                // FIX: fire "share" analytics event
+                if (_productId.isNotEmpty) Api.trackProductEvent(_productId, "share");
               },
               child: Container(
                 margin: const EdgeInsets.all(8),
@@ -1484,6 +1488,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       } catch (_) {}
                     }
                     if (!context.mounted) return;
+                    // FIX: fire "open" analytics event
+                    if (_productId.isNotEmpty) Api.trackProductEvent(_productId, "open");
                     Navigator.push(context, MaterialPageRoute(
                       builder: (_) => StoreDetailPage(
                         store: fullStore,

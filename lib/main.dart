@@ -5497,16 +5497,16 @@ class _DiscoverProductsSection extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          // Title — bigger and bolder
+                          // Title — bigger and bolder (50% larger)
                           if (title.isNotEmpty)
                             Text(title,
-                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800, height: 1.25),
+                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w800, height: 1.25),
                               maxLines: 2, overflow: TextOverflow.ellipsis),
                           // Offer text — shown separately, not as title fallback
                           if (offerText.isNotEmpty && offerText != title) ...[
                             const SizedBox(height: 3),
                             Text(offerText,
-                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500, height: 1.3),
+                              style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 17, fontWeight: FontWeight.w700, height: 1.3),
                               maxLines: 2, overflow: TextOverflow.ellipsis),
                           ],
                           // ── FIX 6: Rating below title ──
@@ -5529,21 +5529,21 @@ class _DiscoverProductsSection extends StatelessWidget {
                           }),
                           if (storeName.isNotEmpty) ...[
                             const SizedBox(height: 4),
-                            Text(storeName,
+                            Text("Seller: " + storeName,
                               style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
                               maxLines: 1, overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 5),
                           ],
                           if (saleP != null && saleP > 0) Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
                             Text("Offer ",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 9, fontWeight: FontWeight.w600)),
+                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 14, fontWeight: FontWeight.w700)),
                             Text("₹${saleP.toStringAsFixed(0)}",
-                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 13, fontWeight: FontWeight.w900)),
+                              style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 20, fontWeight: FontWeight.w900)),
                             if (origP != null) ...[
                               const SizedBox(width: 5),
                               Text("₹${origP.toStringAsFixed(0)}",
                                 style: const TextStyle(
-                                  color: Color(0xFF9e9e9e), fontSize: 10,
+                                  color: Color(0xFF9e9e9e), fontSize: 15,
                                   decoration: TextDecoration.lineThrough,
                                   decorationColor: Color(0xFF9e9e9e))),
                             ],
@@ -6873,6 +6873,10 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final _rcRaw = widget.product["rating_count"]; _ratingCount = (_rcRaw is num) ? _rcRaw.toInt() : (int.tryParse(_rcRaw?.toString() ?? "") ?? 0);
     _loadFavStatus();
     _loadMyReview();
+    // FIX: fire "view" analytics event — trackProductEvent() existed but was
+    // never called anywhere, so Premium Product Analytics always showed 0.
+    final _pidTrack = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+    if (_pidTrack.isNotEmpty) Api.trackProductEvent(_pidTrack, "view");
   }
 
   Future<void> _loadMyReview() async {
@@ -7144,6 +7148,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   "\nDownload OFFRO app to explore more deals!",
                 ];
                 Share.share(parts.join("\n"), subject: "OFFRO – $_title");
+                // FIX: fire "share" analytics event
+                final _pidShare = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+                if (_pidShare.isNotEmpty) Api.trackProductEvent(_pidShare, "share");
               },
               child: Container(
                 margin: const EdgeInsets.only(right: 4),
@@ -7331,6 +7338,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       } catch (_) {}
                     }
                     if (!context.mounted) return;
+                    // FIX: fire "open" analytics event — user opened/visited the store from this product
+                    final _pidOpen = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+                    if (_pidOpen.isNotEmpty) Api.trackProductEvent(_pidOpen, "open");
                     Navigator.push(context, MaterialPageRoute(
                       builder: (_) => StoreDetailPage(
                         store: fullStore,

@@ -4546,7 +4546,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                         padding: const EdgeInsets.fromLTRB(9, 5, 9, 6), // ITEM8: tighter
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                           Text(title.isNotEmpty ? title : offerText,
-                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w800),
+                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800),
                             maxLines: 2, overflow: TextOverflow.ellipsis),
                           // ── FIX 6: Rating below title ──
                           Builder(builder: (_ctx) {
@@ -4567,23 +4567,29 @@ class _DiscoverProductsSection extends StatelessWidget {
                           }),
                           const SizedBox(height: 3),
                           if (storeName.isNotEmpty)
-                            Text(storeName,
+                            Text("Seller: " + storeName,
                               style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
                               maxLines: 1, overflow: TextOverflow.ellipsis),
+                          if (offerText.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(offerText,
+                              style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 13, fontWeight: FontWeight.w700),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ],
                           if (saleP != null || origP != null) ...[
                             const SizedBox(height: 4),
                             Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                               if (origP != null) ...[
                                 Text("₹${origP.toStringAsFixed(0)}",
                                   style: const TextStyle(
-                                    color: Color(0xFF9e9e9e), fontSize: 9, fontWeight: FontWeight.w500,
+                                    color: Color(0xFF9e9e9e), fontSize: 14, fontWeight: FontWeight.w500,
                                     decoration: TextDecoration.lineThrough,
                                     decorationColor: Color(0xFF9e9e9e))),
                                 const SizedBox(width: 4),
                               ],
                               if (saleP != null)
                                 Text("₹${saleP.toStringAsFixed(0)}",
-                                  style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 12, fontWeight: FontWeight.w900)),
+                                  style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 18, fontWeight: FontWeight.w900)),
                             ]),
                           ],
                         ]),
