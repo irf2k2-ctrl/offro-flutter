@@ -7038,7 +7038,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     // Defaults to true if field absent (backward compat with older records)
     final bool storeIsActive = widget.product["store_active"] as bool? ?? true;
     final description = p["description"]?.toString() ?? p["details"]?.toString() ?? "";
-    final offerText  = p["offer"]?.toString() ?? "";
+    // FIX: read the actual offer/deal text fields (text/offer_text) — "offer" key doesn't exist
+    // on real product records, which made this always render empty on the details page.
+    final offerText  = p["text"]?.toString() ?? p["offer_text"]?.toString() ?? p["offer"]?.toString() ?? p["discount"]?.toString() ?? "";
     final discMatch  = RegExp(r'(\d+)%').firstMatch(offerText);
     final discBadge  = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
 
