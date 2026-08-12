@@ -212,10 +212,17 @@ class _ProductCardState extends State<_ProductCard> {
     final origPrice = p['original_price']?.toString() ?? '';
     final discount  = p['discount']?.toString() ?? '';
     final validity  = _isPremium ? '' : (p['validity']?.toString() ?? '');
-    // FIX Issue-1: merchant-entered "offer text" subtitle shown below the title
     final subtitle = p['offer_text']?.toString() ?? '';
-    // FIX Issue-3: read rating from product data
     final rating    = (p['rating'] as num?)?.toDouble() ?? 0.0;
+    final ratingCount = (p['rating_count'] as num?)?.toInt() ?? 0;
+
+    // Resolve numeric prices for the home-screen style price badge
+    num? saleP;
+    if (price.isNotEmpty) { saleP = num.tryParse(price.replaceAll(RegExp(r'[^0-9.]'), '')); }
+    if (saleP == null || saleP == 0) { saleP = (p['sale_price'] as num?)?.toDouble(); }
+    num? origP;
+    if (origPrice.isNotEmpty) { origP = num.tryParse(origPrice.replaceAll(RegExp(r'[^0-9.]'), '')); }
+    if (origP != null && saleP != null && origP <= saleP) origP = null;
 
     String discLabel = discount;
     if (discLabel.isEmpty && price.isNotEmpty && origPrice.isNotEmpty) {
@@ -223,176 +230,126 @@ class _ProductCardState extends State<_ProductCard> {
         final pv = double.parse(price);
         final op = double.parse(origPrice);
         if (op > pv && pv > 0) {
-          discLabel = '${((op - pv) / op * 100).round()}% OFF';
+          discLabel = '\${((op - pv) / op * 100).round()}% OFF';
         }
       } catch (_) {}
     }
 
+    final pal = _palettes[widget.index % _palettes.length];
+
     return GestureDetector(
       onTap: () => _handleTap(context),
       child: Container(
-        // FIX Issue-1: width 150 → 160
         width: 160,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withValues(alpha: .08),
-                blurRadius: 14,
-                offset: const Offset(0, 4)),
-          ],
+          gradient: LinearGradient(
+            colors: [pal[0], pal[1]],
+            begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0, 4))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Image ──────────────────────────────────────────
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
-              child: SizedBox(
-                // FIX Issue-1: height 110 → 130
-                height: 130,
-                width: double.infinity,
-                child: Stack(fit: StackFit.expand, children: [
-                  _img(),
-
-                  // Discount badge (top-left)
-                  if (discLabel.isNotEmpty)
-                    Positioned(
-                      top: 8, left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF6B35),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(discLabel,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900)),
-                      ),
-                    ),
-
-                  // FIX Issue-2: Rating badge (bottom-left on image)
-                  if (rating > 0)
-                    Positioned(
-                      bottom: 7, left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: .55),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.star_rounded,
-                                  color: Color(0xFFFFD700), size: 11),
-                              const SizedBox(width: 3),
-                              Text(rating.toStringAsFixed(1),
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700)),
-                            ]),
-                      ),
-                    ),
-
-                  // FIX Issue-5: Favorite heart (top-right on image)
-                  if (widget.token.isNotEmpty)
-                    Positioned(
-                      top: 6, right: 6,
-                      child: GestureDetector(
-                        onTap: _toggleFav,
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: .88),
-                            shape: BoxShape.circle,
-                            boxShadow: const [
-                              BoxShadow(
-                                  color: Colors.black12, blurRadius: 4)
-                            ],
-                          ),
-                          child: Icon(
-                            _isFav
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            color: _isFav
-                                ? Colors.redAccent
-                                : Colors.grey.shade500,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                ]),
+            // ── Image with badges ─────────────────────────────
+            Stack(children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+                child: SizedBox(
+                  width: 160, height: 95,
+                  child: _img(),
+                ),
               ),
-            ),
+              // Discount badge (top-left) — same style as home screen
+              if (discLabel.isNotEmpty)
+                Positioned(top: 7, left: 7,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
+                    child: Text(discLabel, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                  )),
+              // Favorite heart (top-right)
+              if (widget.token.isNotEmpty)
+                Positioned(top: 6, right: 6,
+                  child: GestureDetector(
+                    onTap: _toggleFav,
+                    child: Container(
+                      width: 26, height: 26,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .88),
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .12), blurRadius: 4)],
+                      ),
+                      child: Icon(
+                        _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: _isFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
+                        size: 14),
+                    ),
+                  )),
+            ]),
 
-            // ── Info ───────────────────────────────────────────
+            // ── Info area — matching home screen style ───────
             Flexible(
               fit: FlexFit.loose,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: kText,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            height: 1.3)),
-                    // FIX Issue-1: merchant "offer text" subtitle, shown below title
+                    // Title — same font as home screen (fontSize 21, bold)
+                    if (title.isNotEmpty)
+                      Text(title,
+                        style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w800, height: 1.25),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    // Seller/offer text line
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: kMuted,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500)),
+                        style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
-                    const SizedBox(height: 6),
-                    if (price.isNotEmpty) ...[
-                      Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text('₹$price',
-                                style: const TextStyle(
-                                    color: kPrimary,
-                            // FIX Issue-2: offer price font increased 13 → 17
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w900)),
-                            if (origPrice.isNotEmpty) ...[
-                              const SizedBox(width: 5),
-                              // FIX Issue-2: original price kept smaller (strike-through)
-                              Text('₹$origPrice',
-                                  style: TextStyle(
-                                      color: kMuted.withValues(alpha: .7),
-                                      fontSize: 9,
-                                      decoration:
-                                          TextDecoration.lineThrough)),
-                            ],
-                          ]),
+                    // Rating pill (green bg, same as home screen)
+                    if (rating > 0) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
+                          const SizedBox(width: 2),
+                          Text(rating.toStringAsFixed(1),
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                          if (ratingCount > 0)
+                            Text(" ($ratingCount)",
+                              style: const TextStyle(color: Colors.white70, fontSize: 9)),
+                        ]),
+                      ),
+                    ],
+                    // Price — yellow badge style matching home screen
+                    if (saleP != null && saleP > 0) ...[
+                      const SizedBox(height: 6),
+                      Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
+                          child: Text("₹${saleP.toStringAsFixed(0)}",
+                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w900)),
+                        ),
+                        if (origP != null) ...[
+                          const SizedBox(width: 6),
+                          Text("₹${origP.toStringAsFixed(0)}",
+                            style: const TextStyle(
+                              color: Color(0xFF9e9e9e), fontSize: 14,
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: Color(0xFF9e9e9e))),
+                        ],
+                      ]),
                     ] else if (validity.isNotEmpty)
                       Text('Valid: $validity',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: kMuted, fontSize: 10)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: kMuted, fontSize: 10)),
                   ],
                 ),
               ),

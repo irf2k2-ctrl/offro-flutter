@@ -412,150 +412,221 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                       imgUrl.toLowerCase().contains(".mp4?") ||
                       imgUrl.toLowerCase().contains("video/mp4") ||
                       imgUrl.startsWith("data:video"));
-                    return Card(elevation:2,margin:const EdgeInsets.only(bottom:14),
-                      shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-                      child:Column(children:[
-                        if (imgUrl.isNotEmpty)
-                          ClipRRect(
-                            borderRadius:const BorderRadius.vertical(top:Radius.circular(14)),
-                            child: _isVideo
-                              ? _BannerVideoTile(url: imgUrl)
-                              : (imgUrl.startsWith("data:image")
-                                ? Image.memory(base64Decode(imgUrl.split(",").last),
-                                    width:double.infinity,height:120,fit:BoxFit.cover)
-                                : Image.network(imgUrl,width:double.infinity,height:120,fit:BoxFit.cover,
-                                    errorBuilder:(_,__,___) => Container(height:80,color:kLight,child:const Icon(Icons.image_not_supported,color:kMuted)))),
+
+                    final String titleStr = (b["title"] ?? "").toString().trim();
+                    final String initialStr = titleStr.isNotEmpty ? titleStr[0].toUpperCase() : "B";
+
+                    Widget _thumb;
+                    if (imgUrl.isNotEmpty) {
+                      if (_isVideo) {
+                        _thumb = Container(
+                          width: 80,
+                          height: 80,
+                          color: Colors.black87,
+                          child: const Center(
+                            child: Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
                           ),
-                        Padding(padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Row(children:[
-                            Expanded(child:Text(b["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kText))),
-                            Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:4),
-                              decoration:BoxDecoration(color:sc.withValues(alpha:.13),borderRadius:BorderRadius.circular(20)),
-                              child:Row(mainAxisSize:MainAxisSize.min,children:[
-                                Icon(si,size:12,color:sc),
-                                const SizedBox(width:4),
-                                Text(sl,style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w700)),
-                              ])),
-                          ]),
-                          const SizedBox(height:8),
-                          // Duration row
-                          Row(children:[
-                            const Icon(Icons.schedule_rounded,size:14,color:kMuted),
-                            const SizedBox(width:5),
-                            Text("${b['duration']??b['duration_days']??30} Days",style:const TextStyle(color:kMuted,fontSize:12,fontWeight:FontWeight.w600)),
-                            const SizedBox(width:12),
-                            const Icon(Icons.payments_outlined,size:14,color:kMuted),
-                            const SizedBox(width:5),
-                            Text("₹${b['amount']??0}",style:const TextStyle(color:kMuted,fontSize:12,fontWeight:FontWeight.w600)),
-                          ]),
-                          const SizedBox(height:5),
-                          // Date range — FIX 2: clear display
-                          if (fromDate.isNotEmpty || endDate.isNotEmpty)
-                            Container(
-                              margin:const EdgeInsets.only(top:2),
-                              padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
-                              decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
-                              child:Row(children:[
-                                const Icon(Icons.calendar_month_rounded,size:14,color:kPrimary),
-                                const SizedBox(width:6),
-                                Expanded(child:Text(
-                                  fromDate.isNotEmpty && endDate.isNotEmpty
-                                    ? "Start: $fromDate   →   End: $endDate"
-                                    : fromDate.isNotEmpty ? "From: $fromDate" : "Until: $endDate",
-                                  style:const TextStyle(color:kPrimary,fontSize:11,fontWeight:FontWeight.w600))),
-                              ]),
+                        );
+                      } else if (imgUrl.startsWith("data:image")) {
+                        _thumb = Image.memory(
+                          base64Decode(imgUrl.split(",").last),
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80,
+                            height: 80,
+                            color: kAccent,
+                            child: Center(
+                              child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                             ),
-                          if ((b["invoice_no"]??"").isNotEmpty) ...[
-                            const SizedBox(height:4),
-                            Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMuted,fontSize:11)),
-                          ],
-                          const SizedBox(height:10),
-                          Row(mainAxisAlignment:MainAxisAlignment.end,children:[
-                            OutlinedButton.icon(
-                              onPressed:() async {
-                                final ctrl = TextEditingController(text:b["title"]??"");
-                                final newTitle = await showDialog<String>(context:context,builder:(_)=>AlertDialog(
-                                  title:const Text("Edit Banner Title",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
-                                  content:TextField(controller:ctrl,decoration:InputDecoration(
-                                    hintText:"Banner title",
-                                    border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                                    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)))),
-                                  actions:[
-                                    TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
-                                    ElevatedButton(
-                                      style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
-                                      onPressed:()=>Navigator.pop(context,ctrl.text.trim()),
-                                      child:const Text("Save",style:TextStyle(color:Colors.white))),
-                                  ],
-                                ));
-                                if (newTitle!=null && newTitle.isNotEmpty && newTitle!=b["title"]) {
-                                  try {
-                                    await Api.updateMerchantBanner(widget.token, b["_id"]??"", {"title": newTitle});
-                                    _load();
-                                  } catch(e) {
-                                    if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
-                                  }
-                                }
-                              },
-                              icon:const Icon(Icons.edit_rounded,size:14,color:kPrimary),
-                              label:const Text("Edit Title",style:TextStyle(color:kPrimary,fontSize:12)),
-                              style:OutlinedButton.styleFrom(
-                                side:const BorderSide(color:kPrimary),
-                                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-                                padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
-                                minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                          ),
+                        );
+                      } else {
+                        _thumb = Image.network(
+                          imgUrl,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            width: 80,
+                            height: 80,
+                            color: kAccent,
+                            child: Center(
+                              child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                             ),
-                            // Toggle button — only show for approved banners, not removed by admin
-                            if (displayStatus == "approved" || displayStatus == "off") ...[
-                              const SizedBox(width:8),
-                              OutlinedButton.icon(
-                                onPressed: () async {
-                                  final isOn = _bIsActive;
-                                  final confirm = await showDialog<bool>(context:context,
-                                    builder:(_)=>AlertDialog(
-                                      title:Text(isOn?"Turn Off Banner?":"Turn On Banner?",
-                                        style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
-                                      content:Text(isOn
-                                        ?"This banner will be hidden from stores until you turn it back on."
-                                        :"This banner will go live again in stores."),
-                                      actions:[
-                                        TextButton(onPressed:()=>Navigator.pop(context,false),
-                                          child:const Text("Cancel",style:TextStyle(color:kMuted))),
-                                        ElevatedButton(
-                                          style:ElevatedButton.styleFrom(
-                                            backgroundColor:isOn?Colors.orange:kPrimary),
-                                          onPressed:()=>Navigator.pop(context,true),
-                                          child:Text(isOn?"Turn Off":"Turn On",
-                                            style:const TextStyle(color:Colors.white))),
-                                      ],
-                                    ));
-                                  if (confirm==true) {
-                                    try {
-                                      await Api.toggleMerchantBanner(widget.token, b["_id"]??"");
-                                      _load();
-                                    } catch(e) {
-                                      if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
-                                    }
-                                  }
-                                },
-                                icon:Icon(_bIsActive?Icons.pause_circle_outline:Icons.play_circle_outline,
-                                  size:14,color:_bIsActive?Colors.orange:kPrimary),
-                                label:Text(_bIsActive?"Turn Off":"Turn On",
-                                  style:TextStyle(color:_bIsActive?Colors.orange:kPrimary,fontSize:12)),
-                                style:OutlinedButton.styleFrom(
-                                  side:BorderSide(color:_bIsActive?Colors.orange:kPrimary),
-                                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(20)),
-                                  padding:const EdgeInsets.symmetric(horizontal:12,vertical:6),
-                                  minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                              ),
+                          ),
+                        );
+                      }
+                    } else {
+                      _thumb = Container(
+                        width: 80,
+                        height: 80,
+                        color: kAccent,
+                        child: Center(
+                          child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
+                        ),
+                      );
+                    }
+
+                    Widget _actionButtons = Row(children:[
+                      Expanded(child:OutlinedButton.icon(
+                        onPressed:() async {
+                          final ctrl = TextEditingController(text:b["title"]??"");
+                          final newTitle = await showDialog<String>(context:context,builder:(_)=>AlertDialog(
+                            title:const Text("Edit Banner Title",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                            content:TextField(controller:ctrl,decoration:InputDecoration(
+                              hintText:"Banner title",
+                              border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
+                              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)))),
+                            actions:[
+                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                              ElevatedButton(
+                                style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+                                onPressed:()=>Navigator.pop(context,ctrl.text.trim()),
+                                child:const Text("Save",style:TextStyle(color:Colors.white))),
                             ],
-                          ]),
-                        ])),
-                      ]),
-                    );
-                  },
+                          ));
+                          if (newTitle!=null && newTitle.isNotEmpty && newTitle!=b["title"]) {
+                            try {
+                              await Api.updateMerchantBanner(widget.token, b["_id"]??"", {"title": newTitle});
+                              _load();
+                            } catch(e) {
+                              if(mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
+                            }
+                          }
+                        },
+                        icon:const Icon(Icons.edit_rounded,size:14,color:kPrimary),
+                        label:const Text("Edit Title",style:TextStyle(color:kPrimary,fontSize:12)),
+                        style:OutlinedButton.styleFrom(
+                          side:const BorderSide(color:kPrimary),
+                          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+                          padding:const EdgeInsets.symmetric(vertical:6),
+                          minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                      )),
+                      if (displayStatus == "approved" || displayStatus == "off") ...[
+                        const SizedBox(width:8),
+                        Expanded(child:OutlinedButton.icon(
+                          onPressed: () async {
+                            final isOn = _bIsActive;
+                            final confirm = await showDialog<bool>(context:context,
+                              builder:(_)=>AlertDialog(
+                                title:Text(isOn?"Turn Off Banner?":"Turn On Banner?",
+                                  style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                                content:Text(isOn
+                                  ?"This banner will be hidden from stores until you turn it back on."
+                                  :"This banner will go live again in stores."),
+                                actions:[
+                                  TextButton(onPressed:()=>Navigator.pop(context,false),
+                                    child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                                  ElevatedButton(
+                                    style:ElevatedButton.styleFrom(
+                                      backgroundColor:isOn?Colors.orange:kPrimary),
+                                    onPressed:()=>Navigator.pop(context,true),
+                                    child:Text(isOn?"Turn Off":"Turn On",
+                                      style:const TextStyle(color:Colors.white))),
+                                ],
+                              ));
+                            if (confirm==true) {
+                              try {
+                                await Api.toggleMerchantBanner(widget.token, b["_id"]??"");
+                                _load();
+                              } catch(e) {
+                                if(mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
+                              }
+                            }
+                          },
+                          icon:Icon(_bIsActive?Icons.pause_circle_outline:Icons.play_circle_outline,
+                            size:14,color:_bIsActive?Colors.orange:kPrimary),
+                          label:Text(_bIsActive?"Turn Off":"Turn On",
+                            style:TextStyle(color:_bIsActive?Colors.orange:kPrimary,fontSize:12)),
+                          style:OutlinedButton.styleFrom(
+                            side:BorderSide(color:_bIsActive?Colors.orange:kPrimary),
+                            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+                            padding:const EdgeInsets.symmetric(vertical:6),
+                            minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                        )),
+                      ],
+                    ]);
+
+                    return Container(
+                      margin:const EdgeInsets.only(bottom:10),
+                      decoration:BoxDecoration(
+                        color:Colors.white,
+                        borderRadius:BorderRadius.circular(12),
+                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.06),blurRadius:8,offset:const Offset(0,2))],
+                      ),
+                      child:IntrinsicHeight(
+                        child:Row(
+                          crossAxisAlignment:CrossAxisAlignment.start,
+                          children:[
+                            Container(width:4,decoration:BoxDecoration(color:kPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
+                            Padding(
+                              padding:const EdgeInsets.all(10),
+                              child:ClipRRect(borderRadius:BorderRadius.circular(10),child:_thumb),
+                            ),
+                            Expanded(child:Padding(
+                              padding:const EdgeInsets.fromLTRB(0,10,12,10),
+                              child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                                // Row 1: Title + status badge
+                                Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+                                  Expanded(child:Text(b["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kText),maxLines:1,overflow:TextOverflow.ellipsis)),
+                                  Container(
+                                    padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
+                                    decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),
+                                    child:Row(mainAxisSize:MainAxisSize.min,children:[
+                                      Icon(si,size:11,color:sc),
+                                      const SizedBox(width:3),
+                                      Text(sl,style:TextStyle(color:sc,fontSize:10,fontWeight:FontWeight.w700)),
+                                    ]),
+                                  ),
+                                ]),
+                                const SizedBox(height:4),
+                                // Duration + Amount row
+                                Row(children:[
+                                  const Icon(Icons.schedule_rounded,size:13,color:kMuted),
+                                  const SizedBox(width:4),
+                                  Text("${b['duration']??b['duration_days']??30} Days",style:const TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                  const SizedBox(width:10),
+                                  const Icon(Icons.payments_outlined,size:13,color:kMuted),
+                                  const SizedBox(width:4),
+                                  Text("₹${b['amount']??0}",style:const TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                ]),
+                                if (fromDate.isNotEmpty || endDate.isNotEmpty) ...[
+                                  const SizedBox(height:4),
+                                  Container(
+                                    padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
+                                    decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(6)),
+                                    child:Row(children:[
+                                      const Icon(Icons.calendar_month_rounded,size:12,color:kPrimary),
+                                      const SizedBox(width:5),
+                                      Expanded(child:Text(
+                                        fromDate.isNotEmpty && endDate.isNotEmpty
+                                          ? "Start: $fromDate   →   End: $endDate"
+                                          : fromDate.isNotEmpty ? "From: $fromDate" : "Until: $endDate",
+                                        style:const TextStyle(color:kPrimary,fontSize:10,fontWeight:FontWeight.w600),
+                                        maxLines:1,
+                                        overflow:TextOverflow.ellipsis,
+                                      )),
+                                    ]),
+                                  ),
+                                ],
+                                if ((b["invoice_no"]??"").isNotEmpty) ...[
+                                  const SizedBox(height:3),
+                                  Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMuted,fontSize:10)),
+                                ],
+                                const SizedBox(height:8),
+                                const Divider(height:1,thickness:.5,color:Color(0xFFd4e8de)),
+                                const SizedBox(height:8),
+                                _actionButtons,
+                              ]),
+                            )),
+                          ],
+                        ),
+                      ),
+                    );                  },
                 ),
               )),
         ]),

@@ -14,7 +14,13 @@ class Api {
 
   static Future<Map<String,dynamic>> _post(String path, Map body, {String? token}) async {
     final r = await http.post(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
-    final d = json.decode(r.body);
+    // FIX: guard against non-JSON error responses
+    Map<String, dynamic> d;
+    try {
+      d = Map<String, dynamic>.from(json.decode(r.body) as Map);
+    } catch (_) {
+      throw Exception(r.body.isNotEmpty ? r.body : "Server error (${r.statusCode})");
+    }
     if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error ${r.statusCode}");
     return d;
   }
@@ -24,10 +30,19 @@ class Api {
     final r = await http.get(Uri.parse("$kBaseUrl$path"), headers: _h(token))
         .timeout(const Duration(seconds: 30));
     if (r.statusCode >= 400) {
-      final d = json.decode(r.body);
-      throw Exception(d["detail"] ?? "HTTP ${r.statusCode}");
+      try {
+        final d = json.decode(r.body);
+        throw Exception(d["detail"] ?? "HTTP ${r.statusCode}");
+      } catch (e) {
+        if (e is Exception && e.toString().contains("HTTP")) rethrow;
+        throw Exception(r.body.isNotEmpty ? r.body : "HTTP ${r.statusCode}");
+      }
     }
-    return json.decode(r.body);
+    try {
+      return json.decode(r.body);
+    } catch (_) {
+      throw Exception(r.body.isNotEmpty ? r.body : "Server error");
+    }
   }
 
   /// Public GET wrapper — used by screens that need ad-hoc requests (e.g. _AllDealsScreen)
@@ -71,8 +86,15 @@ class Api {
 
   static Future<dynamic> _put(String path, Map body, {String? token}) async {
     final r = await http.put(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
-    final d = json.decode(r.body);
-    if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error");
+    // FIX: guard against non-JSON error responses (Starlette returns plain text
+    // "Internal Server Error" on unhandled 500s, which crashes json.decode)
+    Map<String, dynamic> d;
+    try {
+      d = Map<String, dynamic>.from(json.decode(r.body) as Map);
+    } catch (_) {
+      throw Exception(r.body.isNotEmpty ? r.body : "Server error (${r.statusCode})");
+    }
+    if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error (${r.statusCode})");
     return d;
   }
 

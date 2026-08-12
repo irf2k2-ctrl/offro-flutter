@@ -7014,13 +7014,24 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         }
         return;
       }
-      final newCount = _ratingCount + 1;
-      final newAvg   = ((_avgRating * _ratingCount) + _userRating) / newCount;
+      // FIX: trust the backend's authoritative avg_rating (it recalculates
+      // from ALL reviews in the DB) instead of calculating locally from
+      // _avgRating/_ratingCount which may have been wrong if the product
+      // was loaded from a feed that returned the STORE's rating instead
+      // of the product's own rating.
+      final serverAvg = result["avg_rating"];
       if (mounted) setState(() {
         _reviewSubmitting = false;
         _reviewSubmitted  = true;
-        _ratingCount      = newCount;
-        _avgRating        = double.parse(newAvg.toStringAsFixed(1));
+        if (serverAvg != null) {
+          _avgRating   = double.parse(serverAvg.toString());
+          _ratingCount = _ratingCount + 1;
+        } else {
+          final newCount = _ratingCount + 1;
+          final newAvg   = ((_avgRating * _ratingCount) + _userRating) / newCount;
+          _ratingCount   = newCount;
+          _avgRating     = double.parse(newAvg.toStringAsFixed(1));
+        }
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Review submitted! Thank you."),
