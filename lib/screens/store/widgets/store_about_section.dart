@@ -1,6 +1,7 @@
 // lib/screens/store/widgets/store_about_section.dart
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/store_hours.dart';
 
 class StoreAboutSection extends StatefulWidget {
   final Map<String, dynamic> store;
@@ -11,22 +12,6 @@ class StoreAboutSection extends StatefulWidget {
 
 class _StoreAboutSectionState extends State<StoreAboutSection> {
   bool _expanded = false;
-
-  String _formatTime(String raw) {
-    // e.g. "22:00" → "10:00 PM", "09:30" → "9:30 AM"
-    if (raw.isEmpty) return raw;
-    try {
-      final parts = raw.split(':');
-      int h = int.parse(parts[0]);
-      final m = parts.length > 1 ? parts[1] : '00';
-      final ampm = h >= 12 ? 'PM' : 'AM';
-      h = h % 12;
-      if (h == 0) h = 12;
-      return '$h:$m $ampm';
-    } catch (_) {
-      return raw;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,36 +87,46 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                 border: Border.all(color: kBorder, width: 1),
               ),
               child: Column(children: [
-                // Open / Close
+                // Open / Close — FIX: this used to hard-code the green dot
+                // + "Open" text with no real time check at all, which is why
+                // it could show "Open" here while the header badge (which
+                // DID check the time) correctly showed "Closed" for the same
+                // store. Now both use the same computeStoreOpenStatus() helper.
                 if (openTime.isNotEmpty || closeTime.isNotEmpty)
-                  _infoRow(
-                    icon: Icons.access_time_rounded,
-                    isFirst: true,
-                    child: Row(children: [
-                      Container(
-                        width: 7, height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF27AE60),
-                          shape: BoxShape.circle,
+                  Builder(builder: (_) {
+                    final status = computeStoreOpenStatus(openTime, closeTime);
+                    final bool isOpen = status?.isOpen ?? true;
+                    final String sub  = status?.subLabel ?? '';
+                    final Color dotColor = isOpen ? const Color(0xFF27AE60) : const Color(0xFFc0392b);
+                    return _infoRow(
+                      icon: Icons.access_time_rounded,
+                      isFirst: true,
+                      child: Row(children: [
+                        Container(
+                          width: 7, height: 7,
+                          decoration: BoxDecoration(
+                            color: dotColor,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text('Open',
-                        style: TextStyle(
-                          color: Color(0xFF27AE60),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700)),
-                      if (closeTime.isNotEmpty) ...[
-                        const Text(' · ',
+                        const SizedBox(width: 6),
+                        Text(isOpen ? 'Open' : 'Closed',
                           style: TextStyle(
-                              color: kMuted, fontSize: 13)),
-                        Text('Closes ${_formatTime(closeTime)}',
-                          style: const TextStyle(
-                              color: kMuted,
-                              fontSize: 13)),
-                      ],
-                    ]),
-                  ),
+                            color: dotColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700)),
+                        if (sub.isNotEmpty) ...[
+                          const Text(' · ',
+                            style: TextStyle(
+                                color: kMuted, fontSize: 13)),
+                          Text(sub,
+                            style: const TextStyle(
+                                color: kMuted,
+                                fontSize: 13)),
+                        ],
+                      ]),
+                    );
+                  }),
 
                 // Address — plain, no arrow
                 if (displayAddr.isNotEmpty)

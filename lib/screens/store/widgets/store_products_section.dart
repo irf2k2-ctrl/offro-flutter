@@ -40,9 +40,10 @@ class StoreProductsSection extends StatelessWidget {
               style: TextStyle(color: kMuted, fontSize: 12)),
         ]),
       ),
-      // FIX Issue-1: height 210 → 260 → 225 (tightened white space below product, issue-4)
+      // Reduced from 225 — smaller title/price fonts + rating pill moved
+      // under the image no longer need the extra vertical space.
       SizedBox(
-        height: 225,
+        height: 195,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -289,7 +290,7 @@ class _ProductCardState extends State<_ProductCard> {
                   )),
             ]),
 
-            // ── Info area — matching home screen style ───────
+            // ── Info area — reduced fonts, rating pill moved under image ───────
             Flexible(
               fit: FlexFit.loose,
               child: Padding(
@@ -298,10 +299,30 @@ class _ProductCardState extends State<_ProductCard> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title — same font as home screen (fontSize 21, bold)
+                    // Rating pill — own line, right-aligned, directly under the image
+                    if (rating > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
+                              const SizedBox(width: 2),
+                              Text(rating.toStringAsFixed(1),
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                              if (ratingCount > 0)
+                                Text(" ($ratingCount)",
+                                  style: const TextStyle(color: Colors.white70, fontSize: 9)),
+                            ]),
+                          ),
+                        ]),
+                      ),
+                    // Title — reduced font size (was 21, now matches card proportions)
                     if (title.isNotEmpty)
                       Text(title,
-                        style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w800, height: 1.25),
+                        style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800, height: 1.25),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     // Seller/offer text line
                     if (subtitle.isNotEmpty) ...[
@@ -310,24 +331,7 @@ class _ProductCardState extends State<_ProductCard> {
                         style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
-                    // Rating pill (green bg, same as home screen)
-                    if (rating > 0) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
-                          const SizedBox(width: 2),
-                          Text(rating.toStringAsFixed(1),
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                          if (ratingCount > 0)
-                            Text(" ($ratingCount)",
-                              style: const TextStyle(color: Colors.white70, fontSize: 9)),
-                        ]),
-                      ),
-                    ],
-                    // Price — yellow badge style matching home screen
+                    // Price — yellow badge, reduced font size
                     if (saleP != null && saleP > 0) ...[
                       const SizedBox(height: 6),
                       Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -335,13 +339,13 @@ class _ProductCardState extends State<_ProductCard> {
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
                           child: Text("₹${saleP.toStringAsFixed(0)}",
-                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w900)),
+                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w900)),
                         ),
                         if (origP != null) ...[
                           const SizedBox(width: 6),
                           Text("₹${origP.toStringAsFixed(0)}",
                             style: const TextStyle(
-                              color: Color(0xFF9e9e9e), fontSize: 14,
+                              color: Color(0xFF9e9e9e), fontSize: 12,
                               decoration: TextDecoration.lineThrough,
                               decorationColor: Color(0xFF9e9e9e))),
                         ],

@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/store_hours.dart';
 
 class StoreHeader extends StatelessWidget {
   final Map<String, dynamic> store;
@@ -333,36 +334,17 @@ class StoreHeader extends StatelessWidget {
         Builder(builder: (ctx) {
           final openTime  = store['open_time']?.toString()  ?? '';
           final closeTime = store['close_time']?.toString() ?? '';
-          if (closeTime.isEmpty ||
-              (openTime == '00:00' && closeTime == '00:00') ||
-              (openTime.isEmpty  && closeTime == '00:00') ||
-              (closeTime == '00:00:00')) {
+          // FIX: now uses the single shared computeStoreOpenStatus() helper
+          // (lib/core/utils/store_hours.dart) instead of its own partial
+          // calculation, so this badge can never disagree with the About
+          // tab's open/close row again.
+          final status = computeStoreOpenStatus(openTime, closeTime);
+          if (status == null) {
             return const SizedBox.shrink();
           }
           try {
-            // Strip seconds if stored as HH:MM:SS
-            final _ct      = closeTime.length > 5 ? closeTime.substring(0, 5) : closeTime;
-            final _ot      = openTime.length  > 5 ? openTime.substring(0, 5)  : openTime;
-            final now      = TimeOfDay.now();
-            final nowMins  = now.hour * 60 + now.minute;
-            final cParts   = _ct.split(':');
-            final cH       = int.parse(cParts[0]);
-            final cM       = cParts.length > 1 ? int.parse(cParts[1]) : 0;
-            final closeMins = cH * 60 + cM;
-            final cSuffix   = cH >= 12 ? 'PM' : 'AM';
-            final cH12      = cH > 12 ? cH - 12 : (cH == 0 ? 12 : cH);
-            final cMinStr   = cM > 0 ? ':${cM.toString().padLeft(2, '0')}' : '';
-            final bool isOpen = nowMins < closeMins;
-            String sub = isOpen ? 'Closes $cH12$cMinStr $cSuffix' : '';
-            if (!isOpen && openTime.isNotEmpty) {
-              final oParts  = _ot.split(':');
-              final oH      = int.parse(oParts[0]);
-              final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
-              final oSuffix = oH >= 12 ? 'PM' : 'AM';
-              final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
-              final oMinStr = oM > 0 ? ':${oM.toString().padLeft(2, '0')}' : '';
-              sub = 'Opens $oH12$oMinStr $oSuffix';
-            }
+            final bool isOpen = status.isOpen;
+            final String sub  = status.subLabel;
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Container(

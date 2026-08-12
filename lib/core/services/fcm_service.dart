@@ -109,11 +109,23 @@ void _showNotifText(int id, String title, String body, String payload) {
     icon: '@mipmap/ic_launcher',
     styleInformation: BigTextStyleInformation(body),
   );
+  // FIX iOS: when the app is in the foreground, FCM's auto-swizzle delivers
+  // the message to the Dart onMessage listener but iOS itself does NOT show
+  // a banner — we must show a local notification ourselves. But the previous
+  // code only passed Android details, so iOS never rendered anything.
+  // Now we include DarwinNotificationDetails with presentAlert/Badge/Sound
+  // so the local notification actually appears on iOS too.
+  const ios = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+    interruptionLevel: InterruptionLevel.active,
+  );
   offroLocalNotif.show(
       id: id,
       title: title,
       body: body,
-      notificationDetails: NotificationDetails(android: android),
+      notificationDetails: NotificationDetails(android: android, iOS: ios),
       payload: payload);
   debugPrint('[LOCAL-NOTIF] Text notif shown: $title');
 }
@@ -145,11 +157,17 @@ Future<void> _showNotifWithImage(
         ),
       );
       // Replace the text version with the image version (same notification id)
+      const ios = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        interruptionLevel: InterruptionLevel.active,
+      );
       await offroLocalNotif.show(
           id: id,
           title: title,
           body: body,
-          notificationDetails: NotificationDetails(android: android),
+          notificationDetails: NotificationDetails(android: android, iOS: ios),
           payload: payload);
       debugPrint('[LOCAL-NOTIF] ✅ Image notif shown: $title');
     }

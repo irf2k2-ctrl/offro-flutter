@@ -5354,7 +5354,7 @@ class _DiscoverProductsSection extends StatelessWidget {
             style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
         ),
         SizedBox(
-          height: 185, // increased for better UX with bigger fonts
+          height: 170, // reduced — title/price fonts are smaller now
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -5497,43 +5497,42 @@ class _DiscoverProductsSection extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          // Title — single line only, ellipsis if long (offer/description text removed from card; still shown on detail page)
-                          if (title.isNotEmpty)
-                            Text(title,
-                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w800, height: 1.25),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          // Seller line — moved up directly below name — with rating pill (green bg) on the right
+                          // Rating pill — moved to its own line, right-aligned, directly under the image
                           Builder(builder: (_ctx) {
                             final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
                             final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
-                            if (storeName.isEmpty && _pr <= 0) return const SizedBox.shrink();
+                            if (_pr <= 0) return const SizedBox.shrink();
                             return Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Row(children: [
-                                if (storeName.isNotEmpty)
-                                  Expanded(child: Text("Seller: " + storeName,
-                                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
-                                    maxLines: 1, overflow: TextOverflow.ellipsis))
-                                else
-                                  const Spacer(),
-                                if (_pr > 0) ...[
-                                  const SizedBox(width: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
-                                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                      const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
-                                      const SizedBox(width: 2),
-                                      Text(_pr.toStringAsFixed(1),
-                                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                                      if (_pc > 0) Text(" ($_pc)",
-                                        style: const TextStyle(color: Colors.white70, fontSize: 9)),
-                                    ]),
-                                  ),
-                                ],
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
+                                    const SizedBox(width: 2),
+                                    Text(_pr.toStringAsFixed(1),
+                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
+                                    if (_pc > 0) Text(" ($_pc)",
+                                      style: const TextStyle(color: Colors.white70, fontSize: 9)),
+                                  ]),
+                                ),
                               ]),
                             );
                           }),
+                          // Title — reduced font size (was 21, now matches card proportions)
+                          if (title.isNotEmpty)
+                            Text(title,
+                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800, height: 1.25),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          // Seller line — name only now (rating pill moved above, under the image)
+                          if (storeName.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text("Seller: " + storeName,
+                                style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ),
                           if (saleP != null && saleP > 0) Padding(
                             padding: const EdgeInsets.only(top: 6),
                             child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -5541,13 +5540,13 @@ class _DiscoverProductsSection extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
                                 child: Text("₹${saleP.toStringAsFixed(0)}",
-                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 21, fontWeight: FontWeight.w900)),
+                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w900)),
                               ),
                               if (origP != null) ...[
                                 const SizedBox(width: 6),
                                 Text("₹${origP.toStringAsFixed(0)}",
                                   style: const TextStyle(
-                                    color: Color(0xFF9e9e9e), fontSize: 14,
+                                    color: Color(0xFF9e9e9e), fontSize: 12,
                                     decoration: TextDecoration.lineThrough,
                                     decorationColor: Color(0xFF9e9e9e))),
                               ],
