@@ -167,13 +167,7 @@ class _ProductCardState extends State<_ProductCard> {
   }
 
   Widget _bgGrad() {
-    final pal = _palettes[widget.index % _palettes.length];
-    return Container(
-        decoration: BoxDecoration(
-            gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: pal)));
+    return Container(color: const Color(0xFFF5F5F5));
   }
 
   void _handleTap(BuildContext context) {
@@ -244,9 +238,7 @@ class _ProductCardState extends State<_ProductCard> {
         width: 160,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [pal[0], pal[1]],
-            begin: Alignment.topLeft, end: Alignment.bottomRight),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0, 4))],
         ),
@@ -288,9 +280,26 @@ class _ProductCardState extends State<_ProductCard> {
                         size: 14),
                     ),
                   )),
+              // ── Rating chip — bottom-right corner of image ──
+              if (rating > 0)
+                Positioned(bottom: 6, right: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
+                      const SizedBox(width: 1),
+                      Text(rating.toStringAsFixed(1),
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                      if (ratingCount > 0)
+                        Text(" ($ratingCount)",
+                          style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                    ]),
+                  )),
             ]),
 
-            // ── Info area — reduced fonts, rating pill moved under image ───────
+            // ── Info area — white background, no rating pill ─────────────────
             Flexible(
               fit: FlexFit.loose,
               child: Padding(
@@ -299,27 +308,7 @@ class _ProductCardState extends State<_ProductCard> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Rating pill — own line, right-aligned, directly under the image
-                    if (rating > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
-                              const SizedBox(width: 2),
-                              Text(rating.toStringAsFixed(1),
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                              if (ratingCount > 0)
-                                Text(" ($ratingCount)",
-                                  style: const TextStyle(color: Colors.white70, fontSize: 9)),
-                            ]),
-                          ),
-                        ]),
-                      ),
-                    // Title — reduced font size (was 21, now matches card proportions)
+                    // Title
                     if (title.isNotEmpty)
                       Text(title,
                         style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800, height: 1.25),

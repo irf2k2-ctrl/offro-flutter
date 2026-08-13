@@ -5414,9 +5414,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                   width: 155,
                   margin: const EdgeInsets.only(right: 12),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [grad[0], grad[1]],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0,4))],
                   ),
@@ -5435,7 +5433,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                             : imgSrc.startsWith("data:image")
                               ? _b64Img(imgSrc, _fallback(title, [grad[0], grad[1]]))
                               : Container(width:155, height:95,
-                                  decoration: BoxDecoration(gradient: LinearGradient(colors:[grad[0],grad[1]], begin:Alignment.topLeft, end:Alignment.bottomRight)),
+                                  color: const Color(0xFFF5F5F5),
                                   child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
                                     style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 26, fontWeight: FontWeight.w900)))),
                         ),
@@ -5487,6 +5485,27 @@ class _DiscoverProductsSection extends StatelessWidget {
                             );
                           },
                         )),
+                      // ── Rating chip — bottom-right corner of image ──
+                      Builder(builder: (_rc) {
+                        final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
+                        final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
+                        if (_pr <= 0) return const SizedBox.shrink();
+                        return Positioned(bottom: 6, right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
+                              const SizedBox(width: 1),
+                              Text(_pr.toStringAsFixed(1),
+                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                              if (_pc > 0) Text(" (${_pc})",
+                                style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                            ]),
+                          ),
+                        );
+                      }),
                     ]),
                     // Bottom text with prices
                     Builder(builder: (_) {
@@ -5497,30 +5516,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
                         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          // Rating pill — moved to its own line, right-aligned, directly under the image
-                          Builder(builder: (_ctx) {
-                            final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
-                            final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
-                            if (_pr <= 0) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
-                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
-                                    const SizedBox(width: 2),
-                                    Text(_pr.toStringAsFixed(1),
-                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                                    if (_pc > 0) Text(" ($_pc)",
-                                      style: const TextStyle(color: Colors.white70, fontSize: 9)),
-                                  ]),
-                                ),
-                              ]),
-                            );
-                          }),
-                          // Title — reduced font size (was 21, now matches card proportions)
+                          // Title
                           if (title.isNotEmpty)
                             Text(title,
                               style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800, height: 1.25),
@@ -8152,6 +8148,27 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                   size: 14),
               ),
             )),
+            // ── Rating chip — bottom-right corner of image ──
+            Builder(builder: (_) {
+              final _pr = (product["rating"] as num?)?.toDouble() ?? 0.0;
+              final _pc = (product["rating_count"] ?? product["review_count"] as num?)?.toInt() ?? 0;
+              if (_pr <= 0) return const SizedBox.shrink();
+              return Positioned(bottom: 6, right: 7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
+                    const SizedBox(width: 1),
+                    Text(_pr.toStringAsFixed(1),
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                    if (_pc > 0) Text(" ($_pc)",
+                      style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                  ]),
+                ),
+              );
+            }),
           ]),
 
           // ── Bottom: text content ──
@@ -8165,38 +8182,14 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                     color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800,
                     height: 1.25),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
-              // Seller line — moved up directly below name — with rating pill (green bg) on the right
-              Builder(builder: (_) {
-                final _pr = (product["rating"] as num?)?.toDouble() ?? 0.0;
-                final _pc = (product["rating_count"] ?? product["review_count"] as num?)?.toInt() ?? 0;
-                if (storeName.isEmpty && _pr <= 0) return const SizedBox.shrink();
-                return Padding(
+              // Seller line — rating pill now on image, just show store name
+              if (storeName.isNotEmpty)
+                Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Row(children: [
-                    if (storeName.isNotEmpty)
-                      Expanded(child: Text("Seller: " + storeName,
-                        style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
-                        maxLines: 1, overflow: TextOverflow.ellipsis))
-                    else
-                      const Spacer(),
-                    if (_pr > 0) ...[
-                      const SizedBox(width: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20)),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 11),
-                          const SizedBox(width: 2),
-                          Text(_pr.toStringAsFixed(1),
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800)),
-                          if (_pc > 0) Text(" ($_pc)",
-                            style: const TextStyle(color: Colors.white70, fontSize: 9)),
-                        ]),
-                      ),
-                    ],
-                  ]),
-                );
-              }),
+                  child: Text("Seller: " + storeName,
+                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                ),
               if (priceRaw.isNotEmpty && priceRaw != "0") ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 6),

@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -17,7 +18,7 @@ import UIKit
     // FirebaseAppDelegateProxyEnabled = true in Info.plist lets FCM auto-swizzle
     // the APNs delegate methods, but we still need to request registration.
     if #available(iOS 10.0, *) {
-      UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
+      UNUserNotificationCenter.current().delegate = self
     }
     application.registerForRemoteNotifications()
     
@@ -37,5 +38,21 @@ import UIKit
     // firebase_messaging plugin auto-handles this when proxy is enabled
     // but calling super ensures the token is forwarded to FCM
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+  
+  // ── FOREGROUND NOTIFICATION PRESENTATION ──
+  // iOS does NOT show a banner when a push arrives while the app is in the
+  // foreground by default.  The system calls this delegate method and waits
+  // for us to tell it what to display.  Without this, the notification is
+  // silently swallowed even though the Dart onMessage listener fires.
+  // We return [.banner, .sound, .badge] so the user sees the notification
+  // just like they would if the app were backgrounded.
+  @available(iOS 10.0, *)
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    completionHandler([.banner, .sound, .badge])
   }
 }
