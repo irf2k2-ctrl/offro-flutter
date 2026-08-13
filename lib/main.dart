@@ -178,16 +178,19 @@ double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
 // Background FCM handler — must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Background isolate needs Flutter binding for platform channels (SharedPreferences)
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   if (kDebugMode) debugPrint('[FCM] Background message: \${message.notification?.title}');
-  // Issue 2: Save notification to local history
+  // Save notification to local history (covers case 4: background notif without opening app)
   try {
-    final title    = message.notification?.title ?? message.data['title'] ?? '';
-    final body     = message.notification?.body  ?? message.data['body']  ?? '';
-    final imageUrl = message.data['image_url'] ?? message.data['image'] ?? '';
+    final title     = message.notification?.title ?? message.data['title'] ?? '';
+    final body      = message.notification?.body  ?? message.data['body']  ?? '';
+    final imageUrl  = message.data['image_url'] ?? message.data['image'] ?? '';
+    final notifType = message.data['type'] ?? message.data['screen'] ?? 'promo';
     if (title.isNotEmpty) {
-      await Prefs.saveNotification(title: title, body: body, imageUrl: imageUrl);
-      await Prefs.incrementUnread(); // Update badge count persistently
+      await Prefs.saveNotification(title: title, body: body, imageUrl: imageUrl, type: notifType);
+      await Prefs.incrementUnread();
     }
   } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
 }
@@ -255,7 +258,7 @@ Future<void> main() async {
       // Timeout after 3s so startup never blocks.
       final initialMsg = await FirebaseMessaging.instance
           .getInitialMessage()
-          .timeout(const Duration(seconds: 3), onTimeout: () {
+          .timeout(const Duration(seconds: 5), onTimeout: () {
         debugPrint('[OFFRO] Step 6: getInitialMessage() timed out — '
             'skipping (FlutterFire iOS UIScene bug #17854)');
         return null;
@@ -264,7 +267,8 @@ Future<void> main() async {
         final _it = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
         final _ib = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
         final _ii = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
-        if (_it.isNotEmpty) { await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii); await Prefs.incrementUnread(); }
+        final _iy = initialMsg.data['type'] ?? initialMsg.data['screen'] ?? 'promo';
+        if (_it.isNotEmpty) { await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii, type: _iy); await Prefs.incrementUnread(); }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           MyApp.navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
         });
@@ -273,11 +277,18 @@ Future<void> main() async {
 
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
       try {
-        showLocalNotification(msg);
+        // SAVE FIRST — if showLocalNotification throws, history is still saved.
         final _t = msg.notification?.title ?? msg.data['title'] ?? '';
         final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
         final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-        if (_t.isNotEmpty) { await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i); await Prefs.incrementUnread(); _unreadNotifier.value++; }
+        final _y = msg.data['type'] ?? msg.data['screen'] ?? 'promo';
+        if (_t.isNotEmpty) {
+          await Prefs.saveNotification(title: _t, body: _b, imageUrl: _i, type: _y);
+          await Prefs.incrementUnread();
+          _unreadNotifier.value++;
+        }
+        // Then show the local notification banner
+        showLocalNotification(msg);
       } catch (e) { debugPrint('[OFFRO] Step 7 error: $e'); }
     });
 
@@ -286,7 +297,8 @@ Future<void> main() async {
         final _t = msg.notification?.title ?? msg.data['title'] ?? '';
         final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
         final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-        if (_t.isNotEmpty) { await Prefs.saveNotification(title:_t, body:_b, imageUrl:_i); await Prefs.incrementUnread(); }
+        final _y = msg.data['type'] ?? msg.data['screen'] ?? 'promo';
+        if (_t.isNotEmpty) { await Prefs.saveNotification(title: _t, body: _b, imageUrl: _i, type: _y); await Prefs.incrementUnread(); }
         MyApp.navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
       } catch (e) { debugPrint('[OFFRO] Step 8 error: $e'); }
     });
@@ -2805,9 +2817,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               if (imgUrl.isNotEmpty)
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                  child: imgUrl.startsWith("data:image")
-                                    ? Image.memory(base64Decode(imgUrl.split(",").last), height: 160, width: double.infinity, fit: BoxFit.cover, gaplessPlayback: true)
-                                    : CachedNetworkImage(imageUrl: imgUrl, height: 160, width: double.infinity, fit: BoxFit.cover),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxHeight: 240),
+                                    child: imgUrl.startsWith("data:image")
+                                      ? Image.memory(base64Decode(imgUrl.split(",").last), width: double.infinity, fit: BoxFit.contain, gaplessPlayback: true)
+                                      : CachedNetworkImage(imageUrl: imgUrl, width: double.infinity, fit: BoxFit.contain,
+                                          placeholder: (_, __) => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: kPrimary))),
+                                          errorWidget: (_, __, ___) => const SizedBox(height: 80, child: Icon(Icons.broken_image_outlined, color: kMuted, size: 40))),
+                                  ),
                                 ),
                               if (imgUrl.isNotEmpty) const SizedBox(height: 14),
                               Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: kText)),

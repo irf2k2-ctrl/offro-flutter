@@ -165,9 +165,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               if (imgUrl.isNotEmpty)
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                  child: imgUrl.startsWith("data:image")
-                                    ? Image.memory(base64Decode(imgUrl.split(",").last), height: 160, width: double.infinity, fit: BoxFit.cover, gaplessPlayback: true)
-                                    : CachedNetworkImage(imageUrl: imgUrl, height: 160, width: double.infinity, fit: BoxFit.cover),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxHeight: 240),
+                                    child: imgUrl.startsWith("data:image")
+                                      ? Image.memory(base64Decode(imgUrl.split(",").last), width: double.infinity, fit: BoxFit.contain, gaplessPlayback: true)
+                                      : CachedNetworkImage(imageUrl: imgUrl, width: double.infinity, fit: BoxFit.contain,
+                                          placeholder: (_, __) => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: kPrimary))),
+                                          errorWidget: (_, __, ___) => const SizedBox(height: 80, child: Icon(Icons.broken_image_outlined, color: kMuted, size: 40))),
+                                  ),
                                 ),
                               if (imgUrl.isNotEmpty) const SizedBox(height: 14),
                               Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: kText)),

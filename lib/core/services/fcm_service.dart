@@ -24,6 +24,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:image/image.dart' as img;
 
 // ─────────────────────── SHARED INSTANCES ───────────────────────
 // These are accessed from main.dart via:
@@ -131,6 +132,9 @@ void _showNotifText(int id, String title, String body, String payload) {
 }
 
 /// Download image bytes then replace the text notification with a big-picture one.
+/// The image is resized to max 450px wide (maintaining aspect ratio) to fit
+/// Android's BigPicture expanded notification area without being cropped.
+/// On iOS the image is delivered via the APNs payload, not a local big-picture.
 Future<void> _showNotifWithImage(
     int id, String title, String body, String imageUrl, String payload) async {
   try {
@@ -140,17 +144,36 @@ Future<void> _showNotifWithImage(
     final response =
         await http.get(Uri.parse(imageUrl)).timeout(const Duration(seconds: 8));
     if (response.statusCode == 200) {
-      final bytes = response.bodyBytes;
+      final rawBytes = response.bodyBytes;
+
+      // Resize for Android BigPicture — Android crops images wider than its
+      // expanded notification area. We resize to max 450px wide (maintaining
+      // source aspect ratio) and re-encode as JPEG 85% to keep the payload
+      // small enough for the notification shade.
+      Uint8List notifBytes = rawBytes;
+      try {
+        final decoded = img.decodeImage(rawBytes);
+        if (decoded != null && decoded.width > 450) {
+          final scaled = img.copyResize(decoded, width: 450);
+          notifBytes = Uint8List.fromList(img.encodeJpg(scaled, quality: 85));
+        } else if (decoded != null) {
+          notifBytes = Uint8List.fromList(img.encodeJpg(decoded, quality: 85));
+        }
+      } catch (resizeErr) {
+        debugPrint('[LOCAL-NOTIF] Image resize skipped: $resizeErr — using raw bytes');
+        notifBytes = rawBytes;
+      }
+
       final android = AndroidNotificationDetails(
         offroNotifChannel.id, offroNotifChannel.name,
         channelDescription: offroNotifChannel.description,
         importance: Importance.max,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
-        largeIcon: ByteArrayAndroidBitmap(bytes),
+        largeIcon: ByteArrayAndroidBitmap(notifBytes),
         styleInformation: BigPictureStyleInformation(
-          ByteArrayAndroidBitmap(bytes),
-          largeIcon: ByteArrayAndroidBitmap(bytes),
+          ByteArrayAndroidBitmap(notifBytes),
+          largeIcon: ByteArrayAndroidBitmap(notifBytes),
           contentTitle: title,
           summaryText: body,
           hideExpandedLargeIcon: false,

@@ -185,12 +185,36 @@ class Prefs {
     _savingNotif = true;
     try {
       final p   = await SharedPreferences.getInstance();
+      // Reload to pick up any writes from the background isolate (Android
+      // background handler runs in a separate isolate whose SharedPreferences
+      // writes are invisible to this main isolate's cached instance until
+      // explicitly reloaded).
+      await p.reload();
       final raw = p.getString(_kNotifHistory);
       final List<dynamic> list = raw != null
           ? (json.decode(raw) as List<dynamic>)
           : [];
 
       final now = DateTime.now();
+
+      // ── Dedup guard: skip if the same title+body was saved within the last
+      // 10 seconds. This prevents duplicates when onMessage and
+      // onMessageOpenedApp both fire for the same push (common on iOS when
+      // the user taps a foreground notification).
+      if (list.isNotEmpty) {
+        final last = list[0] as Map<String, dynamic>;
+        final lastTitle = last['title'] as String? ?? '';
+        final lastBody  = last['body']  as String? ?? '';
+        final lastTs    = last['ts']    as String? ?? '';
+        if (lastTitle == title && lastBody == body && lastTs.isNotEmpty) {
+          try {
+            final lastDt = DateTime.parse(lastTs);
+            if (now.difference(lastDt).inSeconds < 10) {
+              return; // Duplicate — skip silently
+            }
+          } catch (_) {}
+        }
+      }
       // Remove entries older than 30 days
       list.removeWhere((e) {
         try {
@@ -222,6 +246,8 @@ class Prefs {
   static Future<List<Map<String, dynamic>>> getNotifications() async {
     try {
       final p   = await SharedPreferences.getInstance();
+      // Reload to pick up background-isolate writes before reading.
+      await p.reload();
       final raw = p.getString(_kNotifHistory);
       if (raw == null) return [];
       return (json.decode(raw) as List<dynamic>)
@@ -246,6 +272,7 @@ class Prefs {
   /// Increment unread count (call when new notification arrives)
   static Future<void> incrementUnread() async {
     final p = await SharedPreferences.getInstance();
+    await p.reload();
     final current = p.getInt(_kUnreadCount) ?? 0;
     await p.setInt(_kUnreadCount, current + 1);
   }
