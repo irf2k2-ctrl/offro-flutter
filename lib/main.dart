@@ -174,6 +174,28 @@ double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
 }
 
 
+// ─────────────────────── NOTIFICATION NAVIGATION ───────────────────────
+/// Handle navigation when a notification is tapped. Routes to the appropriate
+/// screen based on the `screen` and `type` fields in the FCM data payload.
+/// Falls back to NotificationsPage when no specific screen is specified.
+void _handleNotificationNavigation(String screen, String type) {
+  debugPrint('[NOTIF-DEBUG] navigate: screen="$screen" type="$type"');
+  final nav = MyApp.navigatorKey.currentState;
+  if (nav == null) {
+    debugPrint('[NOTIF-DEBUG] Navigator is null — cannot navigate');
+    return;
+  }
+
+  // If screen field contains a route identifier, navigate accordingly.
+  // For now, all notifications route to the NotificationsPage since the
+  // backend doesn't yet send specific screen targets. When it does,
+  // add cases here:
+  //   case 'store_detail': nav.push(...StoreDetailPage(storeId: screen));
+  //   case 'product_detail': nav.push(...ProductDetailPage(productId: screen));
+  nav.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
+  debugPrint('[NOTIF-DEBUG] Navigated to NotificationsPage');
+}
+
 // ─────────────────────── MAIN ───────────────────────
 // Background FCM handler — must be top-level function
 @pragma('vm:entry-point')
@@ -181,18 +203,29 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Background isolate needs Flutter binding for platform channels (SharedPreferences)
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  if (kDebugMode) debugPrint('[FCM] Background message: \${message.notification?.title}');
-  // Save notification to local history (covers case 4: background notif without opening app)
+  debugPrint('[NOTIF-DEBUG] ━━ Background handler fired ━━');
+  debugPrint('[NOTIF-DEBUG] msgId=${message.messageId} title=${message.notification?.title} from=${message.senderId}');
+  // CASE 4: Background notification received without opening app.
+  // On Android this fires reliably. On iOS it only fires for data-only messages.
   try {
     final title     = message.notification?.title ?? message.data['title'] ?? '';
     final body      = message.notification?.body  ?? message.data['body']  ?? '';
     final imageUrl  = message.data['image_url'] ?? message.data['image'] ?? '';
-    final notifType = message.data['type'] ?? message.data['screen'] ?? 'promo';
+    final notifType = message.data['type'] ?? 'promo';
+    final screen    = message.data['screen'] ?? '';
+    final msgId     = message.messageId ?? '';
+    debugPrint('[NOTIF-DEBUG] BG payload: title="$title" body="$body" img="$imageUrl" type="$notifType" screen="$screen" msgId="$msgId"');
     if (title.isNotEmpty) {
-      await Prefs.saveNotification(title: title, body: body, imageUrl: imageUrl, type: notifType);
-      await Prefs.incrementUnread();
+      final saved = await Prefs.saveNotification(
+        title: title, body: body, imageUrl: imageUrl,
+        type: notifType, screen: screen, messageId: msgId,
+      );
+      debugPrint('[NOTIF-DEBUG] BG save result: $saved');
+      if (saved) await Prefs.incrementUnread();
     }
-  } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+  } catch (e) {
+    debugPrint('[NOTIF-DEBUG] ❌ Background handler ERROR: $e');
+  }
 }
 
 Future<void> main() async {
@@ -230,9 +263,8 @@ Future<void> main() async {
       debugPrint('[OFFRO] Step 3: initLocalNotifications() timed out');
     });
     onLocalNotifTap = (payload) {
-      MyApp.navigatorKey.currentState?.push(
-        MaterialPageRoute(builder: (_) => const NotificationsPage()),
-      );
+      debugPrint('[NOTIF-DEBUG] Local notification tapped: payload=$payload');
+      _handleNotificationNavigation(payload, 'promo');
     };
     debugPrint('[OFFRO] Step 3: Local notifications OK');
   } catch (e) { debugPrint('[OFFRO] Step 3 failed: $e'); }
@@ -259,48 +291,94 @@ Future<void> main() async {
       final initialMsg = await FirebaseMessaging.instance
           .getInitialMessage()
           .timeout(const Duration(seconds: 5), onTimeout: () {
-        debugPrint('[OFFRO] Step 6: getInitialMessage() timed out — '
-            'skipping (FlutterFire iOS UIScene bug #17854)');
+        debugPrint('[NOTIF-DEBUG] Step 6: getInitialMessage() timed out (5s) — skipping');
         return null;
       });
       if (initialMsg != null) {
-        final _it = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
-        final _ib = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
-        final _ii = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
-        final _iy = initialMsg.data['type'] ?? initialMsg.data['screen'] ?? 'promo';
-        if (_it.isNotEmpty) { await Prefs.saveNotification(title: _it, body: _ib, imageUrl: _ii, type: _iy); await Prefs.incrementUnread(); }
+        debugPrint('[NOTIF-DEBUG] ━━ getInitialMessage() received ━━');
+        final _it  = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
+        final _ib  = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
+        final _ii  = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
+        final _iy  = initialMsg.data['type'] ?? 'promo';
+        final _isc = initialMsg.data['screen'] ?? '';
+        final _im = initialMsg.messageId ?? '';
+        debugPrint('[NOTIF-DEBUG] initialMsg payload: title="$_it" body="$_ib" img="$_ii" type="$_iy" screen="$_isc" msgId="$_im"');
+        if (_it.isNotEmpty) {
+          final saved = await Prefs.saveNotification(
+            title: _it, body: _ib, imageUrl: _ii,
+            type: _iy, screen: _isc, messageId: _im,
+          );
+          debugPrint('[NOTIF-DEBUG] initialMsg save result: $saved');
+          if (saved) await Prefs.incrementUnread();
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          MyApp.navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
+          _handleNotificationNavigation(_isc, _iy);
         });
       }
-    } catch (e) { debugPrint('[OFFRO] Step 6 failed: $e'); }
+    } catch (e) {
+      debugPrint('[NOTIF-DEBUG] ❌ Step 6 (getInitialMessage) failed: $e');
+    }
 
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
+      debugPrint('[NOTIF-DEBUG] ━━ onMessage fired (app foreground) ━━');
+      debugPrint('[NOTIF-DEBUG] msgId=${msg.messageId} from=${msg.senderId}');
       try {
-        // SAVE FIRST — if showLocalNotification throws, history is still saved.
-        final _t = msg.notification?.title ?? msg.data['title'] ?? '';
-        final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
-        final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-        final _y = msg.data['type'] ?? msg.data['screen'] ?? 'promo';
+        // STEP 1: Extract complete payload
+        final _t  = msg.notification?.title ?? msg.data['title'] ?? '';
+        final _b  = msg.notification?.body  ?? msg.data['body']  ?? '';
+        final _i  = msg.data['image_url'] ?? msg.data['image'] ?? '';
+        final _y  = msg.data['type'] ?? 'promo';
+        final _sc = msg.data['screen'] ?? '';
+        final _mi = msg.messageId ?? '';
+        debugPrint('[NOTIF-DEBUG] onMessage payload: title="$_t" body="$_b" img="$_i" type="$_y" screen="$_sc" msgId="$_mi"');
+
+        // STEP 2: SAVE FIRST — independent of display. Even if showLocalNotification
+        // throws, the notification is already in history.
         if (_t.isNotEmpty) {
-          await Prefs.saveNotification(title: _t, body: _b, imageUrl: _i, type: _y);
-          await Prefs.incrementUnread();
-          _unreadNotifier.value++;
+          final saved = await Prefs.saveNotification(
+            title: _t, body: _b, imageUrl: _i,
+            type: _y, screen: _sc, messageId: _mi,
+          );
+          debugPrint('[NOTIF-DEBUG] onMessage save result: $saved');
+          if (saved) {
+            await Prefs.incrementUnread();
+            _unreadNotifier.value++;
+          }
         }
-        // Then show the local notification banner
+
+        // STEP 3: Display the notification banner (after save)
         showLocalNotification(msg);
-      } catch (e) { debugPrint('[OFFRO] Step 7 error: $e'); }
+      } catch (e) {
+        debugPrint('[NOTIF-DEBUG] ❌ onMessage ERROR: $e');
+      }
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) async {
+      debugPrint('[NOTIF-DEBUG] ━━ onMessageOpenedApp fired (background→tap) ━━');
+      debugPrint('[NOTIF-DEBUG] msgId=${msg.messageId} title=${msg.notification?.title}');
       try {
-        final _t = msg.notification?.title ?? msg.data['title'] ?? '';
-        final _b = msg.notification?.body  ?? msg.data['body']  ?? '';
-        final _i = msg.data['image_url'] ?? msg.data['image'] ?? '';
-        final _y = msg.data['type'] ?? msg.data['screen'] ?? 'promo';
-        if (_t.isNotEmpty) { await Prefs.saveNotification(title: _t, body: _b, imageUrl: _i, type: _y); await Prefs.incrementUnread(); }
-        MyApp.navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
-      } catch (e) { debugPrint('[OFFRO] Step 8 error: $e'); }
+        final _t  = msg.notification?.title ?? msg.data['title'] ?? '';
+        final _b  = msg.notification?.body  ?? msg.data['body']  ?? '';
+        final _i  = msg.data['image_url'] ?? msg.data['image'] ?? '';
+        final _y  = msg.data['type'] ?? 'promo';
+        final _sc = msg.data['screen'] ?? '';
+        final _mi = msg.messageId ?? '';
+        debugPrint('[NOTIF-DEBUG] onOpenedApp payload: title="$_t" body="$_b" img="$_i" type="$_y" screen="$_sc" msgId="$_mi"');
+        // Save (dedup via messageId ensures this won't double-save if background
+        // handler already saved it)
+        if (_t.isNotEmpty) {
+          final saved = await Prefs.saveNotification(
+            title: _t, body: _b, imageUrl: _i,
+            type: _y, screen: _sc, messageId: _mi,
+          );
+          debugPrint('[NOTIF-DEBUG] onOpenedApp save result: $saved');
+          if (saved) await Prefs.incrementUnread();
+        }
+        // Navigate to the appropriate screen
+        _handleNotificationNavigation(_sc, _y);
+      } catch (e) {
+        debugPrint('[NOTIF-DEBUG] ❌ onMessageOpenedApp ERROR: $e');
+      }
     });
   }
 

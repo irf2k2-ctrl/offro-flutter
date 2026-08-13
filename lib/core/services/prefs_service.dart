@@ -167,14 +167,21 @@ class Prefs {
 
   /// Save an incoming notification to local history.
   /// Keeps newest 50; auto-purges entries older than 30 days.
-  // Mutex flag to prevent concurrent writes corrupting the notification list
-  static bool _savingNotif = false;
+  /// Returns true if saved, false if skipped (duplicate).
+  //
+  // Dedup is based on FCM messageId (the unique identifier assigned by FCM
+  // to every message). If messageId is empty, falls back to title+body within
+  // a 10-second window. This is more reliable than title+body alone because
+  // two different notifications can share the same title and body.
+  static bool _savingNotif = false; // Mutex to prevent concurrent writes
 
-  static Future<void> saveNotification({
+  static Future<bool> saveNotification({
     required String title,
     required String body,
-    String imageUrl = '',
-    String type     = 'promo',
+    String imageUrl  = '',
+    String type      = 'promo',
+    String screen    = '',
+    String messageId = '',
   }) async {
     // Wait if another save is in progress (max 2 seconds to avoid deadlock)
     int waited = 0;
@@ -184,37 +191,46 @@ class Prefs {
     }
     _savingNotif = true;
     try {
-      final p   = await SharedPreferences.getInstance();
-      // Reload to pick up any writes from the background isolate (Android
-      // background handler runs in a separate isolate whose SharedPreferences
-      // writes are invisible to this main isolate's cached instance until
-      // explicitly reloaded).
+      final p = await SharedPreferences.getInstance();
+      // Reload to pick up any writes from the background isolate.
       await p.reload();
       final raw = p.getString(_kNotifHistory);
       final List<dynamic> list = raw != null
           ? (json.decode(raw) as List<dynamic>)
           : [];
 
+      debugPrint('[NOTIF-DEBUG] saveNotification: title="$title" msgId="$messageId" listSize=${list.length}');
+
       final now = DateTime.now();
 
-      // ── Dedup guard: skip if the same title+body was saved within the last
-      // 10 seconds. This prevents duplicates when onMessage and
-      // onMessageOpenedApp both fire for the same push (common on iOS when
-      // the user taps a foreground notification).
-      if (list.isNotEmpty) {
-        final last = list[0] as Map<String, dynamic>;
-        final lastTitle = last['title'] as String? ?? '';
-        final lastBody  = last['body']  as String? ?? '';
-        final lastTs    = last['ts']    as String? ?? '';
-        if (lastTitle == title && lastBody == body && lastTs.isNotEmpty) {
-          try {
-            final lastDt = DateTime.parse(lastTs);
-            if (now.difference(lastDt).inSeconds < 10) {
-              return; // Duplicate — skip silently
-            }
-          } catch (_) {}
+      // ── Dedup by messageId (primary) or title+body within 10s (fallback) ──
+      if (messageId.isNotEmpty) {
+        for (final e in list) {
+          final existingMsgId = (e as Map<String, dynamic>)['message_id'] as String? ?? '';
+          if (existingMsgId == messageId) {
+            debugPrint('[NOTIF-DEBUG] DEDUP: messageId=$messageId already saved — skipping');
+            return false;
+          }
+        }
+      } else {
+        // Fallback: check title+body within last 10 seconds
+        if (list.isNotEmpty) {
+          final last = list[0] as Map<String, dynamic>;
+          final lastTitle = last['title'] as String? ?? '';
+          final lastBody  = last['body']  as String? ?? '';
+          final lastTs    = last['ts']    as String? ?? '';
+          if (lastTitle == title && lastBody == body && lastTs.isNotEmpty) {
+            try {
+              final lastDt = DateTime.parse(lastTs);
+              if (now.difference(lastDt).inSeconds < 10) {
+                debugPrint('[NOTIF-DEBUG] DEDUP: title+body match within 10s — skipping');
+                return false;
+              }
+            } catch (_) {}
+          }
         }
       }
+
       // Remove entries older than 30 days
       list.removeWhere((e) {
         try {
@@ -223,22 +239,42 @@ class Prefs {
         } catch (_) { return false; }
       });
 
-      // Prepend newest entry
+      // Prepend newest entry with all fields
       list.insert(0, {
-        'title':     title,
-        'body':      body,
-        'image_url': imageUrl,
-        'type':      type,
-        'ts':        now.toIso8601String(),
+        'title':       title,
+        'body':        body,
+        'image_url':   imageUrl,
+        'type':        type,
+        'screen':      screen,
+        'message_id':  messageId,
+        'ts':          now.toIso8601String(),
       });
 
       // Trim to max 50
       if (list.length > _kMaxNotifs) list.removeRange(_kMaxNotifs, list.length);
 
       await p.setString(_kNotifHistory, json.encode(list));
-    } catch (_) {
+      debugPrint('[NOTIF-DEBUG] ✅ Saved: title="$title" msgId="$messageId" newListSize=${list.length}');
+
+      // ── Read-back verification ──
+      try {
+        final verifyRaw = p.getString(_kNotifHistory);
+        if (verifyRaw != null) {
+          final verifyList = json.decode(verifyRaw) as List<dynamic>;
+          final found = verifyList.isNotEmpty &&
+              (verifyList[0] as Map<String, dynamic>)['title'] == title;
+          debugPrint('[NOTIF-DEBUG] Read-back: found=$found verifySize=${verifyList.length}');
+        }
+      } catch (ve) {
+        debugPrint('[NOTIF-DEBUG] Read-back FAILED: $ve');
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('[NOTIF-DEBUG] ❌ saveNotification EXCEPTION: $e');
+      return false;
     } finally {
-      _savingNotif = false; // Always release lock
+      _savingNotif = false;
     }
   }
 
