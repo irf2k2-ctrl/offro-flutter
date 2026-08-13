@@ -1,0 +1,35 @@
+# codemagic.yaml — OFFRO iOS App Store build
+# Place this file in the ROOT of the repository (same level as pubspec.yaml).
+
+workflows:
+  ios-app-store:
+    name: OFFRO iOS App Store
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Configure iOS code signing
+        script: |
+          xcode-project use-profiles
+
+      - name: Build IPA
+        script: |
+          flutter build ipa \
+            --release \
+            --export-options-plist /Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /Users/builder/export_options.plist
