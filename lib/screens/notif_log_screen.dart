@@ -152,7 +152,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
   IconData _eventIcon(String event) {
     switch (event) {
       case 'onMessage': return Icons.phone_android_rounded;
-      case 'onBackground': return Icons.background_replace_rounded;
+      case 'onBackground': return Icons.cloud_sync_rounded;
       case 'onOpenedApp': return Icons.touch_app_rounded;
       case 'getInitialMessage': return Icons.launch_rounded;
       case 'didReceiveRemoteNotif': return Icons.cloud_download_rounded;
@@ -241,8 +241,12 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                           ],
                           if ((e['msgId'] as String? ?? '').isNotEmpty) ...[
                             const SizedBox(height: 2),
-                            Text('msgId: ${(e['msgId'] as String? ?? '').substring(0, (e['msgId'] as String? ?? '').length > 25 ? 25 : (e['msgId'] as String? ?? '').length)}...',
-                              style: const TextStyle(fontSize: 10, color: kMuted, fontFamily: 'monospace')),
+                            Builder(builder: (_) {
+                              final mid = e['msgId'] as String? ?? '';
+                              final short = mid.length > 25 ? mid.substring(0, 25) : mid;
+                              return Text('msgId: $short...',
+                                style: const TextStyle(fontSize: 10, color: kMuted, fontFamily: 'monospace'));
+                            }),
                           ],
                           if (e['saved'] != null) ...[
                             const SizedBox(height: 2),
