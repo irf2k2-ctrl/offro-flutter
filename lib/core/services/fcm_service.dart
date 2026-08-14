@@ -206,6 +206,16 @@ class FcmService {
   static bool _initialized = false; // guard: only runs once per session
   static String? _savedPhone;
 
+  /// Reset the initialization guard.
+  /// Call on logout so the next login re-registers the FCM token
+  /// with the backend. Without this, a different user logging in on
+  /// the same device keeps the previous user's FCM token, causing
+  /// specific-phone notification sends to target the wrong token.
+  static void reset() {
+    _initialized = false;
+    _savedPhone = null;
+  }
+
   /// Call once after user logs in — requests permission, subscribes to topics,
   /// gets the FCM device token and registers it with the backend.
   ///

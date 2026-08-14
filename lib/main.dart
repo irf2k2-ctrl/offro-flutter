@@ -2508,6 +2508,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             },color:const Color(0xFF25D366)),
             _pItem(ctx,Icons.logout_rounded,"Logout",()async{
               await Prefs.clear();
+              FcmService.reset();
               Api.clearCache();
               // Use navigatorKey so OnboardingScreen gets the goLogin callback
               MyApp.goOnboarding();
@@ -8751,6 +8752,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
             ElevatedButton(
               onPressed: () async {
                 await Prefs.clear();
+                FcmService.reset();
                 Api.clearCache();
                 MyApp.goOnboarding();
               },
