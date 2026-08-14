@@ -342,7 +342,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const Icon(Icons.diagnostics_outlined, size: 18, color: kPrimary),
+            const Icon(Icons.info_outline_rounded, size: 18, color: kPrimary),
             const SizedBox(width: 6),
             const Text('FCM Registration Status',
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kPrimary)),
@@ -358,7 +358,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
             const SizedBox(height: 6),
             Row(children: [
               Expanded(child: Text(_fullFcmToken!,
-                style: const TextStyle(fontSize: 9, color: kMuted, fontFamily: 'monospace),
+                style: const TextStyle(fontSize: 9, color: kMuted, fontFamily: 'monospace'),
                 maxLines: 2, overflow: TextOverflow.ellipsis)),
               GestureDetector(
                 onTap: () {
