@@ -86,11 +86,12 @@
 		<true/>
 	</dict>
 	<!-- Firebase Messaging -->
-	<!-- FirebaseAppDelegateProxyEnabled = true: FCM plugin auto-swizzles
-	     all APNs delegate methods. AppDelegate.swift does NOT manually
-	     set UNUserNotificationCenter.delegate or override didReceiveRemoteNotification. -->
+	<!-- FirebaseAppDelegateProxyEnabled = false: We handle APNs delegate methods
+	     manually in AppDelegate.swift. The FCM plugin does NOT auto-swizzle.
+	     This prevents the swizzle conflict that caused iOS to throttle
+	     notifications because the completion handler was never called properly. -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
-	<true/>
+	<false/>
 	<!-- UIBackgroundModes: required for iOS to deliver content-available:1
 	     push notifications when the app is in the background or terminated.
 	     Without this, onBackgroundMessage will NOT fire for background/terminated states. -->
