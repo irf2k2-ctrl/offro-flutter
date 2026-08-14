@@ -2,7 +2,6 @@ import 'dart:convert';
 // lib/core/services/prefs_service.dart
 // OFFRO — SharedPreferences wrapper
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Prefs {

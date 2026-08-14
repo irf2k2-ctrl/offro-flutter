@@ -17,7 +17,6 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
-import 'screens/notification_diagnostics.dart';
 
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
@@ -39,6 +38,7 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
+import 'screens/notif_log_screen.dart';
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -205,6 +205,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   debugPrint('[NOTIF-DEBUG] ━━ Background handler fired ━━');
+    await NotifEventLog.log('onBackground', title: message.notification?.title ?? message.data['title'] ?? '', msgId: message.messageId ?? '');
   debugPrint('[NOTIF-DEBUG] msgId=${message.messageId} title=${message.notification?.title} from=${message.senderId}');
   // CASE 4: Background notification received without opening app.
   // On Android this fires reliably. On iOS it only fires for data-only messages.
@@ -222,10 +223,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         type: notifType, screen: screen, messageId: msgId,
       );
       debugPrint('[NOTIF-DEBUG] BG save result: $saved');
+      await NotifEventLog.log('onBackground', title: title, body: body, msgId: msgId, imageUrl: imageUrl, type: notifType, screen: screen, saved: saved);
       if (saved) await Prefs.incrementUnread();
     }
   } catch (e) {
     debugPrint('[NOTIF-DEBUG] ❌ Background handler ERROR: $e');
+    await NotifEventLog.log('error', error: 'onBackground: $e');
   }
 }
 
@@ -297,6 +300,7 @@ Future<void> main() async {
       });
       if (initialMsg != null) {
         debugPrint('[NOTIF-DEBUG] ━━ getInitialMessage() received ━━');
+        await NotifEventLog.log('getInitialMessage', title: initialMsg.notification?.title ?? initialMsg.data['title'] ?? '', msgId: initialMsg.messageId ?? '');
         final _it  = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
         final _ib  = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
         final _ii  = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
@@ -310,6 +314,7 @@ Future<void> main() async {
             type: _iy, screen: _isc, messageId: _im,
           );
           debugPrint('[NOTIF-DEBUG] initialMsg save result: $saved');
+          await NotifEventLog.log('getInitialMessage', title: _it, body: _ib, msgId: _im, imageUrl: _ii, type: _iy, screen: _isc, saved: saved);
           if (saved) await Prefs.incrementUnread();
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -323,6 +328,7 @@ Future<void> main() async {
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
       debugPrint('[NOTIF-DEBUG] ━━ onMessage fired (app foreground) ━━');
       debugPrint('[NOTIF-DEBUG] msgId=${msg.messageId} from=${msg.senderId}');
+      await NotifEventLog.log('onMessage', title: msg.notification?.title ?? msg.data['title'] ?? '', msgId: msg.messageId ?? '');
       try {
         // STEP 1: Extract complete payload
         final _t  = msg.notification?.title ?? msg.data['title'] ?? '';
@@ -341,6 +347,7 @@ Future<void> main() async {
             type: _y, screen: _sc, messageId: _mi,
           );
           debugPrint('[NOTIF-DEBUG] onMessage save result: $saved');
+          await NotifEventLog.log('onMessage', title: _t, body: _b, msgId: _mi, imageUrl: _i, type: _y, screen: _sc, saved: saved);
           if (saved) {
             await Prefs.incrementUnread();
             _unreadNotifier.value++;
@@ -351,12 +358,14 @@ Future<void> main() async {
         showLocalNotification(msg);
       } catch (e) {
         debugPrint('[NOTIF-DEBUG] ❌ onMessage ERROR: $e');
+        await NotifEventLog.log('error', error: 'onMessage: $e');
       }
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) async {
       debugPrint('[NOTIF-DEBUG] ━━ onMessageOpenedApp fired (background→tap) ━━');
       debugPrint('[NOTIF-DEBUG] msgId=${msg.messageId} title=${msg.notification?.title}');
+      await NotifEventLog.log('onOpenedApp', title: msg.notification?.title ?? msg.data['title'] ?? '', msgId: msg.messageId ?? '');
       try {
         final _t  = msg.notification?.title ?? msg.data['title'] ?? '';
         final _b  = msg.notification?.body  ?? msg.data['body']  ?? '';
@@ -373,6 +382,7 @@ Future<void> main() async {
             type: _y, screen: _sc, messageId: _mi,
           );
           debugPrint('[NOTIF-DEBUG] onOpenedApp save result: $saved');
+          await NotifEventLog.log('onOpenedApp', title: _t, body: _b, msgId: _mi, imageUrl: _i, type: _y, screen: _sc, saved: saved);
           if (saved) await Prefs.incrementUnread();
         }
         // Navigate to the appropriate screen
@@ -2477,7 +2487,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             _pItem(ctx,Icons.history_rounded,"Scan History",()=>Navigator.push(ctx,_route(HistoryPage(token:widget.token)))),
             _pItem(ctx,Icons.favorite_rounded,"My Favourites",()=>Navigator.push(ctx,_route(FavoritesPage(token:widget.token)))),
             _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,_route(NotificationsPage()))),
-            _pItem(ctx,Icons.bug_report_rounded,"Notification Diagnostics",()=>Navigator.push(ctx,_route(const NotificationDiagnosticsScreen()))),
+            _pItem(ctx,Icons.bug_report_outlined,"Notif Event Log",()=>Navigator.push(ctx,_route(const NotifLogScreen()))),
             const Divider(height:1),
             _pItem(ctx,Icons.info_outline_rounded,"About Us",()async{final c=await Api.getAboutUs();if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"About Us",body:c.isEmpty?"Offro connects local stores with customers through deals and loyalty points.":c));}),
             _pItem(ctx,Icons.description_rounded,"Terms & Conditions",()async{final c=await Api.fetchTerms("user");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Terms & Conditions",body:c));}),
