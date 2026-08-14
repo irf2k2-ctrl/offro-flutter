@@ -25,6 +25,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:image/image.dart' as img;
+import '../../screens/notif_log_screen.dart';
 
 // ─────────────────────── SHARED INSTANCES ───────────────────────
 // These are accessed from main.dart via:
@@ -245,8 +246,13 @@ class FcmService {
         criticalAlert: false, provisional: false,
       );
       debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
+      await NotifEventLog.log('reg_permission',
+        title: 'Permission: ${settings.authorizationStatus}',
+        saved: settings.authorizationStatus == AuthorizationStatus.authorized,
+      );
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
         debugPrint('[FCM] Denied — skipping token registration');
+        await NotifEventLog.log('reg_error', error: 'Notification permission DENIED');
         return;
       }
 
@@ -283,8 +289,15 @@ class FcmService {
           await Future.delayed(const Duration(seconds: 1));
         }
         debugPrint('[FCM] iOS APNs token: ${apnsToken != null ? "received" : "not received yet"}');
+        await NotifEventLog.log('reg_apns',
+          title: apnsToken != null ? 'APNs token: OK' : 'APNs token: MISSING',
+          msgId: apnsToken ?? '',
+          saved: apnsToken != null,
+        );
         if (apnsToken == null) {
           debugPrint('[FCM] iOS: APNs token not ready, proceeding with getToken anyway...');
+          await NotifEventLog.log('reg_error',
+            error: 'APNs token NOT received after 10 attempts. Check: 1) Push Notifications capability in Xcode, 2) APNs Auth Key in Firebase Console, 3) provisioning profile includes push entitlement');
         }
       }
 
@@ -300,13 +313,20 @@ class FcmService {
         if (attempt < 5) await Future.delayed(const Duration(seconds: 3));
       }
       if (fcmToken == null) {
-        debugPrint('[FCM] ⚠️ getToken() returned null after 5 attempts');
+        debugPrint('[FCM] getToken() returned null after 5 attempts');
+        await NotifEventLog.log('reg_error',
+          error: 'FCM getToken() returned null after 5 attempts. APNs key may not be configured in Firebase Console.');
         return;
       }
 
       // Always print full token for logcat verification
       debugPrint('FCM TOKEN: $fcmToken');
       debugPrint('[FCM] Token (first 20): ${fcmToken.substring(0, 20)}...');
+      await NotifEventLog.log('reg_fcm_token',
+        title: 'FCM Token: ' + fcmToken.substring(0, 20) + '...',
+        msgId: fcmToken,
+        saved: true,
+      );
 
       // 5. Register token with backend via callback
       await onTokenReady(fcmToken,
@@ -325,6 +345,7 @@ class FcmService {
     } catch (e) {
       // Non-fatal — app works without notifications
       debugPrint('[FCM] init error: $e');
+      await NotifEventLog.log('reg_error', error: 'init error: $e');
     }
   }
 

@@ -1,12 +1,13 @@
 // lib/screens/notif_log_screen.dart
-// In-app notification lifecycle event log — no Mac/Console.app needed.
-// Captures which FCM handlers fire on iOS so you can see exactly
-// what happens when a notification arrives.
+// In-app notification lifecycle event log + FCM registration status.
+// No Mac/Console.app needed — everything visible from the app itself.
 
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 const String _kNotifLog = 'offro_notif_event_log';
 const int _kMaxLogEntries = 100;
@@ -79,6 +80,15 @@ class NotifEventLog {
   }
 }
 
+// ─── REGISTRATION STATUS DATA ───
+class _RegStatus {
+  String platform = '';
+  String permission = 'checking...';
+  String apnsToken = 'checking...';
+  String fcmToken = 'checking...';
+  bool fcmTokenReceived = false;
+}
+
 // ─── NOTIF LOG SCREEN ───
 class NotifLogScreen extends StatefulWidget {
   const NotifLogScreen({super.key});
@@ -89,6 +99,7 @@ class NotifLogScreen extends StatefulWidget {
 class _NotifLogScreenState extends State<NotifLogScreen> {
   List<Map<String, dynamic>> _logs = [];
   bool _loading = true;
+  _RegStatus _reg = _RegStatus();
 
   static const Color kPrimary = Color(0xFF3E5F55);
   static const Color kBg = Color(0xFFFDFBF6);
@@ -103,6 +114,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
   void initState() {
     super.initState();
     _load();
+    _checkRegStatus();
   }
 
   Future<void> _load() async {
@@ -110,13 +122,77 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
     if (mounted) setState(() { _logs = logs; _loading = false; });
   }
 
+  Future<void> _checkRegStatus() async {
+    final reg = _RegStatus();
+    reg.platform = Platform.isIOS ? 'iOS' : (Platform.isAndroid ? 'Android' : 'other');
+
+    try {
+      final settings = await FirebaseMessaging.instance.getNotificationSettings();
+      final status = settings.authorizationStatus;
+      if (status == AuthorizationStatus.authorized) {
+        reg.permission = 'Granted';
+      } else if (status == AuthorizationStatus.denied) {
+        reg.permission = 'DENIED';
+      } else if (status == AuthorizationStatus.notDetermined) {
+        reg.permission = 'Not determined';
+      } else if (status == AuthorizationStatus.provisional) {
+        reg.permission = 'Provisional';
+      } else {
+        reg.permission = 'Unknown';
+      }
+    } catch (e) {
+      reg.permission = 'Error: $e';
+    }
+
+    if (Platform.isIOS) {
+      try {
+        final apns = await FirebaseMessaging.instance.getAPNSToken().timeout(
+          const Duration(seconds: 3),
+          onTimeout: () => null,
+        );
+        if (apns != null && apns.isNotEmpty) {
+          reg.apnsToken = 'OK: ' + apns.substring(0, (apns.length < 20 ? apns.length : 20)) + '...';
+        } else {
+          reg.apnsToken = 'MISSING';
+        }
+      } catch (e) {
+        reg.apnsToken = 'Error: $e';
+      }
+    } else {
+      reg.apnsToken = 'N/A (Android)';
+    }
+
+    try {
+      final fcm = await FirebaseMessaging.instance.getToken().timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => null,
+      );
+      if (fcm != null && fcm.isNotEmpty) {
+        reg.fcmToken = fcm.substring(0, 20) + '...';
+        reg.fcmTokenReceived = true;
+        _fullFcmToken = fcm;
+      } else {
+        reg.fcmToken = 'NULL (no token!)';
+        reg.fcmTokenReceived = false;
+      }
+    } catch (e) {
+      reg.fcmToken = 'Error: $e';
+      reg.fcmTokenReceived = false;
+    }
+
+    if (mounted) setState(() { _reg = reg; });
+  }
+
+  String? _fullFcmToken;
+
   Future<void> _clear() async {
     await NotifEventLog.clear();
     if (mounted) setState(() { _logs = []; });
   }
 
   Color _eventColor(String event) {
-    if (event == 'error') return kRed;
+    if (event == 'reg_error' || event == 'error') return kRed;
+    if (event.startsWith('reg_')) return kPrimary;
     if (event == 'onMessage' || event == 'onBackground' ||
         event == 'onOpenedApp' || event == 'getInitialMessage') return kPrimary;
     return kMuted;
@@ -127,10 +203,11 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
       final dt = DateTime.parse(isoTs);
       final now = DateTime.now();
       final diff = now.difference(dt);
-      if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
-      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-      if (diff.inHours < 24) return '${diff.inHours}h ago';
-      return '${dt.day}/${dt.month} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+      if (diff.inSeconds < 60) return diff.inSeconds.toString() + 's ago';
+      if (diff.inMinutes < 60) return diff.inMinutes.toString() + 'm ago';
+      if (diff.inHours < 24) return diff.inHours.toString() + 'h ago';
+      return dt.day.toString() + '/' + dt.month.toString() + ' ' +
+        dt.hour.toString() + ':' + dt.minute.toString().padLeft(2, '0');
     } catch (_) {
       return isoTs;
     }
@@ -146,6 +223,15 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
         return Icons.touch_app_rounded;
       case 'getInitialMessage':
         return Icons.launch_rounded;
+      case 'reg_permission':
+        return Icons.security_rounded;
+      case 'reg_apns':
+        return Icons.apple_rounded;
+      case 'reg_fcm_token':
+        return Icons.key_rounded;
+      case 'reg_backend':
+        return Icons.cloud_done_rounded;
+      case 'reg_error':
       case 'error':
         return Icons.error_outline_rounded;
       default:
@@ -158,11 +244,8 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
     return mid;
   }
 
-  // Build detail lines for a single log entry as a list of widgets.
-  // Avoids complex inline expressions that confuse the Dart parser.
   List<Widget> _detailLines(Map<String, dynamic> e) {
     final lines = <Widget>[];
-
     final title = e['title'] as String? ?? '';
     if (title.isNotEmpty) {
       lines.add(Padding(
@@ -170,7 +253,6 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
         child: Text('title: ' + title, style: const TextStyle(fontSize: 12, color: kText)),
       ));
     }
-
     final msgId = e['msgId'] as String? ?? '';
     if (msgId.isNotEmpty) {
       lines.add(Padding(
@@ -179,7 +261,6 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
           style: const TextStyle(fontSize: 10, color: kMuted, fontFamily: 'monospace')),
       ));
     }
-
     final saved = e['saved'];
     if (saved != null) {
       lines.add(Padding(
@@ -189,7 +270,6 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
             color: saved == true ? kGreen : kOrange)),
       ));
     }
-
     final error = e['error'] as String? ?? '';
     if (error.isNotEmpty) {
       lines.add(Padding(
@@ -197,7 +277,6 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
         child: Text('error: ' + error, style: const TextStyle(fontSize: 11, color: kRed)),
       ));
     }
-
     final type = e['type'] as String? ?? '';
     if (type.isNotEmpty) {
       lines.add(Padding(
@@ -205,7 +284,6 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
         child: Text('type: ' + type, style: const TextStyle(fontSize: 10, color: kMuted)),
       ));
     }
-
     return lines;
   }
 
@@ -213,7 +291,6 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
     final event = e['event'] as String? ?? '?';
     final color = _eventColor(event);
     final ts = e['ts'] as String? ?? '';
-
     final children = <Widget>[];
     children.add(Row(children: [
       Text(event, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: color)),
@@ -221,7 +298,6 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
       Text(_timeStr(ts), style: const TextStyle(fontSize: 10, color: kMuted)),
     ]));
     children.addAll(_detailLines(e));
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -233,8 +309,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 36, height: 36,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
@@ -242,14 +317,101 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
             child: Icon(_eventIcon(event), color: color, size: 20),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
-            ),
-          ),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children)),
         ],
       ),
+    );
+  }
+
+  // ── Registration status panel ──
+  Widget _buildRegPanel() {
+    final permColor = _reg.permission == 'Granted' ? kGreen : kRed;
+    final apnsColor = _reg.apnsToken.startsWith('OK') ? kGreen :
+      (_reg.apnsToken == 'N/A (Android)' ? kMuted : kRed);
+    final fcmColor = _reg.fcmTokenReceived ? kGreen : kRed;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.diagnostics_outlined, size: 18, color: kPrimary),
+            const SizedBox(width: 6),
+            const Text('FCM Registration Status',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kPrimary)),
+            const Spacer(),
+            Text(_reg.platform,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: kMuted)),
+          ]),
+          const SizedBox(height: 10),
+          _regRow('Permission', _reg.permission, permColor),
+          _regRow('APNs Token', _reg.apnsToken, apnsColor),
+          _regRow('FCM Token', _reg.fcmToken, fcmColor),
+          if (_fullFcmToken != null) ...[
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: Text(_fullFcmToken!,
+                style: const TextStyle(fontSize: 9, color: kMuted, fontFamily: 'monospace),
+                maxLines: 2, overflow: TextOverflow.ellipsis)),
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: _fullFcmToken!));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('FCM token copied'),
+                      duration: Duration(seconds: 2)),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: kPrimary,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text('Copy', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ]),
+          ],
+          const SizedBox(height: 8),
+          Row(children: [
+            GestureDetector(
+              onTap: _checkRegStatus,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: kPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.refresh_rounded, size: 14, color: kPrimary),
+                  SizedBox(width: 4),
+                  Text('Re-check', style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _regRow(String label, String value, Color valueColor) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(children: [
+        SizedBox(width: 90, child: Text(label,
+          style: const TextStyle(fontSize: 12, color: kMuted, fontWeight: FontWeight.w600))),
+        Expanded(child: Text(value,
+          style: TextStyle(fontSize: 12, color: valueColor, fontWeight: FontWeight.w700),
+          maxLines: 2, overflow: TextOverflow.ellipsis)),
+      ]),
     );
   }
 
@@ -260,12 +422,12 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: kText,
-        title: const Text('Notification Event Log',
+        title: const Text('Notification Diagnostics',
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: _load,
+            onPressed: () { _load(); _checkRegStatus(); },
             icon: const Icon(Icons.refresh_rounded, size: 22),
           ),
           if (_logs.isNotEmpty)
@@ -277,14 +439,9 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                     title: const Text('Clear Log?'),
                     content: const Text('This will remove all notification event entries.'),
                     actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Clear', style: TextStyle(color: kRed)),
-                      ),
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Clear', style: TextStyle(color: kRed))),
                     ],
                   ),
                 );
@@ -297,13 +454,15 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
-          : _logs.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.bug_report_outlined, size: 60,
-                        color: kMuted.withValues(alpha: 0.3)),
+          : ListView(
+              padding: const EdgeInsets.all(12),
+              children: [
+                _buildRegPanel(),
+                if (_logs.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(children: [
+                      Icon(Icons.bug_report_outlined, size: 60, color: kMuted.withValues(alpha: 0.3)),
                       const SizedBox(height: 16),
                       const Text('No events logged yet',
                         style: TextStyle(color: kMuted, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -311,15 +470,15 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                       const Text('Send a notification and check back\nto see which handlers fired',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: kMuted, fontSize: 12)),
-                    ],
-                  ),
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: _logs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _buildEntry(_logs[i]),
-                ),
+                    ]),
+                  )
+                else
+                  ..._logs.map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _buildEntry(e),
+                  )),
+              ],
+            ),
     );
   }
 }
