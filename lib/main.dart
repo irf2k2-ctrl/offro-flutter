@@ -38,6 +38,7 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
+import 'core/widgets/notif_diag_overlay.dart';
 import 'screens/notif_log_screen.dart';
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
@@ -252,6 +253,7 @@ Future<void> main() async {
     });
     firebaseReady = true;
     debugPrint('[OFFRO] Step 1: Firebase initialized OK');
+    NotifDiag.firebaseInit.value = true;
   } catch (e, st) {
     debugPrint('[OFFRO] Step 1: Firebase FAILED: $e');
   }
@@ -284,6 +286,17 @@ Future<void> main() async {
           .requestPermission(alert: true, badge: true, sound: true, announcement: false, carPlay: false, criticalAlert: false, provisional: false)
           .timeout(const Duration(seconds: 3));  // throws TimeoutException -> caught by try/catch below
       debugPrint('[OFFRO] Step 4-5: FCM permissions OK');
+      // ── DIAGNOSTIC: query tokens after a delay ──
+      Future.delayed(const Duration(seconds: 10), () async {
+        try {
+          final apns = await FirebaseMessaging.instance.getAPNSToken();
+          NotifDiag.apnsToken.value = apns ?? 'null';
+        } catch (e) { NotifDiag.apnsToken.value = 'error: $e'; }
+        try {
+          final fcm = await FirebaseMessaging.instance.getToken();
+          NotifDiag.fcmToken.value = fcm ?? 'null';
+        } catch (e) { NotifDiag.fcmToken.value = 'error: $e'; }
+      });
     } catch (e) { debugPrint('[OFFRO] Step 4-5 failed: $e'); }
 
     try {
@@ -327,6 +340,7 @@ Future<void> main() async {
 
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
       debugPrint('[NOTIF-DEBUG] ━━ onMessage fired (app foreground) ━━');
+      NotifDiag.lastOnMessage.value = DateTime.now().toIso8601String();
       debugPrint('[NOTIF-DEBUG] msgId=${msg.messageId} from=${msg.senderId}');
       await NotifEventLog.log('onMessage', title: msg.notification?.title ?? msg.data['title'] ?? '', msgId: msg.messageId ?? '');
       try {
@@ -338,6 +352,8 @@ Future<void> main() async {
         final _sc = msg.data['screen'] ?? '';
         final _mi = msg.messageId ?? '';
         debugPrint('[NOTIF-DEBUG] onMessage payload: title="$_t" body="$_b" img="$_i" type="$_y" screen="$_sc" msgId="$_mi"');
+        NotifDiag.lastTitle.value = _t;
+        NotifDiag.lastBody.value = _b;
 
         // STEP 2: SAVE FIRST — independent of display. Even if showLocalNotification
         // throws, the notification is already in history.
@@ -347,6 +363,8 @@ Future<void> main() async {
             type: _y, screen: _sc, messageId: _mi,
           );
           debugPrint('[NOTIF-DEBUG] onMessage save result: $saved');
+          NotifDiag.saveCalled.value = true;
+          NotifDiag.saveResult.value = saved ? 'SUCCESS' : 'SKIPPED';
           await NotifEventLog.log('onMessage', title: _t, body: _b, msgId: _mi, imageUrl: _i, type: _y, screen: _sc, saved: saved);
           if (saved) {
             await Prefs.incrementUnread();
@@ -356,8 +374,10 @@ Future<void> main() async {
 
         // STEP 3: Display the notification banner (after save)
         showLocalNotification(msg);
+        NotifDiag.displayCalled.value = true;
       } catch (e) {
         debugPrint('[NOTIF-DEBUG] ❌ onMessage ERROR: $e');
+        NotifDiag.saveError.value = e.toString();
         await NotifEventLog.log('error', error: 'onMessage: $e');
       }
     });
@@ -631,6 +651,12 @@ class MyApp extends StatelessWidget {
     debugShowCheckedModeBanner: false,
     navigatorKey: navigatorKey,
     navigatorObservers: [routeObserver],
+    builder: (ctx, child) => Stack(
+      children: [
+        child!,
+        Positioned(top: 0, left: 0, right: 0, child: const NotifDiagOverlay()),
+      ],
+    ),
     theme: ThemeData(
       primaryColor: kPrimary,
       colorScheme: ColorScheme.fromSeed(seedColor: kPrimary),
