@@ -23,6 +23,8 @@ import FirebaseMessaging
 
     // Set ourselves as the UNUserNotificationCenter delegate.
     // With proxy disabled, the FCM plugin won't set this — we must.
+    // FlutterAppDelegate already conforms to UNUserNotificationCenterDelegate,
+    // so we override its methods below.
     UNUserNotificationCenter.current().delegate = self
 
     // Register for remote notifications - required for iOS push.
@@ -65,8 +67,6 @@ import FirebaseMessaging
   //
   // CRITICAL: We call completionHandler(.newData) IMMEDIATELY after forwarding
   // to FCM. This prevents iOS from throttling subsequent notifications.
-  // The previous proxy-based approach failed because the FCM swizzle wasn't
-  // calling the completion handler reliably, causing iOS to throttle.
   override func application(
     _ application: UIApplication,
     didReceiveRemoteNotification userInfo: [AnyHashable : Any],
@@ -78,14 +78,12 @@ import FirebaseMessaging
     // Call completion handler IMMEDIATELY — prevents iOS throttling
     completionHandler(.newData)
   }
-}
 
-// ── Foreground notification presentation ──
-// With FirebaseAppDelegateProxyEnabled = false, we handle willPresent ourselves.
-// We forward to FCM so onMessage fires on the Dart side, then show the banner.
-extension AppDelegate: UNUserNotificationCenterDelegate {
-
-  func userNotificationCenter(
+  // ── Foreground notification presentation ──
+  // FlutterAppDelegate already conforms to UNUserNotificationCenterDelegate.
+  // We override willPresent to forward to FCM (so onMessage fires on Dart side)
+  // and show banner + sound + badge in foreground.
+  override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
@@ -97,7 +95,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     completionHandler([.banner, .sound, .badge])
   }
 
-  func userNotificationCenter(
+  // ── Notification tap handler ──
+  // Called when user taps a notification to open the app.
+  // Forward to FCM so onMessageOpenedApp fires on the Dart side.
+  override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     didReceive response: UNNotificationResponse,
     withCompletionHandler completionHandler: @escaping () -> Void
