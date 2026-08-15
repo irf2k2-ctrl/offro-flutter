@@ -18,5 +18,7 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/>
         </provider>
         <meta-data android:name="flutterEmbedding" android:value="2"/>
+        <!-- FIX 4: Default notification channel for FCM background notifications -->
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="offro_high_importance"/>
     </application>
 </manifest>

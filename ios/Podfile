@@ -46,6 +46,15 @@ target 'Runner' do
   end
 end
 
+# ── FIX 3: Notification Service Extension target ──
+# Required for rich image notifications on iOS lock screen.
+# The extension downloads and attaches images to notifications with
+# mutable-content:1 sent by the backend.
+target 'NotificationService' do
+  use_frameworks!
+  pod 'FirebaseMessaging', '~> 12.0'
+end
+
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)

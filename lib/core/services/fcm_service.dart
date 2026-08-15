@@ -25,7 +25,6 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:image/image.dart' as img;
-import '../../screens/notif_log_screen.dart';
 
 // ─────────────────────── SHARED INSTANCES ───────────────────────
 // These are accessed from main.dart via:
@@ -61,7 +60,6 @@ Future<void> initLocalNotifications() async {
   await offroLocalNotif.initialize(
     settings: const InitializationSettings(android: android, iOS: ios),
     onDidReceiveNotificationResponse: (resp) {
-      debugPrint('[LOCAL-NOTIF] tapped: payload=\${resp.payload}');
       // Delegate navigation to main.dart (avoids circular imports)
       onLocalNotifTap?.call(resp.payload ?? '');
     },
@@ -71,7 +69,6 @@ Future<void> initLocalNotifications() async {
       .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(offroNotifChannel);
-  debugPrint('[LOCAL-NOTIF] ✅ Channel created: ${offroNotifChannel.id}');
 }
 
 // ─────────────────────── SHOW NOTIFICATIONS ───────────────────────
@@ -90,9 +87,6 @@ void showLocalNotification(RemoteMessage msg) {
                     msg.data['image'] ??
                     notif?.android?.imageUrl ??
                     '').trim();
-
-  debugPrint('[LOCAL-NOTIF] title=$title imageUrl=$imageUrl');
-
   if (imageUrl.isNotEmpty) {
     _showNotifWithImage(
         msg.hashCode, title, body, imageUrl, msg.data['screen'] ?? '');
@@ -110,6 +104,8 @@ void _showNotifText(int id, String title, String body, String payload) {
     priority: Priority.high,
     icon: '@mipmap/ic_launcher',
     styleInformation: BigTextStyleInformation(body),
+    visibility: NotificationVisibility.public,
+    category: AndroidNotificationCategory.message,
   );
   // FIX iOS: when the app is in the foreground, FCM's auto-swizzle delivers
   // the message to the Dart onMessage listener but iOS itself does NOT show
@@ -129,7 +125,6 @@ void _showNotifText(int id, String title, String body, String payload) {
       body: body,
       notificationDetails: NotificationDetails(android: android, iOS: ios),
       payload: payload);
-  debugPrint('[LOCAL-NOTIF] Text notif shown: $title');
 }
 
 /// Download image bytes then replace the text notification with a big-picture one.
@@ -161,7 +156,6 @@ Future<void> _showNotifWithImage(
           notifBytes = Uint8List.fromList(img.encodeJpg(decoded, quality: 85));
         }
       } catch (resizeErr) {
-        debugPrint('[LOCAL-NOTIF] Image resize skipped: $resizeErr — using raw bytes');
         notifBytes = rawBytes;
       }
 
@@ -179,6 +173,8 @@ Future<void> _showNotifWithImage(
           summaryText: body,
           hideExpandedLargeIcon: false,
         ),
+        visibility: NotificationVisibility.public,
+        category: AndroidNotificationCategory.message,
       );
       // Replace the text version with the image version (same notification id)
       const ios = DarwinNotificationDetails(
@@ -193,11 +189,9 @@ Future<void> _showNotifWithImage(
           body: body,
           notificationDetails: NotificationDetails(android: android, iOS: ios),
           payload: payload);
-      debugPrint('[LOCAL-NOTIF] ✅ Image notif shown: $title');
     }
   } catch (e) {
     // Text version already showing — safe to silently ignore
-    debugPrint('[LOCAL-NOTIF] Image load failed (text shown): $e');
   }
 }
 
@@ -245,29 +239,19 @@ class FcmService {
         announcement: false, carPlay: false,
         criticalAlert: false, provisional: false,
       );
-      debugPrint('[FCM] Permission: ${settings.authorizationStatus}');
-      await NotifEventLog.log('reg_permission',
-        title: 'Permission: ${settings.authorizationStatus}',
-        saved: settings.authorizationStatus == AuthorizationStatus.authorized,
-      );
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        debugPrint('[FCM] Denied — skipping token registration');
-        await NotifEventLog.log('reg_error', error: 'Notification permission DENIED');
         return;
       }
 
       // 2. Subscribe to global topics
       await _fcm.subscribeToTopic('all_users');
       await _fcm.subscribeToTopic('offers');
-      debugPrint('[FCM] Subscribed to global topics');
-
       // 3. Subscribe to city topic
       if (city.isNotEmpty && city != 'Detecting...') {
         final cityTopic =
             city.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_') +
                 '_users';
         await _fcm.subscribeToTopic(cityTopic);
-        debugPrint('[FCM] City topic: $cityTopic');
       }
 
       // 4. Get FCM device token — retry up to 5x with 3-second delay
@@ -276,7 +260,6 @@ class FcmService {
       // the plugin auto-registers, but we add a small delay on iOS to ensure
       // the APNs token is ready before requesting the FCM token.
       if (Platform.isIOS) {
-        debugPrint('[FCM] iOS: waiting for APNs token registration...');
         // Wait for APNs token to be available before requesting FCM token
         String? apnsToken;
         for (int i = 0; i < 10; i++) {
@@ -284,20 +267,10 @@ class FcmService {
             apnsToken = await _fcm.getAPNSToken().timeout(const Duration(seconds: 2));
             if (apnsToken != null) break;
           } catch (e) {
-            debugPrint('[FCM] iOS APNs token attempt $i: $e');
           }
           await Future.delayed(const Duration(seconds: 1));
         }
-        debugPrint('[FCM] iOS APNs token: ${apnsToken != null ? "received" : "not received yet"}');
-        await NotifEventLog.log('reg_apns',
-          title: apnsToken != null ? 'APNs token: OK' : 'APNs token: MISSING',
-          msgId: apnsToken ?? '',
-          saved: apnsToken != null,
-        );
         if (apnsToken == null) {
-          debugPrint('[FCM] iOS: APNs token not ready, proceeding with getToken anyway...');
-          await NotifEventLog.log('reg_error',
-            error: 'APNs token NOT received after 10 attempts. Check: 1) Push Notifications capability in Xcode, 2) APNs Auth Key in Firebase Console, 3) provisioning profile includes push entitlement');
         }
       }
 
@@ -308,44 +281,24 @@ class FcmService {
               await _fcm.getToken().timeout(const Duration(seconds: 10));
           if (fcmToken != null) break;
         } catch (e) {
-          debugPrint('[FCM] getToken attempt $attempt: $e');
         }
         if (attempt < 5) await Future.delayed(const Duration(seconds: 3));
       }
       if (fcmToken == null) {
-        debugPrint('[FCM] getToken() returned null after 5 attempts');
-        await NotifEventLog.log('reg_error',
-          error: 'FCM getToken() returned null after 5 attempts. APNs key may not be configured in Firebase Console.');
         return;
       }
 
       // Always print full token for logcat verification
-      debugPrint('FCM TOKEN: $fcmToken');
-      debugPrint('[FCM] Token (first 20): ${fcmToken.substring(0, 20)}...');
-      await NotifEventLog.log('reg_fcm_token',
-        title: 'FCM Token: ' + fcmToken.substring(0, 20) + '...',
-        msgId: fcmToken,
-        saved: true,
-      );
-
       // 5. Register token with backend via callback
       await onTokenReady(fcmToken,
           phone: phone ?? '', userId: userId ?? '');
-      debugPrint('[FCM] ✅ Token registered (phone=${phone ?? "-"})');
-
       // 6. Listen for token refresh (device token can rotate)
       _fcm.onTokenRefresh.listen((newToken) async {
-        debugPrint('FCM TOKEN REFRESHED: $newToken');
         await onTokenReady(newToken,
             phone: _savedPhone ?? '', userId: '');
-        debugPrint('[FCM] ✅ Refreshed token re-registered');
       });
-
-      debugPrint('[FCM] ✅ FcmService.init complete');
     } catch (e) {
       // Non-fatal — app works without notifications
-      debugPrint('[FCM] init error: $e');
-      await NotifEventLog.log('reg_error', error: 'init error: $e');
     }
   }
 
@@ -360,16 +313,13 @@ class FcmService {
         final old =
             '${oldCity.toLowerCase().replaceAll(' ', '_')}_users';
         await _fcm.unsubscribeFromTopic(old);
-        debugPrint('[FCM] Unsubscribed: $old');
       }
       if (newCity.isNotEmpty && newCity != 'Detecting...') {
         final neo =
             '${newCity.toLowerCase().replaceAll(' ', '_')}_users';
         await _fcm.subscribeToTopic(neo);
-        debugPrint('[FCM] Subscribed: $neo');
       }
     } catch (e) {
-      debugPrint('[FCM] updateCityTopic: $e');
     }
   }
 
@@ -379,9 +329,7 @@ class FcmService {
       final topic =
           '${category.toLowerCase().replaceAll(' ', '_')}_category';
       await _fcm.subscribeToTopic(topic);
-      debugPrint('[FCM] Category topic: $topic');
     } catch (e) {
-      debugPrint('[FCM] subscribeCategory: $e');
     }
   }
 }

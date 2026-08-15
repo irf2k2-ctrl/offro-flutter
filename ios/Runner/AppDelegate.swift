@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -18,9 +19,6 @@ import UIKit
     // firebase_messaging 16.5.0 added configureNotificationCenterDelegate() to
     // solve this: it sets up the FCM plugin's notification delegate early,
     // before the method returns, so iOS can deliver foreground notifications.
-    //
-    // This is the official fix from firebase_messaging 16.5.0 README:
-    // https://pub.dev/packages/firebase_messaging
     //
     // We use the dynamic NSClassFromString approach to avoid bridging header
     // or non-modular header import issues.
@@ -41,6 +39,13 @@ import UIKit
     // UNUserNotificationCenter.delegate is set before this method returns
     // (Apple's requirement for UIScene apps).
 
+    // ── FIX 1: Disable native foreground presentation ──
+    // setForegroundNotificationPresentationOptions is set to (alert: false,
+    // badge: false, sound: false) from Dart side. This prevents iOS from
+    // showing a native banner in the foreground (which would duplicate the
+    // showLocalNotification() call in the onMessage handler). The Dart-side
+    // flutter_local_notifications handles foreground banner display.
+
     // Register for remote notifications - required for iOS push.
     NSLog("[IOS-NOTIF] APNS REGISTRATION: calling registerForRemoteNotifications()")
     application.registerForRemoteNotifications()
@@ -50,6 +55,54 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+
+    // ── FIX 2: Badge clearing method channel ──
+    // When the user reads all notifications or presses "Clear All",
+    // Dart side calls this channel to reset the iOS app icon badge to 0.
+    // The backend sends badge:1 in the APNs payload, so the badge shows 1
+    // when a notification arrives. This channel clears it when appropriate.
+    let binaryMessenger = engineBridge.engine?.binaryMessenger
+    if let messenger = binaryMessenger {
+      let badgeChannel = FlutterMethodChannel(name: "offro/badge", binaryMessenger: messenger)
+      badgeChannel.setMethodCallHandler { call, result in
+        if call.method == "clearBadge" {
+          DispatchQueue.main.async {
+            if #available(iOS 16.0, *) {
+              UNUserNotificationCenter.current().setBadgeCount(0) { error in
+                if let error = error {
+                  NSLog("[IOS-NOTIF] setBadgeCount(0) error: %@", error.localizedDescription)
+                  result(false)
+                } else {
+                  NSLog("[IOS-NOTIF] Badge cleared to 0 via UNUserNotificationCenter")
+                  result(true)
+                }
+              }
+            } else {
+              UIApplication.shared.applicationIconBadgeNumber = 0
+              NSLog("[IOS-NOTIF] Badge cleared to 0 via applicationIconBadgeNumber")
+              result(true)
+            }
+          }
+        } else if call.method == "setBadge" {
+          let count = (call.arguments as? Int) ?? 0
+          DispatchQueue.main.async {
+            if #available(iOS 16.0, *) {
+              UNUserNotificationCenter.current().setBadgeCount(count) { _ in
+                result(true)
+              }
+            } else {
+              UIApplication.shared.applicationIconBadgeNumber = count
+              result(true)
+            }
+          }
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
+      NSLog("[IOS-NOTIF] Badge method channel 'offro/badge' registered")
+    } else {
+      NSLog("[IOS-NOTIF] WARNING: Could not get binaryMessenger for badge channel")
+    }
   }
 
   // APNs token received - pass to FCM + log

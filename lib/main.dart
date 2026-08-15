@@ -38,8 +38,6 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
-import 'core/widgets/notif_diag_overlay.dart';
-import 'screens/notif_log_screen.dart';
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -67,6 +65,20 @@ const kBorder   = Color(0xFFd4e8de);
 /// Global ValueNotifier — FCM handlers call .value++ to update badge in real time
 final _unreadNotifier = ValueNotifier<int>(0);
 
+// ── FIX 2: iOS app icon badge clearing ──
+// The backend sends badge:1 in the APNs payload. When the user reads all
+// notifications or presses Clear All, we reset the badge to 0 via a native
+// method channel (offro/badge). Android doesn't use this — badge is managed
+// by the notification shade automatically.
+const _badgeChannel = MethodChannel('offro/badge');
+Future<void> _clearIOSBadge() async {
+  if (!Platform.isIOS) return;
+  try {
+    await _badgeChannel.invokeMethod('clearBadge');
+  } catch (e) {
+  }
+}
+
 // ─────────────────────── PREFS ───────────────────────
 
 // ─────────────────────── LOCATION ───────────────────────
@@ -86,7 +98,7 @@ double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
 Future<String> detectCityFromPosition(Position pos) async {
   try {
     List cityList = [];
-    try { cityList = await Api.getCities().timeout(const Duration(seconds: 6)); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    try { cityList = await Api.getCities().timeout(const Duration(seconds: 6)); } catch (_) { }
 
     // Build a quick lookup set of supported city names (lowercase)
     final cityNames = cityList
@@ -107,7 +119,6 @@ Future<String> detectCityFromPosition(Position pos) async {
       if (dist < bestDist) { bestDist = dist; haversineMatch = name; }
     }
     if (haversineMatch != null && bestDist < 80) {
-      if (kDebugMode) debugPrint("[OFFRO] Haversine match: $haversineMatch (${bestDist.toStringAsFixed(1)} km)");
       return haversineMatch;
     }
 
@@ -117,8 +128,6 @@ Future<String> detectCityFromPosition(Position pos) async {
     final rawLocality = marks.first.locality?.trim() ?? "";
     final rawSubAdmin = marks.first.subAdministrativeArea?.trim() ?? "";
     final rawAdmin    = marks.first.administrativeArea?.trim() ?? "";
-    if (kDebugMode) debugPrint("[OFFRO] Geocoder → locality=$rawLocality subAdmin=$rawSubAdmin admin=$rawAdmin");
-
     // Try to match geocoder result against supported city names (case-insensitive)
     for (final candidate in [rawLocality, rawSubAdmin, rawAdmin]) {
       if (candidate.isEmpty) continue;
@@ -128,7 +137,6 @@ Future<String> detectCityFromPosition(Position pos) async {
         orElse: () => "",
       );
       if (exact.isNotEmpty) {
-        if (kDebugMode) debugPrint("[OFFRO] City matched by name: $exact");
         return exact;
       }
       // Partial match (geocoder sometimes returns sub-district names)
@@ -138,7 +146,6 @@ Future<String> detectCityFromPosition(Position pos) async {
         orElse: () => "",
       );
       if (partial.isNotEmpty) {
-        if (kDebugMode) debugPrint("[OFFRO] City partial match: $partial from $candidate");
         return partial;
       }
     }
@@ -146,10 +153,8 @@ Future<String> detectCityFromPosition(Position pos) async {
     // ── Step 3: Return raw geocoder result if no city list match ──
     final fallback = rawLocality.isNotEmpty ? rawLocality :
                      rawSubAdmin.isNotEmpty ? rawSubAdmin : "Ballari";
-    if (kDebugMode) debugPrint("[OFFRO] No city list match — using geocoder raw: $fallback");
     return fallback;
   } catch (e) {
-    if (kDebugMode) debugPrint("[OFFRO] detectCityFromPosition error: $e");
     return "Ballari";
   }
 }
@@ -181,10 +186,8 @@ double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
 /// screen based on the `screen` and `type` fields in the FCM data payload.
 /// Falls back to NotificationsPage when no specific screen is specified.
 void _handleNotificationNavigation(String screen, String type) {
-  debugPrint('[NOTIF-DEBUG] navigate: screen="$screen" type="$type"');
   final nav = MyApp.navigatorKey.currentState;
   if (nav == null) {
-    debugPrint('[NOTIF-DEBUG] Navigator is null — cannot navigate');
     return;
   }
 
@@ -195,7 +198,6 @@ void _handleNotificationNavigation(String screen, String type) {
   //   case 'store_detail': nav.push(...StoreDetailPage(storeId: screen));
   //   case 'product_detail': nav.push(...ProductDetailPage(productId: screen));
   nav.push(MaterialPageRoute(builder: (_) => const NotificationsPage()));
-  debugPrint('[NOTIF-DEBUG] Navigated to NotificationsPage');
 }
 
 // ─────────────────────── MAIN ───────────────────────
@@ -205,9 +207,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Background isolate needs Flutter binding for platform channels (SharedPreferences)
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  debugPrint('[NOTIF-DEBUG] ━━ Background handler fired ━━');
-    await NotifEventLog.log('onBackground', title: message.notification?.title ?? message.data['title'] ?? '', msgId: message.messageId ?? '');
-  debugPrint('[NOTIF-DEBUG] msgId=${message.messageId} title=${message.notification?.title} from=${message.senderId}');
   // CASE 4: Background notification received without opening app.
   // On Android this fires reliably. On iOS it only fires for data-only messages.
   try {
@@ -217,19 +216,14 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     final notifType = message.data['type'] ?? 'promo';
     final screen    = message.data['screen'] ?? '';
     final msgId     = message.messageId ?? '';
-    debugPrint('[NOTIF-DEBUG] BG payload: title="$title" body="$body" img="$imageUrl" type="$notifType" screen="$screen" msgId="$msgId"');
     if (title.isNotEmpty) {
       final saved = await Prefs.saveNotification(
         title: title, body: body, imageUrl: imageUrl,
         type: notifType, screen: screen, messageId: msgId,
       );
-      debugPrint('[NOTIF-DEBUG] BG save result: $saved');
-      await NotifEventLog.log('onBackground', title: title, body: body, msgId: msgId, imageUrl: imageUrl, type: notifType, screen: screen, saved: saved);
       if (saved) await Prefs.incrementUnread();
     }
   } catch (e) {
-    debugPrint('[NOTIF-DEBUG] ❌ Background handler ERROR: $e');
-    await NotifEventLog.log('error', error: 'onBackground: $e');
   }
 }
 
@@ -238,66 +232,53 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   FlutterError.onError = (FlutterErrorDetails details) {
-    debugPrint('[OFFRO] FlutterError: ${details.exception}');
-    if (kDebugMode) debugPrint('[OFFRO] Stack: ${details.stack}');
   };
 
   // ── STEP 1: Firebase ──
   bool firebaseReady = false;
   try {
-    debugPrint('[OFFRO] Step 1: Initializing Firebase...');
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     ).timeout(const Duration(seconds: 5), onTimeout: () {
       throw TimeoutException('Firebase.initializeApp() timed out after 5s');
     });
     firebaseReady = true;
-    debugPrint('[OFFRO] Step 1: Firebase initialized OK');
-    NotifDiag.firebaseInit.value = true;
   } catch (e, st) {
-    debugPrint('[OFFRO] Step 1: Firebase FAILED: $e');
   }
 
   // ── STEP 2-8: All FCM/notification setup gated by firebaseReady ──
   if (firebaseReady) {
-    try { FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler); } catch (e) { debugPrint('[OFFRO] Step 2 failed: $e'); }
+    try { FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler); } catch (e) { }
   }
 
   try {
     await initLocalNotifications()
         .timeout(const Duration(seconds: 3), onTimeout: () {
-      debugPrint('[OFFRO] Step 3: initLocalNotifications() timed out');
     });
     onLocalNotifTap = (payload) {
-      debugPrint('[NOTIF-DEBUG] Local notification tapped: payload=$payload');
       _handleNotificationNavigation(payload, 'promo');
     };
-    debugPrint('[OFFRO] Step 3: Local notifications OK');
-  } catch (e) { debugPrint('[OFFRO] Step 3 failed: $e'); }
+  } catch (e) { }
 
   if (firebaseReady) {
     try {
       await FirebaseMessaging.instance
-          .setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true)
+          .setForegroundNotificationPresentationOptions(alert: false, badge: false, sound: false)
           .timeout(const Duration(seconds: 3), onTimeout: () {
-        debugPrint('[OFFRO] Step 4: setForegroundNotificationPresentationOptions timed out');
       });
       await FirebaseMessaging.instance
           .requestPermission(alert: true, badge: true, sound: true, announcement: false, carPlay: false, criticalAlert: false, provisional: false)
           .timeout(const Duration(seconds: 3));  // throws TimeoutException -> caught by try/catch below
-      debugPrint('[OFFRO] Step 4-5: FCM permissions OK');
       // ── DIAGNOSTIC: query tokens after a delay ──
       Future.delayed(const Duration(seconds: 10), () async {
         try {
           final apns = await FirebaseMessaging.instance.getAPNSToken();
-          NotifDiag.apnsToken.value = apns ?? 'null';
-        } catch (e) { NotifDiag.apnsToken.value = 'error: $e'; }
+        } catch (e) { }
         try {
           final fcm = await FirebaseMessaging.instance.getToken();
-          NotifDiag.fcmToken.value = fcm ?? 'null';
-        } catch (e) { NotifDiag.fcmToken.value = 'error: $e'; }
+        } catch (e) { }
       });
-    } catch (e) { debugPrint('[OFFRO] Step 4-5 failed: $e'); }
+    } catch (e) { }
 
     try {
       // FIX: getInitialMessage() can hang indefinitely on iOS with the
@@ -308,26 +289,20 @@ Future<void> main() async {
       final initialMsg = await FirebaseMessaging.instance
           .getInitialMessage()
           .timeout(const Duration(seconds: 5), onTimeout: () {
-        debugPrint('[NOTIF-DEBUG] Step 6: getInitialMessage() timed out (5s) — skipping');
         return null;
       });
       if (initialMsg != null) {
-        debugPrint('[NOTIF-DEBUG] ━━ getInitialMessage() received ━━');
-        await NotifEventLog.log('getInitialMessage', title: initialMsg.notification?.title ?? initialMsg.data['title'] ?? '', msgId: initialMsg.messageId ?? '');
         final _it  = initialMsg.notification?.title ?? initialMsg.data['title'] ?? '';
         final _ib  = initialMsg.notification?.body  ?? initialMsg.data['body']  ?? '';
         final _ii  = initialMsg.data['image_url'] ?? initialMsg.data['image'] ?? '';
         final _iy  = initialMsg.data['type'] ?? 'promo';
         final _isc = initialMsg.data['screen'] ?? '';
         final _im = initialMsg.messageId ?? '';
-        debugPrint('[NOTIF-DEBUG] initialMsg payload: title="$_it" body="$_ib" img="$_ii" type="$_iy" screen="$_isc" msgId="$_im"');
         if (_it.isNotEmpty) {
           final saved = await Prefs.saveNotification(
             title: _it, body: _ib, imageUrl: _ii,
             type: _iy, screen: _isc, messageId: _im,
           );
-          debugPrint('[NOTIF-DEBUG] initialMsg save result: $saved');
-          await NotifEventLog.log('getInitialMessage', title: _it, body: _ib, msgId: _im, imageUrl: _ii, type: _iy, screen: _isc, saved: saved);
           if (saved) await Prefs.incrementUnread();
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -335,14 +310,9 @@ Future<void> main() async {
         });
       }
     } catch (e) {
-      debugPrint('[NOTIF-DEBUG] ❌ Step 6 (getInitialMessage) failed: $e');
     }
 
     FirebaseMessaging.onMessage.listen((RemoteMessage msg) async {
-      debugPrint('[NOTIF-DEBUG] ━━ onMessage fired (app foreground) ━━');
-      NotifDiag.lastOnMessage.value = DateTime.now().toIso8601String();
-      debugPrint('[NOTIF-DEBUG] msgId=${msg.messageId} from=${msg.senderId}');
-      await NotifEventLog.log('onMessage', title: msg.notification?.title ?? msg.data['title'] ?? '', msgId: msg.messageId ?? '');
       try {
         // STEP 1: Extract complete payload
         final _t  = msg.notification?.title ?? msg.data['title'] ?? '';
@@ -351,10 +321,6 @@ Future<void> main() async {
         final _y  = msg.data['type'] ?? 'promo';
         final _sc = msg.data['screen'] ?? '';
         final _mi = msg.messageId ?? '';
-        debugPrint('[NOTIF-DEBUG] onMessage payload: title="$_t" body="$_b" img="$_i" type="$_y" screen="$_sc" msgId="$_mi"');
-        NotifDiag.lastTitle.value = _t;
-        NotifDiag.lastBody.value = _b;
-
         // STEP 2: SAVE FIRST — independent of display. Even if showLocalNotification
         // throws, the notification is already in history.
         if (_t.isNotEmpty) {
@@ -362,10 +328,6 @@ Future<void> main() async {
             title: _t, body: _b, imageUrl: _i,
             type: _y, screen: _sc, messageId: _mi,
           );
-          debugPrint('[NOTIF-DEBUG] onMessage save result: $saved');
-          NotifDiag.saveCalled.value = true;
-          NotifDiag.saveResult.value = saved ? 'SUCCESS' : 'SKIPPED';
-          await NotifEventLog.log('onMessage', title: _t, body: _b, msgId: _mi, imageUrl: _i, type: _y, screen: _sc, saved: saved);
           if (saved) {
             await Prefs.incrementUnread();
             _unreadNotifier.value++;
@@ -374,18 +336,11 @@ Future<void> main() async {
 
         // STEP 3: Display the notification banner (after save)
         showLocalNotification(msg);
-        NotifDiag.displayCalled.value = true;
       } catch (e) {
-        debugPrint('[NOTIF-DEBUG] ❌ onMessage ERROR: $e');
-        NotifDiag.saveError.value = e.toString();
-        await NotifEventLog.log('error', error: 'onMessage: $e');
       }
     });
 
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage msg) async {
-      debugPrint('[NOTIF-DEBUG] ━━ onMessageOpenedApp fired (background→tap) ━━');
-      debugPrint('[NOTIF-DEBUG] msgId=${msg.messageId} title=${msg.notification?.title}');
-      await NotifEventLog.log('onOpenedApp', title: msg.notification?.title ?? msg.data['title'] ?? '', msgId: msg.messageId ?? '');
       try {
         final _t  = msg.notification?.title ?? msg.data['title'] ?? '';
         final _b  = msg.notification?.body  ?? msg.data['body']  ?? '';
@@ -393,7 +348,6 @@ Future<void> main() async {
         final _y  = msg.data['type'] ?? 'promo';
         final _sc = msg.data['screen'] ?? '';
         final _mi = msg.messageId ?? '';
-        debugPrint('[NOTIF-DEBUG] onOpenedApp payload: title="$_t" body="$_b" img="$_i" type="$_y" screen="$_sc" msgId="$_mi"');
         // Save (dedup via messageId ensures this won't double-save if background
         // handler already saved it)
         if (_t.isNotEmpty) {
@@ -401,23 +355,18 @@ Future<void> main() async {
             title: _t, body: _b, imageUrl: _i,
             type: _y, screen: _sc, messageId: _mi,
           );
-          debugPrint('[NOTIF-DEBUG] onOpenedApp save result: $saved');
-          await NotifEventLog.log('onOpenedApp', title: _t, body: _b, msgId: _mi, imageUrl: _i, type: _y, screen: _sc, saved: saved);
           if (saved) await Prefs.incrementUnread();
         }
         // Navigate to the appropriate screen
         _handleNotificationNavigation(_sc, _y);
       } catch (e) {
-        debugPrint('[NOTIF-DEBUG] ❌ onMessageOpenedApp ERROR: $e');
       }
     });
   }
 
   try {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light));
-  } catch (e) { debugPrint('[OFFRO] Step 9 error: $e'); }
-
-  debugPrint('[OFFRO] Starting app, Firebase ready: $firebaseReady');
+  } catch (e) { }
   runApp(const MyApp());
 }
 
@@ -549,7 +498,6 @@ class MyApp extends StatelessWidget {
         goHome(token: '', name: name, phone: phone, userId: userId, city: '');
       }
     } catch (e) {
-      if (kDebugMode) debugPrint('[Switch] _goUserViaUnified error: $e');
       await Prefs.saveMode('user');
       goHome(token: '', name: name, phone: phone, userId: userId, city: '');
     }
@@ -578,7 +526,6 @@ class MyApp extends StatelessWidget {
         final loginResp = await Api.loginAccount(phone);
         token = loginResp['token']?.toString() ?? '';
         if (token.isEmpty) {
-          if (kDebugMode) debugPrint('[Switch] loginAccount returned empty token for merchant switch');
           goLogin();
           return;
         }
@@ -591,7 +538,6 @@ class MyApp extends StatelessWidget {
       }
 
       if (merchantData == null) {
-        if (kDebugMode) debugPrint('[Switch] getMerchantMe returned null after fresh login');
         goLogin();
         return;
       }
@@ -610,7 +556,6 @@ class MyApp extends StatelessWidget {
         (r) => false,
       );
     } catch (e) {
-      if (kDebugMode) debugPrint('[Switch] _goMerchantViaUnified error: $e');
       // If merchant not registered, go to login so they can register
       goLogin();
     }
@@ -654,7 +599,6 @@ class MyApp extends StatelessWidget {
     builder: (ctx, child) => Stack(
       children: [
         child!,
-        Positioned(top: 0, left: 0, right: 0, child: const NotifDiagOverlay()),
       ],
     ),
     theme: ThemeData(
@@ -811,7 +755,7 @@ class _MasonrySearchGrid extends StatelessWidget {
     if (img.isEmpty) img = s["image2"]?.toString() ?? "";
     if (img.startsWith("data:image")) {
       try { return Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
-      catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      catch(_) { }
     }
     final imgUrl = img.startsWith("/") ? "$kBaseUrl$img" : img;
     if (imgUrl.startsWith("http")) {
@@ -1075,6 +1019,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _onUnreadChanged() {
     if (mounted) setState(() => _unreadCount = _unreadNotifier.value);
+    if (_unreadNotifier.value == 0) _clearIOSBadge();
   }
 
   Future<void> _loadFavStores() async {
@@ -1090,11 +1035,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       if (mounted) setState(() => _favStoreIds.addAll(ids));
       FavState.instance.initStores(ids);
-    } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    } catch (_) { }
     try {
       final pids = await Api.getProductFavorites(widget.token);
       FavState.instance.initProducts(pids);
-    } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    } catch (_) { }
   }
 
   void _incrementUnread() async {
@@ -1105,6 +1050,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _openNotifications(BuildContext ctx) async {
     await Prefs.clearUnread();
+    _unreadNotifier.value = 0;
+    await _clearIOSBadge();
     if (mounted) setState(() => _unreadCount = 0);
     await Navigator.push(ctx, _route(NotificationsPage()));
   }
@@ -1192,7 +1139,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       List<String> resolvedCityImgs = [];
       try {
         final defaults = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
-        if (kDebugMode) debugPrint("[OFFRO] /default-images keys: \${defaults.keys.toList()}");
         final cityVal = defaults["city"];
         if (cityVal is List) {
           resolvedCityImgs = cityVal
@@ -1210,7 +1156,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
         resolvedCityImg = resolvedCityImgs.isNotEmpty ? resolvedCityImgs[0] : "";
-        if (kDebugMode) debugPrint("[OFFRO] Hero imgs loaded: \${resolvedCityImgs.length}");
         // Load no-service config (handle String or List from backend)
         final nsImgs = defaults["no_service_url"];
         String _nsUrl = "";
@@ -1251,14 +1196,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         } else {
           _mbFallbackSliders = [];
         }
-      } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getDefaultImages error: $e"); }
+      } catch (e) { }
 
       final cats = cats2;
 
       // Retry sliders once if empty (FIX: banner disappear race condition)
       if (slides.isEmpty) {
         await Future.delayed(const Duration(milliseconds: 800));
-        try { slides = await Api.getSliders(); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        try { slides = await Api.getSliders(); } catch (_) { }
       }
       // City filter for promo sliders/banners
       if (c.isNotEmpty) {
@@ -1274,7 +1219,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // Retry admin banners once if empty (large base64 image can timeout)
       if (adminBannerList.isEmpty) {
         await Future.delayed(const Duration(milliseconds: 500));
-        try { adminBannerList = await Api.getAdminBanners(); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        try { adminBannerList = await Api.getAdminBanners(); } catch (_) { }
       }
       // Retry products if fewer than expected
       if (voucs.length < 8) {
@@ -1285,7 +1230,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             final t = (p["title"]??p["name"]??"").toString().toLowerCase();
             if (!existingT.contains(t)) { voucs.add(p); existingT.add(t); }
           }
-        } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        } catch (_) { }
       }
       if (voucs.length < 8) {
         try {
@@ -1295,7 +1240,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             final t = (p["title"]??p["name"]??"").toString().toLowerCase();
             if (!existingT2.contains(t)) { voucs.add(p); existingT2.add(t); }
           }
-        } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        } catch (_) { }
       }
 
       // TASK 6 FIX: filter out expired products (end_date in past)
@@ -1344,7 +1289,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       _startHeroRotation();
       WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndShowPopup());
     } catch (e) {
-      if (kDebugMode) debugPrint("[OFFRO] _loadSupplementary error: $e");
     }
   }
 
@@ -1358,14 +1302,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadAll(String c) async {
     // FIX 4: Guard against parallel _loadAll calls (race condition prevention)
     if (_loadAllRunning) {
-      if (kDebugMode) debugPrint("[OFFRO] _loadAll($c) skipped — already running");
       return;
     }
 
     // ── Cache hit: same city + fresh data → show instantly, refresh in bg ──
     final sameCity = c.toLowerCase().trim() == _cachedCity.toLowerCase().trim();
     if (sameCity && _hasFreshCache) {
-      if (kDebugMode) debugPrint("[OFFRO] _loadAll($c) — CACHE HIT, rendering stores instantly");
       if (mounted) {
         setState(() {
           _stores  = List<Map<String,dynamic>>.from(_cachedStores);
@@ -1389,8 +1331,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadAllRunning = true;
 
     if(mounted) setState((){_loading=true; _netError=false; _fetchFailed=false;});
-    if (kDebugMode) debugPrint("[OFFRO] _loadAll starting for city: $c");
-
     // FIX 6: Retry up to 3 times with 2s backoff
     List storeList = [];
     bool storeFetchFailed = false;
@@ -1400,16 +1340,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         if (attempt > 1) {
-          if (kDebugMode) debugPrint("[OFFRO] stores retry attempt $attempt...");
           await Future.delayed(const Duration(seconds: 2));
           Api.clearCache(); // clear cache before retry
         }
         storeList = await Api.fetchStores(city: c);
         storeFetchFailed = false;
-        if (kDebugMode) debugPrint("[OFFRO] stores loaded: ${storeList.length} items on attempt $attempt");
         break; // success
       } on SocketException catch(e) {
-        if (kDebugMode) debugPrint("[OFFRO] stores attempt $attempt — network error: $e");
         isNetworkError = true;
         storeFetchFailed = true;
         if (attempt == 3 && mounted) {
@@ -1418,13 +1355,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
       } on TimeoutException catch(e) {
-        if (kDebugMode) debugPrint("[OFFRO] stores attempt $attempt — timeout: $e");
         isTimeoutError = true;
         storeFetchFailed = true;
         // On timeout: clear cache and retry
         Api.clearCache();
       } catch(e) {
-        if (kDebugMode) debugPrint("[OFFRO] stores attempt $attempt — API error: $e");
         storeFetchFailed = true;
       }
     }
@@ -1467,7 +1402,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
       ]);
     } catch(e) {
-      if (kDebugMode) debugPrint("[OFFRO] secondary data error (non-fatal): $e");
     }
 
     // TASK 6 FIX: filter out expired products
@@ -1506,9 +1440,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (voucs.isEmpty) {
       try {
         voucs = await Api.getPublicProducts(city: c);
-        if (kDebugMode) debugPrint("[OFFRO] Product retry (products): ${voucs.length} products");
       } catch(e) {
-        if (kDebugMode) debugPrint("[OFFRO] Product retry failed: $e");
       }
     }
     // Also merge public products on the secondary path (FIX 4c)
@@ -1521,9 +1453,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           final t = (p["title"] ?? p["name"] ?? "").toString().toLowerCase();
           if (!existingTitles.contains(t)) { voucs.add(p); existingTitles.add(t); }
         }
-        if (kDebugMode) debugPrint("[OFFRO] FIX4c public products merged: ${voucs.length} total");
       } catch(e) {
-        if (kDebugMode) debugPrint("[OFFRO] FIX4c fetchPublicProducts failed: $e");
       }
     }
     final productList = List<Map<String,dynamic>>.from(voucs);
@@ -1531,7 +1461,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // FIX: retry sliders once if empty (banner race condition)
     if (slides.isEmpty) {
       await Future.delayed(const Duration(milliseconds: 800));
-      try { slides = await Api.getSliders(); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      try { slides = await Api.getSliders(); } catch (_) { }
     }
     final sliderList = List<Map<String,dynamic>>.from(slides);
     for(int i=0;i<sliderList.length;i++) sliderList[i]["_idx"] = i;
@@ -1576,8 +1506,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // FIX 6: trigger hero + admin banners load immediately on first open
     _loadSupplementary(c);
     if(mounted) setState((){_isTimeout=false;});
-    if (kDebugMode) debugPrint("[OFFRO] _loadAll complete. stores=${sl.length}");
-
     // Init FCM after data loads — city is known at this point
     FcmService.init(
       city: c,
@@ -1591,7 +1519,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // _loadWallet merged into _loadAll
   Future<void> _loadProfile() async {
-    try { final d=await Api.getMe(widget.token); if(mounted&&d!=null) setState(()=>_profilePhoto=d["photo"]?.toString()); } catch(_){ if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+    try { final d=await Api.getMe(widget.token); if(mounted&&d!=null) setState(()=>_profilePhoto=d["photo"]?.toString()); } catch(_){ }
   }
   // _loadProducts merged into _loadAll
   // _loadSliders merged into _loadAll
@@ -1692,7 +1620,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         _cityManual=false; // Explicitly restore GPS mode
                       });
                       _recomputeDistances(); // Recompute distances after GPS restored
-                    } catch(_){ if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+                    } catch(_){ }
                     if(!mounted) return;
                     _gpsDetectedCity = det; // restore GPS city reference
                     setState((){city=det; _locationDenied=false; _cityManual=false;});
@@ -1792,9 +1720,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       });
       // Persist for next session
       Prefs.saveLocation(pos.latitude, pos.longitude);
-      if (kDebugMode) debugPrint("[OFFRO] Live GPS recomputed distances: lat=${pos.latitude} lng=${pos.longitude}");
     } catch (e) {
-      if (kDebugMode) debugPrint("[OFFRO] GPS recompute failed: $e");
     }
   }
 
@@ -1833,7 +1759,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (perm == LocationPermission.deniedForever) {
       // Truly permanently denied — only NOW show the Settings screen
-      if (kDebugMode) debugPrint("[OFFRO] Location permanently denied → Settings state");
       setState(() { city = ""; _loading = false; _locationDenied = true; });
       // Still load all stores without city filter
       if (firstLoadCity != null) {
@@ -1852,7 +1777,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (savedLoc != null) {
       _userLat = savedLoc["lat"];
       _userLng = savedLoc["lng"];
-      if (kDebugMode) debugPrint("[OFFRO] Restored cached GPS: lat=$_userLat lng=$_userLng");
     }
 
     // 3b: Live GPS — single fetch, then resolve city name
@@ -1869,9 +1793,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       };
       // Pass position directly — avoids a second GPS fetch inside detectCity()
       det = await detectCityFromPosition(pos).timeout(const Duration(seconds: 10));
-      if (kDebugMode) debugPrint("[OFFRO] Live GPS city: $det (lat=${pos.latitude}, lng=${pos.longitude})");
     } catch (e) {
-      if (kDebugMode) debugPrint("[OFFRO] GPS/city detection failed: $e");
       // Use cached coords city if available, else savedCity, else default
       if (_userLat != null && _userLng != null) {
         try {
@@ -1881,7 +1803,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0,
           );
           det = await detectCityFromPosition(cachedPos).timeout(const Duration(seconds: 8));
-          if (kDebugMode) debugPrint("[OFFRO] Used cached coords city: $det");
         } catch (_) {
           det = widget.savedCity.isNotEmpty ? widget.savedCity : "Ballari";
         }
@@ -1909,10 +1830,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       _cachedStores = [];
       _cacheTime    = null;
       Api.clearCache();
-      if (kDebugMode) debugPrint("[OFFRO] City changed (${{_cachedCity}} → $det) — cache cleared");
     }
-
-    if (kDebugMode) debugPrint("[OFFRO] _initLoc: detected city=$det → loading stores...");
     await _loadAll(det);
 
     // Step 5: Recalculate distances if GPS available
@@ -1932,7 +1850,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Called ONLY when the city changes — category changes are client-side only
   Future<void> _fetchStores(String c) async {
-    if (kDebugMode) debugPrint("[OFFRO] _fetchStores: city changed to $c");
     _loadAllRunning = false; // reset guard so city change always goes through
     Api.clearCache();
     await _loadAll(c);
@@ -2204,7 +2121,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (imgStr.isEmpty) imgStr = s["image2"]?.toString() ?? "";
     if (imgStr.startsWith("data:image")) {
       try { return Image.memory(base64Decode(imgStr.split(",").last), fit:BoxFit.cover, gaplessPlayback:true); }
-      catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      catch(_) { }
     }
     if (imgStr.startsWith("http")) {
       return CachedNetworkImage(imageUrl: imgStr, fit: BoxFit.cover,
@@ -2861,6 +2778,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
     if (confirm == true) {
       await Prefs.clearNotifications();
+      await Prefs.clearUnread();
+      _unreadNotifier.value = 0;
+      await _clearIOSBadge();
       if (mounted) setState(() => _notifs = []);
     }
   }
@@ -3767,7 +3687,7 @@ class _PinCard extends StatelessWidget {
       try {
         final ci = rawImg.indexOf(",");
         if (ci >= 0) imgBytes = base64Decode(rawImg.substring(ci + 1));
-      } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      } catch (_) { }
     }
 
     final name  = (cat["name"] ?? "").toString();
@@ -3931,7 +3851,7 @@ class _SpecialFindsSection extends StatelessWidget {
           if (tags.any((t) => ["new","just opened","newly opened","grand opening"].any((k) => t.contains(k)))) return true;
           final cs = s["created_at"]?.toString() ?? "";
           if (cs.isNotEmpty) {
-            try { final dt = DateTime.tryParse(cs); if (dt != null && now.difference(dt).inDays <= 14) return true; } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+            try { final dt = DateTime.tryParse(cs); if (dt != null && now.difference(dt).inDays <= 14) return true; } catch (_) { }
           }
           return false;
         }).toList();
@@ -4449,7 +4369,6 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
         if (mon != null) return DateTime(y, mon, d);
       }
     } catch (_) {}
-    if (kDebugMode) debugPrint('[Offro] _parseDate: unparseable date: $s');
     return null;
   }
 
@@ -6309,7 +6228,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         return Image.memory(base64Decode(imgUrl.split(",").last),
           fit: BoxFit.fitWidth, alignment: Alignment.topCenter,
           width: double.infinity, gaplessPlayback: true);
-      } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      } catch (_) { }
     }
     if (imgUrl.startsWith("http")) {
       return CachedNetworkImage(imageUrl: imgUrl,
@@ -6557,7 +6476,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
             resolved = "newly_added";
           }
         }
-      } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      } catch (_) { }
     }
     // 3. Manual boolean flags (robust: handle string "true" too)
     if (resolved == null) {
@@ -6624,7 +6543,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
             closingInfo = "Opens $oH12$oMinStr $oSuffix";
           }
         }
-      } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+      } catch (_) { }
     }
 
     // ── Badge key for glass ribbon ──
@@ -7061,7 +6980,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
           errorWidget: (_, __, ___) => _fallbackImg());
         if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
         }
       }
     }
@@ -7071,7 +6990,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
         errorWidget: (_, __, ___) => _fallbackImg());
       if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
       }
     }
     return _fallbackImg();
@@ -7088,7 +7007,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           placeholder: (_, __) => const SizedBox.shrink(),
           errorWidget: (_, __, ___) => _fallbackImg());
         if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { }
         }
       }
     }
@@ -7098,7 +7017,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         placeholder: (_, __) => const SizedBox.shrink(),
         errorWidget: (_, __, ___) => _fallbackImg());
       if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { }
       }
     }
     return _fallbackImg();
@@ -7684,7 +7603,7 @@ class _PremiumProductCard extends StatelessWidget {
       for (final k in ["image2", "image", "photo"]) {
         final si = storeObj[k]?.toString() ?? "";
         if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+          try { return Image.memory(base64Decode(si.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
         }
         final url = si.startsWith("/") ? kBaseUrl + si : si;
         if (url.startsWith("http")) {
@@ -7697,7 +7616,7 @@ class _PremiumProductCard extends StatelessWidget {
     for (final k in ["logo_url","logo_thumb","image_url","image_thumb","image2","image","logo"]) {
       final img = product[k]?.toString() ?? "";
       if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        try { return Image.memory(base64Decode(img.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
       }
       final url = img.startsWith("/") ? kBaseUrl + img : img;
       if (url.startsWith("http")) {
@@ -8015,7 +7934,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       for (final k in ["image2","image","img","photo"]) {
         final si = storeObj[k]?.toString() ?? "";
         if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+          try { return Image.memory(base64Decode(si.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
         }
         final siUrl = si.startsWith("/") ? "$kBaseUrl$si" : si;
         if (siUrl.startsWith("http")) {
@@ -8028,7 +7947,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
     for (final key in ["logo_url","logo_thumb","logo","image_url","image_thumb","image2","store_image2","image","photo","img"]) {
       final img = product[key]?.toString() ?? "";
       if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+        try { return Image.memory(base64Decode(img.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
       }
       final imgUrl2 = img.startsWith("/") ? "$kBaseUrl$img" : img;
       if (imgUrl2.startsWith("http")) {
