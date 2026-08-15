@@ -2,7 +2,7 @@ name: offro_user
 description: Offro - Smart Savings Nearby
 
 publish_to: 'none'
-version: 1.0.1+39
+version: 1.0.1+40
 environment:
   sdk: '>=3.0.0 <4.0.0'
 
@@ -49,8 +49,8 @@ dependencies:
   video_player: ^2.8.6
 
   # Firebase push notifications
-  firebase_core: ^3.6.0
-  firebase_messaging: ^15.1.3
+  firebase_core: ^4.0.0
+  firebase_messaging: ^16.5.0
   flutter_local_notifications: ^22.2.0
 
   # MSG91 OTP Widget SDK (client-side OTP — no DLT needed)
