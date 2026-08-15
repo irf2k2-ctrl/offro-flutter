@@ -122,15 +122,7 @@ class NotificationService: UNNotificationServiceExtension {
                 let attachment = try UNNotificationAttachment(
                     identifier: "offro-image",
                     url: fileURL,
-                    options: [
-                        UNNotificationAttachmentOptionsThumbnailHiddenKey: false,
-                        UNNotificationAttachmentOptionsThumbnailClippingRectKey: CGRect(
-                            x: 0.0,
-                            y: 0.0,
-                            width: 1.0,
-                            height: 0.5
-                        )
-                    ]
+                    options: nil
                 )
 
                 bestAttemptContent.attachments = [attachment]
