@@ -10,7 +10,9 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.mibtech.offro
+        bundle_identifier: 
+          - com.mibtech.offro
+          - com.mibtech.offro.NotificationService
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -28,6 +30,31 @@ workflows:
       - name: Set up iOS code signing
         script: |
           xcode-project use-profiles
+
+          # After use-profiles sets DEVELOPMENT_TEAM on Runner,
+          # copy it to NotificationService extension target.
+          # use-profiles only processes bundle IDs listed in ios_signing,
+          # but it may not apply the team to the extension target automatically.
+          ruby -e "
+            require 'xcodeproj'
+            project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
+            runner = project.targets.find { |t| t.name == 'Runner' }
+            team = runner.build_configurations.first.build_settings['DEVELOPMENT_TEAM']
+            if team
+              ext = project.targets.find { |t| t.name == 'NotificationService' }
+              if ext
+                ext.build_configurations.each do |config|
+                  config.build_settings['DEVELOPMENT_TEAM'] = team
+                end
+                project.save
+                puts \"✅ Copied DEVELOPMENT_TEAM=#{team} to NotificationService\"
+              else
+                puts \"⚠️ NotificationService target not found\"
+              end
+            else
+              puts \"⚠️ DEVELOPMENT_TEAM not set on Runner target\"
+            end
+          "
 
       - name: Build IPA
         script: |
