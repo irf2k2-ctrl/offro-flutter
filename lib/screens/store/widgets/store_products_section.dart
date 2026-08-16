@@ -225,7 +225,7 @@ class _ProductCardState extends State<_ProductCard> {
         final pv = double.parse(price);
         final op = double.parse(origPrice);
         if (op > pv && pv > 0) {
-          discLabel = '\${((op - pv) / op * 100).round()}% OFF';
+          discLabel = '${((op - pv) / op * 100).round()}% OFF';
         }
       } catch (_) {}
     }
