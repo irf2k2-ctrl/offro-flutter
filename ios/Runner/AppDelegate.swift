@@ -65,7 +65,7 @@ import UserNotifications
     // FlutterImplicitEngineBridge exposes the application-level binary
     // messenger through applicationRegistrar.messenger. It does not expose
     // an "engine" property.
-    let messenger = engineBridge.applicationRegistrar.messenger
+    let messenger = engineBridge.applicationRegistrar.messenger()
     let badgeChannel = FlutterMethodChannel(name: "offro/badge", binaryMessenger: messenger)
     badgeChannel.setMethodCallHandler { call, result in
       if call.method == "clearBadge" {
