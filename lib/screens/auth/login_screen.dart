@@ -13,6 +13,7 @@ import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../../core/services/prefs_service.dart';
 import '../loading/location_loading_screen.dart';
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
@@ -123,24 +124,6 @@ class _OtpScreenState extends State<OtpScreen> {
     } catch (e) {
       if (mounted) setState(() { _msg = e.toString().replaceAll('Exception: ', ''); _msgOk = false; _resending = false; });
     }
-  }
-    if (!mounted) return;
-    // Navigate through LocationLoadingScreen so guest gets the same
-    // location detection flow as logged-in users.
-    Navigator.pushAndRemoveUntil(
-      context,
-      _offroRoute(LocationLoadingScreen(
-        token: '', name: 'Guest', phone: '', userId: '',
-        onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                   required double? lat, required double? lng}) {
-          MyApp.goHomeWithData(
-            token: '', name: 'Guest', phone: '', userId: '',
-            city: city, stores: stores, lat: lat, lng: lng,
-          );
-        },
-      )),
-      (r) => false,
-    );
   }
 
   @override
@@ -862,6 +845,14 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   // Social links
   late Future<Map<String, dynamic>> _socialFuture;
 
+  Future<void> _continueAsGuest() async {
+    await Prefs.saveGuest(true);
+    if (!mounted) return;
+    if (widget.onGuest != null) {
+      widget.onGuest!();
+    }
+  }
+
   @override void initState() {
     super.initState();
     OTPWidget.initializeWidget(_kWidgetId, _kTokenAuth);
@@ -966,27 +957,6 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     if (mounted && widget.onSuccess != null) {
       widget.onSuccess!(token, name, phone, userId, role);
     }
-  }
-
-  Future<void> _continueAsGuest() async {
-    await Prefs.saveGuest(true);
-    if (!mounted) return;
-    if (widget.onGuest != null) {
-      widget.onGuest!();
-      return;
-    }
-    // Fallback: navigate through LocationLoadingScreen
-    Navigator.pushAndRemoveUntil(
-      context,
-      _offroRoute(LocationLoadingScreen(
-        token: '', name: 'Guest', phone: '', userId: '',
-        onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                   required double? lat, required double? lng}) {
-          // No-op — caller should handle via onGuest callback
-        },
-      )),
-      (r) => false,
-    );
   }
 
   @override
@@ -1148,6 +1118,26 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
 
                     // Social bar
                     _socialBar(),
+                    const SizedBox(height: 16),
+                    // Continue as Guest
+                    Divider(height: 1, color: kBorder),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity, height: 46,
+                      child: OutlinedButton(
+                        onPressed: _continueAsGuest,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: kPrimary, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.person_outline_rounded, color: kPrimary, size: 20),
+                          SizedBox(width: 8),
+                          Text('Continue as Guest',
+                            style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
+                        ]),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                   ]),
                 ),

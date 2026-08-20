@@ -449,7 +449,6 @@ class MyApp extends StatelessWidget {
     navigatorKey.currentState?.pushAndRemoveUntil(
       _route(LoginScreen(
         onGuest: () {
-          // Guest flow: save guest state, go through location loading, then home
           Prefs.saveGuest(true);
           navigatorKey.currentState?.pushAndRemoveUntil(
             _route(LocationLoadingScreen(
@@ -2185,9 +2184,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         onPressed: () async { setState(()=>_locationDenied=false); await _initLoc(); },
         child: const Text("Try Again", style: TextStyle(color: Colors.white70)),
       ),
-      // ── Guest manual location selection ──
-      // If location is denied, allow guest to manually select state + city
-      // so they can still browse content without GPS.
       const SizedBox(height: 8),
       TextButton.icon(
         onPressed: () {
@@ -2493,6 +2489,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                 await Prefs.clear();
                 FcmService.reset();
                 Api.clearCache();
+                // Use navigatorKey so OnboardingScreen gets the goLogin callback
                 MyApp.goOnboarding();
               },color:Colors.red),
             const SizedBox(height:28),
@@ -2538,12 +2535,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       trailing:color==kPrimary?const Icon(Icons.arrow_forward_ios_rounded,size:13,color:kMuted):null,
       onTap:(){ Navigator.pop(ctx); onTap(); });
 
-  /// Guest gate — if user is browsing as guest, show a login prompt instead
-  /// of performing the action. Returns true if the action should proceed
-  /// (i.e. user is logged in), false if the login prompt was shown.
   bool _requireLogin(BuildContext ctx, String featureName) {
     if (!widget.isGuest) return true;
-    // Show login prompt
     showModalBottomSheet(
       context: ctx,
       backgroundColor: Colors.transparent,
@@ -2560,8 +2553,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
           const Icon(Icons.lock_outline_rounded, color: kPrimary, size: 40),
           const SizedBox(height: 16),
-          Text('Login Required',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kText)),
+          const Text('Login Required',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kText)),
           const SizedBox(height: 8),
           Text('Please login or register to use $featureName.',
             style: const TextStyle(fontSize: 14, color: kMuted, height: 1.5)),
@@ -6722,7 +6715,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                 onTap: () async {
                   final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
                   if (id.isEmpty || widget.token.isEmpty) return;
-                  if (widget.isGuest) { _requireLogin(context, 'Favourites'); return; }
                   FavState.instance.toggleStore(id);
                   try {
                     await Api.toggleFavorite(widget.token, id);
