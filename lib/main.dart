@@ -429,7 +429,7 @@ class MyApp extends StatelessWidget {
       required String phone, required String userId, required String city}) {
     // TASK 2 FIX: clear stale cache + save mode so all sections reload correctly
     Api.clearCache();
-    Prefs.saveMode('user');
+    if (token.isNotEmpty) Prefs.saveMode('user');
     // Route through LocationLoadingScreen so home opens fully loaded
     navigatorKey.currentState?.pushAndRemoveUntil(
       _route(LocationLoadingScreen(
@@ -447,7 +447,22 @@ class MyApp extends StatelessWidget {
 
   static void goLogin() {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(LoginScreen(onSuccess: (tok, nm, ph, uid, role) {
+      _route(LoginScreen(
+        onGuest: () {
+          // Guest flow: save guest state, go through location loading, then home
+          Prefs.saveGuest(true);
+          navigatorKey.currentState?.pushAndRemoveUntil(
+            _route(LocationLoadingScreen(
+              token: '', name: 'Guest', phone: '', userId: '',
+              onReady: ({required String city, required List<Map<String,dynamic>> stores,
+                         required double? lat, required double? lng}) =>
+                  goHomeWithData(token: '', name: 'Guest', phone: '', userId: '',
+                      city: city, stores: stores, lat: lat, lng: lng),
+            )),
+            (r) => false,
+          );
+        },
+        onSuccess: (tok, nm, ph, uid, role) {
         if (role == 'merchant') {
           // Merchant role selected → merchant loader → merchant home
           _goMerchantViaUnified(merchantToken: tok, phone: ph, name: nm);
@@ -567,12 +582,14 @@ class MyApp extends StatelessWidget {
     required List<Map<String,dynamic>> stores,
     required double? lat,    required double? lng,
   }) {
+    final isGuest = token.isEmpty;
     navigatorKey.currentState?.pushAndRemoveUntil(
       _route(HomeScreen(
         token: token, name: name, phone: phone,
         savedCity: city, userId: userId,
         preloadedStores: stores,
         preloadedLat: lat, preloadedLng: lng,
+        isGuest: isGuest,
       )),
       (r) => false,
     );
@@ -835,6 +852,7 @@ class HomeScreen extends StatefulWidget {
   final String token, name, phone, savedCity, userId;
   final List<Map<String, dynamic>> preloadedStores;
   final double? preloadedLat, preloadedLng;
+  final bool isGuest;
   const HomeScreen({
     super.key,
     required this.token,
@@ -845,6 +863,7 @@ class HomeScreen extends StatefulWidget {
     this.preloadedStores = const [],
     this.preloadedLat,
     this.preloadedLng,
+    this.isGuest = false,
   });
   @override State<HomeScreen> createState() => _HomeState();
 }
@@ -1681,7 +1700,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   setState((){city=selCity; _cityManual=!isGpsCity;});
                   await Prefs.saveCity(selCity);
                   await Api.updateCity(widget.token, selCity);
-                  FcmService.updateCityTopic(selCity, oldCity: oldCity);
+                  if (widget.token.isNotEmpty) FcmService.updateCityTopic(selCity, oldCity: oldCity);
                   await _fetchStores(selCity);
                 },
                 child: const Text("Apply", style:TextStyle(fontSize:15,fontWeight:FontWeight.w700)),
@@ -1821,7 +1840,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_userLat != null && _userLng != null) {
       Prefs.saveLocation(_userLat!, _userLng!);
     }
-    Api.updateCity(widget.token, det);
+    if (widget.token.isNotEmpty) Api.updateCity(widget.token, det);
 
     // FIX 1: If GPS city differs from cached city, wipe stale static cache
     // so _loadAll always fetches fresh stores for the new location.
@@ -2072,7 +2091,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       )),
                       // QR — center floating
                       GestureDetector(
-                        onTap: () => Navigator.push(context, _route(QRPage(token: widget.token, onDone: () {}))),
+                        onTap: () {
+                          if (!_requireLogin(context, 'QR Scan & Rewards')) return;
+                          Navigator.push(context, _route(QRPage(token: widget.token, onDone: () {})));
+                        },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Container(
@@ -2162,6 +2184,18 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       TextButton(
         onPressed: () async { setState(()=>_locationDenied=false); await _initLoc(); },
         child: const Text("Try Again", style: TextStyle(color: Colors.white70)),
+      ),
+      // ── Guest manual location selection ──
+      // If location is denied, allow guest to manually select state + city
+      // so they can still browse content without GPS.
+      const SizedBox(height: 8),
+      TextButton.icon(
+        onPressed: () {
+          setState(() => _locationDenied = false);
+          _showCityPicker(context);
+        },
+        icon: const Icon(Icons.edit_location_alt, color: kLight, size: 20),
+        label: const Text("Select Location Manually", style: TextStyle(color: kLight, fontWeight: FontWeight.w600)),
       ),
     ])),
   );
@@ -2426,9 +2460,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           const Divider(height:1),
           Expanded(child:ListView(controller:sc,children:[
             _pItem(ctx,Icons.search_rounded,"Search Stores",()=>_searchStores(ctx)),
-            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",()=>Navigator.push(ctx,_route(WalletPage(token:widget.token)))),
-            _pItem(ctx,Icons.history_rounded,"Scan History",()=>Navigator.push(ctx,_route(HistoryPage(token:widget.token)))),
-            _pItem(ctx,Icons.favorite_rounded,"My Favourites",()=>Navigator.push(ctx,_route(FavoritesPage(token:widget.token)))),
+            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",(){if(_requireLogin(ctx,"My Rewards"))Navigator.push(ctx,_route(WalletPage(token:widget.token)));}),
+            _pItem(ctx,Icons.history_rounded,"Scan History",(){if(_requireLogin(ctx,"Scan History"))Navigator.push(ctx,_route(HistoryPage(token:widget.token)));}),
+            _pItem(ctx,Icons.favorite_rounded,"My Favourites",(){if(_requireLogin(ctx,"My Favourites"))Navigator.push(ctx,_route(FavoritesPage(token:widget.token)));}),
             _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,_route(NotificationsPage()))),
             const Divider(height:1),
             _pItem(ctx,Icons.info_outline_rounded,"About Us",()async{final c=await Api.getAboutUs();if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"About Us",body:c.isEmpty?"Offro connects local stores with customers through deals and loyalty points.":c));}),
@@ -2437,7 +2471,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             _pItem(ctx,Icons.receipt_rounded,"Refund Policy",()async{final c=await Api.fetchPolicy("refund");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Refund Policy",body:c));}),
             const Divider(height:1),
             // ── Switch Mode ──
-            _switchModeItem(ctx),
+            if (!widget.isGuest) _switchModeItem(ctx),
             const Divider(height:1),
             _pItem(ctx,Icons.chat_bubble_rounded,"Contact Offro",()async{
               final s=await Api.getSocialLinks();
@@ -2448,13 +2482,19 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                 await launchUrl(Uri.parse("https://wa.me/$waNum"),mode:LaunchMode.externalApplication);
               }
             },color:const Color(0xFF25D366)),
-            _pItem(ctx,Icons.logout_rounded,"Logout",()async{
-              await Prefs.clear();
-              FcmService.reset();
-              Api.clearCache();
-              // Use navigatorKey so OnboardingScreen gets the goLogin callback
-              MyApp.goOnboarding();
-            },color:Colors.red),
+            if (widget.isGuest)
+              _pItem(ctx,Icons.login_rounded,"Login / Register",()async{
+                await Prefs.clearGuest();
+                Api.clearCache();
+                MyApp.goLogin();
+              },color:kPrimary)
+            else
+              _pItem(ctx,Icons.logout_rounded,"Logout",()async{
+                await Prefs.clear();
+                FcmService.reset();
+                Api.clearCache();
+                MyApp.goOnboarding();
+              },color:Colors.red),
             const SizedBox(height:28),
           ])),
         ]),
@@ -2497,6 +2537,64 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       title:Text(title,style:TextStyle(color:color==kPrimary?kText:color,fontWeight:FontWeight.w600,fontSize:14)),
       trailing:color==kPrimary?const Icon(Icons.arrow_forward_ios_rounded,size:13,color:kMuted):null,
       onTap:(){ Navigator.pop(ctx); onTap(); });
+
+  /// Guest gate — if user is browsing as guest, show a login prompt instead
+  /// of performing the action. Returns true if the action should proceed
+  /// (i.e. user is logged in), false if the login prompt was shown.
+  bool _requireLogin(BuildContext ctx, String featureName) {
+    if (!widget.isGuest) return true;
+    // Show login prompt
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(child: Container(width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
+          const Icon(Icons.lock_outline_rounded, color: kPrimary, size: 40),
+          const SizedBox(height: 16),
+          Text('Login Required',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kText)),
+          const SizedBox(height: 8),
+          Text('Please login or register to use $featureName.',
+            style: const TextStyle(fontSize: 14, color: kMuted, height: 1.5)),
+          const SizedBox(height: 24),
+          SizedBox(width: double.infinity, height: 50,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                Prefs.clearGuest();
+                MyApp.goLogin();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kPrimary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+              child: const Text('Login / Register',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Maybe later', style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ]),
+      ),
+    );
+    return false;
+  }
 
   // View All page
   // Cast _products to proper type for ProductViewAllPage
@@ -6624,6 +6722,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                 onTap: () async {
                   final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
                   if (id.isEmpty || widget.token.isEmpty) return;
+                  if (widget.isGuest) { _requireLogin(context, 'Favourites'); return; }
                   FavState.instance.toggleStore(id);
                   try {
                     await Api.toggleFavorite(widget.token, id);

@@ -26,6 +26,11 @@ class Prefs {
 
   // ─── Notification History ───
   static const _kNotifHistory = 'notif_history';
+
+  // ─── Guest Mode ───
+  static const _kIsGuest = 'is_guest';         // bool — true when browsing as guest
+  static const _kGuestState = 'guest_state';    // String — guest's manually selected state
+  static const _kGuestCity  = 'guest_city';     // String — guest's manually selected city
   static const _kMaxNotifs    = 50;
 
   // ─────────────────────────────────────────────
@@ -160,6 +165,49 @@ class Prefs {
   static Future<String> getMerchantId() async {
     final p = await SharedPreferences.getInstance();
     return p.getString(_kMerchantId) ?? '';
+  }
+
+  // ─────────────────────────────────────────────
+  // Guest Mode
+  // ─────────────────────────────────────────────
+
+  /// Save guest status. true = browsing as guest (no account).
+  static Future<void> saveGuest(bool isGuest) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_kIsGuest, isGuest);
+  }
+
+  /// Check if user is in guest mode.
+  static Future<bool> isGuest() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getBool(_kIsGuest) ?? false;
+  }
+
+  /// Save guest's manually selected state + city.
+  static Future<void> saveGuestLocation(String state, String city) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kGuestState, state);
+    await p.setString(_kGuestCity, city);
+  }
+
+  /// Get guest's manually selected state.
+  static Future<String> getGuestState() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_kGuestState) ?? '';
+  }
+
+  /// Get guest's manually selected city.
+  static Future<String> getGuestCity() async {
+    final p = await SharedPreferences.getInstance();
+    return p.getString(_kGuestCity) ?? '';
+  }
+
+  /// Clear guest session data (called when guest logs in).
+  static Future<void> clearGuest() async {
+    final p = await SharedPreferences.getInstance();
+    await p.remove(_kIsGuest);
+    await p.remove(_kGuestState);
+    await p.remove(_kGuestCity);
   }
 
   // ─────────────────────────────────────────────

@@ -249,7 +249,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
     }
 
     await Prefs.saveCity(city);
-    try { await Api.updateCity(widget.token, city); } catch (_) {}
+    if (widget.token.isNotEmpty) { try { await Api.updateCity(widget.token, city); } catch (_) {} }
 
     // ── Wait for live GPS (up to 8s) before calling onReady ──
     // This ensures distance_km is computed with real GPS, not cached/null coords

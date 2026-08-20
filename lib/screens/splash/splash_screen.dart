@@ -101,6 +101,20 @@ class _SplashState extends State<SplashScreen> with SingleTickerProviderStateMix
       }
     }
     if (!mounted) return;
+
+    // ── Guest session restore ──
+    // If user previously chose "Continue as Guest", restore the guest session
+    // instead of going to login. Guest uses the same Home flow with empty token.
+    final isGuest = await Prefs.isGuest();
+    if (isGuest && mounted) {
+      final guestCity = await Prefs.getCity();
+      widget.onUser?.call(
+        '', 'Guest', '', guestCity, '',
+      );
+      return;
+    }
+
+    if (!mounted) return;
     final prefs2 = await SharedPreferences.getInstance();
     final onboardingDone = prefs2.getBool('onboarding_done') ?? false;
     if (!mounted) return;

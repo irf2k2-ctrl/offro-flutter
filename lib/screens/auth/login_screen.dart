@@ -13,6 +13,7 @@ import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
+import '../loading/location_loading_screen.dart';
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -122,6 +123,24 @@ class _OtpScreenState extends State<OtpScreen> {
     } catch (e) {
       if (mounted) setState(() { _msg = e.toString().replaceAll('Exception: ', ''); _msgOk = false; _resending = false; });
     }
+  }
+    if (!mounted) return;
+    // Navigate through LocationLoadingScreen so guest gets the same
+    // location detection flow as logged-in users.
+    Navigator.pushAndRemoveUntil(
+      context,
+      _offroRoute(LocationLoadingScreen(
+        token: '', name: 'Guest', phone: '', userId: '',
+        onReady: ({required String city, required List<Map<String,dynamic>> stores,
+                   required double? lat, required double? lng}) {
+          MyApp.goHomeWithData(
+            token: '', name: 'Guest', phone: '', userId: '',
+            city: city, stores: stores, lat: lat, lng: lng,
+          );
+        },
+      )),
+      (r) => false,
+    );
   }
 
   @override
@@ -811,7 +830,8 @@ class _ModeTile extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class LoginScreen extends StatefulWidget {
   final void Function(String token, String name, String phone, String userId, String role)? onSuccess;
-  const LoginScreen({super.key, this.onSuccess});
+  final void Function()? onGuest;
+  const LoginScreen({super.key, this.onSuccess, this.onGuest});
   @override State<LoginScreen> createState() => _LoginState();
 }
 
@@ -946,6 +966,27 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     if (mounted && widget.onSuccess != null) {
       widget.onSuccess!(token, name, phone, userId, role);
     }
+  }
+
+  Future<void> _continueAsGuest() async {
+    await Prefs.saveGuest(true);
+    if (!mounted) return;
+    if (widget.onGuest != null) {
+      widget.onGuest!();
+      return;
+    }
+    // Fallback: navigate through LocationLoadingScreen
+    Navigator.pushAndRemoveUntil(
+      context,
+      _offroRoute(LocationLoadingScreen(
+        token: '', name: 'Guest', phone: '', userId: '',
+        onReady: ({required String city, required List<Map<String,dynamic>> stores,
+                   required double? lat, required double? lng}) {
+          // No-op — caller should handle via onGuest callback
+        },
+      )),
+      (r) => false,
+    );
   }
 
   @override
