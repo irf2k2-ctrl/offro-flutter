@@ -445,6 +445,39 @@ class MyApp extends StatelessWidget {
     );
   }
 
+  /// Check/request device location permission without blocking the caller.
+  ///
+  /// Merchant mode does not require location to open, so a denial returns
+  /// false and the caller continues normally.  The Add Store GPS action uses
+  /// this same helper and can show its own retry/settings message.
+  static Future<bool> ensureLocationPermission() async {
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      return permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> _goMerchantAfterLocation({
+    String? merchantToken,
+    required String phone,
+    required String name,
+  }) async {
+    // Request/check permission before entering Merchant.  A denial must not
+    // prevent access to the merchant dashboard.
+    await ensureLocationPermission();
+    _goMerchantViaUnified(
+      merchantToken: merchantToken,
+      phone: phone,
+      name: name,
+    );
+  }
+
   static void goLogin() {
     navigatorKey.currentState?.pushAndRemoveUntil(
       _route(LoginScreen(
@@ -463,8 +496,9 @@ class MyApp extends StatelessWidget {
         },
         onSuccess: (tok, nm, ph, uid, role) {
         if (role == 'merchant') {
-          // Merchant role selected → merchant loader → merchant home
-          _goMerchantViaUnified(merchantToken: tok, phone: ph, name: nm);
+          // Merchant role selected → request/check location, then continue
+          // to the merchant loader even if permission was denied.
+          _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
         } else {
           // User role selected → GPS location loader → user home
           navigatorKey.currentState?.pushAndRemoveUntil(

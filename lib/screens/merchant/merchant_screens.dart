@@ -299,7 +299,7 @@ class MerchantBannersPage extends StatefulWidget {
   @override State<MerchantBannersPage> createState() => _MerchantBannersState();
 }
 class _MerchantBannersState extends State<MerchantBannersPage> {
-  List<Map<String,dynamic>> _banners = []; 
+  List<Map<String,dynamic>> _banners = [];
   bool _loading = true;
   bool _loadError = false;
 
@@ -3396,6 +3396,24 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   Future<void> _captureGpsLocation() async {
     setState(() { _locLoading = true; _locConfirmed = false; });
     try {
+      // Permission may have been denied during role selection. Ask again
+      // when the merchant explicitly chooses "Use Current Location".
+      final hasPermission = await MyApp.ensureLocationPermission();
+      if (!hasPermission) {
+        if (mounted) setState(() {
+          _locLoading = false;
+          _msg = "Location permission is required for current location. "
+              "Allow it and try again.";
+        });
+        return;
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        if (mounted) setState(() {
+          _locLoading = false;
+          _msg = "Device location is turned off. Turn it on and try again.";
+        });
+        return;
+      }
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       if (mounted) setState(() {
         _lat.text = pos.latitude.toStringAsFixed(6);
