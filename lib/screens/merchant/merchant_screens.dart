@@ -4342,10 +4342,19 @@ class _SubscribeState extends State<SubscribePage> {
 
   Future<void> _openRazorpay(Map<String,dynamic> order) async {
     try {
+      // FIX: use the backend-returned key (authoritative — matches whatever
+      // mode/environment the backend's RAZORPAY_KEY_ID is actually configured
+      // for) instead of the hardcoded kRazorpayKey constant. Mirrors the same
+      // pattern already used correctly in _openRazorpayBanner above.
+      final rzpKey = order["razorpay_key"]?.toString() ?? '';
+      if (rzpKey.isEmpty) {
+        setState(() => _msg = "Payment gateway not configured. Contact support.");
+        return;
+      }
       final amountPaise = (order["amount"] as num?)?.toInt() ??
           ((double.tryParse(order["amount_display"]?.toString() ?? "0") ?? 0) * 100).round();
       final opts = {
-        'key': kRazorpayKey,
+        'key': rzpKey,
         'amount': amountPaise,
         'currency': 'INR',
         'order_id': order["razorpay_order_id"] ?? order["order_id"] ?? "",
@@ -4354,7 +4363,7 @@ class _SubscribeState extends State<SubscribePage> {
         'prefill': {
           'contact': order["merchant_phone"] ?? "",
         },
-        'image': 'https://offro-backend-production.up.railway.app/static/offro_logo.png',
+        'image': '$kBaseUrl/static/offro_logo.png',
         'theme': {'color': '#3E5F55'},
       };
       _razorpay.open(opts);

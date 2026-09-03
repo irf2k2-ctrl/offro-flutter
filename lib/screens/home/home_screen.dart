@@ -41,8 +41,6 @@ import '../search/search_page.dart';
 import '../notifications/notifications_page.dart';
 import 'popup_campaign_overlay.dart';
 
-const kBaseUrl     = "https://offro-backend-production.up.railway.app";
-const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 const kPrimary  = Color(0xFF3E5F55);
 const kLight    = Color(0xFFCDEBD6);
 const kAccent   = Color(0xFFA9CDBA);
@@ -2172,7 +2170,7 @@ class _CategoryCard extends StatelessWidget {
     String _rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     // Resolve relative URLs to absolute
     if (_rawImg.isNotEmpty && _rawImg.startsWith("/")) {
-      _rawImg = "https://offro-backend-production.up.railway.app$_rawImg";
+      _rawImg = "$kBaseUrl$_rawImg";
     }
     final bool _isBase64 = _rawImg.startsWith("data:image");
     final bool _isHttp   = _rawImg.startsWith("http://") || _rawImg.startsWith("https://");
@@ -2684,7 +2682,7 @@ class _PinCard extends StatelessWidget {
     // ── Image resolution ──
     String rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     if (rawImg.isNotEmpty && rawImg.startsWith("/")) {
-      rawImg = "https://offro-backend-production.up.railway.app$rawImg";
+      rawImg = "$kBaseUrl$rawImg";
     }
     final bool isBase64 = rawImg.startsWith("data:image");
     final bool isHttp   = rawImg.startsWith("http://") || rawImg.startsWith("https://");

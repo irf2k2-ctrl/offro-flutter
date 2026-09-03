@@ -465,7 +465,7 @@ class _LogoWidget extends StatelessWidget {
     } else {
       final fullUrl = logoUrl.startsWith("http")
         ? logoUrl
-        : "https://offro-backend-production.up.railway.app$logoUrl";
+        : "$kBaseUrl$logoUrl";
       img = Image.network(
         fullUrl,
         width: fullBleed ? double.infinity : size,

@@ -5,8 +5,14 @@
 import 'package:flutter/material.dart';
 
 // ── Backend ──
-const String kBaseUrl     = "https://offro-backend-production.up.railway.app";
-const String kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
+// API_BASE_URL is supplied at build time via --dart-define, e.g.:
+//   flutter build apk --dart-define=API_BASE_URL=https://offro-backend-production.up.railway.app   (production)
+//   flutter build apk --dart-define=API_BASE_URL=https://offro-backend-staging-d375.up.railway.app  (staging)
+// There is deliberately NO default/fallback value here. A build that omits
+// this define resolves kBaseUrl to an empty string, which main() checks for
+// at startup and refuses to run rather than silently defaulting to LIVE.
+const String kBaseUrl     = String.fromEnvironment('API_BASE_URL');
+
 
 // ── Brand colours ──
 const Color kPrimary = Color(0xFF3E5F55);

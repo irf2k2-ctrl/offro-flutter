@@ -25,6 +25,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
   String _discountMsg = "";
   bool _discountApplied = false;
   double _discountAmt = 0;
+  String _discountType = "VALUE";
   Map<String,dynamic>? _pendingOrder;
   DateTime _fromDate  = DateTime.now();
   late Razorpay _razorpay;
@@ -77,15 +78,20 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
     try {
       final res = await Api.validateDiscountCode(widget.token, code);
       final val = (res["value"] as num?)?.toDouble() ?? 0;
+      final type = (res["type"]?.toString() ?? "VALUE").toUpperCase();
+      // Backend is authoritative — only display a ₹ amount for VALUE codes.
+      // PERCENTAGE codes are confirmed applied, but the actual ₹ discount
+      // is calculated server-side when the order is created.
       if (mounted) setState(() {
-        _discountAmt     = val;
+        _discountType     = type;
+        _discountAmt      = type == "PERCENTAGE" ? 0 : val;
         _discountApplied = true;
         _discountMsg     = res["message"]?.toString() ?? "Discount applied!";
       });
     } catch (e) {
       if (mounted) setState(() {
         _discountMsg = e.toString().replaceAll("Exception: ", "");
-        _discountApplied = false; _discountAmt = 0;
+        _discountApplied = false; _discountAmt = 0; _discountType = "VALUE";
       });
     }
   }
@@ -185,8 +191,10 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
           _dRow("Rate",     "₹$_pricePerDay/day"),
           const Divider(),
           _dRow("Base",   "₹${_base.toStringAsFixed(1)}"),
-          if (_discountApplied && _discountAmt > 0)
-            _dRow("Discount", "−₹${_discountAmt.toStringAsFixed(1)}", color: const Color(0xFF1a6640)),
+          if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
+            _dRow("Discount",
+              _discountType == "PERCENTAGE" ? "Code applied (calculated at checkout)" : "−₹${_discountAmt.toStringAsFixed(1)}",
+              color: const Color(0xFF1a6640)),
           _dRow("GST (${_gstPct.toStringAsFixed(1)}%)", "₹${_gstAmt.toStringAsFixed(1)}"),
           _dRow("Total",  "₹${_total.toStringAsFixed(1)}", bold: true),
           const SizedBox(height: 10),
@@ -337,8 +345,10 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
               child: Column(children: [
                 _PriceRow("Base Price", _fmtAmt(_base)),
                 _PriceRow("GST (${_gstPct.toInt()}%)", _fmtAmt(_gstAmt)),
-                if (_discountApplied && _discountAmt > 0)
-                  _PriceRow("Discount", "− ${_fmtAmt(_discountAmt)}", color: const Color(0xFF1a6640)),
+                if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
+                  _PriceRow("Discount",
+                    _discountType == "PERCENTAGE" ? "Code applied (at checkout)" : "− ${_fmtAmt(_discountAmt)}",
+                    color: const Color(0xFF1a6640)),
                 const Divider(height: 20, color: Color(0xFFB0CFC0)),
                 _PriceRow("Total", _fmtAmt(_total), bold: true),
               ]),
@@ -435,6 +445,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
   String _discountMsg = "";
   bool _discountApplied = false;
   double _discountAmt = 0;
+  String _discountType = "VALUE";
   Map<String,dynamic>? _pendingOrder;
   late Razorpay _razorpay;
 
@@ -521,15 +532,20 @@ class _RenewProductPageState extends State<RenewProductPage> {
     try {
       final res = await Api.validateDiscountCode(widget.token, code);
       final val = (res["value"] as num?)?.toDouble() ?? 0;
+      final type = (res["type"]?.toString() ?? "VALUE").toUpperCase();
+      // Backend is authoritative — only display a ₹ amount for VALUE codes.
+      // PERCENTAGE codes are confirmed applied, but the actual ₹ discount
+      // is calculated server-side when the order is created.
       if (mounted) setState(() {
-        _discountAmt     = val;
+        _discountType     = type;
+        _discountAmt      = type == "PERCENTAGE" ? 0 : val;
         _discountApplied = true;
         _discountMsg     = res["message"]?.toString() ?? "Discount applied!";
       });
     } catch (e) {
       if (mounted) setState(() {
         _discountMsg = e.toString().replaceAll("Exception: ", "");
-        _discountApplied = false; _discountAmt = 0;
+        _discountApplied = false; _discountAmt = 0; _discountType = "VALUE";
       });
     }
   }
@@ -617,8 +633,10 @@ class _RenewProductPageState extends State<RenewProductPage> {
           _dRow("Rate",     "₹$_pricePerDay/day"),
           const Divider(),
           _dRow("Base",   "₹${_base.toStringAsFixed(1)}"),
-          if (_discountApplied && _discountAmt > 0)
-            _dRow("Discount", "−₹${_discountAmt.toStringAsFixed(1)}", color: const Color(0xFF1a6640)),
+          if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
+            _dRow("Discount",
+              _discountType == "PERCENTAGE" ? "Code applied (calculated at checkout)" : "−₹${_discountAmt.toStringAsFixed(1)}",
+              color: const Color(0xFF1a6640)),
           _dRow("GST (${_gstPct.toStringAsFixed(1)}%)", "₹${_gstAmt.toStringAsFixed(1)}"),
           _dRow("Total",  "₹${_total.toStringAsFixed(1)}", bold: true),
           const SizedBox(height: 10),
@@ -785,8 +803,10 @@ class _RenewProductPageState extends State<RenewProductPage> {
               child: Column(children: [
                 _PriceRow("Base Price", _fmtAmt(_base)),
                 _PriceRow("GST (${_gstPct.toInt()}%)", _fmtAmt(_gstAmt)),
-                if (_discountApplied && _discountAmt > 0)
-                  _PriceRow("Discount", "− ${_fmtAmt(_discountAmt)}", color: const Color(0xFF1a6640)),
+                if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
+                  _PriceRow("Discount",
+                    _discountType == "PERCENTAGE" ? "Code applied (at checkout)" : "− ${_fmtAmt(_discountAmt)}",
+                    color: const Color(0xFF1a6640)),
                 const Divider(height: 20, color: Color(0xFFB0CFC0)),
                 _PriceRow("Total", _fmtAmt(_total), bold: true),
               ]),

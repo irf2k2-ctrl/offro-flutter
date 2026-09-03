@@ -462,12 +462,12 @@ class Api {
     return [];
   }
 
-  static Future<Map<String,dynamic>> validateDiscount(String code) =>
-      _post("/discount/validate", {"code": code});
+  static Future<Map<String,dynamic>> validateDiscount(String code, {String? scope}) =>
+      _post("/discount/validate", {"code": code, if (scope != null) "checkout_scope": scope});
 
   // Merchant-authenticated discount code validation (Item 6)
-  static Future<Map<String,dynamic>> validateDiscountCode(String token, String code) =>
-      _post("/merchant/discounts/validate", {"code": code}, token: token);
+  static Future<Map<String,dynamic>> validateDiscountCode(String token, String code, {String? scope}) =>
+      _post("/merchant/discounts/validate", {"code": code, if (scope != null) "checkout_scope": scope}, token: token);
 
   // Check merchant phone registered before sending OTP (Item 8)
   static Future<bool> checkMerchantPhone(String phone) async {

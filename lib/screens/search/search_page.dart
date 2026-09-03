@@ -14,8 +14,6 @@ import '../store/store_detail_page.dart';
 import '../detail/detail_page.dart';
 import '../voucher/voucher_view_all_page.dart';
 
-const kBaseUrl     = "https://offro-backend-production.up.railway.app";
-const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 const kPrimary  = Color(0xFF3E5F55);
 const kLight    = Color(0xFFCDEBD6);
 const kAccent   = Color(0xFFA9CDBA);

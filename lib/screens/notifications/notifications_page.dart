@@ -10,8 +10,6 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 
-const kBaseUrl     = "https://offro-backend-production.up.railway.app";
-const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 const kPrimary  = Color(0xFF3E5F55);
 const kLight    = Color(0xFFCDEBD6);
 const kAccent   = Color(0xFFA9CDBA);
