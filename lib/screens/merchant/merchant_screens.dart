@@ -4315,7 +4315,20 @@ class _SubscribeState extends State<SubscribePage> {
   List _plans = []; bool _loading = true; String _selectedPlan = ""; String _fromDate = "";
   Map? _selectedPlanData; String _msg = "";
   final TextEditingController _discC = TextEditingController();
-  String? _appliedCode; double _discountValue = 0; bool _validatingDisc = false; String _discMsg = "";
+  String? _appliedCode; double _discountValue = 0; String? _discountType; bool _validatingDisc = false; String _discMsg = "";
+
+  // Preview-only helper: mirrors the backend's exact discount formula
+  // (pre-tax discount, then GST on the remainder) so the on-screen summary
+  // is consistent with what /subscribe will actually compute. This never
+  // affects what's sent to the backend — the request only ever carries
+  // discount_code; the backend independently recalculates authoritatively.
+  double _previewDiscountAmount(double basePrice) {
+    if (_appliedCode == null || _discountType == null) return 0;
+    final amt = _discountType == "PERCENTAGE"
+        ? basePrice * _discountValue / 100.0
+        : _discountValue;
+    return amt > basePrice ? basePrice : (amt < 0 ? 0 : amt);
+  }
 
   // Razorpay instance must live for the lifetime of this page so its native
   // callbacks (success/error/external_wallet) are not garbage-collected while
@@ -4437,15 +4450,24 @@ class _SubscribeState extends State<SubscribePage> {
     if (code.isEmpty) return;
     setState(()=>_validatingDisc=true);
     try {
-      final r = await Api.validateDiscount(code);
+      // scope: "STORE" lets the backend catch a wrong-scope code (e.g. a
+      // BANNERS-only code entered here) right now, so the error shows next
+      // to the input instead of only surfacing later when Proceed to Pay
+      // calls /subscribe (which enforces scope unconditionally regardless).
+      final r = await Api.validateDiscount(code, scope: "STORE");
+      final val = (r["value"] as num).toDouble();
+      final type = (r["type"]?.toString() ?? "VALUE").toUpperCase();
       setState((){
         _appliedCode = r["code"];
-        _discountValue = (r["value"] as num).toDouble();
-        _discMsg = "✅ ₹${_discountValue.toStringAsFixed(0)} discount applied!";
+        _discountType = type;
+        _discountValue = val;
+        _discMsg = type == "PERCENTAGE"
+            ? "✅ ${val.toStringAsFixed(0)}% discount applied!"
+            : "✅ ₹${val.toStringAsFixed(0)} discount applied!";
       });
     } catch(e) {
       setState((){
-        _appliedCode = null; _discountValue = 0;
+        _appliedCode = null; _discountValue = 0; _discountType = null;
         _discMsg = e.toString().replaceAll("Exception: ","");
       });
     }
@@ -4467,7 +4489,6 @@ class _SubscribeState extends State<SubscribePage> {
         "plan":         _selectedPlan,
         "from_date":    _fromDate,
         if (_appliedCode != null) "discount_code": _appliedCode,
-        if (_discountValue > 0) "discount_value": _discountValue,
       });
       if (!mounted) return;
       final payMode = order["pay_mode"] ?? "manual";
@@ -4606,13 +4627,22 @@ class _SubscribeState extends State<SubscribePage> {
           child:Row(children:[const Icon(Icons.calendar_today,color:kPrimary,size:18),const SizedBox(width:10),Text(_fromDate,style:const TextStyle(color:kText,fontWeight:FontWeight.w600))]))),
       if (_selectedPlanData!=null)...[
         const SizedBox(height:16),
-        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
-          child:Column(children:[
-            _row("Base Price","₹${_selectedPlanData!['price']}"),
-            _row("GST (${_selectedPlanData!['gst_percent']}%)","₹${_selectedPlanData!['gst_amount']}"),
-            const Divider(height:16),
-            _row("Total Payable","₹${_selectedPlanData!['total']}",bold:true),
-          ])),
+        Builder(builder:(_) {
+          final basePrice = (_selectedPlanData!['price'] as num?)?.toDouble() ?? 0;
+          final gstPct    = (_selectedPlanData!['gst_percent'] as num?)?.toDouble() ?? 0;
+          final discAmt   = _previewDiscountAmount(basePrice);
+          final taxable   = (basePrice - discAmt).clamp(0, basePrice);
+          final gstAmt    = taxable * gstPct / 100.0;
+          final total     = taxable + gstAmt;
+          return Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
+            child:Column(children:[
+              _row("Base Price","₹${basePrice.toStringAsFixed(2)}"),
+              if (discAmt>0) _row("Discount","-₹${discAmt.toStringAsFixed(2)}"),
+              _row("GST (${gstPct.toStringAsFixed(0)}%)","₹${gstAmt.toStringAsFixed(2)}"),
+              const Divider(height:16),
+              _row("Total Payable","₹${total.toStringAsFixed(2)}",bold:true),
+            ]));
+        }),
       ],
       const SizedBox(height:16),
       // ── Discount Code ──
@@ -4624,6 +4654,7 @@ class _SubscribeState extends State<SubscribePage> {
             Expanded(child:TextField(
               controller:_discC,
               textCapitalization:TextCapitalization.characters,
+              onChanged:(_){ if(_appliedCode!=null) setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";}); },
               decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:BorderSide(color:kBorder))),
             )),
             const SizedBox(width:8),
@@ -4633,11 +4664,14 @@ class _SubscribeState extends State<SubscribePage> {
               child:_validatingDisc?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Text("Apply",style:TextStyle(color:Colors.white,fontSize:13))),
           ]),
           if (_discMsg.isNotEmpty)...[const SizedBox(height:6),Text(_discMsg,style:TextStyle(fontSize:12,color:_appliedCode!=null?const Color(0xFF1a6640):Colors.red.shade700))],
-          if (_appliedCode!=null && _discountValue>0)...[
+          if (_appliedCode!=null && _discountType!=null)...[
             const SizedBox(height:6),
-            Row(children:[const Text("Discount: ",style:TextStyle(fontSize:12,color:kMuted)),Text("- ₹${_discountValue.toStringAsFixed(0)}",style:const TextStyle(fontSize:12,color:Color(0xFF1a6640),fontWeight:FontWeight.bold)),
+            Row(children:[
+              const Text("Discount: ",style:TextStyle(fontSize:12,color:kMuted)),
+              Text(_discountType=="PERCENTAGE" ? "- ${_discountValue.toStringAsFixed(0)}%" : "- ₹${_discountValue.toStringAsFixed(0)}",
+                style:const TextStyle(fontSize:12,color:Color(0xFF1a6640),fontWeight:FontWeight.bold)),
               const Spacer(),
-              GestureDetector(onTap:(){setState((){_appliedCode=null;_discountValue=0;_discMsg="";_discC.clear();});},child:const Text("Remove",style:TextStyle(fontSize:11,color:Colors.red,decoration:TextDecoration.underline)))]),
+              GestureDetector(onTap:(){setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";_discC.clear();});},child:const Text("Remove",style:TextStyle(fontSize:11,color:Colors.red,decoration:TextDecoration.underline)))]),
           ],
         ])),
       const SizedBox(height:24),
