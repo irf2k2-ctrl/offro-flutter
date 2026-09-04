@@ -722,6 +722,26 @@ class _InfoChip extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════
+// Discount preview helper — shared by Store Subscription, Add Banner and
+// Add Product's discount UIs so all three follow the same mechanism.
+// Mirrors the backend's exact discount formula (pre-tax discount, then
+// GST on the remainder) so the on-screen preview stays consistent with
+// what the order-creation endpoint will actually compute. This is
+// preview-only: it never affects what's sent to the backend — every
+// request only ever carries discount_code; the backend independently
+// and authoritatively recalculates the real amount at order-creation time.
+// ══════════════════════════════════════════════════════════
+double previewDiscountAmount(double basePrice, String? discountType, double discountValue) {
+  if (discountType == null) return 0;
+  final amt = discountType == "PERCENTAGE"
+      ? basePrice * discountValue / 100.0
+      : discountValue;
+  if (amt > basePrice) return basePrice;
+  if (amt < 0) return 0;
+  return amt;
+}
+
+// ══════════════════════════════════════════════════════════
 // ADD BANNER PAGE — with checkout flow
 // ══════════════════════════════════════════════════════════
 
@@ -743,7 +763,7 @@ class _AddBannerState extends State<AddBannerPage> {
   Map<String,dynamic>? _selectedBannerStore;
   bool _storesLoading = false;
   // Discount code state
-  String? _appliedCode; double _appliedDiscount = 0;
+  String? _appliedCode; double _appliedDiscount = 0; String? _appliedDiscountType;
   String _discountMsg = ""; bool _discountOk = false; bool _applyingCode = false;
 
   @override void dispose() { _titleC.dispose(); _daysC.dispose(); _discountC.dispose(); _razorpay.clear(); super.dispose(); }
@@ -759,9 +779,10 @@ class _AddBannerState extends State<AddBannerPage> {
   double get _pricePerDay => (_pricing?["price_per_day"] as num?)?.toDouble() ?? 15;
   double get _basePrice   => double.parse((_pricePerDay * _days).toStringAsFixed(2));
   double get _gstPct      => (_pricing?["gst_pct"] as num?)?.toDouble() ?? 18;
-  double get _gst         => double.parse((_basePrice * _gstPct / 100).toStringAsFixed(2));
-  double get _discountAmt => double.tryParse(_discountC.text.trim()) ?? 0;
-  double get _total       => double.parse(((_basePrice - _discountAmt) + _gst).toStringAsFixed(2));
+  double get _discountAmt => previewDiscountAmount(_basePrice, _appliedDiscountType, _appliedDiscount);
+  double get _taxable     => (_basePrice - _discountAmt) < 0 ? 0 : (_basePrice - _discountAmt);
+  double get _gst         => double.parse((_taxable * _gstPct / 100).toStringAsFixed(2));
+  double get _total       => double.parse((_taxable + _gst).toStringAsFixed(2));
 
   String get _fromDateStr => "${_fromDate.year}-${_fromDate.month.toString().padLeft(2,'0')}-${_fromDate.day.toString().padLeft(2,'0')}";
   String get _fromDateDisplay => "${_fromDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_fromDate.month-1]} ${_fromDate.year}";
@@ -874,18 +895,21 @@ class _AddBannerState extends State<AddBannerPage> {
     if (code.isEmpty) return;
     setState(() { _applyingCode = true; _discountMsg = ""; });
     try {
-      final r = await Api.validateDiscountCode(widget.token, code);
+      final r = await Api.validateDiscountCode(widget.token, code, scope: "BANNERS");
       final val = (r["value"] as num).toDouble();
+      final type = (r["type"]?.toString() ?? "VALUE").toUpperCase();
       setState(() {
-        _appliedCode     = r["code"]?.toString() ?? code;
-        _appliedDiscount = val;
+        _appliedCode         = r["code"]?.toString() ?? code;
+        _appliedDiscount     = val;
+        _appliedDiscountType = type;
         _discountOk      = true;
         _discountMsg     = r["message"]?.toString() ?? "✅ Discount applied!";
       });
     } catch (e) {
       setState(() {
-        _appliedCode     = null;
-        _appliedDiscount = 0;
+        _appliedCode         = null;
+        _appliedDiscount     = 0;
+        _appliedDiscountType = null;
         _discountOk      = false;
         _discountMsg     = e.toString().replaceAll("Exception: ", "");
       });
@@ -1166,7 +1190,7 @@ class _AddBannerState extends State<AddBannerPage> {
             Expanded(child:TextField(
               controller:_discountC,
               textCapitalization:TextCapitalization.characters,
-              onChanged:(_){ if((_appliedCode ?? "").isNotEmpty) setState((){_appliedCode="";_appliedDiscount=0;_discountMsg="";_discountOk=false;}); },
+              onChanged:(_){ if((_appliedCode ?? "").isNotEmpty) setState((){_appliedCode="";_appliedDiscount=0;_appliedDiscountType=null;_discountMsg="";_discountOk=false;}); },
               decoration:InputDecoration(
                 hintText:"e.g. OFFRO20",isDense:true,
                 prefixIcon:const Icon(Icons.local_offer_outlined,color:kMuted,size:18),
@@ -1197,7 +1221,9 @@ class _AddBannerState extends State<AddBannerPage> {
               child:Row(children:[
                 const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
                 const SizedBox(width:6),
-                Text("−₹${_appliedDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
+                Text(_appliedDiscountType == "PERCENTAGE"
+                      ? "−₹${_discountAmt.toStringAsFixed(2)} (${_appliedDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
+                      : "−₹${_appliedDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
                   style:const TextStyle(color:Color(0xFF1a6640),fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
@@ -2492,6 +2518,7 @@ class _AddProductState extends State<AddProductPage> {
   bool   _applyingVCode    = false;
   String _appliedVCode     = "";
   double _appliedVDiscount = 0.0;
+  String? _appliedVDiscountType;
   String _discountVMsg     = "";
   bool   _discountVOk      = false;
 
@@ -2537,9 +2564,10 @@ class _AddProductState extends State<AddProductPage> {
   double get _pricePerDay=>(_pricing?["price_per_day"] as num?)?.toDouble()??10;
   double get _basePrice => double.parse((_pricePerDay * _days).toStringAsFixed(2));
   double get _gstPct=>(_pricing?["gst_pct"] as num?)?.toDouble()??18;
-  double get _gst=>double.parse((_basePrice*_gstPct/100).toStringAsFixed(2));
-  double get _discountVAmt => _appliedVDiscount;
-  double get _total=>double.parse((_basePrice-_appliedVDiscount+_gst).toStringAsFixed(2));
+  double get _discountVAmt => previewDiscountAmount(_basePrice, _appliedVDiscountType, _appliedVDiscount);
+  double get _taxableV => (_basePrice - _discountVAmt) < 0 ? 0 : (_basePrice - _discountVAmt);
+  double get _gst=>double.parse((_taxableV*_gstPct/100).toStringAsFixed(2));
+  double get _total=>double.parse((_taxableV+_gst).toStringAsFixed(2));
 
   String get _fromDateStr=>"${_fromDate.year}-${_fromDate.month.toString().padLeft(2,'0')}-${_fromDate.day.toString().padLeft(2,'0')}";
   String get _fromDateDisplay=>"${_fromDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_fromDate.month-1]} ${_fromDate.year}";
@@ -2571,19 +2599,25 @@ class _AddProductState extends State<AddProductPage> {
     if (code.isEmpty) { setState((){ _discountVMsg="Enter a code"; _discountVOk=false; }); return; }
     setState(()=>_applyingVCode=true);
     try {
-      final res = await Api.validateDiscountCode(widget.token, code);
+      final res = await Api.validateDiscountCode(widget.token, code, scope: "PRODUCTS");
       final val = (res["value"] as num?)?.toDouble() ?? 0.0;
+      final type = (res["type"]?.toString() ?? "VALUE").toUpperCase();
       if (mounted) setState((){
-        _appliedVCode     = code;
-        _appliedVDiscount = val;
-        _discountVMsg     = "✅ Code applied — ₹${val.toStringAsFixed(0)} off!";
+        _appliedVCode         = code;
+        _appliedVDiscount     = val;
+        _appliedVDiscountType = type;
+        _discountVMsg     = res["message"]?.toString() ??
+            (type == "PERCENTAGE"
+                ? "✅ Code applied — ${val.toStringAsFixed(0)}% off!"
+                : "✅ Code applied — ₹${val.toStringAsFixed(0)} off!");
         _discountVOk      = true;
         _applyingVCode    = false;
       });
     } catch (e) {
       if (mounted) setState((){
-        _appliedVCode     = "";
-        _appliedVDiscount = 0;
+        _appliedVCode         = "";
+        _appliedVDiscount     = 0;
+        _appliedVDiscountType = null;
         _discountVMsg     = e.toString().replaceAll("Exception: ","");
         _discountVOk      = false;
         _applyingVCode    = false;
@@ -2899,7 +2933,7 @@ class _AddProductState extends State<AddProductPage> {
             Expanded(child:TextField(
               controller:_discountVC,
               textCapitalization:TextCapitalization.characters,
-              onChanged:(_){ if(_appliedVCode.isNotEmpty) setState((){_appliedVCode="";_appliedVDiscount=0;_discountVMsg="";_discountVOk=false;}); },
+              onChanged:(_){ if(_appliedVCode.isNotEmpty) setState((){_appliedVCode="";_appliedVDiscount=0;_appliedVDiscountType=null;_discountVMsg="";_discountVOk=false;}); },
               decoration:InputDecoration(
                 hintText:"e.g. OFFRO20",isDense:true,
                 prefixIcon:const Icon(Icons.local_offer_outlined,color:kMuted,size:18),
@@ -2930,7 +2964,9 @@ class _AddProductState extends State<AddProductPage> {
               child:Row(children:[
                 const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
                 const SizedBox(width:6),
-                Text("−₹${_appliedVDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
+                Text(_appliedVDiscountType == "PERCENTAGE"
+                      ? "−₹${_discountVAmt.toStringAsFixed(2)} (${_appliedVDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
+                      : "−₹${_appliedVDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
                   style:const TextStyle(color:Color(0xFF1a6640),fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
@@ -3368,6 +3404,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   String? _selState; String? _selCity;
   List<String> _areas = []; bool _areasLoading = false;
   bool _locLoading = false; bool _locConfirmed = false;
+  bool _locDenied = false; // Issue 4: true once permission denied once in this screen — disables the button and stops re-prompting
   final _mapsUrlCtrl = TextEditingController();
   bool _mapsResolving = false;
   bool _mapsApplied = false;
@@ -3396,12 +3433,24 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   Future<void> _captureGpsLocation() async {
     setState(() { _locLoading = true; _locConfirmed = false; });
     try {
-      // Permission may have been denied during role selection. Ask again
-      // when the merchant explicitly chooses "Use Current Location".
-      final hasPermission = await MyApp.ensureLocationPermission();
+      bool hasPermission;
+      if (_locDenied) {
+        // Already denied once in this screen — never re-trigger the OS
+        // permission prompt (Issue 4). Just read the current platform
+        // permission state (no request) in case it changed via Settings
+        // since the last attempt, so this can still recover if granted.
+        final current = await Geolocator.checkPermission();
+        hasPermission = current == LocationPermission.whileInUse ||
+            current == LocationPermission.always;
+      } else {
+        // First attempt from this screen — unchanged from the existing
+        // flow; may show the OS permission prompt exactly as it does today.
+        hasPermission = await MyApp.ensureLocationPermission();
+      }
       if (!hasPermission) {
         if (mounted) setState(() {
           _locLoading = false;
+          _locDenied  = true;
           _msg = "Location permission is required for current location. "
               "Allow it and try again.";
         });
@@ -3420,6 +3469,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _lng.text = pos.longitude.toStringAsFixed(6);
         _locConfirmed = true;
         _locLoading   = false;
+        _locDenied    = false;
       });
       await _reverseGeocode(pos.latitude, pos.longitude);
     } catch (e) {
@@ -4017,11 +4067,11 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13)),
           const SizedBox(height: 10),
           ElevatedButton.icon(
-            onPressed: _locLoading ? null : _captureGpsLocation,
+            onPressed: (_locLoading || _locDenied) ? null : _captureGpsLocation,
             icon: _locLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: Text(_locLoading ? "Detecting..." : "Use Current Location"),
+            label: Text(_locLoading ? "Detecting..." : (_locDenied ? "Location permission denied" : "Use Current Location")),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white, foregroundColor: kText,
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -4317,18 +4367,10 @@ class _SubscribeState extends State<SubscribePage> {
   final TextEditingController _discC = TextEditingController();
   String? _appliedCode; double _discountValue = 0; String? _discountType; bool _validatingDisc = false; String _discMsg = "";
 
-  // Preview-only helper: mirrors the backend's exact discount formula
-  // (pre-tax discount, then GST on the remainder) so the on-screen summary
-  // is consistent with what /subscribe will actually compute. This never
-  // affects what's sent to the backend — the request only ever carries
-  // discount_code; the backend independently recalculates authoritatively.
-  double _previewDiscountAmount(double basePrice) {
-    if (_appliedCode == null || _discountType == null) return 0;
-    final amt = _discountType == "PERCENTAGE"
-        ? basePrice * _discountValue / 100.0
-        : _discountValue;
-    return amt > basePrice ? basePrice : (amt < 0 ? 0 : amt);
-  }
+  // Delegates to the shared previewDiscountAmount() helper (top of file) —
+  // same formula used by Add Banner and Add Product's discount previews.
+  double _previewDiscountAmount(double basePrice) =>
+      _appliedCode == null ? 0 : previewDiscountAmount(basePrice, _discountType, _discountValue);
 
   // Razorpay instance must live for the lifetime of this page so its native
   // callbacks (success/error/external_wallet) are not garbage-collected while
@@ -4498,6 +4540,8 @@ class _SubscribeState extends State<SubscribePage> {
 
       // ── Manual / offline payment mode ──
       if (payMode == "manual" || orderAmt <= 0) {
+        final discAmt = (order["discount_amount"] as num?)?.toDouble() ?? 0;
+        final discType = order["discount_type"]?.toString();
         showDialog(context:context,barrierDismissible:false,builder:(ctx)=>AlertDialog(
           title:const Text("Subscription Request Sent",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
           content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -4507,6 +4551,10 @@ class _SubscribeState extends State<SubscribePage> {
             _row("To",    order["end_date"]??''),
             const Divider(),
             _row("Base Price","₹${order['base_price']}"),
+            if (discAmt>0)
+              _row("Discount", discType=="PERCENTAGE"
+                  ? "-₹${discAmt.toStringAsFixed(2)} (${(order['discount_value'] as num?)?.toStringAsFixed(0) ?? ''}%)"
+                  : "-₹${discAmt.toStringAsFixed(2)}"),
             _row("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
             _row("Total Payable","₹${order['amount_display']}",bold:true),
             const SizedBox(height:12),
