@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -40,6 +41,10 @@ import 'core/widgets/store_cards.dart';
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
+
+// ─────────────────────── CONFIG ───────────────────────
+const kBaseUrl = "https://offro-backend-production.up.railway.app";
+const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
 // ─────────────────────── COLORS ───────────────────────
 const kPrimary  = Color(0xFF3E5F55);
@@ -466,7 +471,7 @@ class MyApp extends StatelessWidget {
     // Request/check permission before entering Merchant.  A denial must not
     // prevent access to the merchant dashboard.
     await ensureLocationPermission();
-    _goMerchantViaUnified(
+    await _goMerchantViaUnified(
       merchantToken: merchantToken,
       phone: phone,
       name: name,
@@ -489,13 +494,17 @@ class MyApp extends StatelessWidget {
             (r) => false,
           );
         },
-        onSuccess: (tok, nm, ph, uid, role) {
+        onSuccess: (tok, nm, ph, uid, role) async {
         if (role == 'merchant') {
           // Merchant role selected → request/check location, then continue
           // to the merchant loader even if permission was denied.
-          _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
+          // Awaited so the Continue button's loading state (in
+          // _ContinueAsState._proceed) stays true until this entire chain
+          // — including the location permission prompt — actually finishes.
+          await _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
         } else {
           // User role selected → GPS location loader → user home
+          // (unchanged — navigates immediately, no intermediate async gap)
           navigatorKey.currentState?.pushAndRemoveUntil(
             _route(LocationLoadingScreen(
               token: tok, name: nm, phone: ph, userId: uid,
@@ -550,7 +559,7 @@ class MyApp extends StatelessWidget {
   /// Called both from post-OTP flow and from Switch Mode.
   /// [merchantToken] — pass if we already have a valid merchant token (e.g. splash restore).
   /// [phone] — used to issue a fresh merchant token when switching from user mode.
-  static void _goMerchantViaUnified({
+  static Future<void> _goMerchantViaUnified({
     String? merchantToken,
     required String phone,
     required String name,
@@ -3199,7 +3208,7 @@ class _CategoryCard extends StatelessWidget {
     String _rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     // Resolve relative URLs to absolute
     if (_rawImg.isNotEmpty && _rawImg.startsWith("/")) {
-      _rawImg = "$kBaseUrl$_rawImg";
+      _rawImg = "https://offro-backend-production.up.railway.app$_rawImg";
     }
     final bool _isBase64 = _rawImg.startsWith("data:image");
     final bool _isHttp   = _rawImg.startsWith("http://") || _rawImg.startsWith("https://");
@@ -3797,7 +3806,7 @@ class _PinCard extends StatelessWidget {
     // ── Image resolution ──
     String rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     if (rawImg.isNotEmpty && rawImg.startsWith("/")) {
-      rawImg = "$kBaseUrl$rawImg";
+      rawImg = "https://offro-backend-production.up.railway.app$rawImg";
     }
     final bool isBase64 = rawImg.startsWith("data:image");
     final bool isHttp   = rawImg.startsWith("http://") || rawImg.startsWith("https://");

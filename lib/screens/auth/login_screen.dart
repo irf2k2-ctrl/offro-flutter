@@ -812,7 +812,7 @@ class _ModeTile extends StatelessWidget {
 // Single phone input → OTP → Continue As
 // ══════════════════════════════════════════════════════════════════════════════
 class LoginScreen extends StatefulWidget {
-  final void Function(String token, String name, String phone, String userId, String role)? onSuccess;
+  final Future<void> Function(String token, String name, String phone, String userId, String role)? onSuccess;
   final void Function()? onGuest;
   const LoginScreen({super.key, this.onSuccess, this.onGuest});
   @override State<LoginScreen> createState() => _LoginState();
@@ -955,7 +955,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     // goHome) already calls pushAndRemoveUntil((r) => false) which clears the
     // entire stack including OtpScreen and ContinueAsScreen.
     if (mounted && widget.onSuccess != null) {
-      widget.onSuccess!(token, name, phone, userId, role);
+      await widget.onSuccess!(token, name, phone, userId, role);
     }
   }
 
