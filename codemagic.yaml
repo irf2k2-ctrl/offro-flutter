@@ -32,6 +32,7 @@ workflows:
         script: |
           flutter build ipa \
             --release \
+            --dart-define=API_BASE_URL=https://offro-backend-production.up.railway.app \
             --export-options-plist /Users/builder/export_options.plist
 
     artifacts:
