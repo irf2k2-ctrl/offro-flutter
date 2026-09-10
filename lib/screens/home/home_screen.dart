@@ -21,6 +21,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/fav_state.dart';
+import 'influencer_section.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/services/fcm_service.dart';
 import '../../core/services/app_nav.dart';
@@ -1472,6 +1473,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       token: widget.token,
                       defaultProductImageUrl: _defaultProductImageUrl,
                     )),
+
+                    // ══════ 6b. CITY INFLUENCERS (new — mock data, UI-only step) ══════
+                    SliverToBoxAdapter(child: CityInfluencersSection(city: city)),
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
                     SliverToBoxAdapter(child: _PromoSliderSection(
