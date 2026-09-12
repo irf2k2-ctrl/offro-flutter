@@ -34,6 +34,7 @@ import 'screens/favorites/favorites_page.dart';
 import 'screens/detail/detail_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
+import 'screens/home/influencer_section.dart';
 import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
@@ -2022,6 +2023,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       token: widget.token,
                       defaultProductImageUrl: _defaultProductImageUrl,
                     )),
+
+                    // ══════ 6b. CITY INFLUENCERS (reuses screens/home/influencer_section.dart) ══════
+                    SliverToBoxAdapter(child: CityInfluencersSection(city: city)),
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
