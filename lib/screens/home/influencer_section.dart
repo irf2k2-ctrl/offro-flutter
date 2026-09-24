@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 
@@ -123,13 +129,31 @@ Widget _ratingRow(Map influencer, {double fontSize = 11}) {
 Widget _avatar(Map influencer, double size) {
   final name = influencer["name"]?.toString() ?? "?";
   final photoUrl = influencer["photo_url"]?.toString() ?? "";
-  if (photoUrl.startsWith("http") || photoUrl.startsWith("data:")) {
-    // Real photo path — ready for when mock data is replaced with real URLs.
+  if (photoUrl.startsWith("http")) {
+    // FIX (Item 7 — uploaded photo not appearing): the rest of the app
+    // exclusively uses CachedNetworkImage for network photos (see
+    // store_cards.dart) — this was the one place still using plain
+    // Image.network, which behaves differently in this app's environment.
     return ClipRRect(
       borderRadius: BorderRadius.circular(size / 2),
-      child: Image.network(photoUrl, width: size, height: size, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _avatarFallback(name, size)),
+      child: CachedNetworkImage(
+        imageUrl: photoUrl, width: size, height: size, fit: BoxFit.cover,
+        placeholder: (_, __) => _avatarFallback(name, size),
+        errorWidget: (_, __, ___) => _avatarFallback(name, size),
+      ),
     );
+  }
+  if (photoUrl.startsWith("data:")) {
+    try {
+      final b64 = photoUrl.split(",").last;
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(size / 2),
+        child: Image.memory(base64Decode(b64), width: size, height: size, fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _avatarFallback(name, size)),
+      );
+    } catch (_) {
+      return _avatarFallback(name, size);
+    }
   }
   return _avatarFallback(name, size);
 }
@@ -151,41 +175,6 @@ String _shareText(Map influencer) {
   return "Check out $name on OffrO\n$city • ⭐ $rating";
 }
 
-/// Follow button. Local-only state for this step (no backend to persist
-/// to yet) — resets on rebuild, which is expected until the real API
-/// (follow/unfollow endpoint) exists.
-class _FollowButton extends StatefulWidget {
-  final bool small;
-  const _FollowButton({this.small = false});
-  @override
-  State<_FollowButton> createState() => _FollowButtonState();
-}
-
-class _FollowButtonState extends State<_FollowButton> {
-  bool _following = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => setState(() => _following = !_following),
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.small ? 10 : 16, vertical: widget.small ? 4 : 8),
-        decoration: BoxDecoration(
-          color: _following ? kPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(widget.small ? 8 : 10),
-          border: Border.all(color: kPrimary, width: 1),
-        ),
-        child: Text(_following ? "Following" : "Follow",
-          style: TextStyle(
-            fontSize: widget.small ? 11 : 13,
-            fontWeight: FontWeight.w700,
-            color: _following ? Colors.white : kPrimary,
-          )),
-      ),
-    );
-  }
-}
-
 /// Home screen card — used inside the horizontal "City Influencers" row.
 class _InfluencerCard extends StatelessWidget {
   final Map<String, dynamic> influencer;
@@ -194,8 +183,6 @@ class _InfluencerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = influencer["name"]?.toString() ?? "";
-    final city = influencer["city"]?.toString() ?? "";
-    final social = (influencer["social"] is Map) ? influencer["social"] as Map : {};
 
     return GestureDetector(
       onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: influencer))),
@@ -209,27 +196,17 @@ class _InfluencerCard extends StatelessWidget {
           border: Border.all(color: kBorder),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Stack(children: [
-            AspectRatio(aspectRatio: 1, child: _avatar(influencer, 108)),
-            Positioned(
-              top: 4, right: 4,
-              child: Container(
-                width: 20, height: 20,
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                alignment: Alignment.center,
-                child: _socialIcons(social, size: 11),
-              ),
-            ),
-          ]),
+          // Items 8 & 9: no social-icon overlay and no city on the Home
+          // card — both were removed here specifically; the profile screen
+          // still shows city and social links in full.
+          AspectRatio(aspectRatio: 1, child: _avatar(influencer, 108)),
           const SizedBox(height: 8),
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
-          Text(city, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, color: kMuted)),
           const SizedBox(height: 4),
           _ratingRow(influencer),
-          const SizedBox(height: 8),
-          SizedBox(width: double.infinity, child: Center(child: _FollowButton(small: true))),
+          // Item 10: Follow button removed — it was local-UI-only and never
+          // actually persisted a follow relationship anywhere.
         ]),
       ),
     );
@@ -380,7 +357,6 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                             Row(children: [
                               Expanded(child: Text(inf["name"]?.toString() ?? "",
                                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText))),
-                              const _FollowButton(small: true),
                             ]),
                             const SizedBox(height: 2),
                             Text("${inf["city"] ?? ""} · ${inf["category"] ?? ""}",
@@ -412,6 +388,11 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
   int _myStars = 0;
   final _reviewC = TextEditingController();
   List<Map<String, dynamic>> _reviews = [];
+
+  // Item 12: branded share card — captured off-screen via RepaintBoundary,
+  // same pattern already used for store sharing (see detail_page.dart).
+  final GlobalKey _shareCardKey = GlobalKey();
+  bool _sharing = false;
 
   // In-session-only aggregate display (never sent to a backend). Seeded
   // from the influencer's initial rating/review_count, then recomputed
@@ -458,6 +439,44 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
       const SnackBar(content: Text("Thanks for your review!")));
   }
 
+  // Item 12: capture the off-screen branded card (built in build() below,
+  // inside an Offstage) as a PNG, matching the exact RepaintBoundary
+  // pattern already used for store sharing (detail_page.dart).
+  Future<Uint8List?> _captureShareCard() async {
+    try {
+      final boundary = _shareCardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+      final image = await boundary.toImage(pixelRatio: 2.5);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _shareBrandedCard() async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    final inf = widget.influencer;
+    final name = inf["name"]?.toString() ?? "";
+    try {
+      // Give the Offstage card a frame to lay out before capturing.
+      await Future.delayed(const Duration(milliseconds: 50));
+      final bytes = await _captureShareCard();
+      if (bytes != null) {
+        final tmpDir = await getTemporaryDirectory();
+        final file = File("${tmpDir.path}/offro_influencer_share.png");
+        await file.writeAsBytes(bytes);
+        await Share.shareXFiles([XFile(file.path)], text: _shareText(inf));
+      } else {
+        await Share.share(_shareText(inf), subject: "OffrO – $name");
+      }
+    } catch (_) {
+      await Share.share(_shareText(inf), subject: "OffrO – $name");
+    }
+    if (mounted) setState(() => _sharing = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final inf = widget.influencer;
@@ -474,12 +493,15 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
         title: Text(name, style: const TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.share_rounded, color: kText),
-            onPressed: () => Share.share(_shareText(inf), subject: "OffrO – $name"),
+            icon: _sharing
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))
+                : const Icon(Icons.share_rounded, color: kText),
+            onPressed: _sharing ? null : _shareBrandedCard,
           ),
         ],
       ),
-      body: ListView(
+      body: Stack(children: [
+        ListView(
         padding: const EdgeInsets.all(20),
         children: [
           Center(child: _avatar(inf, 100)),
@@ -491,16 +513,10 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
           const SizedBox(height: 8),
           Center(child: _ratingRow({"rating": _displayRating, "review_count": _displayReviewCount}, fontSize: 13)),
           const SizedBox(height: 16),
-          Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const _FollowButton(),
-            const SizedBox(width: 10),
-            OutlinedButton.icon(
-              onPressed: () => Share.share(_shareText(inf), subject: "OffrO – $name"),
-              icon: const Icon(Icons.ios_share_rounded, size: 16, color: kPrimary),
-              label: const Text("Share Profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
-              style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
-            ),
-          ])),
+          // Item 10: Follow button removed (was local-only, never real).
+          // Item 11: body "Share Profile" button removed — only the AppBar
+          // share icon remains, now producing a branded share image
+          // (see _buildAndShareCard below) instead of plain text.
 
           if (about.isNotEmpty) ...[
             const SizedBox(height: 24),
@@ -564,7 +580,79 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
           else
             ..._reviews.take(2).map((r) => _reviewTile(r)),
         ],
-      ),
+        ),
+        // Off-screen branded share card — laid out and paintable, but never
+        // visible to the user. Captured on demand by _shareBrandedCard().
+        // Contains only public fields (name, category, rating, photo) — no
+        // phone number, no internal ID, no API URL, nothing technical.
+        Offstage(
+          offstage: true,
+          child: RepaintBoundary(
+            key: _shareCardKey,
+            child: Material(
+              child: Container(
+                width: 360,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF3E5F55), Color(0xFF253D35)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  ),
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Row(children: [
+                    Expanded(
+                      child: Text(name,
+                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Text("OFFRO", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+                  Center(child: _avatar(inf, 88)),
+                  const SizedBox(height: 16),
+                  if ((inf["category"]?.toString() ?? "").isNotEmpty)
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(color: const Color(0xFFCDEBD6), borderRadius: BorderRadius.circular(20)),
+                        child: Text(inf["category"].toString(),
+                          style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 11, fontWeight: FontWeight.w800)),
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 18),
+                    const SizedBox(width: 4),
+                    Text(_displayRating.toStringAsFixed(1),
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                    const SizedBox(width: 4),
+                    Text("(${_displayReviewCount} reviews)",
+                      style: const TextStyle(color: Color(0xFFA9CDBA), fontSize: 12)),
+                  ])),
+                  const SizedBox(height: 20),
+                  Container(height: 1, color: Colors.white12),
+                  const SizedBox(height: 12),
+                  const Row(children: [
+                    Icon(Icons.download_rounded, color: Color(0xFFA9CDBA), size: 12),
+                    SizedBox(width: 5),
+                    Text("Discover creators • OFFRO",
+                      style: TextStyle(color: Color(0xFFA9CDBA), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                  ]),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
