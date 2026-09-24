@@ -1,79 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/services/api_service.dart';
 
 // ══════════════════════════════════════════════════════════
-// INFLUENCER MODULE — Step 1: Home Screen UI only, mock data.
+// INFLUENCER MODULE — connected to the real backend (Phase 2/3).
 //
-// FUTURE API SWAP: every screen/widget below reads influencer data through
-// fetchInfluencers() at the bottom of this file. When the real backend
-// exists, that single function is the only place that needs to change
-// (swap its body for `Api.getInfluencers(city: city)`, matching the same
-// field names already used here) — no other widget in this file, and
-// nothing in home_screen.dart, needs to change.
+// Every screen/widget below reads influencer data through
+// fetchInfluencers() immediately below. This used to return mock data;
+// it now calls the real, backend-authoritative public endpoint
+// (GET /influencers?city=...) via Api.getInfluencers(). No other widget
+// in this file, and nothing in main.dart, needed to change — this was
+// the one seam the whole module was built around.
 //
-// PRIVACY: the influencer data model deliberately has NO phone/mobile
-// field anywhere — not hidden, not omitted from display, genuinely never
-// modeled — so there is nothing that could accidentally leak onto a card
-// or profile later.
+// PRIVACY: the public API response (see routers/public.py) never includes
+// a phone field — it's stripped server-side before this ever reaches the
+// client, not merely hidden here.
 // ══════════════════════════════════════════════════════════
 
-/// Mock data provider. Returns the same shape the real `/influencers`
-/// endpoint is expected to return later (see class docs above).
-/// [city] is accepted now so call sites don't need to change when this
-/// becomes a real network call — the mock simply filters in-memory.
+/// [city] is required — the backend does the actual city filtering
+/// (case-insensitive, escaped regex) and only ever returns active
+/// influencers for that exact city. No client-side fallback to another
+/// city exists anywhere in this file; an empty/failed response simply
+/// means "no influencers for this city," which callers already render
+/// correctly (CityInfluencersSection hides the section entirely;
+/// InfluencerListingScreen shows the existing "No influencers available
+/// in {city} yet" empty state).
 Future<List<Map<String, dynamic>>> fetchInfluencers({required String city}) async {
-  final all = _mockInfluencers;
-  final matches = all.where((i) => i["city"].toString().toLowerCase() == city.toLowerCase()).toList();
-  // Fallback so the section/listing still shows something on devices whose
-  // selected city has no mock influencer yet — real API won't need this.
-  return matches.isNotEmpty ? matches : all;
+  final raw = await Api.getInfluencers(city: city);
+  return raw.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 }
-
-final List<Map<String, dynamic>> _mockInfluencers = [
-  {
-    "id": "inf_mock_001",
-    "name": "Priya Sharma",
-    "city": "Chennai",
-    "category": "Lifestyle & Food",
-    "photo_url": "",
-    "rating": 4.8,
-    "review_count": 126,
-    "social": {
-      "instagram": "https://instagram.com/priya.mock",
-      "youtube": "",
-      "facebook": "",
-    },
-  },
-  {
-    "id": "inf_mock_002",
-    "name": "Arjun Vlogs",
-    "city": "Chennai",
-    "category": "Travel & Tech",
-    "photo_url": "",
-    "rating": 4.6,
-    "review_count": 84,
-    "social": {
-      "instagram": "https://instagram.com/arjun.mock",
-      "youtube": "https://youtube.com/@arjun.mock",
-      "facebook": "",
-    },
-  },
-  {
-    "id": "inf_mock_003",
-    "name": "Meera Fashion",
-    "city": "Chennai",
-    "category": "Fashion & Beauty",
-    "photo_url": "",
-    "rating": 4.9,
-    "review_count": 203,
-    "social": {
-      "instagram": "https://instagram.com/meera.mock",
-      "youtube": "",
-      "facebook": "https://facebook.com/meera.mock",
-    },
-  },
-];
 
 Color _avatarColor(String seed) {
   final palette = [kLight, kBeige, kAccent];
@@ -81,8 +38,8 @@ Color _avatarColor(String seed) {
   return palette[idx];
 }
 
-// Local route helper — home_screen.dart's `_route` is file-private and not
-// visible here, so this mirrors it exactly for this file's own navigation.
+// Local route helper — main.dart/home_screen.dart's own `_route` is
+// file-private and not visible here, so this mirrors it for this file.
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
 Future<void> _openSocial(String? url) async {
@@ -112,6 +69,43 @@ Widget _socialIcons(Map social, {double size = 16}) {
   addIfPresent("youtube", Icons.play_circle_fill_rounded, const Color(0xFFE24B4A));
   addIfPresent("facebook", Icons.facebook_rounded, const Color(0xFF378ADD));
   return Row(mainAxisSize: MainAxisSize.min, children: icons);
+}
+
+/// Polished social row for the profile screen — icon + platform name +
+/// chevron, tappable, using the same _openSocial launcher as the compact
+/// icon row above.
+Widget _socialRow(Map social) {
+  final rows = <Widget>[];
+  void addIfPresent(String key, String label, IconData icon, Color color) {
+    final url = social[key]?.toString() ?? "";
+    if (url.isEmpty) return;
+    rows.add(InkWell(
+      onTap: () => _openSocial(url),
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Row(children: [
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(color: color.withValues(alpha: .12), shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText)),
+          const Spacer(),
+          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: kMuted),
+        ]),
+      ),
+    ));
+  }
+  addIfPresent("instagram", "Instagram", Icons.camera_alt_rounded, const Color(0xFFD4537E));
+  addIfPresent("youtube", "YouTube", Icons.play_circle_fill_rounded, const Color(0xFFE24B4A));
+  addIfPresent("facebook", "Facebook", Icons.facebook_rounded, const Color(0xFF378ADD));
+  if (rows.isEmpty) {
+    return const Text("No social links added yet", style: TextStyle(fontSize: 12, color: kMuted));
+  }
+  return Column(children: rows);
 }
 
 Widget _ratingRow(Map influencer, {double fontSize = 11}) {
@@ -150,6 +144,13 @@ Widget _avatarFallback(String name, double size) {
   );
 }
 
+String _shareText(Map influencer) {
+  final name = influencer["name"]?.toString() ?? "";
+  final city = influencer["city"]?.toString() ?? "";
+  final rating = (influencer["rating"] as num?)?.toStringAsFixed(1) ?? "-";
+  return "Check out $name on OffrO\n$city • ⭐ $rating";
+}
+
 /// Follow button. Local-only state for this step (no backend to persist
 /// to yet) — resets on rebuild, which is expected until the real API
 /// (follow/unfollow endpoint) exists.
@@ -168,15 +169,15 @@ class _FollowButtonState extends State<_FollowButton> {
     return GestureDetector(
       onTap: () => setState(() => _following = !_following),
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.small ? 10 : 12, vertical: widget.small ? 4 : 5),
+        padding: EdgeInsets.symmetric(horizontal: widget.small ? 10 : 16, vertical: widget.small ? 4 : 8),
         decoration: BoxDecoration(
           color: _following ? kPrimary : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(widget.small ? 8 : 10),
           border: Border.all(color: kPrimary, width: 1),
         ),
         child: Text(_following ? "Following" : "Follow",
           style: TextStyle(
-            fontSize: widget.small ? 11 : 12,
+            fontSize: widget.small ? 11 : 13,
             fontWeight: FontWeight.w700,
             color: _following ? Colors.white : kPrimary,
           )),
@@ -235,9 +236,7 @@ class _InfluencerCard extends StatelessWidget {
   }
 }
 
-/// City Influencers — home screen section. Placed immediately after
-/// Discover Products (see home_screen.dart). Mirrors the header layout
-/// already used by _NearbyStoresSection for visual consistency.
+/// City Influencers — home screen section.
 class CityInfluencersSection extends StatefulWidget {
   final String city;
   const CityInfluencersSection({super.key, required this.city});
@@ -269,6 +268,9 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
   @override
   Widget build(BuildContext context) {
     final influencers = _influencers;
+    // Section stays hidden on the home feed when there's nothing for this
+    // city — the dedicated listing screen (via View All) is where an
+    // explicit "no influencers yet" message is shown instead.
     if (influencers == null || influencers.isEmpty) return const SizedBox.shrink();
 
     return Padding(
@@ -347,7 +349,18 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
       body: influencers == null
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
           : influencers.isEmpty
-              ? Center(child: Text("No influencers in ${widget.city} yet", style: const TextStyle(color: kMuted)))
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.person_search_rounded, size: 40, color: kMuted),
+                      const SizedBox(height: 10),
+                      Text("No influencers available in ${widget.city} yet",
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: influencers.length,
@@ -367,7 +380,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                             Row(children: [
                               Expanded(child: Text(inf["name"]?.toString() ?? "",
                                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText))),
-                              const _FollowButton(),
+                              const _FollowButton(small: true),
                             ]),
                             const SizedBox(height: 2),
                             Text("${inf["city"] ?? ""} · ${inf["category"] ?? ""}",
@@ -386,40 +399,217 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
   }
 }
 
-/// Minimal profile screen — reached by tapping a card. Kept intentionally
-/// simple for this UI-only step; will grow once real data/reviews exist.
-class InfluencerProfileScreen extends StatelessWidget {
+/// Polished influencer profile screen.
+class InfluencerProfileScreen extends StatefulWidget {
   final Map<String, dynamic> influencer;
   const InfluencerProfileScreen({super.key, required this.influencer});
 
   @override
+  State<InfluencerProfileScreen> createState() => _InfluencerProfileScreenState();
+}
+
+class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
+  int _myStars = 0;
+  final _reviewC = TextEditingController();
+  List<Map<String, dynamic>> _reviews = [];
+
+  // In-session-only aggregate display (never sent to a backend). Seeded
+  // from the influencer's initial rating/review_count, then recomputed
+  // locally whenever the user submits a review here, so the header stays
+  // consistent with the review list for the rest of this screen's life.
+  late double _displayRating;
+  late int _displayReviewCount;
+
+  @override
+  void initState() {
+    super.initState();
+    final raw = widget.influencer["reviews"];
+    _reviews = raw is List ? List<Map<String, dynamic>>.from(raw) : [];
+    _displayRating = (widget.influencer["rating"] as num?)?.toDouble() ?? 0.0;
+    _displayReviewCount = (widget.influencer["review_count"] as num?)?.toInt() ?? 0;
+  }
+
+  @override
+  void dispose() {
+    _reviewC.dispose();
+    super.dispose();
+  }
+
+  void _submitReview() {
+    if (_myStars == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a star rating first")));
+      return;
+    }
+    // UI-only for this step — not persisted to any backend. Updates the
+    // in-session review list AND recomputes the displayed aggregate
+    // rating/count the same way the backend eventually will (simple
+    // running average), so the header and the review list stay consistent
+    // with each other for the rest of this session.
+    setState(() {
+      _reviews.insert(0, {"user": "You", "rating": _myStars, "text": _reviewC.text.trim()});
+      final newCount = _displayReviewCount + 1;
+      _displayRating = ((_displayRating * _displayReviewCount) + _myStars) / newCount;
+      _displayReviewCount = newCount;
+      _myStars = 0;
+      _reviewC.clear();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Thanks for your review!")));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final social = (influencer["social"] is Map) ? influencer["social"] as Map : {};
+    final inf = widget.influencer;
+    final social = (inf["social"] is Map) ? inf["social"] as Map : {};
+    final about = inf["about"]?.toString() ?? "";
+    final name = inf["name"]?.toString() ?? "";
+
     return Scaffold(
       backgroundColor: kBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: kText),
-        title: Text(influencer["name"]?.toString() ?? "Influencer",
-          style: const TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
+        title: Text(name, style: const TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share_rounded, color: kText),
+            onPressed: () => Share.share(_shareText(inf), subject: "OffrO – $name"),
+          ),
+        ],
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Center(child: _avatar(influencer, 96)),
+        children: [
+          Center(child: _avatar(inf, 100)),
           const SizedBox(height: 14),
-          Center(child: Text(influencer["name"]?.toString() ?? "",
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: kText))),
-          Center(child: Text("${influencer["city"] ?? ""} · ${influencer["category"] ?? ""}",
+          Center(child: Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kText))),
+          const SizedBox(height: 2),
+          Center(child: Text("${inf["city"] ?? ""} · ${inf["category"] ?? ""}",
             style: const TextStyle(fontSize: 13, color: kMuted))),
-          const SizedBox(height: 10),
-          Center(child: _ratingRow(influencer, fontSize: 13)),
+          const SizedBox(height: 8),
+          Center(child: _ratingRow({"rating": _displayRating, "review_count": _displayReviewCount}, fontSize: 13)),
           const SizedBox(height: 16),
-          Center(child: _socialIcons(social, size: 22)),
-          const SizedBox(height: 20),
-          Center(child: _FollowButton()),
-        ]),
+          Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const _FollowButton(),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              onPressed: () => Share.share(_shareText(inf), subject: "OffrO – $name"),
+              icon: const Icon(Icons.ios_share_rounded, size: 16, color: kPrimary),
+              label: const Text("Share Profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8)),
+            ),
+          ])),
+
+          if (about.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const Text("About", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+            const SizedBox(height: 6),
+            Text(about, style: const TextStyle(fontSize: 13, color: kText, height: 1.4)),
+          ],
+
+          const SizedBox(height: 24),
+          const Text("Social", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+          const SizedBox(height: 4),
+          _socialRow(social),
+
+          const SizedBox(height: 24),
+          const Text("Rate this influencer", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+          const SizedBox(height: 8),
+          Row(children: List.generate(5, (i) {
+            final filled = i < _myStars;
+            return GestureDetector(
+              onTap: () => setState(() => _myStars = i + 1),
+              child: Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(filled ? Icons.star_rounded : Icons.star_border_rounded,
+                  size: 30, color: const Color(0xFFFFB800)),
+              ),
+            );
+          })),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _reviewC,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: "Share your experience (optional)",
+              filled: true, fillColor: Colors.white,
+              contentPadding: const EdgeInsets.all(12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(width: double.infinity, child: ElevatedButton(
+            onPressed: _submitReview,
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            child: const Text("Submit Review", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          )),
+
+          const SizedBox(height: 24),
+          Row(children: [
+            const Text("Reviews", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+            const Spacer(),
+            if (_reviews.length > 2)
+              GestureDetector(
+                onTap: () => Navigator.push(context, _route(_InfluencerReviewsScreen(name: name, reviews: _reviews))),
+                child: Text("See all (${_reviews.length})",
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kPrimary)),
+              ),
+          ]),
+          const SizedBox(height: 6),
+          if (_reviews.isEmpty)
+            const Text("No reviews yet", style: TextStyle(fontSize: 12, color: kMuted))
+          else
+            ..._reviews.take(2).map((r) => _reviewTile(r)),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _reviewTile(Map review) {
+  final stars = (review["rating"] as num?)?.toInt() ?? 0;
+  return Container(
+    margin: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text(review["user"]?.toString() ?? "Anonymous", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
+        const Spacer(),
+        Row(children: List.generate(5, (i) => Icon(
+          i < stars ? Icons.star_rounded : Icons.star_border_rounded, size: 13, color: const Color(0xFFFFB800)))),
+      ]),
+      if ((review["text"]?.toString() ?? "").isNotEmpty) ...[
+        const SizedBox(height: 4),
+        Text(review["text"].toString(), style: const TextStyle(fontSize: 12, color: kText)),
+      ],
+    ]),
+  );
+}
+
+/// "See All Reviews" screen — UI only, backed by the same in-memory list.
+class _InfluencerReviewsScreen extends StatelessWidget {
+  final String name;
+  final List<Map<String, dynamic>> reviews;
+  const _InfluencerReviewsScreen({required this.name, required this.reviews});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        iconTheme: const IconThemeData(color: kText),
+        title: Text("Reviews for $name", style: const TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 16)),
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: reviews.length,
+        itemBuilder: (ctx, i) => _reviewTile(reviews[i]),
       ),
     );
   }

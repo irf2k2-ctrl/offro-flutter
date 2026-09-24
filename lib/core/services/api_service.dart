@@ -405,6 +405,27 @@ class Api {
     return [];
   }
 
+  static Future<List> getInfluencers({required String city}) async {
+    // Public City Influencers endpoint — same call shape/error-swallowing
+    // convention as getPublicProducts above. Returns [] on any failure so a
+    // network hiccup degrades to "no influencers shown" rather than a
+    // visible error on the Home Screen.
+    final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
+    try {
+      final raw = await _get("/influencers$cityParam").timeout(const Duration(seconds: 10));
+      if (raw is List) return raw;
+    } catch (_) {}
+    return [];
+  }
+
+  static Future<Map<String,dynamic>?> getInfluencerProfile(String id) async {
+    try {
+      final raw = await _get("/influencers/$id").timeout(const Duration(seconds: 10));
+      if (raw is Map) return Map<String,dynamic>.from(raw);
+    } catch (_) {}
+    return null;
+  }
+
   static Future<List<Map<String,dynamic>>> fetchPublicProducts({String city = ''}) async {
     // Reads from Admin Dashboard → Products module (gift_vouchers + products collections)
     final cacheKey = "public_products_${city.trim().toLowerCase()}";
