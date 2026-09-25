@@ -2025,7 +2025,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                     )),
 
                     // ══════ 6b. CITY INFLUENCERS (reuses screens/home/influencer_section.dart) ══════
-                    SliverToBoxAdapter(child: CityInfluencersSection(city: city)),
+                    SliverToBoxAdapter(child: CityInfluencersSection(city: city, token: widget.token)),
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),

@@ -179,17 +179,22 @@ String _shareText(Map influencer) {
 /// Home screen card — used inside the horizontal "City Influencers" row.
 class _InfluencerCard extends StatelessWidget {
   final Map<String, dynamic> influencer;
-  const _InfluencerCard({required this.influencer});
+  final String token;
+  const _InfluencerCard({required this.influencer, required this.token});
 
   @override
   Widget build(BuildContext context) {
     final name = influencer["name"]?.toString() ?? "";
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: influencer))),
+      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: influencer, token: token))),
       child: Container(
-        width: 128,
-        margin: const EdgeInsets.only(right: 10),
+        // Item 1: matches Discover Products' card width (155) and right
+        // margin (12) exactly (see _DiscoverProductsSection in main.dart).
+        // The row height is set to 170 at the SizedBox wrapper in
+        // CityInfluencersSection below, also matching Discover Products.
+        width: 155,
+        margin: const EdgeInsets.only(right: 12),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -200,7 +205,11 @@ class _InfluencerCard extends StatelessWidget {
           // Items 8 & 9: no social-icon overlay and no city on the Home
           // card — both were removed here specifically; the profile screen
           // still shows city and social links in full.
-          AspectRatio(aspectRatio: 1, child: _avatar(influencer, 108)),
+          // Avatar kept at its exact existing explicit size (108) — NOT
+          // wrapped in AspectRatio anymore, since AspectRatio would stretch
+          // it to fill the new, wider card. Centered instead so only the
+          // card grew, not the avatar.
+          Center(child: _avatar(influencer, 108)),
           const SizedBox(height: 8),
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
@@ -217,7 +226,8 @@ class _InfluencerCard extends StatelessWidget {
 /// City Influencers — home screen section.
 class CityInfluencersSection extends StatefulWidget {
   final String city;
-  const CityInfluencersSection({super.key, required this.city});
+  final String token;
+  const CityInfluencersSection({super.key, required this.city, this.token = ""});
 
   @override
   State<CityInfluencersSection> createState() => _CityInfluencersSectionState();
@@ -254,37 +264,60 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: Row(children: [
-            const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text("City influencers", style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
-              Text("Discover creators from your city", style: TextStyle(color: kMuted, fontSize: 12)),
-            ]),
-            const Spacer(),
-            GestureDetector(
-              onTap: () => Navigator.push(context, _route(InfluencerListingScreen(city: widget.city))),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(12)),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text("View all", style: TextStyle(color: kPrimary, fontSize: 11, fontWeight: FontWeight.w700)),
-                  SizedBox(width: 2),
-                  Icon(Icons.arrow_forward_rounded, size: 12, color: kPrimary),
-                ]),
-              ),
-            ),
-          ]),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Text("City influencers", style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
         ),
-        const SizedBox(height: 10),
+        // Item 1: row height matches Discover Products (170) exactly.
         SizedBox(
-          height: 210,
+          height: 170,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            itemCount: influencers.length,
-            itemBuilder: (ctx, i) => _InfluencerCard(influencer: influencers[i]),
+            // Item 3: "See All" trailing card replaces the old "View all →"
+            // header pill — same +1/itemCount pattern _DiscoverProductsSection
+            // uses for its own trailing See All card.
+            itemCount: influencers.length + 1,
+            itemBuilder: (ctx, i) {
+              if (i == influencers.length) {
+                // Exact visual/size/interaction match of Discover Products'
+                // trailing See All card (see _DiscoverProductsSection in
+                // main.dart) — only the destination differs.
+                return GestureDetector(
+                  onTap: () => Navigator.push(context, _route(InfluencerListingScreen(city: widget.city, token: widget.token))),
+                  child: Center(
+                    child: Container(
+                      width: 52, height: 120,
+                      margin: const EdgeInsets.only(left: 4, right: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
+                        boxShadow: [BoxShadow(
+                          color: Colors.black.withValues(alpha: .08),
+                          blurRadius: 8, offset: const Offset(0, 3))],
+                      ),
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Container(
+                          width: 22, height: 22,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFe8f4ef),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.add_rounded, color: Color(0xFF3E5F55), size: 14),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text("See All",
+                          style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800),
+                          textAlign: TextAlign.center),
+                      ]),
+                    ),
+                  ),
+                );
+              }
+              return _InfluencerCard(influencer: influencers[i], token: widget.token);
+            },
           ),
         ),
       ]),
@@ -296,7 +329,8 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
 /// data source as the home section, filtered by the same city.
 class InfluencerListingScreen extends StatefulWidget {
   final String city;
-  const InfluencerListingScreen({super.key, required this.city});
+  final String token;
+  const InfluencerListingScreen({super.key, required this.city, this.token = ""});
 
   @override
   State<InfluencerListingScreen> createState() => _InfluencerListingScreenState();
@@ -346,7 +380,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                     final inf = influencers[i];
                     final social = (inf["social"] is Map) ? inf["social"] as Map : {};
                     return GestureDetector(
-                      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: inf))),
+                      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: inf, token: widget.token))),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
@@ -379,7 +413,8 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
 /// Polished influencer profile screen.
 class InfluencerProfileScreen extends StatefulWidget {
   final Map<String, dynamic> influencer;
-  const InfluencerProfileScreen({super.key, required this.influencer});
+  final String token;
+  const InfluencerProfileScreen({super.key, required this.influencer, this.token = ""});
 
   @override
   State<InfluencerProfileScreen> createState() => _InfluencerProfileScreenState();
@@ -389,26 +424,53 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
   int _myStars = 0;
   final _reviewC = TextEditingController();
   List<Map<String, dynamic>> _reviews = [];
+  bool _loadingReviews = true;
+  bool _submittingReview = false;
+  String? _myReviewId; // non-null once we know the user already has a review
 
   // Item 12: branded share card — captured off-screen via RepaintBoundary,
   // same pattern already used for store sharing (see detail_page.dart).
   final GlobalKey _shareCardKey = GlobalKey();
   bool _sharing = false;
 
-  // In-session-only aggregate display (never sent to a backend). Seeded
-  // from the influencer's initial rating/review_count, then recomputed
-  // locally whenever the user submits a review here, so the header stays
-  // consistent with the review list for the rest of this screen's life.
+  // Item 4 fix: this used to be in-session-only state, seeded once from the
+  // influencer map passed in and never touching a backend — so a submitted
+  // review "disappeared" the moment the screen was reopened (nothing was
+  // ever actually saved). Now seeded the same way, but immediately
+  // refreshed from the real, persisted values once _loadReal() returns.
   late double _displayRating;
   late int _displayReviewCount;
+
+  String get _influencerId => widget.influencer["_id"]?.toString() ?? "";
 
   @override
   void initState() {
     super.initState();
-    final raw = widget.influencer["reviews"];
-    _reviews = raw is List ? List<Map<String, dynamic>>.from(raw) : [];
     _displayRating = (widget.influencer["rating"] as num?)?.toDouble() ?? 0.0;
     _displayReviewCount = (widget.influencer["review_count"] as num?)?.toInt() ?? 0;
+    _loadReal();
+  }
+
+  Future<void> _loadReal() async {
+    final id = _influencerId;
+    if (id.isEmpty) { if (mounted) setState(() => _loadingReviews = false); return; }
+    final results = await Future.wait([
+      Api.getInfluencerReviews(id),
+      widget.token.isNotEmpty ? Api.getMyInfluencerReview(widget.token, id) : Future.value(<String,dynamic>{}),
+    ]);
+    final reviewsResp = results[0];
+    final myReview = results[1];
+    if (!mounted) return;
+    setState(() {
+      final list = reviewsResp["reviews"];
+      _reviews = list is List ? List<Map<String, dynamic>>.from(list) : [];
+      if (myReview.isNotEmpty) {
+        _myReviewId = myReview["_id"]?.toString();
+        _myStars = (myReview["rating"] as num?)?.toInt() ?? 0;
+        _reviewC.text = myReview["text"]?.toString() ?? "";
+      }
+      _loadingReviews = false;
+    });
   }
 
   @override
@@ -417,28 +479,49 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
     super.dispose();
   }
 
-  void _submitReview() {
+  Future<void> _submitReview() async {
     if (_myStars == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please select a star rating first")));
       return;
     }
-    // UI-only for this step — not persisted to any backend. Updates the
-    // in-session review list AND recomputes the displayed aggregate
-    // rating/count the same way the backend eventually will (simple
-    // running average), so the header and the review list stay consistent
-    // with each other for the rest of this session.
-    setState(() {
-      _reviews.insert(0, {"user": "You", "rating": _myStars, "text": _reviewC.text.trim()});
-      final newCount = _displayReviewCount + 1;
-      _displayRating = ((_displayRating * _displayReviewCount) + _myStars) / newCount;
-      _displayReviewCount = newCount;
-      _myStars = 0;
-      _reviewC.clear();
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Thanks for your review!")));
+    if (widget.token.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please log in to submit a review")));
+      return;
+    }
+    if (_reviewC.text.trim().length < 3) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please write at least a few words")));
+      return;
+    }
+    final id = _influencerId;
+    if (id.isEmpty || _submittingReview) return;
+    setState(() => _submittingReview = true);
+    try {
+      // Item 4: real, authenticated, persisted submission — replaces the
+      // old local-only setState that never survived reopening the screen.
+      final result = await Api.submitInfluencerReview(widget.token, id, _myStars.toDouble(), _reviewC.text.trim());
+      if (mounted) {
+        setState(() {
+          _displayRating = (result["avg_rating"] as num?)?.toDouble() ?? _displayRating;
+          _displayReviewCount = (result["review_count"] as num?)?.toInt() ?? _displayReviewCount;
+        });
+        // Refresh the review list from the server so what's shown matches
+        // exactly what was persisted (including our own submission).
+        await _loadReal();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Thanks for your review!")));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))));
+      }
+    }
+    if (mounted) setState(() => _submittingReview = false);
   }
+
 
   // Item 12: capture the off-screen branded card (built in build() below,
   // inside an Offstage) as a PNG, matching the exact RepaintBoundary
@@ -558,10 +641,12 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
           ),
           const SizedBox(height: 10),
           SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: _submitReview,
+            onPressed: _submittingReview ? null : _submitReview,
             style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-            child: const Text("Submit Review", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            child: _submittingReview
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : Text(_myReviewId != null ? "Update Review" : "Submit Review", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           )),
 
           const SizedBox(height: 24),
@@ -576,7 +661,9 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
               ),
           ]),
           const SizedBox(height: 6),
-          if (_reviews.isEmpty)
+          if (_loadingReviews)
+            const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
+          else if (_reviews.isEmpty)
             const Text("No reviews yet", style: TextStyle(fontSize: 12, color: kMuted))
           else
             ..._reviews.take(2).map((r) => _reviewTile(r)),
@@ -666,7 +753,7 @@ Widget _reviewTile(Map review) {
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Text(review["user"]?.toString() ?? "Anonymous", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
+        Text((review["user_name"] ?? review["user"])?.toString() ?? "Anonymous", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
         const Spacer(),
         Row(children: List.generate(5, (i) => Icon(
           i < stars ? Icons.star_rounded : Icons.star_border_rounded, size: 13, color: const Color(0xFFFFB800)))),

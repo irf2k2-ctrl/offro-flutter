@@ -569,6 +569,31 @@ class Api {
     } catch (_) { return {}; }
   }
 
+  // ── Influencer Reviews (Item 4 — real persistence, mirrors Product Reviews exactly) ──
+  static Future<Map<String,dynamic>> submitInfluencerReview(
+      String token, String influencerId, double rating, String text) async {
+    return Map<String,dynamic>.from(await _post(
+      "/influencers/$influencerId/review",
+      {"rating": rating, "text": text},
+      token: token));
+  }
+
+  static Future<Map<String,dynamic>> getMyInfluencerReview(String token, String influencerId) async {
+    try {
+      final d = await _get("/influencers/$influencerId/my-review", token: token);
+      return d is Map ? Map<String,dynamic>.from(d) : {};
+    } catch (_) { return {}; }
+  }
+
+  static Future<Map<String,dynamic>> getInfluencerReviews(String influencerId, {int limit = 10, int skip = 0}) async {
+    try {
+      final d = await _get("/influencers/$influencerId/reviews?limit=$limit&skip=$skip");
+      return d is Map ? Map<String,dynamic>.from(d) : {"reviews": [], "total": 0};
+    } catch (_) {
+      return {"reviews": [], "total": 0};
+    }
+  }
+
   // ── Product Favorites ──
   static Future<List<String>> getProductFavorites(String token) async {
     try {
