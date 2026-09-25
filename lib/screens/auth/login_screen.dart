@@ -75,6 +75,31 @@ class _OtpScreenState extends State<OtpScreen> {
 
   String get _enteredOtp => _ctls.map((c) => c.text).join();
 
+  // Item 4: handles both a normal single-keystroke digit (unchanged
+  // auto-advance behavior) and a multi-character value inserted all at
+  // once by Android's SMS/autofill framework (AutofillHints.oneTimeCode),
+  // which would otherwise only land in whichever single box it targets.
+  void _handleOtpChange(int i, String v) {
+    if (v.length > 1) {
+      final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+      for (int j = 0; j < 4; j++) {
+        _ctls[j].text = j < digits.length ? digits[j] : '';
+      }
+      setState(() {});
+      if (_enteredOtp.length == 4) {
+        FocusScope.of(context).unfocus();
+        _verify();
+      } else if (digits.isNotEmpty) {
+        FocusScope.of(context).requestFocus(_foci[digits.length.clamp(0, 3)]);
+      }
+      return;
+    }
+    setState(() {});
+    if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_foci[i + 1]);
+    else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_foci[i - 1]);
+    if (_enteredOtp.length == 4) _verify();
+  }
+
   Future<void> _verify() async {
     final otp = _enteredOtp;
     if (otp.length < 4) {
@@ -166,7 +191,8 @@ class _OtpScreenState extends State<OtpScreen> {
                 style: TextStyle(color: Colors.white.withValues(alpha: .65), fontSize: 13, height: 1.5)),
               const SizedBox(height: 32),
               // OTP boxes
-              Row(
+              AutofillGroup(
+                child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(4, (i) => Container(
                   width: 60, height: 64,
@@ -182,17 +208,20 @@ class _OtpScreenState extends State<OtpScreen> {
                     controller: _ctls[i], focusNode: _foci[i],
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
-                    maxLength: 1,
+                    // Item 4: no maxLength here anymore — Android's SMS
+                    // autofill can insert the full detected code (e.g.
+                    // "1234") into whichever field it targets; a maxLength
+                    // of 1 would silently truncate that to a single digit.
+                    // _handleOtpChange below distributes a multi-character
+                    // value across all 4 boxes; a single keystroke behaves
+                    // exactly as before (unchanged auto-advance behavior).
+                    autofillHints: const [AutofillHints.oneTimeCode],
                     style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                     decoration: const InputDecoration(counterText: '', border: InputBorder.none),
-                    onChanged: (v) {
-                      setState(() {});
-                      if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_foci[i + 1]);
-                      else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_foci[i - 1]);
-                      if (_enteredOtp.length == 4) _verify();
-                    },
+                    onChanged: (v) => _handleOtpChange(i, v),
                   ),
                 )),
+                ),
               ),
               if (_msg.isNotEmpty) ...[
                 const SizedBox(height: 14),

@@ -1036,20 +1036,16 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _unreadNotifier.addListener(_onUnreadChanged);
     FavState.instance.addListener(_onFavChanged);
     // FIX 1: scroll listener for FAB visibility
-    double _lastScrollOffset = 0;
+    // Item 3: the "hide bottom nav on scroll down" behavior (previously
+    // toggling _navVisible here) has been removed — the existing bottom
+    // nav (Home | Deals | Scan | Search | Profile) now stays fixed/visible
+    // while Home content scrolls. _navVisible itself, its ValueNotifier,
+    // and the AnimatedPositioned that reads it are all untouched — this
+    // only removes what was setting it to false.
     _scrollCtrl.addListener(() {
       final offset = _scrollCtrl.offset;
       // FAB: show when scrolled down > 120px
       _fabVisible.value = offset > 120;
-      // Nav: hide when scrolling DOWN, show when scrolling UP or near top
-      if (offset <= 10) {
-        _navVisible.value = true;
-      } else if (offset > _lastScrollOffset + 8) {
-        _navVisible.value = false; // scrolling down
-      } else if (offset < _lastScrollOffset - 8) {
-        _navVisible.value = true;  // scrolling up
-      }
-      _lastScrollOffset = offset;
     });
     if (widget.preloadedStores.isNotEmpty) {
       _usePreloadedData(); // async — clears _loading when done
@@ -5498,8 +5494,11 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Text("Discover Products",
-            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Discover Products",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -5535,8 +5534,11 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Text("Discover Products",
-            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Discover Products",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
         ),
         SizedBox(
           height: 170, // reduced — title/price fonts are smaller now
@@ -6962,8 +6964,11 @@ class _PromoSliderSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Text("Featured Banners",
-            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Featured Banners",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Latest offers from our stores", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
         ),
         LayoutBuilder(
           builder: (context, constraints) {

@@ -135,22 +135,28 @@ Widget _avatar(Map influencer, double size) {
     // exclusively uses CachedNetworkImage for network photos (see
     // store_cards.dart) — this was the one place still using plain
     // Image.network, which behaves differently in this app's environment.
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(size / 2),
-      child: CachedNetworkImage(
-        imageUrl: photoUrl, width: size, height: size, fit: BoxFit.cover,
-        placeholder: (_, __) => _avatarFallback(name, size),
-        errorWidget: (_, __, ___) => _avatarFallback(name, size),
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kBorder, width: 1)),
+      child: ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: photoUrl, width: size, height: size, fit: BoxFit.cover,
+          placeholder: (_, __) => _avatarFallback(name, size, bordered: false),
+          errorWidget: (_, __, ___) => _avatarFallback(name, size, bordered: false),
+        ),
       ),
     );
   }
   if (photoUrl.startsWith("data:")) {
     try {
       final b64 = photoUrl.split(",").last;
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(size / 2),
-        child: Image.memory(base64Decode(b64), width: size, height: size, fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _avatarFallback(name, size)),
+      return Container(
+        width: size, height: size,
+        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kBorder, width: 1)),
+        child: ClipOval(
+          child: Image.memory(base64Decode(b64), width: size, height: size, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _avatarFallback(name, size, bordered: false)),
+        ),
       );
     } catch (_) {
       return _avatarFallback(name, size);
@@ -159,10 +165,19 @@ Widget _avatar(Map influencer, double size) {
   return _avatarFallback(name, size);
 }
 
-Widget _avatarFallback(String name, double size) {
+Widget _avatarFallback(String name, double size, {bool bordered = true}) {
   return Container(
     width: size, height: size,
-    decoration: BoxDecoration(shape: BoxShape.circle, color: _avatarColor(name)),
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: _avatarColor(name),
+      // Item 1: same thin border treatment as uploaded photos, using the
+      // existing app-wide kBorder color — no new color introduced. Skipped
+      // only when already nested inside a bordered Container above (the
+      // placeholder/error states of the photo paths), to avoid a doubled
+      // border in those transient cases.
+      border: bordered ? Border.all(color: kBorder, width: 1) : null,
+    ),
     alignment: Alignment.center,
     child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?",
       style: TextStyle(fontSize: size * 0.36, fontWeight: FontWeight.w800, color: kPrimary)),
@@ -266,7 +281,10 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Text("City influencers", style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("City influencers", style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Discover creators from your city", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
         ),
         // Item 1: row height matches Discover Products (170) exactly.
         SizedBox(
