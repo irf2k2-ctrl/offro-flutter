@@ -5334,6 +5334,15 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
                   final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
                   Navigator.of(context).pop(); // close profile
                   MyApp.goSwitchMode(token, name, phone, uid, 'user');
+                } else if (role == 'influencer') {
+                  // C4: Merchant → Influencer, same goSwitchMode dispatch
+                  // pattern as the User branch above.
+                  final token = widget.token;
+                  final name  = widget.merchant['name']?.toString() ?? '';
+                  final phone = widget.merchant['phone']?.toString() ?? '';
+                  final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
+                  Navigator.of(context).pop(); // close profile
+                  MyApp.goSwitchMode(token, name, phone, uid, 'influencer');
                 }
               },
             ),

@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../merchant/merchant_screens.dart' show kIndiaStates, kIndiaCities;
+import '../auth/login_screen.dart' show SwitchModeSheet;
 
 // ══════════════════════════════════════════════════════════
 // C2 — INFLUENCER MODULE (authenticated, owner-only)
@@ -57,7 +58,16 @@ String _friendlyError(Object e) {
 /// influencer_id.
 class InfluencerModuleScreen extends StatefulWidget {
   final String token;
-  const InfluencerModuleScreen({super.key, required this.token});
+  final String phone;
+  final String currentMode; // C4: needed for the Switch Mode entry point below
+  final void Function(String role)? onSwitchMode;
+  const InfluencerModuleScreen({
+    super.key,
+    required this.token,
+    this.phone = '',
+    this.currentMode = 'influencer',
+    this.onSwitchMode,
+  });
 
   @override
   State<InfluencerModuleScreen> createState() => _InfluencerModuleScreenState();
@@ -95,6 +105,26 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         elevation: 0.5,
         iconTheme: const IconThemeData(color: kText),
         title: const Text("Influencer", style: TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
+        actions: widget.onSwitchMode == null ? null : [
+          // C4: same Switch Mode sheet already used by User/Merchant —
+          // only wired here when a parent supplies onSwitchMode (main.dart
+          // does, for the real navigation flow).
+          IconButton(
+            icon: const Icon(Icons.swap_horiz_rounded, color: kText),
+            tooltip: "Switch Mode",
+            onPressed: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => SwitchModeSheet(
+                currentMode: widget.currentMode,
+                token: widget.token,
+                phone: widget.phone,
+                onSwitch: widget.onSwitchMode!,
+              ),
+            ),
+          ),
+        ],
       ),
       body: _buildBody(),
     );

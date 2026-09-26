@@ -386,6 +386,27 @@ class _ContinueAsState extends State<ContinueAsScreen>
                     emoji: '🏪',
                   ),
 
+                  const SizedBox(height: 16),
+
+                  // ── INFLUENCER card (C3) — same authenticated
+                  // account/session as User and Merchant; the existing C1
+                  // backend is what actually grants the role once a
+                  // profile is created via the existing C2 flow, so this
+                  // card only needs to authenticate and navigate, exactly
+                  // like the two cards above.
+                  _PremiumRoleCard(
+                    role: 'influencer',
+                    selected: _selected == 'influencer',
+                    onTap: () => setState(() => _selected = 'influencer'),
+                    title: 'Influencer',
+                    desc: 'Promote stores,\nbuild your audience',
+                    supportText: 'Create your influencer profile and get discovered by customers.',
+                    bgColor: const Color(0xFFfdf3e7),
+                    iconColor: const Color(0xFFB8860B),
+                    icon: Icons.star_rounded,
+                    emoji: '⭐',
+                  ),
+
                   const SizedBox(height: 28),
 
                   // ── Remember my choice ──
@@ -710,6 +731,15 @@ class SwitchModeSheet extends StatefulWidget {
 class _SwitchModeSheetState extends State<SwitchModeSheet> {
   bool _loading = false;
   String _msg   = '';
+  bool _hasInfluencerRole = false; // C4: only show Influencer when the account actually has the role
+
+  @override
+  void initState() {
+    super.initState();
+    Prefs.isInfluencer().then((v) {
+      if (mounted) setState(() => _hasInfluencerRole = v);
+    });
+  }
 
   Future<void> _switch(String role) async {
     if (role == widget.currentMode || _loading) return;
@@ -733,7 +763,11 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
         }
       }
       // One account, one identity — no separate merchant record needed.
-      // Any registered user can switch to merchant mode freely.
+      // Any registered user can switch to merchant mode freely. Influencer
+      // mode uses the SAME authenticated account/token too — the existing
+      // C1 backend is what actually granted the role (via the existing C2
+      // profile-creation flow), this sheet only offers the switch once
+      // that role is already present.
       await Prefs.saveMode(role);
       if (mounted) Navigator.pop(context);
       widget.onSwitch(role);
@@ -744,6 +778,8 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final modeLabel = widget.currentMode == 'user' ? 'User'
+        : widget.currentMode == 'merchant' ? 'Merchant' : 'Influencer';
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -757,7 +793,7 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
         const Text('Switch Mode',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: kPrimary)),
         const SizedBox(height: 6),
-        Text('You are currently in ${widget.currentMode == "user" ? "User" : "Merchant"} mode',
+        Text('You are currently in $modeLabel mode',
           style: const TextStyle(fontSize: 12.5, color: kMuted)),
         const SizedBox(height: 24),
         _ModeTile(
@@ -773,6 +809,18 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
           active: widget.currentMode == 'merchant',
           onTap: _loading ? null : () => _switch('merchant'),
         ),
+        // C4: Influencer tile only appears when the account already has
+        // the role (i.e. has created a profile via C1/C2) — matching the
+        // requirement that it must not appear for every account.
+        if (_hasInfluencerRole) ...[
+          const SizedBox(height: 12),
+          _ModeTile(
+            emoji: '⭐', title: 'Influencer',
+            subtitle: 'Manage your influencer profile',
+            active: widget.currentMode == 'influencer',
+            onTap: _loading ? null : () => _switch('influencer'),
+          ),
+        ],
         if (_msg.isNotEmpty) ...[
           const SizedBox(height: 16),
           Container(
