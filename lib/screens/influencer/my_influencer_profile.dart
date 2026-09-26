@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
@@ -201,7 +202,17 @@ class _MyInfluencerProfileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = profile["name"]?.toString() ?? "";
-    final category = profile["category"]?.toString() ?? "";
+    // Issue 3: prefer the new `categories` list (always present now, even
+    // for legacy records — the backend derives it on read); join for this
+    // simple subtitle display, same visual result as before for a
+    // single-category profile, correctly shows all of them for a
+    // multi-category one.
+    final categoriesList = (profile["categories"] is List)
+        ? (profile["categories"] as List).map((c) => c.toString()).toList()
+        : <String>[];
+    final category = categoriesList.isNotEmpty
+        ? categoriesList.join(", ")
+        : (profile["category"]?.toString() ?? "");
     final city = profile["city"]?.toString() ?? "";
     final state = profile["state"]?.toString() ?? "";
     final rating = (profile["rating"] as num?)?.toDouble() ?? 0.0;
@@ -295,7 +306,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   final _fbC = TextEditingController();
   String? _selState;
   String? _selCity;
-  String? _selCategory;
+  final Set<String> _selCategories = {}; // Issue 3: multi-select
   String _photoB64 = ""; // empty = no change (edit) / no photo (create)
   String _existingPhotoUrl = "";
   List<String> _categories = [];
@@ -314,7 +325,14 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       _phoneC.text = e["phone"]?.toString() ?? "";
       _selState = (e["state"]?.toString().isNotEmpty ?? false) ? e["state"].toString() : null;
       _selCity = (e["city"]?.toString().isNotEmpty ?? false) ? e["city"].toString() : null;
-      _selCategory = (e["category"]?.toString().isNotEmpty ?? false) ? e["category"].toString() : null;
+      // Issue 3: prefer the new `categories` list; fall back to the legacy
+      // single `category` string for a profile created before this change.
+      final rawCats = e["categories"];
+      if (rawCats is List && rawCats.isNotEmpty) {
+        _selCategories.addAll(rawCats.map((c) => c.toString()));
+      } else if ((e["category"]?.toString().isNotEmpty ?? false)) {
+        _selCategories.add(e["category"].toString());
+      }
       _existingPhotoUrl = e["photo_url"]?.toString() ?? "";
       final social = (e["social"] is Map) ? e["social"] as Map : {};
       _instaC.text = social["instagram"]?.toString() ?? "";
@@ -360,14 +378,22 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     if (name.isEmpty) { setState(() => _errorMsg = "Name is required"); return; }
     if (_selState == null) { setState(() => _errorMsg = "Please select a state"); return; }
     if (_selCity == null) { setState(() => _errorMsg = "Please select a city"); return; }
+    // Issue 2: validate exactly-10-digits on Save too, not just via the
+    // input formatter (which only blocks typing past 10 — this also
+    // catches an empty/short value if the user backspaced).
+    final phone = _phoneC.text.trim();
+    if (phone.isNotEmpty && phone.length != 10) {
+      setState(() => _errorMsg = "Please enter a valid 10-digit mobile number.");
+      return;
+    }
     setState(() { _saving = true; _errorMsg = null; });
 
     final body = <String, dynamic>{
       "name": name,
       "state": _selState,
       "city": _selCity,
-      "category": _selCategory ?? "",
-      "phone": _phoneC.text.trim(),
+      "categories": _selCategories.toList(), // Issue 3: multi-select list
+      "phone": phone,
       "social": {
         "instagram": _instaC.text.trim(),
         "youtube": _ytC.text.trim(),
@@ -446,21 +472,44 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             hint: Text(_selState == null ? "Select state first" : "Select city"),
           ),
           const SizedBox(height: 16),
-          const Text("Category", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
-          const SizedBox(height: 6),
+          const Text("Category (select one or more)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          const SizedBox(height: 8),
           _loadingCategories
               ? const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(color: kPrimary))
-              : DropdownButtonFormField<String>(
-                  value: _categories.contains(_selCategory) ? _selCategory : null,
-                  items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
-                  onChanged: (v) => setState(() => _selCategory = v),
-                  decoration: _dec("Select category"),
-                  hint: const Text("Select category"),
-                ),
+              : _categories.isEmpty
+                  ? const Text("No categories available", style: TextStyle(fontSize: 12, color: kMuted))
+                  : Wrap(
+                      spacing: 8, runSpacing: 8,
+                      children: _categories.map((c) {
+                        final selected = _selCategories.contains(c);
+                        return FilterChip(
+                          label: Text(c, style: TextStyle(fontSize: 12.5, color: selected ? Colors.white : kText, fontWeight: FontWeight.w600)),
+                          selected: selected,
+                          selectedColor: kPrimary,
+                          backgroundColor: Colors.white,
+                          checkmarkColor: Colors.white,
+                          side: BorderSide(color: selected ? kPrimary : kBorder),
+                          onSelected: (sel) => setState(() {
+                            if (sel) { _selCategories.add(c); } else { _selCategories.remove(c); }
+                          }),
+                        );
+                      }).toList(),
+                    ),
           const SizedBox(height: 16),
           const Text("Phone", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
-          TextField(controller: _phoneC, keyboardType: TextInputType.phone, decoration: _dec("10-digit mobile number")),
+          TextField(
+            controller: _phoneC,
+            keyboardType: TextInputType.number,
+            // Issue 2: numeric only, hard-capped at 10 digits — cannot
+            // type an 11th digit at all, matching the backend's exact
+            // 10-digit requirement.
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(10),
+            ],
+            decoration: _dec("10-digit mobile number"),
+          ),
           const SizedBox(height: 20),
           const Text("Social Links", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
           const SizedBox(height: 10),
