@@ -594,6 +594,26 @@ class Api {
     }
   }
 
+  // ── C2: My Influencer Profile (authenticated, owner-only) ──
+  // These deliberately do NOT swallow exceptions into a default value the
+  // way getMyInfluencerReview above does — the caller needs to tell "no
+  // profile exists yet" (a real, valid {} response from the backend) apart
+  // from "the request itself failed" (a thrown exception), since those two
+  // cases must show completely different UI (create-profile empty state vs
+  // a friendly connection-error message with retry).
+  static Future<Map<String,dynamic>> getMyInfluencerProfile(String token) async {
+    final d = await _get("/user/influencer-profile", token: token);
+    return d is Map ? Map<String,dynamic>.from(d) : {};
+  }
+
+  static Future<Map<String,dynamic>> createInfluencerProfile(String token, Map<String,dynamic> data) async {
+    return Map<String,dynamic>.from(await _post("/user/influencer-profile", data, token: token));
+  }
+
+  static Future<Map<String,dynamic>> updateMyInfluencerProfile(String token, Map<String,dynamic> data) async {
+    return Map<String,dynamic>.from(await _put("/user/influencer-profile", data, token: token));
+  }
+
   // ── Product Favorites ──
   static Future<List<String>> getProductFavorites(String token) async {
     try {

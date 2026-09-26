@@ -35,6 +35,7 @@ import 'screens/detail/detail_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
 import 'screens/home/influencer_section.dart';
+import 'screens/influencer/my_influencer_profile.dart';
 import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
@@ -2506,6 +2507,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             const Divider(height:1),
             // ── Switch Mode ──
             if (!widget.isGuest) _switchModeItem(ctx),
+            const Divider(height:1),
+            // ── C2 TEMPORARY TEST ENTRY POINT ──
+            // Influencer isn't in Role Selection/Switch Mode yet (that's
+            // C3/C4) — this is a minimal, explicitly temporary way to reach
+            // the new module for testing. Does not alter existing
+            // User/Merchant role-selection or switch-mode behavior at all.
+            if (!widget.isGuest) _pItem(ctx, Icons.star_rounded, "Influencer Profile (Test)",
+              () => Navigator.push(ctx, _route(InfluencerModuleScreen(token: widget.token)))),
             const Divider(height:1),
             _pItem(ctx,Icons.chat_bubble_rounded,"Contact Offro",()async{
               final s=await Api.getSocialLinks();
