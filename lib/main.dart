@@ -45,7 +45,10 @@ PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
 
 // ─────────────────────── CONFIG ───────────────────────
-const kBaseUrl = "https://offro-backend-production.up.railway.app";
+const kBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'https://offro-backend-production.up.railway.app',
+);
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
 // ─────────────────────── COLORS ───────────────────────
@@ -504,20 +507,6 @@ class MyApp extends StatelessWidget {
           // _ContinueAsState._proceed) stays true until this entire chain
           // — including the location permission prompt — actually finishes.
           await _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
-        } else if (role == 'influencer') {
-          // C3: Influencer role selected. No new auth system, no location
-          // gate — the existing C1/C2 flow already handles both "has a
-          // profile" (shows it) and "no profile yet" (shows the existing
-          // Add Influencer Profile form) once inside the module, using
-          // only the authenticated token. Never a client-supplied
-          // influencer_id/account_id.
-          navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(InfluencerModuleScreen(
-              token: tok, phone: ph, currentMode: 'influencer',
-              onSwitchMode: (newRole) => goSwitchMode(tok, nm, ph, uid, newRole),
-            )),
-            (r) => false,
-          );
         } else {
           // User role selected → GPS location loader → user home
           // (unchanged — navigates immediately, no intermediate async gap)
@@ -541,27 +530,10 @@ class MyApp extends StatelessWidget {
   static void goSwitchMode(String token, String name, String phone, String userId, String role) {
     if (role == 'merchant') {
       _goMerchantViaUnified(phone: phone, name: name);
-    } else if (role == 'influencer') {
-      // C4: same authenticated account/token — no separate identity to
-      // fetch (unlike User/Merchant, which issue a fresh role-specific
-      // token below). Just navigates into the existing C1/C2-backed
-      // Influencer module, which resolves everything from the token alone
-      // — never a client-supplied influencer_id/account_id.
-      _goInfluencerViaUnified(token: token, name: name, phone: phone, userId: userId);
     } else {
       // TASK 2 FIX: get a fresh user token so getWallet and user APIs work correctly
       _goUserViaUnified(phone: phone, name: name, userId: userId);
     }
-  }
-
-  static void _goInfluencerViaUnified({required String token, required String name, required String phone, required String userId}) {
-    navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(InfluencerModuleScreen(
-        token: token, phone: phone, currentMode: 'influencer',
-        onSwitchMode: (newRole) => goSwitchMode(token, name, phone, userId, newRole),
-      )),
-      (r) => false,
-    );
   }
 
   /// Switch to user mode — issues a fresh user session token, then routes home.
@@ -2538,6 +2510,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             const Divider(height:1),
             // ── Switch Mode ──
             if (!widget.isGuest) _switchModeItem(ctx),
+            const Divider(height:1),
+            // ── C2 TEMPORARY TEST ENTRY POINT ──
+            // Influencer isn't in Role Selection/Switch Mode yet (that's
+            // C3/C4) — this is a minimal, explicitly temporary way to reach
+            // the new module for testing. Does not alter existing
+            // User/Merchant role-selection or switch-mode behavior at all.
+            if (!widget.isGuest) _pItem(ctx, Icons.star_rounded, "Influencer Profile (Test)",
+              () => Navigator.push(ctx, _route(InfluencerModuleScreen(token: widget.token)))),
             const Divider(height:1),
             _pItem(ctx,Icons.chat_bubble_rounded,"Contact Offro",()async{
               final s=await Api.getSocialLinks();
