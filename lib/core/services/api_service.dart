@@ -662,6 +662,17 @@ class Api {
     return await _delete("/user/influencer-profile", token: token);
   }
 
+  /// Preview-only discount check for the Influencer Subscription — mirrors
+  /// validateDiscountCode's merchant-scoped counterpart. Throws on
+  /// invalid/expired/disabled/wrong-scope codes (same non-swallowing
+  /// pattern as the other influencer methods above), so the UI can show a
+  /// friendly error and must never proceed with a discounted amount itself;
+  /// the backend independently re-validates and computes the real amount
+  /// again at Save & Publish time regardless of this preview call's result.
+  static Future<Map<String,dynamic>> validateInfluencerDiscountCode(String token, String code) async {
+    return Map<String,dynamic>.from(await _post("/user/influencer-profile/validate-discount", {"code": code}, token: token));
+  }
+
   // ── Product Favorites ──
   static Future<List<String>> getProductFavorites(String token) async {
     try {

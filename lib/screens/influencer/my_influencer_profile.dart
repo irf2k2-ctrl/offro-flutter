@@ -210,7 +210,8 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
           SizedBox(width: double.infinity, child: ElevatedButton(
             onPressed: () async {
               final created = await Navigator.push<Map<String,dynamic>>(context,
-                MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(token: widget.token, existing: null)));
+                MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
+                  token: widget.token, existing: null, onProfileSaved: _applyProfileUpdate)));
               if (created != null && mounted) _applyProfileUpdate(created);
             },
             style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 14),
@@ -319,10 +320,33 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           const SizedBox(height: 16),
           _buildSubscriptionStatusBanner(),
           const SizedBox(height: 20),
+          // FIX (Bug 1): a draft/pending/failed profile gets a direct,
+          // one-tap way to finish payment — same form, same existing
+          // profile, same reused-order/retry logic already in
+          // _saveAndPublish — rather than only the generic "Edit Profile"
+          // entry point. This is purely a UI affordance; nothing here
+          // creates a new profile or clears influencer_id.
+          if (_paymentStatus != "PAID")
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                onPressed: () async {
+                  final updated = await Navigator.push<Map<String,dynamic>>(context,
+                    MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
+                      token: token, existing: profile, onProfileSaved: onProfileUpdated)));
+                  if (updated != null) onProfileUpdated(updated);
+                },
+                icon: const Icon(Icons.payment_rounded, size: 16, color: Colors.white),
+                label: const Text("Continue Publishing / Pay Now", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+            ),
           SizedBox(width: double.infinity, child: OutlinedButton.icon(
             onPressed: () async {
               final updated = await Navigator.push<Map<String,dynamic>>(context,
-                MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(token: token, existing: profile)));
+                MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
+                  token: token, existing: profile, onProfileSaved: onProfileUpdated)));
               if (updated != null) onProfileUpdated(updated);
             },
             icon: const Icon(Icons.edit_rounded, size: 16, color: kPrimary),
@@ -467,7 +491,16 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
 class InfluencerProfileFormScreen extends StatefulWidget {
   final String token;
   final Map<String, dynamic>? existing;
-  const InfluencerProfileFormScreen({super.key, required this.token, required this.existing});
+  // Fired as soon as the profile is known to exist server-side — right
+  // after a brand-new profile's create call succeeds, BEFORE Razorpay even
+  // opens. This is what fixes the "cancel returns to empty Create screen"
+  // bug: without it, InfluencerModuleScreen's cached state never learns a
+  // profile now exists until the form pops (which previously only ever
+  // happened on a SUCCESSFUL verified payment), so cancelling mid-payment
+  // and navigating back showed the stale empty state even though the
+  // profile was genuinely saved as a draft on the backend.
+  final void Function(Map<String, dynamic>)? onProfileSaved;
+  const InfluencerProfileFormScreen({super.key, required this.token, required this.existing, this.onProfileSaved});
 
   @override
   State<InfluencerProfileFormScreen> createState() => _InfluencerProfileFormScreenState();
@@ -514,6 +547,13 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   // while the native checkout activity is still on top).
   late final Razorpay _razorpay;
   Map<String, dynamic> _pendingOrder = {};
+
+  // ── Discount code (Influencer Subscription) ──
+  final _discountCodeC = TextEditingController();
+  String? _appliedDiscountCode;   // set only after a successful "Apply" validation
+  bool _applyingDiscount = false;
+  String? _discountError;
+  Map<String, dynamic>? _appliedDiscountInfo; // {discount_amount, type, discount_value, message,...} from validate call
 
   @override
   void initState() {
@@ -581,6 +621,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   @override
   void dispose() {
     _nameC.dispose(); _phoneC.dispose(); _instaC.dispose(); _ytC.dispose(); _fbC.dispose();
+    _discountCodeC.dispose();
     _razorpay.clear();
     super.dispose();
   }
@@ -661,11 +702,28 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
         // because create and publish are different endpoints.
         await Api.createInfluencerProfile(widget.token, body);
         profileFieldsForPublish = {}; // already saved by the create call above
+        // FIX (Razorpay-cancel bug): tell the parent screen the profile now
+        // exists RIGHT NOW — before Razorpay even opens — so if the user
+        // cancels payment and navigates back, InfluencerModuleScreen shows
+        // the real (draft/pending) profile instead of its stale empty
+        // "Create your Influencer Profile" state. Best-effort only: a
+        // failure here never blocks Save & Publish itself.
+        await _notifyParentProfileSaved();
       }
+      // Optional discount code — the backend independently re-validates
+      // and computes the amount regardless of whether "Apply" was pressed;
+      // this just passes along whatever code the user has entered/applied.
+      final code = (_appliedDiscountCode ?? _discountCodeC.text).trim();
+      if (code.isNotEmpty) profileFieldsForPublish["discount_code"] = code;
+
       final result = await Api.publishInfluencerProfile(widget.token, profileFieldsForPublish);
       if (result["payment_required"] == true) {
         _pendingOrder = result;
         if (mounted) setState(() => _publishing = false);
+        // Same reason as above — the profile (and its PAYMENT_PENDING
+        // state / reusable order) already exists server-side at this
+        // point, whether or not the user ever completes checkout.
+        await _notifyParentProfileSaved();
         _openRazorpayCheckout(result);
         return; // _onPaySuccess/_onPayError take over from here
       }
@@ -676,6 +734,24 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       if (mounted) setState(() => _errorMsg = _friendlyError(e));
     } finally {
       if (mounted && _publishing) setState(() => _publishing = false);
+    }
+  }
+
+  /// Best-effort: fetches the current profile and hands it to the parent's
+  /// onProfileSaved callback, WITHOUT closing this form and without
+  /// treating a failure as fatal to Save & Publish. Silently does nothing
+  /// if no callback was supplied or the fetch fails — the backend record
+  /// is the source of truth regardless; this only keeps the parent
+  /// screen's cached view from going stale.
+  Future<void> _notifyParentProfileSaved() async {
+    if (widget.onProfileSaved == null) return;
+    try {
+      final fresh = await Api.getMyInfluencerProfile(widget.token);
+      if (fresh.isNotEmpty) widget.onProfileSaved!(fresh);
+    } catch (_) {
+      // Ignore — a stale parent screen is a minor cosmetic issue the user
+      // can fix with pull-to-refresh; it must never surface as a Save &
+      // Publish error when the actual save/publish call may still succeed.
     }
   }
 
@@ -766,10 +842,29 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     }
   }
 
-  void _onPayError(PaymentFailureResponse resp) {
-    // Cancelled or failed — profile remains saved as draft/unpublished;
-    // payment_status was never touched by the client either way.
-    if (mounted) setState(() { final m = resp.message ?? ""; _errorMsg = "Payment cancelled or failed: $m"; });
+  Future<void> _onPayError(PaymentFailureResponse resp) async {
+    // Cancelled or failed — profile remains saved as draft/unpublished on
+    // the server (payment_status stays PAYMENT_PENDING, publish_status
+    // stays draft; the client never touches either either way).
+    //
+    // FIX (Bug 1 — "cancel returns to empty create screen"): this used to
+    // just set _errorMsg and leave the user stuck on this form. But by the
+    // time Razorpay can even be cancelled, the profile already exists on
+    // the server (it was saved/published-pending before checkout opened —
+    // see _saveAndPublish's _notifyParentProfileSaved calls). So instead of
+    // staying here, close this form and hand the parent screen the current,
+    // real profile state, exactly like a successful save would. The parent
+    // (InfluencerModuleScreen / _MyInfluencerProfileView) then shows the
+    // existing draft/pending profile — with its own "Continue Publishing /
+    // Pay Now" affordance — never the stale empty create-state, and never a
+    // duplicate profile.
+    if (!mounted) return;
+    try {
+      final fresh = await Api.getMyInfluencerProfile(widget.token);
+      if (mounted) Navigator.pop(context, fresh.isNotEmpty ? fresh : const {"_needs_refresh": true});
+    } catch (_) {
+      if (mounted) Navigator.pop(context, const {"_needs_refresh": true});
+    }
   }
 
   @override
@@ -930,8 +1025,16 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     }
     final fee = (pricing["fee"] as num?)?.toDouble() ?? 0;
     final gstPct = (pricing["gst_percent"] as num?)?.toDouble() ?? 0;
-    final gstAmt = (pricing["gst_amount"] as num?)?.toDouble() ?? 0;
-    final total = (pricing["total"] as num?)?.toDouble() ?? 0;
+    // When a discount has been successfully applied (preview call only —
+    // the backend independently re-validates and recomputes at Save &
+    // Publish time regardless), show the discounted GST/Total from that
+    // preview response instead of the plain pricing figures. If the applied
+    // info is missing/cleared, fall back to the undiscounted figures — the
+    // discount line itself only renders when there is something to show.
+    final info = _appliedDiscountInfo;
+    final discountAmt = (info?["discount_amount"] as num?)?.toDouble() ?? 0;
+    final gstAmt = (info?["gst_amount"] as num?)?.toDouble() ?? (pricing["gst_amount"] as num?)?.toDouble() ?? 0;
+    final total = (info?["total"] as num?)?.toDouble() ?? (pricing["total"] as num?)?.toDouble() ?? 0;
     Widget row(String label, String value, {bool bold = false}) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -946,6 +1049,63 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
         const Text("Influencer Subscription", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFa1275a))),
         const SizedBox(height: 8),
         row("Subscription Fee", "₹${fee.toStringAsFixed(2)}"),
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _discountCodeC,
+              enabled: !_applyingDiscount,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: "Discount code (optional)",
+                filled: true, fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: kBorder)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: kBorder)),
+              ),
+              onChanged: (_) {
+                // The code text changed after a previous Apply — the
+                // applied discount no longer reflects what's in the field,
+                // so clear it. This guarantees Save & Publish never silently
+                // carries forward a discount that doesn't match what's
+                // currently typed (it always re-reads _appliedDiscountCode
+                // which is cleared here) — the backend still re-validates
+                // regardless, this is purely about the UI staying honest.
+                if (_appliedDiscountCode != null || _discountError != null) {
+                  setState(() { _appliedDiscountCode = null; _appliedDiscountInfo = null; _discountError = null; });
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 40,
+            child: ElevatedButton(
+              onPressed: _applyingDiscount ? null : _applyDiscountCode,
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFa1275a), foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+              child: _applyingDiscount
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text("Apply", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ]),
+        if (_discountError != null) Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(_discountError!, style: const TextStyle(fontSize: 11.5, color: Colors.red, fontWeight: FontWeight.w600)),
+        ),
+        if (_appliedDiscountCode != null) Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(children: [
+            const Icon(Icons.check_circle, size: 14, color: Color(0xFF2e7d32)),
+            const SizedBox(width: 4),
+            Expanded(child: Text("Code '$_appliedDiscountCode' applied",
+              style: const TextStyle(fontSize: 11.5, color: Color(0xFF2e7d32), fontWeight: FontWeight.w700))),
+          ]),
+        ),
+        const SizedBox(height: 8),
+        if (discountAmt > 0) row("Discount", "-₹${discountAmt.toStringAsFixed(2)}"),
         row("GST (${gstPct.toStringAsFixed(gstPct == gstPct.roundToDouble() ? 0 : 1)}%)", "₹${gstAmt.toStringAsFixed(2)}"),
         const Divider(height: 16),
         row("Total Payable", "₹${total.toStringAsFixed(2)}", bold: true),
@@ -954,6 +1114,41 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           style: TextStyle(fontSize: 11, color: Color(0xFFa1275a))),
       ]),
     );
+  }
+
+  /// Preview-only "Apply" check — calls the same authoritative discount
+  /// resolver (via a dedicated preview endpoint) that Save & Publish will
+  /// use again regardless of this result. On success, updates the summary
+  /// card to show the discounted GST/Total. On any failure (invalid,
+  /// inactive, expired, usage-limit reached, wrong scope, network error),
+  /// shows a friendly error and — critically — clears any previously
+  /// applied discount, so the UI can never keep displaying/using a
+  /// discounted amount that this call just proved is no longer valid.
+  Future<void> _applyDiscountCode() async {
+    final code = _discountCodeC.text.trim();
+    if (code.isEmpty) {
+      setState(() { _discountError = "Enter a discount code first"; _appliedDiscountCode = null; _appliedDiscountInfo = null; });
+      return;
+    }
+    setState(() { _applyingDiscount = true; _discountError = null; });
+    try {
+      final resp = await Api.validateInfluencerDiscountCode(widget.token, code);
+      if (!mounted) return;
+      setState(() {
+        _appliedDiscountCode = resp["code"]?.toString() ?? code.toUpperCase();
+        _appliedDiscountInfo = resp;
+        _discountError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _appliedDiscountCode = null;
+        _appliedDiscountInfo = null;
+        _discountError = _friendlyError(e);
+      });
+    } finally {
+      if (mounted) setState(() => _applyingDiscount = false);
+    }
   }
 
   Widget _buildPhotoPreview(double size) {
