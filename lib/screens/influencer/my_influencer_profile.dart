@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../merchant/merchant_screens.dart' show kIndiaStates, kIndiaCities;
@@ -96,6 +97,21 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
     }
   }
 
+  /// Applies whatever InfluencerProfileFormScreen popped back with. Payment
+  /// verification (Save & Publish) can succeed server-side while the
+  /// immediately-following profile refetch fails on the client (a separate,
+  /// unrelated network hiccup) — the form signals that case with a
+  /// `{"_needs_refresh": true}` sentinel instead of guessing at profile
+  /// data. That sentinel is never treated as real profile content; it
+  /// always triggers a full, correct reload here instead.
+  void _applyProfileUpdate(Map<String, dynamic> updated) {
+    if (updated.containsKey("_needs_refresh")) {
+      _load();
+    } else {
+      setState(() => _profile = updated);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,7 +175,15 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
     return _MyInfluencerProfileView(
       token: widget.token,
       profile: profile,
-      onProfileUpdated: (updated) => setState(() => _profile = updated),
+      onProfileUpdated: _applyProfileUpdate,
+      // Delete (rule 4 — permanent): returning to the empty state ({}) is
+      // exactly what InfluencerModuleScreen already renders for "no profile
+      // yet" — the same _buildEmptyState() a brand-new influencer sees. A
+      // future "Add Influencer Profile" from here creates a genuinely new
+      // profile/payment relationship server-side (see routers/users.py
+      // delete_my_influencer_profile), so there is nothing special to do
+      // here beyond clearing local state.
+      onProfileDeleted: () => setState(() => _profile = {}),
     );
   }
 
@@ -187,7 +211,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
             onPressed: () async {
               final created = await Navigator.push<Map<String,dynamic>>(context,
                 MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(token: widget.token, existing: null)));
-              if (created != null && mounted) setState(() => _profile = created);
+              if (created != null && mounted) _applyProfileUpdate(created);
             },
             style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
@@ -202,11 +226,28 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
 /// "My Influencer Profile" — the owner's own management view. Distinct
 /// from the public InfluencerProfileScreen (no review-submission UI, no
 /// Follow, no Share — it's a self-management screen, not a browse screen).
-class _MyInfluencerProfileView extends StatelessWidget {
+class _MyInfluencerProfileView extends StatefulWidget {
   final String token;
   final Map<String, dynamic> profile;
   final void Function(Map<String,dynamic>) onProfileUpdated;
-  const _MyInfluencerProfileView({required this.token, required this.profile, required this.onProfileUpdated});
+  final VoidCallback onProfileDeleted;
+  const _MyInfluencerProfileView({
+    required this.token,
+    required this.profile,
+    required this.onProfileUpdated,
+    required this.onProfileDeleted,
+  });
+
+  @override
+  State<_MyInfluencerProfileView> createState() => _MyInfluencerProfileViewState();
+}
+
+class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
+  bool _busy = false; // guards Enable/Disable and Delete from double-taps
+
+  String get token => widget.token;
+  Map<String, dynamic> get profile => widget.profile;
+  void Function(Map<String,dynamic>) get onProfileUpdated => widget.onProfileUpdated;
 
   Widget _avatar(double size) {
     final name = profile["name"]?.toString() ?? "?";
@@ -275,6 +316,8 @@ class _MyInfluencerProfileView extends StatelessWidget {
             const SizedBox(width: 4),
             Text("($reviewCount reviews)", style: const TextStyle(fontSize: 12, color: kMuted)),
           ])),
+          const SizedBox(height: 16),
+          _buildSubscriptionStatusBanner(),
           const SizedBox(height: 20),
           SizedBox(width: double.infinity, child: OutlinedButton.icon(
             onPressed: () async {
@@ -285,6 +328,24 @@ class _MyInfluencerProfileView extends StatelessWidget {
             icon: const Icon(Icons.edit_rounded, size: 16, color: kPrimary),
             label: const Text("Edit Profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(vertical: 12)),
+          )),
+          const SizedBox(height: 10),
+          // Enable/Disable — a visibility toggle only. Deliberately never
+          // touches payment_status/publish_status: disabling a paid,
+          // published profile keeps it PAID; re-enabling never re-charges.
+          SizedBox(width: double.infinity, child: OutlinedButton.icon(
+            onPressed: _busy ? null : _toggleActive,
+            icon: Icon(_isActive ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 16, color: kText),
+            label: Text(_isActive ? "Disable Profile" : "Enable Profile",
+              style: const TextStyle(color: kText, fontWeight: FontWeight.w700)),
+            style: OutlinedButton.styleFrom(side: const BorderSide(color: kBorder), padding: const EdgeInsets.symmetric(vertical: 12)),
+          )),
+          const SizedBox(height: 10),
+          SizedBox(width: double.infinity, child: OutlinedButton.icon(
+            onPressed: _busy ? null : _confirmDelete,
+            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
+            label: const Text("Delete Profile", style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+            style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 12)),
           )),
           if (social.values.any((v) => (v?.toString() ?? "").isNotEmpty)) ...[
             const SizedBox(height: 24),
@@ -300,6 +361,90 @@ class _MyInfluencerProfileView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // Missing payment_status/publish_status/is_active (any profile that
+  // predates this feature, or an admin-created one) is always treated as
+  // already paid/published/active — matching the backend's own backward-
+  // compatibility default exactly, never showing a false "unpaid" state for
+  // an existing profile.
+  bool get _isActive => profile["is_active"] != false;
+  String get _paymentStatus => profile["payment_status"]?.toString() ?? "PAID";
+  String get _publishStatus => profile["publish_status"]?.toString() ?? "published";
+
+  Widget _buildSubscriptionStatusBanner() {
+    if (_paymentStatus == "PAID" && _publishStatus == "published") {
+      return const SizedBox.shrink(); // fully normal state — nothing to call out
+    }
+    String text; Color color; IconData icon;
+    if (_publishStatus == "draft" && _paymentStatus != "PAID") {
+      text = "Your profile is saved as a draft. Complete the one-time subscription payment from Edit Profile → Save & Publish to make it visible to customers.";
+      color = const Color(0xFFB8860B); icon = Icons.info_outline_rounded;
+    } else if (_paymentStatus == "PAYMENT_PENDING") {
+      text = "Payment is being processed. If you completed a payment and this doesn't update, try Save & Publish again.";
+      color = const Color(0xFFB8860B); icon = Icons.hourglass_top_rounded;
+    } else if (_paymentStatus == "PAYMENT_FAILED") {
+      text = "Your last subscription payment attempt failed. Please try Save & Publish again to complete payment.";
+      color = Colors.red; icon = Icons.error_outline_rounded;
+    } else {
+      text = "Your profile is not yet published.";
+      color = const Color(0xFFB8860B); icon = Icons.info_outline_rounded;
+    }
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: color.withValues(alpha: .08), borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: .3))),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: TextStyle(fontSize: 12.5, color: color, height: 1.4))),
+      ]),
+    );
+  }
+
+  Future<void> _toggleActive() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await Api.updateMyInfluencerProfile(token, {"is_active": !_isActive});
+      final fresh = await Api.getMyInfluencerProfile(token);
+      if (mounted) onProfileUpdated(fresh);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e)), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _confirmDelete() async {
+    // Exact confirmation dialog title/body/buttons as required — permanent,
+    // and a future new profile will require a new payment (rule 4/5).
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Influencer Profile?"),
+        content: const Text(
+          "Are you sure you want to delete your influencer profile? This action cannot be undone.\n\n"
+          "If you create a new influencer profile in the future, a new subscription payment will be required."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx, true),
+            child: const Text("Delete Profile", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await Api.deleteInfluencerProfile(token);
+      if (mounted) widget.onProfileDeleted();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_friendlyError(e)), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Widget _socialRow(IconData icon, Color color, String label, String url) {
@@ -341,10 +486,34 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   String _existingPhotoUrl = "";
   List<String> _categories = [];
   bool _loadingCategories = true;
-  bool _saving = false;
+  bool _saving = false;       // guards plain Save
+  bool _publishing = false;   // guards Save & Publish (separate flag: only one of the two buttons is ever disabled at a time)
   String? _errorMsg;
 
   bool get _isEdit => widget.existing != null;
+  // A brand-new profile (create mode — widget.existing == null) always
+  // starts UNPAID; there is nothing to default to PAID here at all. Only an
+  // EXISTING profile with no payment_status field at all (predates this
+  // feature, or admin-created) is treated as already paid — same backward-
+  // compatibility default used everywhere else in this feature. An existing
+  // profile that DOES have payment_status set to UNPAID/PAYMENT_PENDING/
+  // PAYMENT_FAILED is correctly NOT treated as paid.
+  bool get _alreadyPaid {
+    final existing = widget.existing;
+    if (existing == null) return false;
+    return (existing["payment_status"]?.toString() ?? "PAID") == "PAID";
+  }
+
+  // ── Influencer Subscription Fee + Payment + Publish ──
+  Map<String, dynamic>? _pricing; // null while loading/unknown
+  bool _loadingPricing = true;
+
+  // Razorpay instance must live for the lifetime of this screen (same
+  // reasoning as merchant_screens.dart's Store Subscription screen: created
+  // inside a local function, its native callbacks can be garbage-collected
+  // while the native checkout activity is still on top).
+  late final Razorpay _razorpay;
+  Map<String, dynamic> _pendingOrder = {};
 
   @override
   void initState() {
@@ -370,6 +539,19 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       _fbC.text = social["facebook"]?.toString() ?? "";
     }
     _loadCategories();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPayError);
+    if (!_alreadyPaid) _loadSubscriptionPricing();
+  }
+
+  Future<void> _loadSubscriptionPricing() async {
+    try {
+      final p = await Api.getInfluencerSubscriptionPricing(widget.token);
+      if (mounted) setState(() { _pricing = p; _loadingPricing = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loadingPricing = false);
+    }
   }
 
   Future<void> _loadCategories() async {
@@ -399,25 +581,25 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   @override
   void dispose() {
     _nameC.dispose(); _phoneC.dispose(); _instaC.dispose(); _ytC.dispose(); _fbC.dispose();
+    _razorpay.clear();
     super.dispose();
   }
 
-  Future<void> _save() async {
-    if (_saving) return; // prevent duplicate simultaneous submissions
+  /// Shared validation + body-building for both Save and Save & Publish —
+  /// returns null (and sets _errorMsg) if invalid.
+  Map<String, dynamic>? _validateAndBuildBody() {
     final name = _nameC.text.trim();
-    if (name.isEmpty) { setState(() => _errorMsg = "Name is required"); return; }
-    if (_selState == null) { setState(() => _errorMsg = "Please select a state"); return; }
-    if (_selCity == null) { setState(() => _errorMsg = "Please select a city"); return; }
+    if (name.isEmpty) { setState(() => _errorMsg = "Name is required"); return null; }
+    if (_selState == null) { setState(() => _errorMsg = "Please select a state"); return null; }
+    if (_selCity == null) { setState(() => _errorMsg = "Please select a city"); return null; }
     // Issue 2: validate exactly-10-digits on Save too, not just via the
     // input formatter (which only blocks typing past 10 — this also
     // catches an empty/short value if the user backspaced).
     final phone = _phoneC.text.trim();
     if (phone.isNotEmpty && phone.length != 10) {
       setState(() => _errorMsg = "Please enter a valid 10-digit mobile number.");
-      return;
+      return null;
     }
-    setState(() { _saving = true; _errorMsg = null; });
-
     final body = <String, dynamic>{
       "name": name,
       "state": _selState,
@@ -431,7 +613,17 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       },
     };
     if (_photoB64.isNotEmpty) body["photo_url"] = _photoB64;
+    return body;
+  }
 
+  /// SAVE — draft-only, per the approved business rule. Never publishes and
+  /// never touches payment. This is the only action a brand-new profile can
+  /// take without paying anything.
+  Future<void> _save() async {
+    if (_saving || _publishing) return; // prevent duplicate simultaneous submissions
+    final body = _validateAndBuildBody();
+    if (body == null) return;
+    setState(() { _saving = true; _errorMsg = null; });
     try {
       if (_isEdit) {
         await Api.updateMyInfluencerProfile(widget.token, body);
@@ -447,6 +639,137 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  /// SAVE & PUBLISH — validates/saves, then asks the backend whether payment
+  /// is required. If the profile is already PAID (or admin has the
+  /// subscription toggle disabled, or the fee resolves to ₹0), the backend
+  /// publishes immediately with no payment step. Otherwise it returns a
+  /// Razorpay order and this opens checkout; publishing only actually
+  /// happens after the backend verifies the payment (see _onPaySuccess).
+  Future<void> _saveAndPublish() async {
+    if (_saving || _publishing) return;
+    final body = _validateAndBuildBody();
+    if (body == null) return;
+    setState(() { _publishing = true; _errorMsg = null; });
+    try {
+      Map<String, dynamic> profileFieldsForPublish = body;
+      if (!_isEdit) {
+        // The publish endpoint only operates on an EXISTING profile — a
+        // brand-new profile must be created first. This is still the same
+        // "validate/save" step conceptually, just split across two calls
+        // because create and publish are different endpoints.
+        await Api.createInfluencerProfile(widget.token, body);
+        profileFieldsForPublish = {}; // already saved by the create call above
+      }
+      final result = await Api.publishInfluencerProfile(widget.token, profileFieldsForPublish);
+      if (result["payment_required"] == true) {
+        _pendingOrder = result;
+        if (mounted) setState(() => _publishing = false);
+        _openRazorpayCheckout(result);
+        return; // _onPaySuccess/_onPayError take over from here
+      }
+      // No payment needed — already published.
+      final fresh = await Api.getMyInfluencerProfile(widget.token);
+      if (mounted) Navigator.pop(context, fresh);
+    } catch (e) {
+      if (mounted) setState(() => _errorMsg = _friendlyError(e));
+    } finally {
+      if (mounted && _publishing) setState(() => _publishing = false);
+    }
+  }
+
+  void _openRazorpayCheckout(Map<String, dynamic> order) {
+    final rzpKey = order["razorpay_key"]?.toString() ?? '';
+    if (rzpKey.isEmpty) {
+      setState(() => _errorMsg = "Payment gateway not configured. Contact support.");
+      return;
+    }
+    try {
+      final amountPaise = (order["amount"] as num?)?.toInt() ??
+          ((double.tryParse(order["amount_display"]?.toString() ?? "0") ?? 0) * 100).round();
+      final opts = {
+        'key': rzpKey,
+        'amount': amountPaise,
+        'currency': 'INR',
+        'order_id': order["razorpay_order_id"] ?? "",
+        'name': 'Offro',
+        'description': 'Influencer Subscription',
+        'prefill': { 'contact': _phoneC.text.trim() },
+        'image': '$kBaseUrl/static/offro_logo.png',
+        'theme': {'color': '#3E5F55'},
+      };
+      _razorpay.open(opts);
+    } catch (e) {
+      setState(() => _errorMsg = 'Could not open payment: $e');
+    }
+  }
+
+  Future<void> _onPaySuccess(PaymentSuccessResponse resp) async {
+    if (!mounted) return;
+    final payId = resp.paymentId ?? "";
+    final ordId = resp.orderId ?? _pendingOrder["razorpay_order_id"]?.toString() ?? "";
+    final sig   = resp.signature ?? "";
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: Card(
+        color: Colors.white,
+        child: Padding(padding: EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          CircularProgressIndicator(color: kPrimary),
+          SizedBox(height: 16),
+          Text("Confirming payment...", style: TextStyle(fontWeight: FontWeight.w600, color: kText)),
+          SizedBox(height: 4),
+          Text("Please wait a moment", style: TextStyle(color: kMuted, fontSize: 12)),
+        ])),
+      )),
+    );
+    // The Flutter client never assumes success just because Razorpay
+    // returned success — server-side signature verification is what
+    // actually flips payment_status to PAID / publish_status to published.
+    // Retried a few times to ride out a transient network blip right after
+    // checkout, exactly like the existing Store Subscription flow.
+    bool verified = false;
+    String? failureMsg;
+    for (int attempt = 0; attempt < 3 && !verified; attempt++) {
+      try {
+        await Api.verifyInfluencerPayment(widget.token,
+          razorpayOrderId: ordId, razorpayPaymentId: payId, razorpaySignature: sig);
+        verified = true;
+      } catch (e) {
+        failureMsg = _friendlyError(e);
+        if (attempt < 2) await Future.delayed(Duration(seconds: attempt + 1));
+      }
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(); // dismiss "Confirming payment..." dialog
+    if (verified) {
+      // Payment is ALREADY verified server-side at this point — a failure
+      // in the immediately-following profile refetch is a separate,
+      // unrelated network hiccup and must never be presented as a payment
+      // failure (the payment succeeded; only re-reading the profile
+      // afterward failed). Fall back to a "please refresh" sentinel that
+      // InfluencerModuleScreen recognizes and turns into a full reload,
+      // rather than showing this form's error banner or leaving the parent
+      // with stale pre-payment data.
+      try {
+        final fresh = await Api.getMyInfluencerProfile(widget.token);
+        if (mounted) Navigator.pop(context, fresh); // close the form, return published profile
+      } catch (_) {
+        if (mounted) Navigator.pop(context, const {"_needs_refresh": true});
+      }
+    } else {
+      // Payment succeeded on Razorpay's side but our server could not
+      // verify it (or a network issue) — the profile stays draft/unpaid.
+      // Never mark PAID/published on the client's own say-so.
+      setState(() => _errorMsg = failureMsg ?? "We couldn't confirm your payment. If money was deducted, it will be verified shortly — please try Save & Publish again in a moment.");
+    }
+  }
+
+  void _onPayError(PaymentFailureResponse resp) {
+    // Cancelled or failed — profile remains saved as draft/unpublished;
+    // payment_status was never touched by the client either way.
+    if (mounted) setState(() { final m = resp.message ?? ""; _errorMsg = "Payment cancelled or failed: $m"; });
   }
 
   @override
@@ -548,6 +871,10 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           TextField(controller: _ytC, decoration: _dec("YouTube URL").copyWith(prefixIcon: const Icon(Icons.play_circle_fill_rounded, size: 18))),
           const SizedBox(height: 10),
           TextField(controller: _fbC, decoration: _dec("Facebook URL").copyWith(prefixIcon: const Icon(Icons.facebook_rounded, size: 18))),
+          if (!_alreadyPaid) ...[
+            const SizedBox(height: 24),
+            _buildSubscriptionSummary(),
+          ],
           if (_errorMsg != null) ...[
             const SizedBox(height: 16),
             Container(
@@ -557,16 +884,75 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             ),
           ],
           const SizedBox(height: 24),
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            onPressed: _saving ? null : _save,
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 14),
+          // SAVE — draft only, never requires or triggers payment.
+          SizedBox(width: double.infinity, child: OutlinedButton(
+            onPressed: (_saving || _publishing) ? null : _save,
+            style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             child: _saving
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))
+                : Text(_isEdit ? "Save (keep as draft)" : "Save", style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+          )),
+          const SizedBox(height: 10),
+          // SAVE & PUBLISH — the one-time-payment path. Once the profile is
+          // already PAID, this simply saves + publishes with no charge.
+          SizedBox(width: double.infinity, child: ElevatedButton(
+            onPressed: (_saving || _publishing) ? null : _saveAndPublish,
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            child: _publishing
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text(_isEdit ? "Save Changes" : "Save Profile", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                : Text(_alreadyPaid ? "Save & Publish" : "Save & Publish (Pay to Publish)",
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           )),
         ],
       ),
+    );
+  }
+
+  /// Subscription summary card — Base Fee / GST / Total, exactly as
+  /// specified, sourced entirely from the backend's admin-configured
+  /// pricing. Shown only while this profile hasn't paid yet; a paid
+  /// profile's Save & Publish never needs this explanation again.
+  Widget _buildSubscriptionSummary() {
+    if (_loadingPricing) {
+      return const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(color: kPrimary));
+    }
+    final pricing = _pricing;
+    if (pricing == null) return const SizedBox.shrink(); // pricing lookup failed — Save & Publish will surface the real error
+    if (pricing["enabled"] == false) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: const Color(0xFFf0f9f4), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFc3dfc6))),
+        child: const Text("No subscription payment is currently required to publish your profile.",
+          style: TextStyle(fontSize: 12.5, color: Color(0xFF3E5F55))),
+      );
+    }
+    final fee = (pricing["fee"] as num?)?.toDouble() ?? 0;
+    final gstPct = (pricing["gst_percent"] as num?)?.toDouble() ?? 0;
+    final gstAmt = (pricing["gst_amount"] as num?)?.toDouble() ?? 0;
+    final total = (pricing["total"] as num?)?.toDouble() ?? 0;
+    Widget row(String label, String value, {bool bold = false}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(label, style: TextStyle(fontSize: bold ? 13.5 : 12.5, color: bold ? kText : kMuted, fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
+        Text(value, style: TextStyle(fontSize: bold ? 13.5 : 12.5, color: kText, fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
+      ]),
+    );
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFFfff0f6), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFf0c6d8))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text("Influencer Subscription", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFa1275a))),
+        const SizedBox(height: 8),
+        row("Subscription Fee", "₹${fee.toStringAsFixed(2)}"),
+        row("GST (${gstPct.toStringAsFixed(gstPct == gstPct.roundToDouble() ? 0 : 1)}%)", "₹${gstAmt.toStringAsFixed(2)}"),
+        const Divider(height: 16),
+        row("Total Payable", "₹${total.toStringAsFixed(2)}", bold: true),
+        const SizedBox(height: 8),
+        const Text("A one-time payment — you won't be charged again for editing or re-publishing this profile.",
+          style: TextStyle(fontSize: 11, color: Color(0xFFa1275a))),
+      ]),
     );
   }
 

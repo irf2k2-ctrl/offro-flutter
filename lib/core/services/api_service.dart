@@ -98,6 +98,18 @@ class Api {
     return d;
   }
 
+  static Future<Map<String,dynamic>> _delete(String path, {String? token}) async {
+    final r = await http.delete(Uri.parse("$kBaseUrl$path"), headers: _h(token)).timeout(const Duration(seconds: 20));
+    Map<String, dynamic> d;
+    try {
+      d = Map<String, dynamic>.from(json.decode(r.body) as Map);
+    } catch (_) {
+      throw Exception(r.body.isNotEmpty ? r.body : "Server error (${r.statusCode})");
+    }
+    if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error (${r.statusCode})");
+    return d;
+  }
+
   // ── User ──
   static Future<Map<String,dynamic>> loginUser(String phone) => _post("/user/account-login", {"phone": phone});
 
@@ -612,6 +624,42 @@ class Api {
 
   static Future<Map<String,dynamic>> updateMyInfluencerProfile(String token, Map<String,dynamic> data) async {
     return Map<String,dynamic>.from(await _put("/user/influencer-profile", data, token: token));
+  }
+
+  // ── Influencer Subscription Fee + Payment + Publish ──
+  // Same non-swallowing pattern as the profile methods above — a failed
+  // pricing lookup or payment call must surface as a real exception so the
+  // Save & Publish UI can show a proper error rather than silently doing
+  // nothing. The server is always the source of truth for the fee/GST/total
+  // and for whether payment has actually been verified; nothing here computes
+  // or assumes an amount.
+  static Future<Map<String,dynamic>> getInfluencerSubscriptionPricing(String token) async {
+    final d = await _get("/user/influencer-profile/subscription-pricing", token: token);
+    return d is Map ? Map<String,dynamic>.from(d) : {};
+  }
+
+  /// `profileData` may carry the same editable profile fields as
+  /// updateMyInfluencerProfile — the backend saves them first (the
+  /// "validate/save" step of Save & Publish) before deciding whether payment
+  /// is required. Pass {} if the profile was already saved separately.
+  static Future<Map<String,dynamic>> publishInfluencerProfile(String token, Map<String,dynamic> profileData) async {
+    return Map<String,dynamic>.from(await _post("/user/influencer-profile/publish", profileData, token: token));
+  }
+
+  static Future<Map<String,dynamic>> verifyInfluencerPayment(String token, {
+    required String razorpayOrderId,
+    required String razorpayPaymentId,
+    required String razorpaySignature,
+  }) async {
+    return Map<String,dynamic>.from(await _post("/user/influencer-profile/verify-payment", {
+      "razorpay_order_id": razorpayOrderId,
+      "razorpay_payment_id": razorpayPaymentId,
+      "razorpay_signature": razorpaySignature,
+    }, token: token));
+  }
+
+  static Future<Map<String,dynamic>> deleteInfluencerProfile(String token) async {
+    return await _delete("/user/influencer-profile", token: token);
   }
 
   // ── Product Favorites ──
