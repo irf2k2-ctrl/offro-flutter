@@ -16,10 +16,29 @@ import '../home/influencer_section.dart' show InfluencerProfileScreen;
 /// elsewhere (lib/main.dart, notifications_page.dart) — same exact pattern,
 /// just written here since a leading-underscore top-level function is
 /// private to its own file and cannot be imported across files in Dart.
+///
+/// BUG FIX (Round 4 — Bug 2, "review shows 5h ago instead of just now"):
+/// the backend stores/returns UTC timestamps, but historically without an
+/// explicit timezone suffix (a naive ISO string). DateTime.parse() treats
+/// a timezone-less string as LOCAL time rather than UTC, so on a device in
+/// IST (UTC+5:30) the parsed instant ended up 5.5 hours in the future
+/// relative to the real (UTC) instant, making "just now" render as "5h
+/// ago" — exactly the reported symptom, and exactly matching IST's offset.
+/// Fixed by explicitly forcing UTC interpretation whenever the string has
+/// no timezone marker of its own, rather than trusting DateTime.parse's
+/// default (which silently assumes local time). This is correct for both
+/// old (naive) and new (now explicitly "Z"-suffixed by the backend)
+/// timestamps — a string that already carries a marker is left untouched.
+DateTime _parseServerTimestamp(String isoTs) {
+  final s = isoTs.trim();
+  final hasTzMarker = RegExp(r'(Z|[+-]\d{2}:?\d{2})$').hasMatch(s);
+  return DateTime.parse(hasTzMarker ? s : '${s}Z');
+}
+
 String _reviewTimeAgo(String isoTs) {
   try {
-    final dt   = DateTime.parse(isoTs);
-    final diff = DateTime.now().difference(dt);
+    final dt   = _parseServerTimestamp(isoTs);
+    final diff = DateTime.now().toUtc().difference(dt);
     if (diff.inMinutes < 1)  return "just now";
     if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
     if (diff.inHours  < 24)  return "${diff.inHours}h ago";

@@ -736,9 +736,39 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
   @override
   void initState() {
     super.initState();
-    Prefs.isInfluencer().then((v) {
-      if (mounted) setState(() => _hasInfluencerRole = v);
-    });
+    // BUG FIX (Round 4 — Bug 3, "Influencer mode disappears after switching
+    // back to User"): this used to read ONLY the locally-cached role list
+    // (Prefs.isInfluencer(), populated once at login from the login
+    // response). A brand-new influencer profile created later in the same
+    // session adds "influencer" to the account's roles on the SERVER
+    // (routers/users.py::create_influencer_profile does
+    // {"$addToSet": {"roles": "influencer"}}) but that never refreshed the
+    // stale local cache, so the very next "Switch Mode" open — even
+    // switching Influencer → User → back to Influencer — silently lost the
+    // tile. Fixed by re-checking the account's LIVE roles from the server
+    // on every open, with the local cache only as an offline fallback (and
+    // self-healed from the live result so future offline opens stay
+    // correct too). Nothing here is hardcoded — the tile still only shows
+    // when a role is actually present, just read from an up-to-date source.
+    _loadInfluencerRole();
+  }
+
+  Future<void> _loadInfluencerRole() async {
+    // Cached value first, so the sheet doesn't flash "no Influencer tile"
+    // for a moment before the network call resolves.
+    final cached = await Prefs.isInfluencer();
+    if (mounted) setState(() => _hasInfluencerRole = cached);
+    try {
+      final me = await Api.getMe(widget.token);
+      final roles = (me?['roles'] as List?)?.map((r) => r.toString()).toList();
+      if (roles != null) {
+        await Prefs.saveRoles(roles); // keep the local cache in sync
+        if (mounted) setState(() => _hasInfluencerRole = roles.contains('influencer'));
+      }
+    } catch (_) {
+      // Offline/network failure — keep whatever the cached value already
+      // set above; never worse than the previous (cache-only) behavior.
+    }
   }
 
   Future<void> _switch(String role) async {
