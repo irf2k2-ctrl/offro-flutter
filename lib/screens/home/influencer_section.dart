@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/fav_state.dart';
 
 // ══════════════════════════════════════════════════════════
 // INFLUENCER MODULE — connected to the real backend (Phase 2/3).
@@ -459,6 +460,12 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
   late double _displayRating;
   late int _displayReviewCount;
 
+  // Favourite heart — real, persisted, per-user state via the existing
+  // Product/Store favourites architecture (FavState + /user/*-favorites
+  // endpoints), extended for Influencer rather than duplicated.
+  bool _isFav = false;
+  bool _favBusy = false;
+
   String get _influencerId => widget.influencer["_id"]?.toString() ?? "";
 
   @override
@@ -467,6 +474,39 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
     _displayRating = (widget.influencer["rating"] as num?)?.toDouble() ?? 0.0;
     _displayReviewCount = (widget.influencer["review_count"] as num?)?.toInt() ?? 0;
     _loadReal();
+    _loadFavStatus();
+  }
+
+  Future<void> _loadFavStatus() async {
+    final id = _influencerId;
+    if (widget.token.isEmpty || id.isEmpty) return;
+    final fav = await Api.isInfluencerFavorite(widget.token, id);
+    FavState.instance.setInfluencer(id, fav);
+    if (mounted) setState(() => _isFav = fav);
+  }
+
+  Future<void> _toggleFavorite() async {
+    final id = _influencerId;
+    if (widget.token.isEmpty || id.isEmpty || _favBusy) return;
+    final prev = _isFav;
+    setState(() { _isFav = !_isFav; _favBusy = true; }); // optimistic
+    FavState.instance.toggleInfluencer(id);
+    try {
+      // Trust the server's DB-verified state rather than assuming the
+      // optimistic flip always persisted (same fix pattern already applied
+      // to Product Favorites — a silent write failure must not leave the
+      // heart showing a favourite that was never actually saved).
+      final confirmed = await Api.toggleInfluencerFavorite(widget.token, id);
+      if (mounted && confirmed != _isFav) {
+        setState(() => _isFav = confirmed);
+      }
+      FavState.instance.setInfluencer(id, confirmed);
+    } catch (_) {
+      if (mounted) setState(() => _isFav = prev); // request failed — revert
+      FavState.instance.setInfluencer(id, prev);
+    } finally {
+      if (mounted) setState(() => _favBusy = false);
+    }
   }
 
   Future<void> _loadReal() async {
@@ -594,6 +634,16 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
         iconTheme: const IconThemeData(color: kText),
         title: Text(name, style: const TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
         actions: [
+          // Favourite heart — only meaningful for a logged-in user; not
+          // shown at all for an anonymous/guest visitor (nothing to persist
+          // against). Real, persisted per-user state — see _toggleFavorite.
+          if (widget.token.isNotEmpty)
+            IconButton(
+              icon: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                color: _isFav ? const Color(0xFFe74c3c) : kText),
+              tooltip: _isFav ? "Remove from favourites" : "Add to favourites",
+              onPressed: _toggleFavorite,
+            ),
           IconButton(
             icon: _sharing
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))

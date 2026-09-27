@@ -700,6 +700,29 @@ class Api {
     } catch (_) { return false; }
   }
 
+  // ── Influencer Favorites (public profile heart — same architecture as
+  // Product Favorites above: same request shapes, same backend collection
+  // pattern, no separate/duplicate favorites system) ──
+  static Future<List<String>> getInfluencerFavorites(String token) async {
+    try {
+      final d = await _get("/user/influencer-favorites", token: token);
+      if (d is List) return d.map((e) => e.toString()).toList();
+      return [];
+    } catch (_) { return []; }
+  }
+
+  static Future<bool> toggleInfluencerFavorite(String token, String influencerId) async {
+    final d = await _post("/user/influencer-favorites/$influencerId", {}, token: token);
+    return d["is_favorite"] == true;
+  }
+
+  static Future<bool> isInfluencerFavorite(String token, String influencerId) async {
+    try {
+      final d = await _get("/user/influencer-favorites/$influencerId/check", token: token);
+      return d["is_favorite"] == true;
+    } catch (_) { return false; }
+  }
+
   // ── Favorites ──
   static Future<void> toggleFavorite(String token, String storeId) async {
     try { await _post("/user/favorites/$storeId", {}, token: token); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }

@@ -5,10 +5,28 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../merchant/merchant_screens.dart' show kIndiaStates, kIndiaCities;
 import '../auth/login_screen.dart' show SwitchModeSheet;
+import '../home/influencer_section.dart' show InfluencerProfileScreen;
+
+/// Local equivalent of the file-private `_timeAgo()` helpers already used
+/// elsewhere (lib/main.dart, notifications_page.dart) — same exact pattern,
+/// just written here since a leading-underscore top-level function is
+/// private to its own file and cannot be imported across files in Dart.
+String _reviewTimeAgo(String isoTs) {
+  try {
+    final dt   = DateTime.parse(isoTs);
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1)  return "just now";
+    if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
+    if (diff.inHours  < 24)  return "${diff.inHours}h ago";
+    if (diff.inDays   < 7)   return "${diff.inDays}d ago";
+    return "${(diff.inDays / 7).floor()}w ago";
+  } catch (_) { return ""; }
+}
 
 // ══════════════════════════════════════════════════════════
 // C2 — INFLUENCER MODULE (authenticated, owner-only)
@@ -121,25 +139,37 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         elevation: 0.5,
         iconTheme: const IconThemeData(color: kText),
         title: const Text("Influencer", style: TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
-        actions: widget.onSwitchMode == null ? null : [
-          // C4: same Switch Mode sheet already used by User/Merchant —
-          // only wired here when a parent supplies onSwitchMode (main.dart
-          // does, for the real navigation flow).
-          IconButton(
-            icon: const Icon(Icons.swap_horiz_rounded, color: kText),
-            tooltip: "Switch Mode",
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              isScrollControlled: true,
-              backgroundColor: Colors.transparent,
-              builder: (_) => SwitchModeSheet(
-                currentMode: widget.currentMode,
-                token: widget.token,
-                phone: widget.phone,
-                onSwitch: widget.onSwitchMode!,
+        actions: [
+          // Share the influencer's own public profile — new, additive
+          // behaviour, only shown once a real profile has actually loaded
+          // (nothing to share for the empty/loading/error states).
+          if ((_profile?.isNotEmpty ?? false))
+            IconButton(
+              icon: const Icon(Icons.share_rounded, color: kText),
+              tooltip: "Share",
+              onPressed: () => _shareProfile(_profile!),
+            ),
+          // C4: same Switch Mode sheet already used by User/Merchant — kept
+          // exactly as it was (existing functionality is never removed),
+          // just placed as the settings-style icon alongside Share to match
+          // the redesigned header. Only wired when a parent supplies
+          // onSwitchMode (main.dart does, for the real navigation flow).
+          if (widget.onSwitchMode != null)
+            IconButton(
+              icon: const Icon(Icons.settings_rounded, color: kText),
+              tooltip: "Switch Mode",
+              onPressed: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => SwitchModeSheet(
+                  currentMode: widget.currentMode,
+                  token: widget.token,
+                  phone: widget.phone,
+                  onSwitch: widget.onSwitchMode!,
+                ),
               ),
             ),
-          ),
         ],
       ),
       body: _buildBody(),
@@ -185,6 +215,18 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       // here beyond clearing local state.
       onProfileDeleted: () => setState(() => _profile = {}),
     );
+  }
+
+  /// Plain-text share — same simple pattern already used for sharing an
+  /// influencer from the public browse screen (lib/screens/home/
+  /// influencer_section.dart's _shareText), just written locally since
+  /// that helper is private to its own file. Only ever built from the
+  /// influencer's own real, current profile data — never fabricated.
+  void _shareProfile(Map<String, dynamic> profile) {
+    final name = profile["name"]?.toString() ?? "";
+    final city = profile["city"]?.toString() ?? "";
+    final rating = (profile["rating"] as num?)?.toStringAsFixed(1) ?? "-";
+    Share.share("Check out $name on OffrO\n$city • ⭐ $rating", subject: "OffrO – $name");
   }
 
   Widget _buildEmptyState() {
@@ -250,6 +292,35 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
   Map<String, dynamic> get profile => widget.profile;
   void Function(Map<String,dynamic>) get onProfileUpdated => widget.onProfileUpdated;
 
+  // ── Reviews (real data, never hardcoded — same endpoints already used by
+  // the public InfluencerProfileScreen) ──
+  List<Map<String, dynamic>> _reviews = [];
+  bool _loadingReviews = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  String get _influencerId => profile["_id"]?.toString() ?? "";
+
+  Future<void> _loadReviews() async {
+    final id = _influencerId;
+    if (id.isEmpty) { if (mounted) setState(() => _loadingReviews = false); return; }
+    try {
+      final resp = await Api.getInfluencerReviews(id, limit: 3);
+      if (!mounted) return;
+      final list = resp["reviews"];
+      setState(() {
+        _reviews = list is List ? List<Map<String, dynamic>>.from(list) : [];
+        _loadingReviews = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingReviews = false);
+    }
+  }
+
   Widget _avatar(double size) {
     final name = profile["name"]?.toString() ?? "?";
     final photoUrl = profile["photo_url"]?.toString() ?? "";
@@ -282,14 +353,24 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     final categoriesList = (profile["categories"] is List)
         ? (profile["categories"] as List).map((c) => c.toString()).toList()
         : <String>[];
-    final category = categoriesList.isNotEmpty
-        ? categoriesList.join(", ")
-        : (profile["category"]?.toString() ?? "");
+    final legacyCategory = profile["category"]?.toString() ?? "";
+    final displayCategories = categoriesList.isNotEmpty
+        ? categoriesList
+        : (legacyCategory.isNotEmpty ? [legacyCategory] : <String>[]);
     final city = profile["city"]?.toString() ?? "";
     final state = profile["state"]?.toString() ?? "";
+    final bio = profile["bio"]?.toString() ?? "";
     final rating = (profile["rating"] as num?)?.toDouble() ?? 0.0;
     final reviewCount = (profile["review_count"] as num?)?.toInt() ?? 0;
+    final viewCount = (profile["view_count"] as num?)?.toInt() ?? 0;
+    final favoriteCount = (profile["favorite_count"] as num?)?.toInt() ?? 0;
     final social = (profile["social"] is Map) ? profile["social"] as Map : {};
+    // Verified badge: real state derived from the same payment/publish
+    // fields already used everywhere else — never a separate/fabricated flag.
+    final verified = _paymentStatus == "PAID" && _publishStatus == "published";
+    // Local-explorer style role indicator — derived from the influencer's
+    // own primary category, never a hardcoded label.
+    final roleLabel = displayCategories.isNotEmpty ? displayCategories.first : "Influencer";
 
     return RefreshIndicator(
       color: kPrimary,
@@ -298,28 +379,102 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           final fresh = await Api.getMyInfluencerProfile(token);
           onProfileUpdated(fresh);
         } catch (_) {}
+        await _loadReviews();
       },
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
         children: [
-          Center(child: _avatar(100)),
+          // ── Hero card ──
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kBorder),
+            ),
+            child: Column(children: [
+              Stack(clipBehavior: Clip.none, children: [
+                _avatar(96),
+                Positioned(
+                  bottom: -2, right: -2,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final updated = await Navigator.push<Map<String,dynamic>>(context,
+                        MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
+                          token: token, existing: profile, onProfileSaved: onProfileUpdated)));
+                      if (updated != null) onProfileUpdated(updated);
+                    },
+                    child: Container(
+                      width: 28, height: 28,
+                      decoration: BoxDecoration(color: kPrimary, shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2)),
+                      child: const Icon(Icons.camera_alt_rounded, size: 13, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 12),
+              Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                Flexible(child: Text(name, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: kText))),
+                if (verified) ...[
+                  const SizedBox(width: 5),
+                  const Icon(Icons.verified_rounded, size: 18, color: kPrimary),
+                ],
+              ]),
+              const SizedBox(height: 4),
+              Text(roleLabel, style: const TextStyle(fontSize: 12.5, color: kPrimary, fontWeight: FontWeight.w700)),
+              if (city.isNotEmpty || state.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.location_on_rounded, size: 13, color: kMuted),
+                  const SizedBox(width: 3),
+                  Text([if (city.isNotEmpty) city, if (state.isNotEmpty) state].join(", "),
+                    style: const TextStyle(fontSize: 12.5, color: kMuted)),
+                ]),
+              ],
+              if (bio.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(bio, textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12.5, color: kText, height: 1.4)),
+              ],
+              const SizedBox(height: 12),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 18),
+                const SizedBox(width: 4),
+                Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
+                const SizedBox(width: 4),
+                Text("($reviewCount reviews)", style: const TextStyle(fontSize: 12, color: kMuted)),
+              ]),
+              const SizedBox(height: 14),
+              SizedBox(width: double.infinity, child: OutlinedButton(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => InfluencerProfileScreen(influencer: profile, token: token))),
+                style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(vertical: 11),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                child: const Text("View public profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+              )),
+            ]),
+          ),
+
+          // ── Category chips ──
+          if (displayCategories.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            _categoryChips(displayCategories),
+          ],
+
+          // ── Stats ──
           const SizedBox(height: 14),
-          Center(child: Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kText))),
-          const SizedBox(height: 2),
-          if (city.isNotEmpty || category.isNotEmpty)
-            Center(child: Text([if (city.isNotEmpty) city, if (state.isNotEmpty) state, if (category.isNotEmpty) category].join(" · "),
-              style: const TextStyle(fontSize: 13, color: kMuted))),
-          const SizedBox(height: 8),
-          Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 18),
-            const SizedBox(width: 4),
-            Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
-            const SizedBox(width: 4),
-            Text("($reviewCount reviews)", style: const TextStyle(fontSize: 12, color: kMuted)),
-          ])),
+          Row(children: [
+            Expanded(child: _statCard(Icons.visibility_rounded, "$viewCount", "Profile Views")),
+            const SizedBox(width: 12),
+            Expanded(child: _statCard(Icons.favorite_rounded, "$favoriteCount", "Favourites")),
+          ]),
+
           const SizedBox(height: 16),
           _buildSubscriptionStatusBanner(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
           // FIX (Bug 1): a draft/pending/failed profile gets a direct,
           // one-tap way to finish payment — same form, same existing
           // profile, same reused-order/retry logic already in
@@ -328,7 +483,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           // creates a new profile or clears influencer_id.
           if (_paymentStatus != "PAID")
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 10, top: 8),
               child: SizedBox(width: double.infinity, child: ElevatedButton.icon(
                 onPressed: () async {
                   final updated = await Navigator.push<Map<String,dynamic>>(context,
@@ -342,6 +497,28 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               )),
             ),
+
+          // ── Reviews (real data — never hardcoded example businesses) ──
+          const SizedBox(height: 16),
+          Row(children: [
+            const Text("Reviews", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+            const Spacer(),
+            if (_reviews.isNotEmpty)
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => _MyInfluencerAllReviewsScreen(influencerId: _influencerId, name: name))),
+                child: const Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
+              ),
+          ]),
+          const SizedBox(height: 8),
+          if (_loadingReviews)
+            const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
+          else if (_reviews.isEmpty)
+            const Text("No reviews yet", style: TextStyle(fontSize: 12, color: kMuted))
+          else
+            ..._reviews.map((r) => _reviewCard(r)),
+
+          const SizedBox(height: 20),
           SizedBox(width: double.infinity, child: OutlinedButton.icon(
             onPressed: () async {
               final updated = await Navigator.push<Map<String,dynamic>>(context,
@@ -384,6 +561,85 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           ],
         ],
       ),
+    );
+  }
+
+  /// Dynamic category chips — capped display with a "+N" overflow chip,
+  /// exactly matching the reference design's "Restaurant / Bakery / +2"
+  /// pattern, but always built from the influencer's own real categories.
+  Widget _categoryChips(List<String> categories) {
+    const maxShown = 3;
+    final shown = categories.take(maxShown).toList();
+    final overflow = categories.length - shown.length;
+    return Wrap(spacing: 8, runSpacing: 8, children: [
+      for (final c in shown)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(20)),
+          child: Text(c, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
+        ),
+      if (overflow > 0)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(20)),
+          child: Text("+$overflow", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+        ),
+    ]);
+  }
+
+  Widget _statCard(IconData icon, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+      child: Column(children: [
+        Icon(icon, size: 18, color: kPrimary),
+        const SizedBox(height: 6),
+        Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kText)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(fontSize: 11, color: kMuted), textAlign: TextAlign.center),
+      ]),
+    );
+  }
+
+  /// Real review card — reviewer name/rating/date/text, sourced entirely
+  /// from Api.getInfluencerReviews (the same data the public profile screen
+  /// shows). No example/placeholder reviews are ever rendered here.
+  Widget _reviewCard(Map<String, dynamic> r) {
+    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? "Anonymous";
+    final stars = (r["rating"] as num?)?.toInt() ?? 0;
+    final text = r["text"]?.toString() ?? "";
+    final ts = r["created_at"]?.toString() ?? "";
+    final ago = ts.isNotEmpty ? _reviewTimeAgo(ts) : "";
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 34, height: 34,
+          decoration: const BoxDecoration(shape: BoxShape.circle, color: kLight),
+          alignment: Alignment.center,
+          child: Text(reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : "?",
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kPrimary)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(reviewerName, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kText))),
+            Row(children: List.generate(5, (i) => Icon(
+              i < stars ? Icons.star_rounded : Icons.star_border_rounded, size: 12, color: const Color(0xFFFFB800)))),
+          ]),
+          if (ago.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(ago, style: const TextStyle(fontSize: 10.5, color: kMuted)),
+          ],
+          if (text.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(text, style: const TextStyle(fontSize: 12, color: kText, height: 1.35)),
+          ],
+        ])),
+      ]),
     );
   }
 
@@ -485,6 +741,105 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
   }
 }
 
+/// "See all reviews" screen for the owner's own profile — fetches the full
+/// real review list (not just the 3-card preview shown on the home screen).
+/// A local equivalent of the existing public-profile "_InfluencerReviewsScreen"
+/// (influencer_section.dart), which is file-private and cannot be reused here.
+class _MyInfluencerAllReviewsScreen extends StatefulWidget {
+  final String influencerId;
+  final String name;
+  const _MyInfluencerAllReviewsScreen({required this.influencerId, required this.name});
+
+  @override
+  State<_MyInfluencerAllReviewsScreen> createState() => _MyInfluencerAllReviewsScreenState();
+}
+
+class _MyInfluencerAllReviewsScreenState extends State<_MyInfluencerAllReviewsScreen> {
+  List<Map<String, dynamic>> _reviews = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.influencerId.isEmpty) { setState(() => _loading = false); return; }
+    try {
+      final resp = await Api.getInfluencerReviews(widget.influencerId, limit: 100);
+      if (!mounted) return;
+      final list = resp["reviews"];
+      setState(() {
+        _reviews = list is List ? List<Map<String, dynamic>>.from(list) : [];
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBg,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        iconTheme: const IconThemeData(color: kText),
+        title: Text("Reviews for ${widget.name}", style: const TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 16)),
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: kPrimary))
+          : _reviews.isEmpty
+              ? const Center(child: Text("No reviews yet", style: TextStyle(fontSize: 13, color: kMuted)))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: _reviews.length,
+                  itemBuilder: (ctx, i) {
+                    final r = _reviews[i];
+                    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? "Anonymous";
+                    final stars = (r["rating"] as num?)?.toInt() ?? 0;
+                    final text = r["text"]?.toString() ?? "";
+                    final ts = r["created_at"]?.toString() ?? "";
+                    final ago = ts.isNotEmpty ? _reviewTimeAgo(ts) : "";
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Container(
+                          width: 34, height: 34,
+                          decoration: const BoxDecoration(shape: BoxShape.circle, color: kLight),
+                          alignment: Alignment.center,
+                          child: Text(reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : "?",
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kPrimary)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Expanded(child: Text(reviewerName, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kText))),
+                            Row(children: List.generate(5, (i) => Icon(
+                              i < stars ? Icons.star_rounded : Icons.star_border_rounded, size: 12, color: const Color(0xFFFFB800)))),
+                          ]),
+                          if (ago.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(ago, style: const TextStyle(fontSize: 10.5, color: kMuted)),
+                          ],
+                          if (text.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(text, style: const TextStyle(fontSize: 12, color: kText, height: 1.35)),
+                          ],
+                        ])),
+                      ]),
+                    );
+                  },
+                ),
+    );
+  }
+}
+
 /// Shared Add/Edit form — `existing == null` means create mode (POST),
 /// otherwise edit mode (PUT). Never sends account_id or influencer_id;
 /// ownership is entirely determined server-side from the auth token.
@@ -509,6 +864,7 @@ class InfluencerProfileFormScreen extends StatefulWidget {
 class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScreen> {
   final _nameC = TextEditingController();
   final _phoneC = TextEditingController();
+  final _bioC = TextEditingController();
   final _instaC = TextEditingController();
   final _ytC = TextEditingController();
   final _fbC = TextEditingController();
@@ -562,6 +918,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     if (e != null) {
       _nameC.text = e["name"]?.toString() ?? "";
       _phoneC.text = e["phone"]?.toString() ?? "";
+      _bioC.text = e["bio"]?.toString() ?? "";
       _selState = (e["state"]?.toString().isNotEmpty ?? false) ? e["state"].toString() : null;
       _selCity = (e["city"]?.toString().isNotEmpty ?? false) ? e["city"].toString() : null;
       // Issue 3: prefer the new `categories` list; fall back to the legacy
@@ -620,7 +977,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
 
   @override
   void dispose() {
-    _nameC.dispose(); _phoneC.dispose(); _instaC.dispose(); _ytC.dispose(); _fbC.dispose();
+    _nameC.dispose(); _phoneC.dispose(); _bioC.dispose(); _instaC.dispose(); _ytC.dispose(); _fbC.dispose();
     _discountCodeC.dispose();
     _razorpay.clear();
     super.dispose();
@@ -628,7 +985,15 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
 
   /// Shared validation + body-building for both Save and Save & Publish —
   /// returns null (and sets _errorMsg) if invalid.
-  Map<String, dynamic>? _validateAndBuildBody() {
+  ///
+  /// `requireImage`: true only for Save & Publish. A profile image is
+  /// mandatory to PUBLISH, but a draft (plain Save) may still be saved
+  /// without one — so this flag is the only thing that differs between
+  /// the two call sites below. "Has an image" means either a NEW photo was
+  /// just picked this session (_photoB64) or the profile already has one
+  /// saved from before (_existingPhotoUrl) — editing an already-published
+  /// profile that already has an image continues to work normally.
+  Map<String, dynamic>? _validateAndBuildBody({bool requireImage = false}) {
     final name = _nameC.text.trim();
     if (name.isEmpty) { setState(() => _errorMsg = "Name is required"); return null; }
     if (_selState == null) { setState(() => _errorMsg = "Please select a state"); return null; }
@@ -641,12 +1006,17 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       setState(() => _errorMsg = "Please enter a valid 10-digit mobile number.");
       return null;
     }
+    if (requireImage && _photoB64.isEmpty && !_existingPhotoUrl.startsWith("http")) {
+      setState(() => _errorMsg = "Profile image is required to publish your influencer profile.");
+      return null;
+    }
     final body = <String, dynamic>{
       "name": name,
       "state": _selState,
       "city": _selCity,
       "categories": _selCategories.toList(), // Issue 3: multi-select list
       "phone": phone,
+      "bio": _bioC.text.trim(),
       "social": {
         "instagram": _instaC.text.trim(),
         "youtube": _ytC.text.trim(),
@@ -690,7 +1060,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   /// happens after the backend verifies the payment (see _onPaySuccess).
   Future<void> _saveAndPublish() async {
     if (_saving || _publishing) return;
-    final body = _validateAndBuildBody();
+    final body = _validateAndBuildBody(requireImage: true);
     if (body == null) return;
     setState(() { _publishing = true; _errorMsg = null; });
     try {
@@ -894,11 +1264,26 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
               ]),
             ),
           ),
+          // Optional for a draft Save, but mandatory to Save & Publish (see
+          // _validateAndBuildBody's requireImage check) — shown only while
+          // no image exists yet, never for a profile that already has one.
+          if (_photoB64.isEmpty && !_existingPhotoUrl.startsWith("http"))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Center(
+                child: Text("Required to publish", style: TextStyle(fontSize: 11.5, color: kMuted.withValues(alpha: .9), fontStyle: FontStyle.italic)),
+              ),
+            ),
           const SizedBox(height: 24),
           const Text("Name *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
           TextField(controller: _nameC, decoration: _dec("e.g. Priya Sharma")),
           const SizedBox(height: 16),
+          const Text("Bio", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          const SizedBox(height: 6),
+          TextField(controller: _bioC, maxLines: 3, maxLength: 280,
+            decoration: _dec("Sharing the best local food, cafés, shops and great offers around your city.")),
+          const SizedBox(height: 4),
           const Text("State *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
