@@ -37,7 +37,7 @@ class StoreHeader extends StatelessWidget {
         opaque: false,
         barrierColor: Colors.black,
         transitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, __, ___) => _FullScreenImageViewer(
+        pageBuilder: (_, __, ___) => FullScreenImageViewer(
           images: images,
           initialIndex: imgPage,
         ),
@@ -632,19 +632,24 @@ class _BtnData {
 }
 
 // ─── Full Screen Image Viewer ─────────────────────────────────
-class _FullScreenImageViewer extends StatefulWidget {
+// Made public (Round 6 — Issue 2) so other screens can reuse the same
+// gallery viewer instead of building a second one — e.g. the Store Detail
+// "Today's Offers" deal card now opens a tapped deal image through this
+// same widget. Works for a single image too (images: [url], initialIndex: 0
+// — the "n / total" counter simply doesn't render for a length-1 list).
+class FullScreenImageViewer extends StatefulWidget {
   final List<String> images;
   final int initialIndex;
-  const _FullScreenImageViewer(
-      {required this.images, required this.initialIndex});
+  const FullScreenImageViewer(
+      {super.key, required this.images, required this.initialIndex});
 
   @override
-  State<_FullScreenImageViewer> createState() =>
+  State<FullScreenImageViewer> createState() =>
       _FullScreenImageViewerState();
 }
 
 class _FullScreenImageViewerState
-    extends State<_FullScreenImageViewer> {
+    extends State<FullScreenImageViewer> {
   late int _current;
   late PageController _pc;
   late TransformationController _tc;

@@ -1,6 +1,9 @@
 // lib/screens/store/widgets/store_offers_section.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
+import 'store_header.dart' show FullScreenImageViewer;
 
 class StoreOffersSection extends StatelessWidget {
   final List<Map<String, dynamic>> deals;
@@ -97,6 +100,110 @@ class StoreOffersSection extends StatelessWidget {
                 final disc    = d['discount']?.toString() ?? '0';
                 final endDate = d['end_date']?.toString() ?? '';
                 final discInt = int.tryParse(disc) ?? 0;
+                // Round 6 (Issue 2): the deal's own uploaded image, if any.
+                // Root cause of "image not showing" was purely here — the
+                // backend (routers/public.py) already returned image_url in
+                // this same deals list (added in Round 5), but this card
+                // never read it and always rendered the generic decorative
+                // design. Falls back to that exact unchanged design when
+                // empty, so deals without an image keep working as before.
+                final imageUrl = d['image_url']?.toString() ?? '';
+
+                if (imageUrl.isNotEmpty) {
+                  return GestureDetector(
+                    onTap: () => Navigator.push(
+                      ctx,
+                      PageRouteBuilder(
+                        opaque: false,
+                        barrierColor: Colors.black,
+                        transitionDuration: const Duration(milliseconds: 280),
+                        pageBuilder: (_, __, ___) => FullScreenImageViewer(
+                          images: [imageUrl],
+                          initialIndex: 0,
+                        ),
+                      ),
+                    ),
+                    child: Container(
+                      width: 210,
+                      height: 210,
+                      margin: EdgeInsets.only(right: idx < deals.length - 1 ? 12 : 0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: kBorder, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                              color: kPrimary.withValues(alpha: .08),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(19),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // ── Deal image fills the card ──
+                            imageUrl.startsWith('data:image')
+                                ? Builder(builder: (_) {
+                                    try {
+                                      return Image.memory(
+                                          base64Decode(imageUrl.split(',').last),
+                                          fit: BoxFit.cover);
+                                    } catch (_) {
+                                      return Container(color: kLight);
+                                    }
+                                  })
+                                : CachedNetworkImage(
+                                    imageUrl: imageUrl,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(color: kLight),
+                                    errorWidget: (_, __, ___) => Container(color: kLight,
+                                        child: const Icon(Icons.broken_image_outlined, color: kMuted, size: 32)),
+                                  ),
+                            // ── Bottom scrim for text readability ──
+                            Positioned(
+                              left: 0, right: 0, bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(12, 28, 12, 12),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [Colors.black.withValues(alpha: 0), Colors.black.withValues(alpha: .72)],
+                                  ),
+                                ),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                                  if (title.isNotEmpty)
+                                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+                                  if (endDate.isNotEmpty) ...[
+                                    const SizedBox(height: 3),
+                                    Text('Valid till ${_formatDate(endDate)}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 10, fontWeight: FontWeight.w600)),
+                                  ],
+                                ]),
+                              ),
+                            ),
+                            // ── Discount % chip, top-left ──
+                            if (discInt > 0)
+                              Positioned(
+                                top: 10, left: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: kPrimary,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text('$discInt% OFF',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
 
                 return Container(
                   width: 210,
