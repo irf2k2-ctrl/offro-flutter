@@ -145,8 +145,12 @@ class Api {
   // loginUser() below validates phone exists → issues token → sets cookie.
 
 
-  static Future<void> updateCity(String token, String city) async {
-    try { await _put("/user/city", {"city": city}, token: token); } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+  static Future<void> updateCity(String token, String city, {String? state}) async {
+    try {
+      final body = <String, dynamic>{"city": city};
+      if (state != null && state.isNotEmpty) body["state"] = state;
+      await _put("/user/city", body, token: token);
+    } catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
   }
   static Future<Map<String,dynamic>> getWallet(String token) async {
     try { return Map<String,dynamic>.from(await _get("/user/wallet", token: token)); } catch (_) { return {}; }

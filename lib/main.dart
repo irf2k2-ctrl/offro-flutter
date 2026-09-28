@@ -543,13 +543,16 @@ class MyApp extends StatelessWidget {
             (r) => false,
           );
         },
-        onSuccess: (tok, nm, ph, uid, role) async {
+        onSuccess: (tok, nm, ph, uid, role, city) async {
         if (role == 'merchant') {
           // Merchant role selected → request/check location, then continue
           // to the merchant loader even if permission was denied.
           // Awaited so the Continue button's loading state (in
           // _ContinueAsState._proceed) stays true until this entire chain
           // — including the location permission prompt — actually finishes.
+          // NOTE: this is the MERCHANT ACCOUNT's own location gate — it is
+          // completely independent of store location, which is captured
+          // separately (and is mandatory) in AddEditStorePage.
           await _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
         } else if (role == 'influencer') {
           // C3: Influencer role selected. No new auth system, no location
@@ -566,11 +569,18 @@ class MyApp extends StatelessWidget {
             (r) => false,
           );
         } else {
-          // User role selected → GPS location loader → user home
-          // (unchanged — navigates immediately, no intermediate async gap)
+          // User role selected. Account location was already checked/
+          // resolved (or, if still missing, manually collected) BEFORE Role
+          // Selection — see login_screen.dart's _AccountBootstrapScreen and
+          // _handleRoleSelected. Pass it through as forcedCity so this
+          // loader goes straight to fetching deals for that city instead of
+          // re-running its own GPS/cache resolution (and never falls back
+          // to a default/guessed city if city somehow still came through
+          // empty — LocationLoadingScreen's own fallback was removed too).
           navigatorKey.currentState?.pushAndRemoveUntil(
             _route(LocationLoadingScreen(
               token: tok, name: nm, phone: ph, userId: uid,
+              forcedCity: city.isNotEmpty ? city : null,
               onReady: ({required String city, required List<Map<String,dynamic>> stores,
                          required double? lat, required double? lng}) =>
                   goHomeWithData(token: tok, name: nm, phone: ph, userId: uid,
