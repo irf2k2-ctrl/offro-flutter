@@ -84,6 +84,26 @@ Future<void> _clearIOSBadge() async {
   }
 }
 
+// BUG FIX (Item 2 — iOS badge doesn't reflect real unread count): the
+// backend used to send a hardcoded "badge": 1 in every push's APNs payload
+// (routers/admin.py's _build_fcm_message), which iOS applies as an absolute
+// value the instant the push is delivered — even while the app is
+// backgrounded, with no app code involved — so 5 backgrounded pushes would
+// still only ever show "1", never "5". The backend has no server-side
+// per-device unread-count to send instead (unread state is tracked purely
+// on-device via Prefs, same as the existing in-app bell badge), so the
+// payload's badge key is now omitted entirely and the app asserts the true
+// count itself via the same already-existing native method channel used by
+// _clearIOSBadge() above — reusing Prefs.getUnreadCount(), the same source
+// of truth the in-app bell badge already reads.
+Future<void> _syncIOSBadgeCount(int n) async {
+  if (!Platform.isIOS) return;
+  try {
+    await _badgeChannel.invokeMethod('setBadge', n);
+  } catch (e) {
+  }
+}
+
 // ─────────────────────── PREFS ───────────────────────
 
 // ─────────────────────── LOCATION ───────────────────────
@@ -226,7 +246,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         title: title, body: body, imageUrl: imageUrl,
         type: notifType, screen: screen, messageId: msgId,
       );
-      if (saved) await Prefs.incrementUnread();
+      if (saved) {
+        await Prefs.incrementUnread();
+        // Item 2: assert the real unread count as the iOS badge right away —
+        // see _syncIOSBadgeCount's comment for why the payload can't do this.
+        await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+      }
     }
   } catch (e) {
   }
@@ -308,7 +333,10 @@ Future<void> main() async {
             title: _it, body: _ib, imageUrl: _ii,
             type: _iy, screen: _isc, messageId: _im,
           );
-          if (saved) await Prefs.incrementUnread();
+          if (saved) {
+            await Prefs.incrementUnread();
+            await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+          }
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleNotificationNavigation(_isc, _iy);
@@ -336,6 +364,7 @@ Future<void> main() async {
           if (saved) {
             await Prefs.incrementUnread();
             _unreadNotifier.value++;
+            await _syncIOSBadgeCount(await Prefs.getUnreadCount());
           }
         }
 
@@ -360,7 +389,10 @@ Future<void> main() async {
             title: _t, body: _b, imageUrl: _i,
             type: _y, screen: _sc, messageId: _mi,
           );
-          if (saved) await Prefs.incrementUnread();
+          if (saved) {
+            await Prefs.incrementUnread();
+            await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+          }
         }
         // Navigate to the appropriate screen
         _handleNotificationNavigation(_sc, _y);
@@ -368,6 +400,18 @@ Future<void> main() async {
       }
     });
   }
+
+  // BUG FIX (Item 2 — "kill/reopen app must restore correct badge"): the OS
+  // badge is a native, persistent value that lives outside Flutter/Prefs, so
+  // if it was ever left out of sync (e.g. an older push still carrying a
+  // stale hardcoded badge before this fix, or a delivery outside the app's
+  // control), it would keep showing that stale number across app restarts
+  // forever, never self-correcting. Every cold start now re-asserts the
+  // badge from the real stored unread count exactly once, so the two can
+  // never drift apart for more than a moment.
+  try {
+    await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+  } catch (e) { }
 
   try {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light));
@@ -2889,6 +2933,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _load() async {
     await Prefs.clearUnread(); // Mark all as read when page opens
+    // BUG FIX (Item 2 — iOS badge stuck after reading): this is the ONE
+    // place that always runs whenever the Notifications page is opened,
+    // regardless of entry path (home-screen bell tap via _openNotifications
+    // — which already did this two lines below — OR tapping a push
+    // notification directly via _handleNotificationNavigation, which pushes
+    // this same page WITHOUT going through _openNotifications). The direct-
+    // from-push path never reset _unreadNotifier or called _clearIOSBadge(),
+    // so the real iOS home-screen badge stayed stuck at whatever value the
+    // last push delivered — this is the actual root cause of "badge remains
+    // after reading" for that entry path. Doing it here as well (harmless,
+    // idempotent, if _openNotifications also just ran it) closes the gap
+    // for every current and future way of reaching this page.
+    _unreadNotifier.value = 0;
+    await _clearIOSBadge();
     // Auto-purge notifications older than 30 days
     final rawList = await Prefs.getNotifications();
     final cutoff  = DateTime.now().subtract(const Duration(days: 30));

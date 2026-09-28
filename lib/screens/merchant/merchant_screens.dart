@@ -105,8 +105,17 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   }
 
   // FIX7: never treat load-error as "new merchant" — only show onboarding if stores truly empty
-  bool get _hasEligibleStore => !_loadError && _stores.any((s)=>
-    ["active","inactive","waiting_approval","paid","draft","pending_subscription","pending"].contains(s["status"]));
+  //
+  // BUG FIX: this used to be named _hasEligibleStore and included "draft"
+  // (and other non-active statuses) in the list that counted as
+  // "eligible", which meant a brand-new, never-subscribed store already
+  // unlocked Banner/Product creation — the exact bug reported. Banner/
+  // Product must stay locked until at least one of the merchant's stores
+  // is genuinely subscribed AND admin-approved, which is the single
+  // "active" value of stores.status (the same field this screen already
+  // reads for the "X Active" count above, and the same field
+  // routers/admin.py's approve_store() sets — no new status system).
+  bool get _hasActiveStore => !_loadError && _stores.any((s) => s["status"] == "active");
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
@@ -166,14 +175,15 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
               ),
               const SizedBox(height:12),
 
-              // Banner card — locked if no eligible store
+              // Banner card — locked until a subscribed+active store exists
               _SectionCard(
                 icon: Icons.view_carousel_rounded,
-                color: _hasEligibleStore ? const Color(0xFFc0392b) : kMuted,
-                bgColor: _hasEligibleStore ? const Color(0xFFfde8e8) : const Color(0xFFf0f0f0),
+                color: _hasActiveStore ? const Color(0xFFc0392b) : kMuted,
+                bgColor: _hasActiveStore ? const Color(0xFFfde8e8) : const Color(0xFFf0f0f0),
                 title: "My Banner",
-                subtitle: !_hasEligibleStore
-                  ? "🔒 Create a store first to unlock"
+                locked: !_hasActiveStore,
+                subtitle: !_hasActiveStore
+                  ? "🔒 Subscribe your store to create banners."
                   : _banners.isEmpty
                     ? "No banners yet — promote your store"
                     : ((){
@@ -182,22 +192,23 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         final parts=<String>[];if(live>0)parts.add("$live Live");if(pend>0)parts.add("$pend Pending");
                         return "${_banners.length} Banner${_banners.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
                       })(),
-                onTap: _hasEligibleStore
+                onTap: _hasActiveStore
                   ? ()=>Navigator.push(context,_offroRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Create an active store first to create banners."),
+                      content:Text("Subscribe your store to create banners."),
                       backgroundColor:Colors.orange)),
               ),
               const SizedBox(height:12),
 
-              // Product card — locked if no eligible store
+              // Product card — locked until a subscribed+active store exists
               _SectionCard(
                 icon: Icons.local_activity_rounded,
-                color: _hasEligibleStore ? const Color(0xFF856404) : kMuted,
-                bgColor: _hasEligibleStore ? const Color(0xFFfff3cd) : const Color(0xFFf0f0f0),
+                color: _hasActiveStore ? const Color(0xFF856404) : kMuted,
+                bgColor: _hasActiveStore ? const Color(0xFFfff3cd) : const Color(0xFFf0f0f0),
                 title: "My Products",
-                subtitle: !_hasEligibleStore
-                  ? "🔒 Create a store first to unlock"
+                locked: !_hasActiveStore,
+                subtitle: !_hasActiveStore
+                  ? "🔒 Subscribe your store to add products."
                   : _products.isEmpty
                     ? "No products yet — add your first product"
                     : ((){
@@ -213,10 +224,10 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         if(live>0) parts.add("$live Live");
                         return parts.join('  ·  ');
                       })(),
-                onTap: _hasEligibleStore
+                onTap: _hasActiveStore
                   ? ()=>Navigator.push(context,_offroRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Create an active store first to create products."),
+                      content:Text("Subscribe your store to add products."),
                       backgroundColor:Colors.orange)),
               ),
 
@@ -231,8 +242,13 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
 class _SectionCard extends StatelessWidget {
   final IconData icon; final Color color, bgColor;
   final String title, subtitle; final VoidCallback onTap;
+  // Item 1 (draft-store lock): when true, shows a "Locked" pill instead of
+  // "Open →" so the card visually communicates it can't be opened yet.
+  // Defaults to false so existing call sites (e.g. "My Store", which is
+  // never locked) don't need to change.
+  final bool locked;
   const _SectionCard({required this.icon, required this.color, required this.bgColor,
-    required this.title, required this.subtitle, required this.onTap});
+    required this.title, required this.subtitle, required this.onTap, this.locked = false});
 
   @override Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
@@ -267,9 +283,15 @@ class _SectionCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text("Open", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-              const SizedBox(width: 4),
-              Icon(Icons.arrow_forward_rounded, color: color, size: 13),
+              if (locked) ...[
+                Icon(Icons.lock_rounded, color: color, size: 12),
+                const SizedBox(width: 4),
+                Text("Locked", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+              ] else ...[
+                Text("Open", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, color: color, size: 13),
+              ],
             ]),
           ),
         ]),
@@ -820,6 +842,13 @@ class _AddBannerState extends State<AddBannerPage> {
         "days":       _days,
         "from_date":  _fromDateStr,
         "discount_code": _appliedCode ?? "",
+        // Item 1 (draft-store lock): send store_id here too so a draft/
+        // unsubscribed store is rejected fail-fast at order-creation time,
+        // instead of only at activation. Backend's create_banner_order()
+        // treats this field as optional, so this is purely an earlier,
+        // better-UX check — activate_free_banner()/verify_banner_payment()
+        // still enforce it regardless.
+        "store_id":   (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
       });
       if (!mounted) return;
       final payMode = order["pay_mode"] ?? "manual";
@@ -2634,7 +2663,17 @@ class _AddProductState extends State<AddProductPage> {
     if(_days<1){setState(()=>_msg="Enter number of days (minimum 1)");return;}
     setState((){_loading=true;_msg="";});
     try{
-      final order=await Api.createProductOrder(widget.token,{"days":_days,"from_date":_fromDateStr,"discount_code":_appliedVCode});
+      // Item 1 (draft-store lock): send store_id here too so a draft/
+      // unsubscribed store is rejected fail-fast at order-creation time
+      // (backend's create_voucher_order() treats it as optional) instead of
+      // only at activation — activate_free_voucher()/verify_voucher_payment()
+      // still enforce it regardless.
+      final order=await Api.createProductOrder(widget.token,{
+        "days":_days,
+        "from_date":_fromDateStr,
+        "discount_code":_appliedVCode,
+        "store_id":(_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString(),
+      });
       if(!mounted)return;
       final payMode=order["pay_mode"]??"manual";
       final amtPaise=(order["amount_paise"] as num?)?.toInt()??0;
@@ -5621,6 +5660,16 @@ class _AddDealState extends State<AddDealPage> {
   late String _selectedStoreName;
   late String _endDate;
   DateTime? _storeExpiryDate;
+  // Item 3 (Add Deal image upload): same two-variable convention already
+  // used by this file's other image pickers (e.g. MerchantStoreEditPage's
+  // _imgB64/_imgUrl) — _dealImgB64 holds a freshly picked image as a
+  // base64 data URI, _dealImgUrl holds the existing CDN URL prefilled in
+  // edit mode until the merchant replaces it. Whichever is non-null is what
+  // gets sent; the backend's existing _cloudinary_upload helper is a no-op
+  // pass-through for an already-uploaded http(s) URL, so re-sending the
+  // existing image on every save never re-uploads it.
+  String? _dealImgB64;
+  String? _dealImgUrl;
 
   bool get _isEdit => widget.editDeal != null;
 
@@ -5639,6 +5688,9 @@ class _AddDealState extends State<AddDealPage> {
       _endDate   = d["end_date"]?.toString() ?? "";
       _selectedStoreId = d["store_id"]?.toString() ?? widget.storeId;
       _selectedStoreName = d["store_name"]?.toString() ?? widget.storeName;
+      // Item 3: prefill the existing image so Edit Deal shows it, per requirement.
+      final existingImg = d["image_url"]?.toString() ?? "";
+      if (existingImg.isNotEmpty) _dealImgUrl = existingImg;
     } else {
       _endDate = DateTime.now().add(const Duration(days: 30)).toIso8601String().substring(0, 10);
     }
@@ -5717,6 +5769,23 @@ class _AddDealState extends State<AddDealPage> {
     return "${_storeExpiryDate!.day} ${months[_storeExpiryDate!.month - 1]} ${_storeExpiryDate!.year}";
   }
 
+  // Item 3 (Add Deal image upload): identical pattern to AddBannerPage's
+  // _pickImage / the Premium product form's _pickLogo elsewhere in this
+  // file — same picker source, size guard and base64 data-URI encoding —
+  // so this reuses the existing image-upload convention instead of a new one.
+  Future<void> _pickDealImage() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1200);
+    if (img == null) return;
+    final bytes = await File(img.path).readAsBytes();
+    if (bytes.length > 2 * 1024 * 1024) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Image too large. Max 2MB."), backgroundColor: Colors.red));
+      return;
+    }
+    setState(() { _dealImgB64 = "data:image/jpeg;base64,${base64Encode(bytes)}"; _dealImgUrl = null; });
+  }
+
   Future<void> _save() async {
     final discVal = int.tryParse(_disc.text.trim()) ?? 0;
     if (_title.text.trim().isEmpty) { setState(() => _msg = "Deal title is required"); return; }
@@ -5743,6 +5812,12 @@ class _AddDealState extends State<AddDealPage> {
         "category":    _category,
         "start_date":  _isEdit ? (widget.editDeal!["start_date"]?.toString() ?? DateTime.now().toIso8601String().substring(0, 10)) : DateTime.now().toIso8601String().substring(0, 10),
         "end_date":    _endDate,
+        // Item 3: optional — "" if the merchant never picked one, matching
+        // this app's existing pattern of optional imagery elsewhere.
+        // Prefer a freshly picked image; otherwise resend the existing CDN
+        // URL unchanged (backend's _cloudinary_upload is a no-op pass-
+        // through for it, so this never re-uploads or loses the image).
+        "image_url":   _dealImgB64 ?? _dealImgUrl ?? "",
       };
       if (_isEdit) {
         await Api.updateDeal(widget.token, widget.editDeal!["_id"].toString(), payload);
@@ -5804,6 +5879,53 @@ class _AddDealState extends State<AddDealPage> {
         decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+      const SizedBox(height: 12),
+      // ── Item 3: Deal Image (optional) ──
+      const Text("Deal Image", style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      GestureDetector(
+        onTap: _pickDealImage,
+        child: Container(
+          height: 130,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: (_dealImgB64 != null || _dealImgUrl != null) ? kPrimary : kBorder),
+          ),
+          child: _dealImgB64 != null
+              ? Stack(children: [
+                  ClipRRect(borderRadius: BorderRadius.circular(11),
+                    child: Image.memory(base64Decode(_dealImgB64!.split(",").last), width: double.infinity, height: 130, fit: BoxFit.cover)),
+                  Positioned(top: 6, right: 6, child: GestureDetector(
+                    onTap: () => setState(() => _dealImgB64 = null),
+                    child: Container(padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+                ])
+              : (_dealImgUrl != null && _dealImgUrl!.isNotEmpty)
+                  ? Stack(children: [
+                      ClipRRect(borderRadius: BorderRadius.circular(11),
+                        child: Image.network(_dealImgUrl!, width: double.infinity, height: 130, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.broken_image_outlined, color: kMuted, size: 32),
+                            const SizedBox(height: 6),
+                            const Text("Tap to replace image", style: TextStyle(color: kMuted, fontSize: 12)),
+                          ]))),
+                      Positioned(top: 6, right: 6, child: GestureDetector(
+                        onTap: () => setState(() => _dealImgUrl = null),
+                        child: Container(padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                          child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+                    ])
+                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const Icon(Icons.add_photo_alternate_outlined, size: 32, color: kAccent),
+                      const SizedBox(height: 6),
+                      const Text("[ Upload Image ]", style: TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      _InfoChip("📦 Max 2MB · Optional"),
+                    ]),
+        ),
+      ),
       const SizedBox(height: 12),
       InkWell(
         onTap: _pickEndDate,
