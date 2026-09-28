@@ -11,6 +11,11 @@ class StoreOffersSection extends StatelessWidget {
   final String storeArea;
   final String storeCity;
   final String storeId;
+  // Round 7 (Issue 4): true while StoreDetailPage's real fetchStoreDetail()
+  // call is still in flight. See the skeleton block in build() below for why
+  // this exists — defaults to false so this widget's behavior is unchanged
+  // for any other/future caller that doesn't pass it.
+  final bool loading;
 
   const StoreOffersSection({
     super.key,
@@ -19,6 +24,7 @@ class StoreOffersSection extends StatelessWidget {
     this.storeArea = '',
     this.storeCity = '',
     this.storeId = '',
+    this.loading = false,
   });
 
   /// Format a date string (yyyy-MM-dd or dd MMM yyyy) as "d MMM yyyy"
@@ -47,7 +53,7 @@ class StoreOffersSection extends StatelessWidget {
                 style: TextStyle(
                     color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
             const Spacer(),
-            if (deals.isNotEmpty)
+            if (deals.isNotEmpty && !loading)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
@@ -63,8 +69,50 @@ class StoreOffersSection extends StatelessWidget {
           ]),
         ),
 
+        // ── Loading skeleton (Round 7, Issue 4) ──
+        // Root cause of "old/default Today's Offers card flashes before the
+        // current deal images load": StoreDetailPage renders this section
+        // immediately in initState() using widget.store['deals'], which for
+        // navigation from Home is a SYNTHESIZED placeholder deal built from
+        // the home list card's plain-text offer summary (see
+        // _enrichStoreForDetail() in home_screen.dart) — it never has an
+        // image_url, so it always fell into the pre-Round-6 decorative
+        // "green circles" card below. Once the real fetchStoreDetail() API
+        // call resolved, _store['deals'] was replaced with the real deals
+        // (with real image_url), and the section re-rendered with the new
+        // image card — producing the reported flash from the generic
+        // decorative card to the real one.
+        // Fix: while the real fetch is in flight, show a proper loading
+        // skeleton instead of rendering (possibly placeholder/mismatched)
+        // deal content at all. This never shows stale or synthesized
+        // content, and — because fetchStoreDetail() is typically fast — adds
+        // no perceptible delay versus the immediate-render behavior it
+        // replaces. The synthesized placeholder in _enrichStoreForDetail()
+        // is left in place (harmless/unused here) in case any other caller
+        // still relies on it.
+        if (loading)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: SizedBox(
+              height: 210,
+              child: Row(children: [
+                for (var i = 0; i < 2; i++) ...[
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: kLight.withValues(alpha: .55),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: kBorder, width: 1),
+                      ),
+                    ),
+                  ),
+                  if (i == 0) const SizedBox(width: 12),
+                ],
+              ]),
+            ),
+          )
         // ── Empty state ──
-        if (deals.isEmpty)
+        else if (deals.isEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Container(

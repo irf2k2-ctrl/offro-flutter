@@ -29,6 +29,9 @@ import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../payment/payment_success_screen.dart';
 import 'products_phase2.dart';
+// Round 7 Item 2: reuse the existing full-screen image viewer for the Merchant
+// Deals list thumbnail tap-to-view — no duplicate viewer implementation.
+import '../store/widgets/store_header.dart' show FullScreenImageViewer;
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -5567,13 +5570,42 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
         itemCount: _deals.length,
         itemBuilder: (_, i) {
           final d = _deals[i] as Map;
+          // Round 7 Item 2: compact 44x44 thumbnail when the deal has its own
+          // image_url; falls back to the existing discount-% chip (and, for a
+          // deal with neither, a generic offer icon) so the list tile's
+          // height/layout never changes — same 44x44 leading slot as before.
+          final dealImg = (d['image_url'] ?? '').toString();
+          final discPct = "${d['discount'] ?? 0}%";
+          final hasDisc = (int.tryParse((d['discount'] ?? '0').toString()) ?? 0) > 0;
+          Widget leadingWidget;
+          if (dealImg.isNotEmpty) {
+            leadingWidget = GestureDetector(
+              onTap: () => Navigator.push(context, PageRouteBuilder(
+                opaque: false, barrierColor: Colors.black,
+                pageBuilder: (_, __, ___) => FullScreenImageViewer(images: [dealImg], initialIndex: 0),
+              )),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: dealImg.startsWith('data:image')
+                    ? Image.memory(base64Decode(dealImg.split(',').last), width: 44, height: 44, fit: BoxFit.cover)
+                    : CachedNetworkImage(imageUrl: dealImg, width: 44, height: 44, fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(width: 44, height: 44, color: kLight.withValues(alpha: .5)),
+                        errorWidget: (_, __, ___) => Container(width: 44, height: 44,
+                          color: kLight.withValues(alpha: .5),
+                          child: const Icon(Icons.broken_image_outlined, color: kMuted, size: 18))),
+              ),
+            );
+          } else {
+            leadingWidget = Container(width: 44, height: 44,
+              decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
+              child: Center(child: hasDisc
+                  ? Text(discPct, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13))
+                  : const Icon(Icons.local_offer_outlined, color: kPrimary, size: 18)));
+          }
           return Card(elevation: 2, margin: const EdgeInsets.only(bottom: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
-              leading: Container(width: 44, height: 44,
-                decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
-                child: Center(child: Text("${d['discount'] ?? 0}%",
-                  style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13)))),
+              leading: leadingWidget,
               title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kText)),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -5653,7 +5685,6 @@ class AddDealPage extends StatefulWidget {
 class _AddDealState extends State<AddDealPage> {
   final _title = TextEditingController();
   final _desc  = TextEditingController();
-  final _disc  = TextEditingController();
   String _category = ""; bool _loading = false; String _msg = "";
   List<dynamic> _categories = [];
   late String _selectedStoreId;
@@ -5683,7 +5714,6 @@ class _AddDealState extends State<AddDealPage> {
       final d = widget.editDeal!;
       _title.text = d["title"]?.toString() ?? "";
       _desc.text  = d["description"]?.toString() ?? "";
-      _disc.text  = d["discount"]?.toString() ?? "";
       _category  = d["category"]?.toString() ?? "";
       _endDate   = d["end_date"]?.toString() ?? "";
       _selectedStoreId = d["store_id"]?.toString() ?? widget.storeId;
@@ -5735,7 +5765,7 @@ class _AddDealState extends State<AddDealPage> {
     return null;
   }
 
-  @override void dispose() { _title.dispose(); _desc.dispose(); _disc.dispose(); super.dispose(); }
+  @override void dispose() { _title.dispose(); _desc.dispose(); super.dispose(); }
 
   Future<void> _pickEndDate() async {
     final now = DateTime.now();
@@ -5787,11 +5817,7 @@ class _AddDealState extends State<AddDealPage> {
   }
 
   Future<void> _save() async {
-    final discVal = int.tryParse(_disc.text.trim()) ?? 0;
     if (_title.text.trim().isEmpty) { setState(() => _msg = "Deal title is required"); return; }
-    if (_disc.text.trim().isEmpty)  { setState(() => _msg = "Discount % is required"); return; }
-    if (discVal <= 0)               { setState(() => _msg = "Discount must be greater than 0%"); return; }
-    if (discVal > 100)              { setState(() => _msg = "Discount cannot exceed 100%"); return; }
     if (_endDate.isEmpty)           { setState(() => _msg = "End date is required"); return; }
 
     if (_storeExpiryDate != null) {
@@ -5808,7 +5834,15 @@ class _AddDealState extends State<AddDealPage> {
         "store_id":    _selectedStoreId,
         "title":       _title.text.trim(),
         "description": _desc.text.trim(),
-        "discount":    discVal,
+        // Item 1 (Round 7): the Discount % field was removed from this form.
+        // The "discount" key is intentionally omitted here rather than sent
+        // as 0 so that editing an existing deal never overwrites/clears its
+        // previously stored discount value (update_deal() falls back to
+        // existing.get("discount", 0) when the key is absent). New deals
+        // simply get the backend's existing default of 0, and every deal
+        // card already guards its "% OFF" badge behind discount > 0 /
+        // isNotEmpty, so a 0/absent discount just shows no badge instead of
+        // a broken one.
         "category":    _category,
         "start_date":  _isEdit ? (widget.editDeal!["start_date"]?.toString() ?? DateTime.now().toIso8601String().substring(0, 10)) : DateTime.now().toIso8601String().substring(0, 10),
         "end_date":    _endDate,
@@ -5858,11 +5892,6 @@ class _AddDealState extends State<AddDealPage> {
             Text(_selectedStoreName, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w600))])),
       TextField(controller: _title,
         decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
-      const SizedBox(height: 12),
-      TextField(controller: _disc, keyboardType: TextInputType.number,
-        decoration: InputDecoration(hintText: "Discount %", prefixIcon: const Icon(Icons.percent, color: kMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
       const SizedBox(height: 12),
