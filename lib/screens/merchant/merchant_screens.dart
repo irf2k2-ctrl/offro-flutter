@@ -3402,7 +3402,12 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   String? _selState; String? _selCity;
   List<String> _areas = []; bool _areasLoading = false;
   bool _locLoading = false; bool _locConfirmed = false;
-  bool _locDenied = false; // Issue 4: true once permission denied once in this screen — disables the button and stops re-prompting
+  bool _locDenied = false; // true after a denial THIS attempt — button stays enabled, tapping again retries
+  // Location-specific error, shown directly under the "Current Location"
+  // button — kept separate from the form-wide _msg (which only shows after
+  // Create Store validation) so a GPS/permission problem never appears at
+  // the bottom of the whole form.
+  String _locMsg = "";
   final _mapsUrlCtrl = TextEditingController();
   bool _mapsResolving = false;
   bool _mapsApplied = false;
@@ -3429,7 +3434,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   }
 
   Future<void> _captureGpsLocation() async {
-    setState(() { _locLoading = true; _locConfirmed = false; });
+    setState(() { _locLoading = true; _locConfirmed = false; _locMsg = ""; });
     try {
       // Always retry the permission/location flow on every tap — including
       // after a previous denial. A first denial must not permanently block
@@ -3437,13 +3442,19 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       // platform state and re-requests when it is still "denied" (as
       // opposed to "deniedForever", which the OS itself won't re-prompt
       // for), so tapping again after allowing it via Settings, or after
-      // dismissing the OS dialog, can still succeed.
+      // dismissing the OS dialog, can still succeed. This is the SAME
+      // permission-request helper used everywhere else in the app
+      // (MyApp.ensureLocationPermission → Geolocator.checkPermission() then
+      // Geolocator.requestPermission()), so tapping the button when
+      // permission isn't granted always triggers the native OS prompt
+      // (or, on a platform/state where the OS won't re-show it, surfaces
+      // the denial below so the merchant knows to allow it from Settings).
       final hasPermission = await MyApp.ensureLocationPermission();
       if (!hasPermission) {
         if (mounted) setState(() {
           _locLoading = false;
           _locDenied  = true;
-          _msg = "Location permission is required for current location. "
+          _locMsg = "Location permission is required for current location. "
               "Allow it and try again.";
         });
         return;
@@ -3451,7 +3462,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       if (!await Geolocator.isLocationServiceEnabled()) {
         if (mounted) setState(() {
           _locLoading = false;
-          _msg = "Device location is turned off. Turn it on and try again.";
+          _locMsg = "Device location is turned off. Turn it on and try again.";
         });
         return;
       }
@@ -3462,12 +3473,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _locConfirmed = true;
         _locLoading   = false;
         _locDenied    = false;
+        _locMsg       = "";
       });
       await _reverseGeocode(pos.latitude, pos.longitude);
     } catch (e) {
       if (mounted) setState(() {
         _locLoading = false;
-        _msg = "Could not get location: ${e.toString().replaceAll('Exception: ','')}";
+        _locMsg = "Could not get location: ${e.toString().replaceAll('Exception: ','')}";
       });
     }
   }
@@ -4085,18 +4097,25 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           ElevatedButton.icon(
             // The button stays enabled even after a denial — tapping it
             // again retries the permission/location flow (see
-            // _captureGpsLocation) instead of permanently blocking it.
+            // _captureGpsLocation) instead of permanently blocking it. The
+            // label stays permanently "Current Location" — it never
+            // switches to a "permission denied" variant; a denial is
+            // surfaced only in the small message below the button.
             onPressed: _locLoading ? null : _captureGpsLocation,
             icon: _locLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: Text(_locLoading ? "Detecting..." : (_locDenied ? "Permission denied — tap to retry" : "Use Current Location")),
+            label: const Text("Current Location"),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white, foregroundColor: kText,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
+          if (_locMsg.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(_locMsg, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ],
           if (_locConfirmed && !_mapsApplied) ...[
             const SizedBox(height: 8),
             Container(

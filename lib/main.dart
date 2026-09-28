@@ -118,8 +118,10 @@ double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
 /// Detect city from a pre-fetched GPS position.
 /// Tries: (1) Haversine match against /cities if they have lat/lng,
 ///        (2) geocoder locality matched against city name list,
-///        (3) raw geocoder locality,
-///        (4) "Ballari" hardcoded fallback.
+///        (3) raw geocoder locality/sub-admin area.
+/// Returns "" (never a hardcoded default city) when none of the above
+/// resolve anything — callers must treat an empty result as "location
+/// unavailable", not silently substitute a guessed city.
 Future<String> detectCityFromPosition(Position pos) async {
   try {
     List cityList = [];
@@ -176,11 +178,13 @@ Future<String> detectCityFromPosition(Position pos) async {
     }
 
     // ── Step 3: Return raw geocoder result if no city list match ──
+    // No further fallback — "" means location could not be resolved to a
+    // city, which callers must handle explicitly (never a guessed city).
     final fallback = rawLocality.isNotEmpty ? rawLocality :
-                     rawSubAdmin.isNotEmpty ? rawSubAdmin : "Ballari";
+                     rawSubAdmin.isNotEmpty ? rawSubAdmin : "";
     return fallback;
   } catch (e) {
-    return "Ballari";
+    return "";
   }
 }
 
@@ -188,11 +192,11 @@ Future<String> detectCityFromPosition(Position pos) async {
 Future<String> detectCity() async {
   try {
     final perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return "Ballari";
+    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return "";
     final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
         .timeout(const Duration(seconds: 10));
     return detectCityFromPosition(pos);
-  } catch (_) { return "Ballari"; }
+  } catch (_) { return ""; }
 }
 
 /// Haversine distance in km between two lat/lng points (uses dart:math)
@@ -1936,7 +1940,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // Pass position directly — avoids a second GPS fetch inside detectCity()
       det = await detectCityFromPosition(pos).timeout(const Duration(seconds: 10));
     } catch (e) {
-      // Use cached coords city if available, else savedCity, else default
+      // Use cached coords city if available, else savedCity. NEVER a
+      // hardcoded default city (no "Ballari") — the account's city was
+      // already resolved (via GPS or mandatory manual State+City entry) or
+      // intentionally left empty before Role Selection (see
+      // login_screen.dart's _AccountBootstrapScreen/_handleRoleSelected);
+      // this live-GPS refresh (for distance sorting) must never silently
+      // override that with a guessed city when it fails.
       if (_userLat != null && _userLng != null) {
         try {
           final cachedPos = Position(
@@ -1946,10 +1956,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           );
           det = await detectCityFromPosition(cachedPos).timeout(const Duration(seconds: 8));
         } catch (_) {
-          det = widget.savedCity.isNotEmpty ? widget.savedCity : "Ballari";
+          det = widget.savedCity;
         }
       } else {
-        det = widget.savedCity.isNotEmpty ? widget.savedCity : "Ballari";
+        det = widget.savedCity;
       }
     }
 
