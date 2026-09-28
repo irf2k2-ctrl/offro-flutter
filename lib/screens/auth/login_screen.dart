@@ -8,7 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
@@ -268,6 +270,151 @@ class _OtpScreenState extends State<OtpScreen> {
             ]),
           )),
         ])),
+      ]),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ACCOUNT BOOTSTRAP  — runs right after OTP verification, before Role
+// Selection. New flow (per the finalized location requirements):
+//
+//   OTP VERIFIED → ACCOUNT LOGIN/LOAD ACCOUNT → CHECK ACCOUNT LOCATION
+//   → LOCATION HANDLING IF REQUIRED → ROLE SELECTION
+//
+// This calls /user/account-login exactly ONCE for the whole OTP → Role
+// Selection journey — the resulting account data (token/roles/city/etc.) is
+// threaded through to ContinueAsScreen and _handleRoleSelected below, which
+// must NOT call account-login again (avoids the duplicate-call regression
+// called out in the requirements).
+//
+// Account location and store location are completely independent — this
+// screen only ever reads/writes accounts.city (via PUT /user/city), never
+// touches a merchant's store city/lat/lng.
+// ══════════════════════════════════════════════════════════════════════════════
+class _AccountBootstrapScreen extends StatefulWidget {
+  final String phone;
+  final void Function(Map<String, dynamic> accountData) onReady;
+  const _AccountBootstrapScreen({required this.phone, required this.onReady});
+  @override State<_AccountBootstrapScreen> createState() => _AccountBootstrapScreenState();
+}
+
+class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
+  String _status = 'Setting up your account...';
+  String _err = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _run();
+  }
+
+  Future<void> _run() async {
+    if (mounted) setState(() { _err = ''; _status = 'Setting up your account...'; });
+
+    Map<String, dynamic> d;
+    try {
+      // The single, unified account-login call for this entire journey.
+      d = await Api.loginAccount(widget.phone);
+    } catch (e) {
+      if (mounted) setState(() => _err = e.toString().replaceAll('Exception: ', ''));
+      return;
+    }
+
+    final token = d['token']?.toString() ?? '';
+    String city = d['city']?.toString() ?? '';
+
+    // CHECK ACCOUNT LOCATION → LOCATION HANDLING IF REQUIRED.
+    // Already has a city → never ask again, go straight to Role Selection.
+    // Missing → attempt to resolve it silently (permission may be granted
+    // or denied, GPS may or may not be available). NEVER assign a
+    // default/guessed city (no "Ballari") here — a still-empty city is
+    // handled later, only if/when the User role is actually selected.
+    if (token.isNotEmpty && city.isEmpty) {
+      if (mounted) setState(() => _status = 'Getting your location...');
+      final resolvedCity = await _attemptAccountLocation(token);
+      if (resolvedCity != null && resolvedCity.isNotEmpty) city = resolvedCity;
+    }
+
+    d['city'] = city;
+    if (!mounted) return;
+    widget.onReady(d);
+  }
+
+  /// Resolve the ACCOUNT's city from device GPS, reusing the same
+  /// permission-request pattern (MyApp.ensureLocationPermission) and the
+  /// same backend reverse-geocode endpoint (Api.reverseGeocode →
+  /// GET /reverse-geocode) already used by the merchant Add Store "Current
+  /// Location" flow, instead of building a second location system.
+  ///
+  /// This is strictly an ACCOUNT-level lookup: it only ever saves to
+  /// accounts.city/accounts.state via Api.updateCity(). It is never used to
+  /// determine or overwrite a merchant store's location — store location is
+  /// captured independently in AddEditStorePage (merchant_screens.dart).
+  ///
+  /// Returns null (never a default/guessed city) whenever permission is
+  /// denied, location services are off, or the position/reverse-geocode
+  /// lookup fails for any reason.
+  Future<String?> _attemptAccountLocation(String token) async {
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) {
+        return null;
+      }
+      if (!await Geolocator.isLocationServiceEnabled()) return null;
+
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
+          .timeout(const Duration(seconds: 8));
+
+      final geo = await Api.reverseGeocode(pos.latitude, pos.longitude);
+      final city  = (geo['city']  ?? '').toString().trim();
+      final state = (geo['state'] ?? '').toString().trim();
+      if (city.isEmpty) return null;
+
+      await Prefs.saveLocation(pos.latitude, pos.longitude);
+      await Prefs.saveCity(city);
+      await Api.updateCity(token, city, state: state);
+      return city;
+    } catch (e) {
+      debugPrint('[OFFRO] account-level location attempt failed: $e');
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(children: [
+        Container(decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0d2b24), Color(0xFF1e4a3f), Color(0xFF3E5F55)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight))),
+        SafeArea(child: Center(child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            buildImageLogo(height: 90, white: true),
+            const SizedBox(height: 32),
+            if (_err.isEmpty) ...[
+              const SizedBox(width: 26, height: 26,
+                child: CircularProgressIndicator(color: kLight, strokeWidth: 2.5)),
+              const SizedBox(height: 20),
+              Text(_status, textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: .8), fontSize: 14)),
+            ] else ...[
+              Text(_err, textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFFFF6B6B), fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _run,
+                style: ElevatedButton.styleFrom(backgroundColor: kLight, foregroundColor: kPrimary),
+                child: const Text('Retry'),
+              ),
+            ],
+          ]),
+        ))),
       ]),
     );
   }
@@ -919,7 +1066,7 @@ class _ModeTile extends StatelessWidget {
 // Single phone input → OTP → Continue As
 // ══════════════════════════════════════════════════════════════════════════════
 class LoginScreen extends StatefulWidget {
-  final Future<void> Function(String token, String name, String phone, String userId, String role)? onSuccess;
+  final Future<void> Function(String token, String name, String phone, String userId, String role, String city)? onSuccess;
   final void Function()? onGuest;
   const LoginScreen({super.key, this.onSuccess, this.onGuest});
   @override State<LoginScreen> createState() => _LoginState();
@@ -1021,12 +1168,23 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         phone: phone,
         reqId: reqId,
         onVerified: () async {
-          // OTP passed → show Continue As screen
+          // OTP passed → ACCOUNT LOGIN/LOAD ACCOUNT → CHECK ACCOUNT LOCATION
+          // → LOCATION HANDLING IF REQUIRED, all before Role Selection.
+          // See _AccountBootstrapScreen for the single account-login call
+          // this entire journey reuses.
           if (!mounted) return;
-          await Navigator.push(context, _offroRoute(ContinueAsScreen(
+          await Navigator.push(context, _offroRoute(_AccountBootstrapScreen(
             phone: phone,
-            onRoleSelected: (role, remember) async {
-              await _handleRoleSelected(phone, role, remember);
+            onReady: (accountData) {
+              if (!mounted) return;
+              // Replace the bootstrap screen so back-navigation from
+              // Continue As doesn't return to a stale loading screen.
+              Navigator.pushReplacement(context, _offroRoute(ContinueAsScreen(
+                phone: phone,
+                onRoleSelected: (role, remember) async {
+                  await _handleRoleSelected(accountData, phone, role, remember);
+                },
+              )));
             },
           )));
         },
@@ -1038,23 +1196,46 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     }
   }
 
-  Future<void> _handleRoleSelected(String phone, String role, bool remember) async {
-    // Always use unified /account-login — one token for all roles.
-    // Errors propagate up to _ContinueAsState._proceed() which shows them in-screen.
-    final d     = await Api.loginAccount(phone);
-    final token = d['token']?.toString() ?? '';
-    final name  = d['name']?.toString()  ?? '';
+  Future<void> _handleRoleSelected(Map<String, dynamic> accountData, String phone, String role, bool remember) async {
+    // Reuses the account data already fetched once by _AccountBootstrapScreen
+    // right after OTP verification — does NOT call /user/account-login again
+    // here (avoids the duplicate-call regression called out in the
+    // requirements). Errors propagate up to _ContinueAsState._proceed(),
+    // which shows them in-screen — the existing Role Selection UI/behavior
+    // is otherwise unchanged.
+    final token = accountData['token']?.toString() ?? '';
+    final name  = accountData['name']?.toString()  ?? '';
     if (token.isEmpty) throw Exception('Login failed — please try again.');
 
-    final roles      = (d['roles'] as List?)?.map((r) => r.toString()).toList() ?? [role];
+    final roles      = (accountData['roles'] as List?)?.map((r) => r.toString()).toList() ?? [role];
     final isMerchant = roles.contains('merchant');
     final userId     = isMerchant
-        ? (d['merchant_id']?.toString() ?? d['account_id']?.toString() ?? '')
-        : (d['user_id']?.toString()     ?? d['account_id']?.toString() ?? '');
+        ? (accountData['merchant_id']?.toString() ?? accountData['account_id']?.toString() ?? '')
+        : (accountData['user_id']?.toString()     ?? accountData['account_id']?.toString() ?? '');
+
+    String city = accountData['city']?.toString() ?? '';
+
+    // IF USER SELECTS USER ROLE AND ACCOUNT LOCATION IS STILL MISSING:
+    // location was denied/unavailable during the bootstrap step above — do
+    // NOT use Ballari or any other fallback. Require State + City manually
+    // before continuing. Merchant/Influencer are unaffected — their account
+    // location may stay empty; it is never required to enter those modes,
+    // and (for Merchant) it is never used to determine store location.
+    if (role == 'user' && city.isEmpty) {
+      final manual = await _requireManualCityState();
+      if (manual == null) {
+        // Person backed out of the manual entry sheet — do not silently
+        // continue with an invented/default city.
+        throw Exception('Please select your State and City to continue as a User.');
+      }
+      city = manual['city']!;
+      await Api.updateCity(token, city, state: manual['state']);
+      await Prefs.saveCity(city);
+    }
 
     await Prefs.save(token, name, phone, role, userId: userId);
     await Prefs.saveRoles(roles);
-    if (isMerchant) await Prefs.saveMerchantId(d['merchant_id']?.toString() ?? '');
+    if (isMerchant) await Prefs.saveMerchantId(accountData['merchant_id']?.toString() ?? '');
     await Prefs.saveMode(role);
     await Prefs.saveRememberMode(remember);
 
@@ -1062,8 +1243,80 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     // goHome) already calls pushAndRemoveUntil((r) => false) which clears the
     // entire stack including OtpScreen and ContinueAsScreen.
     if (mounted && widget.onSuccess != null) {
-      await widget.onSuccess!(token, name, phone, userId, role);
+      await widget.onSuccess!(token, name, phone, userId, role, city);
     }
+  }
+
+  /// Mandatory State + City picker, shown only when a User has no account
+  /// city and location could not be resolved. Reuses the same India
+  /// State/City dropdown data (lib/core/constants/india_locations.dart)
+  /// already used by the merchant Add/Edit Store screen's manual location
+  /// fields, rather than the free-text "Enter City Manually" sheet in
+  /// LocationLoadingScreen (that one is for the deals-loading screen, not
+  /// account-level location, and only collects a city string — this flow
+  /// needs State + City). Returns null if the person dismisses the sheet
+  /// without picking both.
+  Future<Map<String, String>?> _requireManualCityState() {
+    String? selState;
+    String? selCity;
+    return showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheetState) {
+        return Padding(
+          padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(ctx).viewInsets.bottom + 32),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text("We couldn't detect your location",
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kPrimary)),
+            const SizedBox(height: 6),
+            const Text('Please select your State and City to continue.',
+              style: TextStyle(fontSize: 12.5, color: kMuted)),
+            const SizedBox(height: 18),
+            DropdownButtonFormField<String>(
+              value: selState,
+              items: kIndiaStates.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+              onChanged: (v) => setSheetState(() { selState = v; selCity = null; }),
+              decoration: InputDecoration(
+                labelText: 'State',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              hint: const Text('Select state'),
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              value: selCity,
+              items: (selState == null ? const <String>[] : (kIndiaCities[selState] ?? const <String>[]))
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (v) => setSheetState(() => selCity = v),
+              decoration: InputDecoration(
+                labelText: 'City',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              hint: const Text('Select city'),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: (selState != null && selCity != null)
+                    ? () => Navigator.pop(ctx, {'state': selState!, 'city': selCity!})
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFc8d8d2),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Save & Continue', style: TextStyle(fontWeight: FontWeight.w800)),
+              ),
+            ),
+          ]),
+        );
+      }),
+    );
   }
 
   @override

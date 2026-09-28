@@ -155,8 +155,14 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
     }
 
     // 2. Use cached city immediately to start fetching stores in parallel
-    //    while live GPS refreshes in background
-    final cityToUse = cachedCity.isNotEmpty ? cachedCity : "Ballari";
+    //    while live GPS refreshes in background.
+    // NOTE: no default/guessed city fallback here (e.g. "Ballari") — the
+    // account-level location step (see login_screen.dart, run right after
+    // OTP verification and before Role Selection) is responsible for
+    // resolving or explicitly collecting the account's city. By the time
+    // this screen runs for a signed-in User, the city is expected to
+    // already be known (passed in as forcedCity) or intentionally empty.
+    final cityToUse = cachedCity;
 
     // 3. Fire live GPS as a background Future (don't await it)
     final gpsFuture = _refreshGpsBackground();
@@ -166,10 +172,11 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
     } catch (e) {
       debugPrint("[LocationLoading] _doLoad fatal error: $e");
       // Fallback: open home with whatever we have so user is never stuck
+      // No default/guessed city fallback (e.g. "Ballari") — see note above.
       final fallbackCity = widget.forcedCity ?? await Prefs.getCity();
       if (!mounted) return;
       widget.onReady(
-        city: fallbackCity.isNotEmpty ? fallbackCity : "Ballari",
+        city: fallbackCity,
         stores: const [],
         lat: _lat,
         lng: _lng,

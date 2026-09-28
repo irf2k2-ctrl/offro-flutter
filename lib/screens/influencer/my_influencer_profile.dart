@@ -7,8 +7,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/india_locations.dart' show kIndiaStates, kIndiaCities;
 import '../../core/services/api_service.dart';
-import '../merchant/merchant_screens.dart' show kIndiaStates, kIndiaCities;
 import '../auth/login_screen.dart' show SwitchModeSheet;
 import '../home/influencer_section.dart' show InfluencerProfileScreen;
 

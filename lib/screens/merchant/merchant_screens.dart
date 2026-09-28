@@ -22,6 +22,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
@@ -3365,6 +3366,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 // ─────────── Add/Edit Store Page ───────────
 
 // ─────────────────────── INDIA STATES & CITIES ───────────────────────
+// kIndiaCities/kIndiaStates now live in
+// lib/core/constants/india_locations.dart (imported above) so they can be
+// shared with the account-level manual State+City entry flow in
+// login_screen.dart without a circular import. Values are unchanged.
+
 // Flat city list for banner/product city targeting
 List<String> get _allCities {
   final set = <String>{};
@@ -3372,56 +3378,6 @@ List<String> get _allCities {
   final list = set.toList()..sort();
   return list;
 }
-
-const Map<String,List<String>> kIndiaCities = {
-  "Andhra Pradesh": ["Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Rajahmundry","Tirupati","Kakinada","Kadapa","Anantapur"],
-  "Arunachal Pradesh": ["Itanagar","Naharlagun","Pasighat"],
-  "Assam": ["Guwahati","Silchar","Dibrugarh","Jorhat","Nagaon","Tinsukia"],
-  "Bihar": ["Patna","Gaya","Bhagalpur","Muzaffarpur","Purnia","Darbhanga","Bihar Sharif","Arrah"],
-  "Chhattisgarh": ["Raipur","Bhilai","Bilaspur","Korba","Durg","Rajnandgaon","Jagdalpur"],
-  "Goa": ["Panaji","Margao","Vasco da Gama","Mapusa","Ponda"],
-  "Gujarat": ["Ahmedabad","Surat","Vadodara","Rajkot","Bhavnagar","Jamnagar","Gandhinagar","Junagadh","Anand"],
-  "Haryana": ["Faridabad","Gurugram","Panipat","Ambala","Yamunanagar","Rohtak","Hisar","Karnal","Sonipat","Panchkula"],
-  "Himachal Pradesh": ["Shimla","Solan","Dharamshala","Mandi","Baddi","Palampur","Kullu"],
-  "Jharkhand": ["Ranchi","Jamshedpur","Dhanbad","Bokaro","Deoghar","Hazaribagh"],
-  "Karnataka": ["Bengaluru","Mysuru","Mangaluru","Hubli","Dharwad","Belagavi","Kalaburagi","Ballari","Vijayapura","Shivamogga","Tumkur","Davangere","Hassan","Udupi"],
-  "Kerala": ["Thiruvananthapuram","Kochi","Kozhikode","Thrissur","Kollam","Kannur","Palakkad","Alappuzha","Malappuram","Kottayam"],
-  "Madhya Pradesh": ["Bhopal","Indore","Jabalpur","Gwalior","Ujjain","Sagar","Dewas","Satna","Ratlam","Rewa"],
-  "Maharashtra": ["Mumbai","Pune","Nagpur","Nashik","Thane","Aurangabad","Solapur","Kolhapur","Amravati","Nanded","Sangli","Malegaon","Jalgaon","Akola","Latur"],
-  "Manipur": ["Imphal","Thoubal","Bishnupur","Churachandpur"],
-  "Meghalaya": ["Shillong","Tura","Jowai"],
-  "Mizoram": ["Aizawl","Lunglei","Champhai"],
-  "Nagaland": ["Kohima","Dimapur","Mokokchung"],
-  "Odisha": ["Bhubaneswar","Cuttack","Rourkela","Berhampur","Sambalpur","Puri","Balasore"],
-  "Punjab": ["Ludhiana","Amritsar","Jalandhar","Patiala","Bathinda","Mohali","Firozpur","Hoshiarpur"],
-  "Rajasthan": ["Jaipur","Jodhpur","Kota","Bikaner","Ajmer","Udaipur","Bhilwara","Alwar","Bharatpur","Sikar"],
-  "Sikkim": ["Gangtok","Namchi","Gyalshing"],
-  "Tamil Nadu": ["Chennai","Coimbatore","Madurai","Tiruchirappalli","Salem","Tirunelveli","Vellore","Erode","Thoothukudi","Tiruppur","Dindigul","Thanjavur"],
-  "Telangana": ["Hyderabad","Warangal","Nizamabad","Karimnagar","Ramagundam","Khammam","Mahbubnagar","Nalgonda","Adilabad"],
-  "Tripura": ["Agartala","Dharmanagar","Udaipur"],
-  "Uttar Pradesh": ["Lucknow","Kanpur","Agra","Varanasi","Prayagraj","Meerut","Bareilly","Aligarh","Ghaziabad","Noida","Mathura","Moradabad","Gorakhpur"],
-  "Uttarakhand": ["Dehradun","Haridwar","Roorkee","Haldwani","Rishikesh","Nainital","Kashipur","Rudrapur"],
-  "West Bengal": ["Kolkata","Asansol","Siliguri","Durgapur","Bardhaman","Malda","Baharampur","Kharagpur"],
-  "Delhi": ["New Delhi","Dwarka","Rohini","Pitampura","Laxmi Nagar","Janakpuri","Saket","Karol Bagh","Connaught Place"],
-  "Jammu and Kashmir": ["Srinagar","Jammu","Anantnag","Baramulla","Sopore","Kathua"],
-  "Ladakh": ["Leh","Kargil"],
-  "Andaman and Nicobar Islands": ["Port Blair","Diglipur","Rangat"],
-  "Chandigarh": ["Chandigarh"],
-  "Dadra and Nagar Haveli and Daman and Diu": ["Daman","Diu","Silvassa"],
-  "Lakshadweep": ["Kavaratti","Agatti"],
-  "Puducherry": ["Puducherry","Karaikal","Mahe","Yanam"],
-};
-const List<String> kIndiaStates = [
-  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
-  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand",
-  "Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur",
-  "Meghalaya","Mizoram","Nagaland","Odisha","Punjab",
-  "Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura",
-  "Uttar Pradesh","Uttarakhand","West Bengal","Delhi",
-  "Jammu and Kashmir","Ladakh","Andaman and Nicobar Islands",
-  "Chandigarh","Dadra and Nagar Haveli and Daman and Diu",
-  "Lakshadweep","Puducherry",
-];
 
 class AddEditStorePage extends StatefulWidget {
   final String token; final Map? store;
@@ -3475,20 +3431,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   Future<void> _captureGpsLocation() async {
     setState(() { _locLoading = true; _locConfirmed = false; });
     try {
-      bool hasPermission;
-      if (_locDenied) {
-        // Already denied once in this screen — never re-trigger the OS
-        // permission prompt (Issue 4). Just read the current platform
-        // permission state (no request) in case it changed via Settings
-        // since the last attempt, so this can still recover if granted.
-        final current = await Geolocator.checkPermission();
-        hasPermission = current == LocationPermission.whileInUse ||
-            current == LocationPermission.always;
-      } else {
-        // First attempt from this screen — unchanged from the existing
-        // flow; may show the OS permission prompt exactly as it does today.
-        hasPermission = await MyApp.ensureLocationPermission();
-      }
+      // Always retry the permission/location flow on every tap — including
+      // after a previous denial. A first denial must not permanently block
+      // this button; MyApp.ensureLocationPermission() checks the current
+      // platform state and re-requests when it is still "denied" (as
+      // opposed to "deniedForever", which the OS itself won't re-prompt
+      // for), so tapping again after allowing it via Settings, or after
+      // dismissing the OS dialog, can still succeed.
+      final hasPermission = await MyApp.ensureLocationPermission();
       if (!hasPermission) {
         if (mounted) setState(() {
           _locLoading = false;
@@ -4057,10 +4007,34 @@ class _AddEditStoreState extends State<AddEditStorePage> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) { setState(()=>_msg="Store name required"); return; }
+    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg="Please select a state to continue"); return; }
     if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city to continue"); return; }
     final _phoneVal = _phone.text.trim();
     if (_phoneVal.isEmpty) { setState(()=>_msg="Mobile number is required"); return; }
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg="Enter a valid 10-digit mobile number (starts with 6–9)"); return; }
+
+    // COORDINATES ARE MANDATORY — a store cannot be created with only
+    // State + City. "Use Current Location" and the Google Maps link
+    // resolver both already populate _lat/_lng with valid values; this is
+    // the save-time gate that enforces it (mirrored server-side as
+    // defense-in-depth in routers/merchant_app.py).
+    final latVal = double.tryParse(_lat.text.trim());
+    final lngVal = double.tryParse(_lng.text.trim());
+    final hasValidCoords = latVal != null && lngVal != null &&
+        latVal >= -90 && latVal <= 90 && lngVal >= -180 && lngVal <= 180;
+    if (!_isEdit && !hasValidCoords) {
+      setState(() => _msg = 'Please set the store\'s location using "Use Current Location" '
+          'or a Google Maps link before creating the store.');
+      return;
+    }
+    if (_isEdit && (_lat.text.trim().isNotEmpty || _lng.text.trim().isNotEmpty) && !hasValidCoords) {
+      // Only blocks a location left in a broken/partial state THIS session
+      // — an older store's untouched (possibly empty) coordinates are left
+      // alone here and are not force-fixed on an unrelated edit.
+      setState(() => _msg = 'The store location looks incomplete. Use "Use Current Location" '
+          'or a Google Maps link to set a valid location.');
+      return;
+    }
     setState(()=>_loading=true); _msg="";
     final data = {
       "store_name":_name.text.trim(),"category":_category,
@@ -4109,11 +4083,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13)),
           const SizedBox(height: 10),
           ElevatedButton.icon(
-            onPressed: (_locLoading || _locDenied) ? null : _captureGpsLocation,
+            // The button stays enabled even after a denial — tapping it
+            // again retries the permission/location flow (see
+            // _captureGpsLocation) instead of permanently blocking it.
+            onPressed: _locLoading ? null : _captureGpsLocation,
             icon: _locLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: Text(_locLoading ? "Detecting..." : (_locDenied ? "Location permission denied" : "Use Current Location")),
+            label: Text(_locLoading ? "Detecting..." : (_locDenied ? "Permission denied — tap to retry" : "Use Current Location")),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white, foregroundColor: kText,
               padding: const EdgeInsets.symmetric(vertical: 12),
