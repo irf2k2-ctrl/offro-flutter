@@ -640,8 +640,16 @@ class _BtnData {
 class FullScreenImageViewer extends StatefulWidget {
   final List<String> images;
   final int initialIndex;
+  // Round 10: optional per-image bottom overlay content (e.g. a deal title,
+  // or a product's name/tagline/discount/price) shown above a subtle
+  // bottom gradient, same position for every caller so the deal and
+  // product galleries share one consistent viewer. Index-aligned with
+  // `images`; a caller that passes nothing (e.g. the existing store-photo
+  // gallery in this file) keeps the exact previous look — this is purely
+  // additive and optional.
+  final List<Widget>? bottomOverlays;
   const FullScreenImageViewer(
-      {super.key, required this.images, required this.initialIndex});
+      {super.key, required this.images, required this.initialIndex, this.bottomOverlays});
 
   @override
   State<FullScreenImageViewer> createState() =>
@@ -687,38 +695,67 @@ class _FullScreenImageViewerState
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (_, i) {
               final im = widget.images[i];
-              return InteractiveViewer(
-                transformationController: _tc,
-                minScale: 0.8,
-                maxScale: 4.0,
-                child: Center(
-                  child: im.startsWith('http')
-                      ? CachedNetworkImage(
-                          imageUrl: im,
-                          fit: BoxFit.contain,
-                          placeholder: (_, __) => const Center(
-                            child: CircularProgressIndicator(
-                                color: Colors.white),
-                          ),
-                          errorWidget: (_, __, ___) => const Icon(
-                              Icons.broken_image,
-                              color: Colors.white54,
-                              size: 60),
-                        )
-                      : im.startsWith('data:image')
-                          ? Builder(builder: (_) {
-                              try {
-                                return Image.memory(
-                                  base64Decode(im.split(',').last),
-                                  fit: BoxFit.contain,
-                                );
-                              } catch (_) {
-                                return const SizedBox.shrink();
-                              }
-                            })
-                          : const SizedBox.shrink(),
+              final overlay = (widget.bottomOverlays != null && i < widget.bottomOverlays!.length)
+                  ? widget.bottomOverlays![i]
+                  : null;
+              return Stack(fit: StackFit.expand, children: [
+                InteractiveViewer(
+                  transformationController: _tc,
+                  minScale: 0.8,
+                  maxScale: 4.0,
+                  child: Center(
+                    child: im.startsWith('http')
+                        ? CachedNetworkImage(
+                            imageUrl: im,
+                            fit: BoxFit.contain,
+                            placeholder: (_, __) => const Center(
+                              child: CircularProgressIndicator(
+                                  color: Colors.white),
+                            ),
+                            errorWidget: (_, __, ___) => const Icon(
+                                Icons.broken_image,
+                                color: Colors.white54,
+                                size: 60),
+                          )
+                        : im.startsWith('data:image')
+                            ? Builder(builder: (_) {
+                                try {
+                                  return Image.memory(
+                                    base64Decode(im.split(',').last),
+                                    fit: BoxFit.contain,
+                                  );
+                                } catch (_) {
+                                  return const SizedBox.shrink();
+                                }
+                              })
+                            : const SizedBox.shrink(),
+                  ),
                 ),
-              );
+                // ── Round 10: optional bottom overlay (deal/product info) ──
+                // IgnorePointer so it never blocks the InteractiveViewer's
+                // pan/zoom/swipe gestures underneath it.
+                if (overlay != null)
+                  Positioned(
+                    left: 0, right: 0, bottom: 0,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(20, 48, 20, 32),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0),
+                              Colors.black.withValues(alpha: .75),
+                            ],
+                          ),
+                        ),
+                        child: SafeArea(top: false, child: overlay),
+                      ),
+                    ),
+                  ),
+              ]);
             },
           ),
           Positioned(

@@ -5,6 +5,88 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
+import 'store_header.dart' show FullScreenImageViewer;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Round 10 — shared pricing/discount resolution, used by both the card and
+// the full-screen gallery overlay so the two always agree.
+// ─────────────────────────────────────────────────────────────────────────────
+class _ProductPricing {
+  final num? saleP;
+  final num? origP;
+  final String discLabel;
+  const _ProductPricing(this.saleP, this.origP, this.discLabel);
+}
+
+_ProductPricing _resolveProductPricing(Map<String, dynamic> p) {
+  final price     = p['price']?.toString() ?? '';
+  final origPrice = p['original_price']?.toString() ?? '';
+  final discount  = p['discount']?.toString() ?? '';
+
+  num? saleP;
+  if (price.isNotEmpty) { saleP = num.tryParse(price.replaceAll(RegExp(r'[^0-9.]'), '')); }
+  if (saleP == null || saleP == 0) { saleP = (p['sale_price'] as num?)?.toDouble(); }
+  num? origP;
+  if (origPrice.isNotEmpty) { origP = num.tryParse(origPrice.replaceAll(RegExp(r'[^0-9.]'), '')); }
+  if (origP != null && saleP != null && origP <= saleP) origP = null;
+
+  String discLabel = discount;
+  if (discLabel.isEmpty && price.isNotEmpty && origPrice.isNotEmpty) {
+    try {
+      final pv = double.parse(price);
+      final op = double.parse(origPrice);
+      if (op > pv && pv > 0) {
+        discLabel = '${((op - pv) / op * 100).round()}% OFF';
+      }
+    } catch (_) {}
+  }
+  return _ProductPricing(saleP, origP, discLabel);
+}
+
+/// Round 10: the product's image URL, or '' if none — used to build the
+/// full-screen gallery's image list (index-aligned with the products list).
+String _productImageUrl(Map<String, dynamic> p) => p['logo_url']?.toString() ?? '';
+
+/// Round 10: bottom-overlay content shown in the full-screen product
+/// gallery — product name (bold), tagline, discount offer, then sale price
+/// (prominent) with the original price struck through. No validity/date
+/// text, matching the Today's Offers gallery overlay's spirit.
+Widget _productGalleryOverlay(Map<String, dynamic> p) {
+  final title    = p['title']?.toString() ?? '';
+  final subtitle = p['offer_text']?.toString() ?? '';
+  final pricing  = _resolveProductPricing(p);
+  return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+    if (title.isNotEmpty)
+      Text(title,
+          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+    if (subtitle.isNotEmpty) ...[
+      const SizedBox(height: 3),
+      Text(subtitle,
+          style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13, fontWeight: FontWeight.w500)),
+    ],
+    if (pricing.discLabel.isNotEmpty) ...[
+      const SizedBox(height: 6),
+      Text(pricing.discLabel,
+          style: const TextStyle(color: Color(0xFFFFD966), fontSize: 13, fontWeight: FontWeight.w800)),
+    ],
+    if (pricing.saleP != null && pricing.saleP! > 0) ...[
+      const SizedBox(height: 6),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Text('₹${pricing.saleP!.toStringAsFixed(0)}',
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+        if (pricing.origP != null) ...[
+          const SizedBox(width: 8),
+          Text('₹${pricing.origP!.toStringAsFixed(0)}',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: .65),
+                  fontSize: 14,
+                  decoration: TextDecoration.lineThrough,
+                  decorationColor: Colors.white.withValues(alpha: .65))),
+        ],
+      ]),
+    ],
+  ]);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StoreProductsSection
@@ -24,6 +106,24 @@ class StoreProductsSection extends StatelessWidget {
     this.storeId = '',
     this.onProductTap,
   });
+
+  // Round 10: opens the swipeable full-screen product gallery across every
+  // Featured Product for this store, starting at the exact product tapped.
+  void _openProductGallery(BuildContext context, int index) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        transitionDuration: const Duration(milliseconds: 280),
+        pageBuilder: (_, __, ___) => FullScreenImageViewer(
+          images: products.map(_productImageUrl).toList(),
+          initialIndex: index,
+          bottomOverlays: products.map(_productGalleryOverlay).toList(),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +157,7 @@ class StoreProductsSection extends StatelessWidget {
             storeId: storeId,
             token: token,
             onProductTap: onProductTap,
+            onOpenGallery: () => _openProductGallery(context, i),
           ),
         ),
       ),
@@ -74,6 +175,11 @@ class _ProductCard extends StatefulWidget {
   final String storeId;
   final String token;
   final void Function(Map<String, dynamic> product, String token)? onProductTap;
+  // Round 10: tapping the card now opens the swipeable full-screen gallery
+  // (required behavior). The pre-existing detail sheet / onProductTap
+  // navigation (product info + submit-a-rating) is preserved, reachable via
+  // long-press, so that existing functionality isn't lost.
+  final VoidCallback? onOpenGallery;
 
   const _ProductCard({
     required this.product,
@@ -82,6 +188,7 @@ class _ProductCard extends StatefulWidget {
     this.storeId = '',
     this.token = '',
     this.onProductTap,
+    this.onOpenGallery,
   });
 
   @override
@@ -205,151 +312,139 @@ class _ProductCardState extends State<_ProductCard> {
   Widget build(BuildContext context) {
     final p        = widget.product;
     final title    = p['title']?.toString() ?? '';
-    final price    = p['price']?.toString() ?? '';
-    final origPrice = p['original_price']?.toString() ?? '';
-    final discount  = p['discount']?.toString() ?? '';
-    final validity  = _isPremium ? '' : (p['validity']?.toString() ?? '');
     final subtitle = p['offer_text']?.toString() ?? '';
     final rating    = (p['rating'] as num?)?.toDouble() ?? 0.0;
     final ratingCount = (p['rating_count'] as num?)?.toInt() ?? 0;
+    final pricing = _resolveProductPricing(p);
+    final saleP = pricing.saleP;
+    final origP = pricing.origP;
+    final discLabel = pricing.discLabel;
 
-    // Resolve numeric prices for the home-screen style price badge
-    num? saleP;
-    if (price.isNotEmpty) { saleP = num.tryParse(price.replaceAll(RegExp(r'[^0-9.]'), '')); }
-    if (saleP == null || saleP == 0) { saleP = (p['sale_price'] as num?)?.toDouble(); }
-    num? origP;
-    if (origPrice.isNotEmpty) { origP = num.tryParse(origPrice.replaceAll(RegExp(r'[^0-9.]'), '')); }
-    if (origP != null && saleP != null && origP <= saleP) origP = null;
-
-    String discLabel = discount;
-    if (discLabel.isEmpty && price.isNotEmpty && origPrice.isNotEmpty) {
-      try {
-        final pv = double.parse(price);
-        final op = double.parse(origPrice);
-        if (op > pv && pv > 0) {
-          discLabel = '${((op - pv) / op * 100).round()}% OFF';
-        }
-      } catch (_) {}
-    }
-
-    final pal = _palettes[widget.index % _palettes.length];
-
+    // Round 10: Featured Products is now an image-card, matching Today's
+    // Offers — image fills the card, rounded corners, subtle bottom
+    // gradient, product info overlaid at the bottom. The separate white
+    // info panel and the "Valid: <date>" text are both removed per spec;
+    // `_isPremium`/validity are no longer read here (image-card has no
+    // validity display — the field lives on `widget.product` if a future
+    // round needs it back).
     return GestureDetector(
-      onTap: () => _handleTap(context),
+      // Round 10: primary tap opens the swipeable full-screen gallery
+      // (required behavior). Long-press preserves the previous
+      // detail/rating flow so that functionality isn't lost.
+      onTap: widget.onOpenGallery,
+      onLongPress: () => _handleTap(context),
       child: Container(
         width: 160,
+        height: 175,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 14, offset: const Offset(0, 4))],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Image with badges ─────────────────────────────
-            Stack(children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
-                child: SizedBox(
-                  width: 160, height: 95,
-                  child: _img(),
-                ),
-              ),
-              // Discount badge (top-left) — same style as home screen
-              if (discLabel.isNotEmpty)
-                Positioned(top: 7, left: 7,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
-                    child: Text(discLabel, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                  )),
-              // Favorite heart (top-right)
-              if (widget.token.isNotEmpty)
-                Positioned(top: 6, right: 6,
-                  child: GestureDetector(
-                    onTap: _toggleFav,
-                    child: Container(
-                      width: 26, height: 26,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .88),
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .12), blurRadius: 4)],
-                      ),
-                      child: Icon(
-                        _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        color: _isFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
-                        size: 14),
-                    ),
-                  )),
-              // ── Rating chip — bottom-right corner of image ──
-              if (rating > 0)
-                Positioned(bottom: 6, right: 6,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
-                      const SizedBox(width: 1),
-                      Text(rating.toStringAsFixed(1),
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                      if (ratingCount > 0)
-                        Text(" ($ratingCount)",
-                          style: const TextStyle(color: Colors.white70, fontSize: 8)),
-                    ]),
-                  )),
-            ]),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(fit: StackFit.expand, children: [
+            // ── Product image fills the card ──
+            _img(),
 
-            // ── Info area — white background, no rating pill ─────────────────
-            Flexible(
-              fit: FlexFit.loose,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
+            // ── Bottom gradient + info overlay ──
+            Positioned(
+              left: 0, right: 0, bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 26, 10, 10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black.withValues(alpha: 0), Colors.black.withValues(alpha: .78)],
+                  ),
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Title
                     if (title.isNotEmpty)
                       Text(title,
-                        style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800, height: 1.25),
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
-                    // Seller/offer text line
                     if (subtitle.isNotEmpty) ...[
                       const SizedBox(height: 2),
                       Text(subtitle,
-                        style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                        style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 10.5, fontWeight: FontWeight.w500),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
-                    // Price — yellow badge, reduced font size
+                    if (discLabel.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(discLabel,
+                        style: const TextStyle(color: Color(0xFFFFD966), fontSize: 11, fontWeight: FontWeight.w800),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
                     if (saleP != null && saleP > 0) ...[
-                      const SizedBox(height: 6),
-                      Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
-                          child: Text("₹${saleP.toStringAsFixed(0)}",
-                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w900)),
-                        ),
+                      const SizedBox(height: 3),
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text("₹${saleP.toStringAsFixed(0)}",
+                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
                         if (origP != null) ...[
                           const SizedBox(width: 6),
                           Text("₹${origP.toStringAsFixed(0)}",
-                            style: const TextStyle(
-                              color: Color(0xFF9e9e9e), fontSize: 12,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: .65), fontSize: 11.5,
                               decoration: TextDecoration.lineThrough,
-                              decorationColor: Color(0xFF9e9e9e))),
+                              decorationColor: Colors.white.withValues(alpha: .65))),
                         ],
                       ]),
-                    ] else if (validity.isNotEmpty)
-                      Text('Valid: $validity',
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: kMuted, fontSize: 10)),
+                    ],
                   ],
                 ),
               ),
             ),
-          ],
+
+            // Discount badge (top-left) — same visual language as Today's Offers
+            if (discLabel.isNotEmpty)
+              Positioned(top: 8, left: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(20)),
+                  child: Text(discLabel, style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
+                )),
+
+            // Favorite heart (top-right) — unchanged functionality, repositioned over the image
+            if (widget.token.isNotEmpty)
+              Positioned(top: 6, right: 6,
+                child: GestureDetector(
+                  onTap: _toggleFav,
+                  child: Container(
+                    width: 26, height: 26,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .88),
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .12), blurRadius: 4)],
+                    ),
+                    child: Icon(
+                      _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      color: _isFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
+                      size: 14),
+                  ),
+                )),
+
+            // Rating chip — top-right, below the heart when both present
+            if (rating > 0)
+              Positioned(top: widget.token.isNotEmpty ? 38 : 8, right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
+                    const SizedBox(width: 1),
+                    Text(rating.toStringAsFixed(1),
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                    if (ratingCount > 0)
+                      Text(" ($ratingCount)",
+                        style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                  ]),
+                )),
+          ]),
         ),
       ),
     );

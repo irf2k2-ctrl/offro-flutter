@@ -40,6 +40,43 @@ class StoreOffersSection extends StatelessWidget {
     return raw;
   }
 
+  // Round 10: the deals that actually have an image — only these can be
+  // opened in the full-screen gallery (a deal without an image renders the
+  // decorative fallback card below, which has no tap target, unchanged).
+  List<Map<String, dynamic>> get _dealsWithImages =>
+      deals.where((d) => (d['image_url']?.toString() ?? '').isNotEmpty).toList();
+
+  void _openDealGallery(BuildContext context, Map<String, dynamic> tappedDeal) {
+    final withImages = _dealsWithImages;
+    // Round 10 FIX: the deals returned by the backend's store-detail
+    // endpoint (routers/public.py get_store()) don't include an `_id` field
+    // — matching by id would always resolve to index 0. `.where()` below
+    // doesn't copy the maps, so the tapped deal is the exact same object
+    // instance as its entry here; indexOf's default identity-based `==`
+    // finds it reliably without needing an id.
+    final startIndex = withImages.indexOf(tappedDeal);
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black,
+        transitionDuration: const Duration(milliseconds: 280),
+        pageBuilder: (_, __, ___) => FullScreenImageViewer(
+          images: withImages.map((d) => d['image_url'].toString()).toList(),
+          initialIndex: startIndex < 0 ? 0 : startIndex,
+          bottomOverlays: withImages.map((d) {
+            final t = d['title']?.toString() ?? '';
+            return t.isEmpty
+                ? const SizedBox.shrink()
+                : Text(t,
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800));
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -146,7 +183,6 @@ class StoreOffersSection extends StatelessWidget {
                 final title   = d['title']?.toString() ?? '';
                 final desc    = d['description']?.toString() ?? '';
                 final disc    = d['discount']?.toString() ?? '0';
-                final endDate = d['end_date']?.toString() ?? '';
                 final discInt = int.tryParse(disc) ?? 0;
                 // Round 6 (Issue 2): the deal's own uploaded image, if any.
                 // Root cause of "image not showing" was purely here — the
@@ -159,18 +195,11 @@ class StoreOffersSection extends StatelessWidget {
 
                 if (imageUrl.isNotEmpty) {
                   return GestureDetector(
-                    onTap: () => Navigator.push(
-                      ctx,
-                      PageRouteBuilder(
-                        opaque: false,
-                        barrierColor: Colors.black,
-                        transitionDuration: const Duration(milliseconds: 280),
-                        pageBuilder: (_, __, ___) => FullScreenImageViewer(
-                          images: [imageUrl],
-                          initialIndex: 0,
-                        ),
-                      ),
-                    ),
+                    // Round 10: opens the swipeable gallery across every
+                    // deal (for this store) that has an image, starting at
+                    // the exact deal tapped — replaces the old single-image
+                    // viewer.
+                    onTap: () => _openDealGallery(ctx, d),
                     child: Container(
                       width: 210,
                       height: 210,
@@ -221,14 +250,12 @@ class StoreOffersSection extends StatelessWidget {
                                   ),
                                 ),
                                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                                  // Round 10: validity/date text removed from
+                                  // the deal card per spec — image, discount
+                                  // badge and title only.
                                   if (title.isNotEmpty)
                                     Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
-                                  if (endDate.isNotEmpty) ...[
-                                    const SizedBox(height: 3),
-                                    Text('Valid till ${_formatDate(endDate)}', maxLines: 1, overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 10, fontWeight: FontWeight.w600)),
-                                  ],
                                 ]),
                               ),
                             ),
@@ -398,38 +425,9 @@ class StoreOffersSection extends StatelessWidget {
                               ),
 
                             const Spacer(),
-
-                            // Valid till — bottom
-                            if (endDate.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: kLight.withValues(alpha: .8),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: kBorder.withValues(alpha: .6)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.calendar_today_rounded,
-                                        size: 9, color: kPrimary),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        'Valid till ${_formatDate(endDate)}',
-                                        style: const TextStyle(
-                                            color: kPrimary,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            // Round 10: validity/date text removed from the
+                            // deal card per spec (this decorative no-image
+                            // fallback card is otherwise unchanged).
                           ],
                         ),
                       ),
