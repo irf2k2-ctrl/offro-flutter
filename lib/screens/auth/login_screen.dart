@@ -11,6 +11,7 @@ import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -125,8 +126,11 @@ class _OtpScreenState extends State<OtpScreen> {
         if (mounted) setState(() { _msg = err; _msgOk = false; _loading = false; });
       }
     } catch (e) {
+      // Round 9: OTPWidget.verifyOTP (MSG91 SDK) exceptions — network/SDK
+      // failures never reach the customer as raw technical text.
+      debugPrint('[OffrO] OTP verify error: $e');
       if (mounted) setState(() {
-        _msg = e.toString().replaceAll('Exception: ', '');
+        _msg = friendlyError(e, fallback: "Unable to verify OTP right now. Please try again.");
         _msgOk = false; _loading = false;
       });
     }
@@ -148,7 +152,13 @@ class _OtpScreenState extends State<OtpScreen> {
         if (ok) { _startResendTimer(); FocusScope.of(context).requestFocus(_foci[0]); }
       }
     } catch (e) {
-      if (mounted) setState(() { _msg = e.toString().replaceAll('Exception: ', ''); _msgOk = false; _resending = false; });
+      // Round 9: OTPWidget.retryOTP (MSG91 SDK) exceptions — same mapping
+      // as _verify() above.
+      debugPrint('[OffrO] OTP resend error: $e');
+      if (mounted) setState(() {
+        _msg = friendlyError(e, fallback: "Unable to resend OTP right now. Please try again.");
+        _msgOk = false; _resending = false;
+      });
     }
   }
 
@@ -350,7 +360,8 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> with W
       // The single, unified account-login call for this entire journey.
       d = await Api.loginAccount(widget.phone);
     } catch (e) {
-      if (mounted) setState(() => _err = e.toString().replaceAll('Exception: ', ''));
+      debugPrint('[OffrO] account bootstrap login error: $e');
+      if (mounted) setState(() => _err = friendlyError(e));
       return;
     }
 
@@ -573,7 +584,8 @@ class _ContinueAsState extends State<ContinueAsScreen>
     try {
       await widget.onRoleSelected(_selected!, _remember);
     } catch (e) {
-      if (mounted) setState(() => _err = e.toString().replaceAll('Exception: ', ''));
+      debugPrint('[OffrO] role selection error: $e');
+      if (mounted) setState(() => _err = friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1062,7 +1074,8 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
       if (mounted) Navigator.pop(context);
       widget.onSwitch(role);
     } catch (e) {
-      if (mounted) setState(() { _msg = e.toString().replaceAll('Exception: ', ''); _loading = false; });
+      debugPrint('[OffrO] switch mode error: $e');
+      if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
     }
   }
 
@@ -1269,7 +1282,13 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       // Send OTP
       final sendResp = await OTPWidget.sendOTP({'identifier': e164});
       if (sendResp == null || sendResp['type'] != 'success') {
-        final err = sendResp?['message']?.toString() ?? 'Failed to send OTP.';
+        // Round 9: MSG91 SDK failure message — map through the same
+        // classifier so a technical SDK/gateway dump never reaches the
+        // customer, while a clean SDK message (if any) is preserved.
+        final err = friendlyError(
+          sendResp?['message']?.toString() ?? '',
+          fallback: "Unable to send OTP right now. Please try again.",
+        );
         _setMsg(err); return;
       }
       final reqId = sendResp['message']?.toString() ?? '';
@@ -1303,7 +1322,11 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         },
       )));
     } catch (e) {
-      _setMsg(e.toString().replaceAll('Exception: ', ''));
+      // Round 9: this is the site of the originally-reported raw
+      // HandshakeException leak — checkUserPhone/registerUser/OTPWidget
+      // failures now always go through the shared classifier.
+      debugPrint('[OffrO] send OTP flow error: $e');
+      _setMsg(friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

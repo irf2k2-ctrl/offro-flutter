@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/fav_state.dart';
 
 // ══════════════════════════════════════════════════════════
@@ -572,9 +573,10 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
           const SnackBar(content: Text("Thanks for your review!")));
       }
     } catch (e) {
+      debugPrint('[OffrO] influencer review submit error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))));
+          SnackBar(content: Text(friendlyError(e))));
       }
     }
     if (mounted) setState(() => _submittingReview = false);

@@ -24,6 +24,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../auth/login_screen.dart';
@@ -518,8 +519,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                               await Api.updateMerchantBanner(widget.token, b["_id"]??"", {"title": newTitle});
                               _load();
                             } catch(e) {
+                              debugPrint('[MerchantBanners] rename error: $e');
                               if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
+                                SnackBar(content:Text(friendlyError(e)),backgroundColor:Colors.red));
                             }
                           }
                         },
@@ -559,8 +561,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 await Api.toggleMerchantBanner(widget.token, b["_id"]??"");
                                 _load();
                               } catch(e) {
+                                debugPrint('[MerchantBanners] toggle error: $e');
                                 if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
+                                  SnackBar(content:Text(friendlyError(e)),backgroundColor:Colors.red));
                               }
                             }
                           },
@@ -883,7 +886,7 @@ class _AddBannerState extends State<AddBannerPage> {
           _openRazorpayBanner(order);
         }
       }
-    } catch(e) { setState(()=>_msg=e.toString().replaceAll("Exception:","").trim()); }
+    } catch(e) { setState(()=>_msg=friendlyError(e)); }
     if (mounted) setState(()=>_loading=false);
   }
 
@@ -944,7 +947,7 @@ class _AddBannerState extends State<AddBannerPage> {
         _appliedDiscount     = 0;
         _appliedDiscountType = null;
         _discountOk      = false;
-        _discountMsg     = e.toString().replaceAll("Exception: ", "");
+        _discountMsg     = friendlyError(e);
       });
     }
     if (mounted) setState(() => _applyingCode = false);
@@ -970,7 +973,8 @@ class _AddBannerState extends State<AddBannerPage> {
         "theme":       {"color":"#3E5F55"},
       });
     } catch (e) {
-      if (mounted) setState(()=>_msg="Failed to open payment: $e");
+      debugPrint('[MerchantBanners] Razorpay open error: $e');
+      if (mounted) setState(()=>_msg=friendlyError(e, fallback: "Could not open payment. Please try again."));
     }
   }
 
@@ -1002,11 +1006,11 @@ class _AddBannerState extends State<AddBannerPage> {
           ),
         ));
       }
-    } catch(e) { if(mounted) setState(()=>_msg=e.toString().replaceAll("Exception:","").trim()); }
+    } catch(e) { if(mounted) setState(()=>_msg=friendlyError(e)); }
   }
 
   void _onPayError(PaymentFailureResponse res) {
-    if(mounted) setState(()=>_msg="Payment failed: ${res.message??'Unknown error'}");
+    if(mounted) setState(()=>_msg="Payment failed: ${friendlyRazorpayError(res.message)}");
   }
 
   Future<bool?> _showBannerSummaryDialog(Map order, {required bool manual}) async =>
@@ -1492,9 +1496,10 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     try {
       await Api.setProductAvailability(widget.token, pid, !current);
     } catch (e) {
+      debugPrint('[MerchantProducts] toggle availability error: $e');
       if (mounted) setState(() { v["is_active"] = current; _applyFilters(); });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Toggle failed: $e"), backgroundColor: Colors.red));
+        SnackBar(content: Text("Toggle failed: ${friendlyError(e)}"), backgroundColor: Colors.red));
     }
   }
 
@@ -1936,8 +1941,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Product updated!"), backgroundColor: Color(0xFF1a6640)));
       } catch (e) {
+        debugPrint('[MerchantProducts] update error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString().replaceAll('Exception: ','')}"), backgroundColor: Colors.red));
+          SnackBar(content: Text("Error: ${friendlyError(e)}"), backgroundColor: Colors.red));
       }
     }
   }
@@ -1961,8 +1967,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Product deleted."), backgroundColor: Colors.red));
       } catch (e) {
+        debugPrint('[MerchantProducts] delete error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error deleting: ${e.toString().replaceAll('Exception: ','')}"), backgroundColor: Colors.red));
+          SnackBar(content: Text("Error deleting: ${friendlyError(e)}"), backgroundColor: Colors.red));
       }
     }
   }
@@ -2349,7 +2356,7 @@ class _StandardProductState extends State<StandardProductPage> {
             backgroundColor: const Color(0xFF1a6640)));
       }
     } catch (e) {
-      setState(() => _msg = e.toString().replaceAll("Exception:", "").trim());
+      setState(() => _msg = friendlyError(e));
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -2651,7 +2658,7 @@ class _AddProductState extends State<AddProductPage> {
         _appliedVCode         = "";
         _appliedVDiscount     = 0;
         _appliedVDiscountType = null;
-        _discountVMsg     = e.toString().replaceAll("Exception: ","");
+        _discountVMsg     = friendlyError(e);
         _discountVOk      = false;
         _applyingVCode    = false;
       });
@@ -2707,7 +2714,7 @@ class _AddProductState extends State<AddProductPage> {
         final confirmed=await _showProductSummaryDialog(order,manual:false);
         if(confirmed==true&&mounted) _openRazorpay(order);
       }
-    }catch(e){setState(()=>_msg=e.toString().replaceAll("Exception:","").trim());}
+    }catch(e){setState(()=>_msg=friendlyError(e));}
     if(mounted)setState(()=>_loading=false);
   }
 
@@ -2731,7 +2738,8 @@ class _AddProductState extends State<AddProductPage> {
       "theme":{"color":"#3E5F55"},
     });
     } catch(e) {
-      if(mounted) setState(()=>_msg="Payment error: ${e.toString().replaceAll('Exception: ','')}");
+      debugPrint('[MerchantProducts] Razorpay open error: $e');
+      if(mounted) setState(()=>_msg="Payment error: ${friendlyError(e, fallback: "Could not open payment. Please try again.")}");
     }
   }
 
@@ -2764,11 +2772,11 @@ class _AddProductState extends State<AddProductPage> {
           ),
         ));
       }
-    }catch(e){if(mounted)setState(()=>_msg=e.toString().replaceAll("Exception:","").trim());}
+    }catch(e){if(mounted)setState(()=>_msg=friendlyError(e));}
   }
 
   void _onPayError(PaymentFailureResponse res){
-    if(mounted)setState(()=>_msg="Payment failed: ${res.message??'Unknown error'}");
+    if(mounted)setState(()=>_msg="Payment failed: ${friendlyRazorpayError(res.message)}");
   }
 
   Future<bool?> _showProductSummaryDialog(Map order,{required bool manual})=>
@@ -3257,7 +3265,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                         final res = await Api.resetStoreQr(sid, widget.token);
                         final qr = res["qr_code"]??"";
                         if(qr.isNotEmpty){ setState(()=>s["qr_code"]=qr); if(mounted)_showQR(context,s["store_name"]??"",qr); }
-                      } catch(e){ if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: $e"))); }
+                      } catch(e){ debugPrint('[MerchantStores] reset QR error: $e'); if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: ${friendlyError(e)}"))); }
                     })),
             ]);
           } else {
@@ -4064,7 +4072,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       else         await Api.createMerchantStore(widget.token, data);
       if (!mounted) return;
       Navigator.pop(context);
-    } catch(e) { setState(()=>_msg=e.toString().replaceAll("Exception: ","")); }
+    } catch(e) { setState(()=>_msg=friendlyError(e)); }
     if (mounted) setState(()=>_loading=false);
   }
 
@@ -4461,7 +4469,8 @@ class _SubscribeState extends State<SubscribePage> {
       };
       _razorpay.open(opts);
     } catch(e) {
-      if (mounted) setState(() => _msg = 'Could not open payment: $e');
+      debugPrint('[MerchantSubscription] Razorpay open error: $e');
+      if (mounted) setState(() => _msg = friendlyError(e, fallback: "Could not open payment. Please try again."));
     }
   }
 
@@ -4518,7 +4527,7 @@ class _SubscribeState extends State<SubscribePage> {
   }
 
   void _onPayError(PaymentFailureResponse resp) {
-    if (mounted) setState(() { final m = resp.message ?? ""; _msg = "Payment cancelled or failed: $m"; });
+    if (mounted) setState(() { final m = friendlyRazorpayError(resp.message); _msg = "Payment cancelled or failed: $m"; });
   }
 
   void _onExtWallet(ExternalWalletResponse resp) {
@@ -4548,7 +4557,7 @@ class _SubscribeState extends State<SubscribePage> {
     } catch(e) {
       setState((){
         _appliedCode = null; _discountValue = 0; _discountType = null;
-        _discMsg = e.toString().replaceAll("Exception: ","");
+        _discMsg = friendlyError(e);
       });
     }
     if (mounted) setState(()=>_validatingDisc=false);
@@ -4664,7 +4673,7 @@ class _SubscribeState extends State<SubscribePage> {
         ],
       ));
     } catch(e) {
-      if (mounted) setState(()=>_msg=e.toString().replaceAll("Exception: ",""));
+      if (mounted) setState(()=>_msg=friendlyError(e));
     }
     if (mounted) setState(()=>_loading=false);
   }
@@ -5861,7 +5870,7 @@ class _AddDealState extends State<AddDealPage> {
           content: Text("Deal added!"), backgroundColor: Color(0xFF1a6640)));
       }
       Navigator.pop(context);
-    } catch (e) { setState(() => _msg = e.toString().replaceAll("Exception: ", "")); }
+    } catch (e) { setState(() => _msg = friendlyError(e)); }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -6422,9 +6431,10 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
         ),
       );
     } catch (e) {
+      debugPrint('[MerchantAccount] delete request error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${e.toString().replaceAll('Exception: ', '')}"),
+        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
           backgroundColor: Colors.red),
       );
     }

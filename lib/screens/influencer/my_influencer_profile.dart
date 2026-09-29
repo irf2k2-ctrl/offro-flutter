@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/india_locations.dart' show kIndiaStates, kIndiaCities;
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../auth/login_screen.dart' show SwitchModeSheet;
 import '../home/influencer_section.dart' show InfluencerProfileScreen;
 
@@ -69,27 +70,11 @@ String _reviewTimeAgo(String isoTs) {
 //   guard — the exact pattern used in merchant_screens.dart's _pickImage()
 // ══════════════════════════════════════════════════════════
 
-/// Friendly error conversion — never surfaces raw exceptions, certificate
-/// errors, stack traces, or internal details to the user.
-String _friendlyError(Object e) {
-  final s = e.toString();
-  if (s.contains('SocketException') || s.contains('Failed host lookup') ||
-      s.contains('Connection') || s.contains('HandshakeException') ||
-      s.contains('CERTIFICATE')) {
-    return "We couldn't connect to OffrO right now. Please check your internet connection and try again.";
-  }
-  if (s.contains('TimeoutException')) {
-    return "OffrO is taking too long to respond. Please try again.";
-  }
-  // Backend HTTPException messages come through as "Exception: <detail>" —
-  // these are already user-appropriate (e.g. "Name is required",
-  // "You already have an influencer profile.") so just strip the prefix.
-  final cleaned = s.replaceAll('Exception: ', '').trim();
-  if (cleaned.isEmpty || cleaned.length > 200) {
-    return "Something went wrong. Please try again.";
-  }
-  return cleaned;
-}
+// Round 9: the local _friendlyError() that used to live here has been
+// generalized into the shared lib/core/services/error_mapper.dart
+// (friendlyError()) so every screen uses the same classifier instead of
+// each reinventing its own. Call sites below now call friendlyError(e)
+// directly — behavior is unchanged for this screen's existing messages.
 
 /// Entry point: decides Create vs View based on the authenticated
 /// account's own profile — never asks the user for an account_id or
@@ -130,7 +115,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       setState(() { _profile = p; _loading = false; });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = _friendlyError(e); _loading = false; });
+      setState(() { _error = friendlyError(e); _loading = false; });
     }
   }
 
@@ -710,7 +695,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
       if (mounted) onProfileUpdated(fresh);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_friendlyError(e)), backgroundColor: Colors.red));
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -740,7 +725,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
       if (mounted) widget.onProfileDeleted();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_friendlyError(e)), backgroundColor: Colors.red));
+        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -1065,7 +1050,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       final fresh = await Api.getMyInfluencerProfile(widget.token);
       if (mounted) Navigator.pop(context, fresh);
     } catch (e) {
-      if (mounted) setState(() => _errorMsg = _friendlyError(e));
+      if (mounted) setState(() => _errorMsg = friendlyError(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1120,7 +1105,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       final fresh = await Api.getMyInfluencerProfile(widget.token);
       if (mounted) Navigator.pop(context, fresh);
     } catch (e) {
-      if (mounted) setState(() => _errorMsg = _friendlyError(e));
+      if (mounted) setState(() => _errorMsg = friendlyError(e));
     } finally {
       if (mounted && _publishing) setState(() => _publishing = false);
     }
@@ -1166,7 +1151,8 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       };
       _razorpay.open(opts);
     } catch (e) {
-      setState(() => _errorMsg = 'Could not open payment: $e');
+      debugPrint('[OffrO] Razorpay open error: $e');
+      setState(() => _errorMsg = friendlyError(e, fallback: "Could not open payment. Please try again."));
     }
   }
 
@@ -1202,7 +1188,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           razorpayOrderId: ordId, razorpayPaymentId: payId, razorpaySignature: sig);
         verified = true;
       } catch (e) {
-        failureMsg = _friendlyError(e);
+        failureMsg = friendlyError(e);
         if (attempt < 2) await Future.delayed(Duration(seconds: attempt + 1));
       }
     }
@@ -1248,6 +1234,13 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     // Pay Now" affordance — never the stale empty create-state, and never a
     // duplicate profile.
     if (!mounted) return;
+    // Round 9 FIX: this used to discard resp.message entirely and pop
+    // silently — cancelling or a genuinely failed payment gave the customer
+    // no feedback at all. Show a clean, classified message (never raw
+    // Razorpay/gateway text) before handing control back to the parent.
+    final failMsg = friendlyRazorpayError(resp.message);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(failMsg), backgroundColor: Colors.red));
     try {
       final fresh = await Api.getMyInfluencerProfile(widget.token);
       if (mounted) Navigator.pop(context, fresh.isNotEmpty ? fresh : const {"_needs_refresh": true});
@@ -1548,7 +1541,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       setState(() {
         _appliedDiscountCode = null;
         _appliedDiscountInfo = null;
-        _discountError = _friendlyError(e);
+        _discountError = friendlyError(e);
       });
     } finally {
       if (mounted) setState(() => _applyingDiscount = false);

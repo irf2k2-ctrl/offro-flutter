@@ -13,35 +13,69 @@ class Api {
   };
 
   static Future<Map<String,dynamic>> _post(String path, Map body, {String? token}) async {
-    final r = await http.post(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
-    // FIX: guard against non-JSON error responses
+    http.Response r;
+    try {
+      r = await http.post(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
+    } catch (e) {
+      // Round 9: normalize network/timeout/TLS failures (SocketException,
+      // TimeoutException, HandshakeException, certificate errors) into a
+      // plain Exception carrying the original classifiable text, so they
+      // always reach the caller the same way regardless of the underlying
+      // exception type. Screens map this through error_mapper.dart's
+      // friendlyError() before showing anything to the customer.
+      throw Exception(e.toString());
+    }
+    // FIX: guard against non-JSON error responses. Round 9: never surface
+    // the raw response body (which may be an HTML error page, a stack
+    // trace, or other server-internal text) — always a safe, generic
+    // message instead; friendlyError() classifies it as "temporarily
+    // unavailable" via the "Invalid server response" marker.
     Map<String, dynamic> d;
     try {
       d = Map<String, dynamic>.from(json.decode(r.body) as Map);
     } catch (_) {
-      throw Exception(r.body.isNotEmpty ? r.body : "Server error (${r.statusCode})");
+      throw Exception("Invalid server response (HTTP ${r.statusCode})");
     }
     if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error ${r.statusCode}");
     return d;
   }
 
   static Future<dynamic> _get(String path, {String? token}) async {
-    // FIX 5: Increased timeout to 30s for Railway cold starts
-    final r = await http.get(Uri.parse("$kBaseUrl$path"), headers: _h(token))
-        .timeout(const Duration(seconds: 30));
+    http.Response r;
+    try {
+      // FIX 5: Increased timeout to 30s for Railway cold starts
+      r = await http.get(Uri.parse("$kBaseUrl$path"), headers: _h(token))
+          .timeout(const Duration(seconds: 30));
+    } catch (e) {
+      // Round 9: see _post — normalize network/timeout/TLS failures so they
+      // never escape this helper as a different, unclassifiable type.
+      throw Exception(e.toString());
+    }
     if (r.statusCode >= 400) {
+      // Round 9 FIX: the previous version's catch block discarded the
+      // parsed `detail` on ANY exception thrown while decoding — including
+      // the `throw Exception(d["detail"] ...)` it had just thrown itself,
+      // since that throw happens *inside* the try. That meant a clean
+      // backend {"detail": "..."} message was replaced by the raw response
+      // body (or a generic "HTTP <code>") almost every time. Decode first,
+      // outside of a catch that could swallow our own throw, so a clean
+      // `detail` always reaches the caller.
+      String? detail;
       try {
         final d = json.decode(r.body);
-        throw Exception(d["detail"] ?? "HTTP ${r.statusCode}");
-      } catch (e) {
-        if (e is Exception && e.toString().contains("HTTP")) rethrow;
-        throw Exception(r.body.isNotEmpty ? r.body : "HTTP ${r.statusCode}");
+        if (d is Map && d["detail"] != null) detail = d["detail"].toString();
+      } catch (_) {
+        detail = null; // non-JSON error body — fall through to a safe message below
       }
+      if (detail != null && detail.isNotEmpty) {
+        throw Exception(detail);
+      }
+      throw Exception("HTTP ${r.statusCode}");
     }
     try {
       return json.decode(r.body);
     } catch (_) {
-      throw Exception(r.body.isNotEmpty ? r.body : "Server error");
+      throw Exception("Invalid server response");
     }
   }
 
@@ -85,26 +119,39 @@ class Api {
   }
 
   static Future<dynamic> _put(String path, Map body, {String? token}) async {
-    final r = await http.put(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
+    http.Response r;
+    try {
+      r = await http.put(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
+    } catch (e) {
+      // Round 9: see _post — normalize network/timeout/TLS failures.
+      throw Exception(e.toString());
+    }
     // FIX: guard against non-JSON error responses (Starlette returns plain text
-    // "Internal Server Error" on unhandled 500s, which crashes json.decode)
+    // "Internal Server Error" on unhandled 500s, which crashes json.decode).
+    // Round 9: never surface the raw response body to the caller.
     Map<String, dynamic> d;
     try {
       d = Map<String, dynamic>.from(json.decode(r.body) as Map);
     } catch (_) {
-      throw Exception(r.body.isNotEmpty ? r.body : "Server error (${r.statusCode})");
+      throw Exception("Invalid server response (HTTP ${r.statusCode})");
     }
     if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error (${r.statusCode})");
     return d;
   }
 
   static Future<Map<String,dynamic>> _delete(String path, {String? token}) async {
-    final r = await http.delete(Uri.parse("$kBaseUrl$path"), headers: _h(token)).timeout(const Duration(seconds: 20));
+    http.Response r;
+    try {
+      r = await http.delete(Uri.parse("$kBaseUrl$path"), headers: _h(token)).timeout(const Duration(seconds: 20));
+    } catch (e) {
+      // Round 9: see _post — normalize network/timeout/TLS failures.
+      throw Exception(e.toString());
+    }
     Map<String, dynamic> d;
     try {
       d = Map<String, dynamic>.from(json.decode(r.body) as Map);
     } catch (_) {
-      throw Exception(r.body.isNotEmpty ? r.body : "Server error (${r.statusCode})");
+      throw Exception("Invalid server response (HTTP ${r.statusCode})");
     }
     if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error (${r.statusCode})");
     return d;
@@ -117,12 +164,33 @@ class Api {
   static Future<Map<String,dynamic>> loginAccount(String phone) => _post("/user/account-login", {"phone": phone});
   static Future<Map<String,dynamic>> registerUser(String name, String phone) =>
       _post("/user/register", {"name": name, "phone": phone, "city": ""});
-  /// Check if phone is already registered as a user
+  /// Check if phone is already registered as a user.
+  /// Round 9 FIX: previously swallowed EVERY failure (including a network
+  /// drop, a timeout, or a malformed server response) into `false`, which
+  /// the login screen then showed as "Number not registered. Please
+  /// register first." — a wrong and misleading message when the real cause
+  /// was connectivity, not registration status. Now a genuine network/
+  /// server-availability failure is rethrown so the caller can show a
+  /// proper connection/server error instead; only a real, successful
+  /// "not registered" response from the backend returns false.
   static Future<bool> checkUserPhone(String phone) async {
     try {
       final d = await _post("/user/check-phone", {"phone": phone});
       return d["registered"] == true;
-    } catch (_) { return false; }
+    } catch (e) {
+      final s = e.toString();
+      final isConnectivityOrServerIssue = s.contains('SocketException') ||
+          s.contains('HandshakeException') ||
+          s.contains('CERTIFICATE') ||
+          s.contains('Certificate') ||
+          s.contains('TimeoutException') ||
+          s.contains('timed out') ||
+          s.contains('ClientException') ||
+          s.contains('Failed host lookup') ||
+          s.contains('Invalid server response');
+      if (isConnectivityOrServerIssue) rethrow;
+      return false;
+    }
   }
 
   /// Check phone in BOTH users + merchants collections.
@@ -220,10 +288,27 @@ class Api {
   static Future<Map<String,dynamic>> createMerchantStore(String token, Map<String,dynamic> data) =>
       _post("/merchant/stores", data, token: token);
   static Future<Map<String,dynamic>> updateMerchantStore(String token, String sid, Map<String,dynamic> data) async {
-    final r = await http.put(Uri.parse("$kBaseUrl/merchant/stores/$sid"), headers: _h(token), body: json.encode(data)).timeout(const Duration(seconds: 20));
-    final d = json.decode(r.body);
-    if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error");
-    return d;
+    http.Response r;
+    try {
+      r = await http.put(Uri.parse("$kBaseUrl/merchant/stores/$sid"), headers: _h(token), body: json.encode(data)).timeout(const Duration(seconds: 20));
+    } catch (e) {
+      // Round 9: see _post — normalize network/timeout/TLS failures.
+      throw Exception(e.toString());
+    }
+    // Round 9 FIX: json.decode(r.body) was unguarded — a non-JSON response
+    // (e.g. an unhandled 500's plain-text "Internal Server Error" page)
+    // would throw a raw FormatException straight out of this method instead
+    // of a clean, classifiable Exception.
+    dynamic d;
+    try {
+      d = json.decode(r.body);
+    } catch (_) {
+      throw Exception("Invalid server response (HTTP ${r.statusCode})");
+    }
+    if (r.statusCode >= 400) {
+      throw Exception(d is Map ? (d["detail"] ?? "Error") : "Error");
+    }
+    return Map<String,dynamic>.from(d as Map);
   }
   static Future<List> getPlans(String token) async {
     try { return await _get("/merchant/plans", token: token); } catch (_) { return []; }

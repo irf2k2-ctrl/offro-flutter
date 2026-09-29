@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/error_mapper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StoreProductsSection
@@ -132,10 +133,11 @@ class _ProductCardState extends State<_ProductCard> {
     } catch (e) {
       // FIX: was a silent revert with zero feedback — now surface the real
       // reason so a failed save is actually diagnosable instead of invisible.
+      debugPrint('[OffrO] product favorite toggle error: $e');
       if (mounted) {
         setState(() => _isFav = prev);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Couldn't save favorite: ${e.toString()}"),
+          content: Text("Couldn't save favorite: ${friendlyError(e)}"),
           backgroundColor: const Color(0xFFc0392b),
           duration: const Duration(seconds: 12),
           showCloseIcon: true));
@@ -422,11 +424,11 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
     } catch (e) {
       // FIX: submitProductReview now throws on real failure instead of being
       // silently swallowed — show the actual reason instead of a fake success.
+      debugPrint('[OffrO] product rating submit error: $e');
       if (mounted) {
         setState(() => _submitting = false);
-        final msg = e.toString().replaceFirst("Exception: ", "");
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Couldn't submit rating: $msg"), backgroundColor: const Color(0xFFc0392b)));
+          SnackBar(content: Text("Couldn't submit rating: ${friendlyError(e)}"), backgroundColor: const Color(0xFFc0392b)));
       }
     }
   }

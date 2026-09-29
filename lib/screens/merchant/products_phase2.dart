@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 
 // ══════════════════════════════════════════════════════════════════════
 // UPGRADE STANDARD → PREMIUM PAGE
@@ -90,7 +91,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
       });
     } catch (e) {
       if (mounted) setState(() {
-        _discountMsg = e.toString().replaceAll("Exception: ", "");
+        _discountMsg = friendlyError(e);
         _discountApplied = false; _discountAmt = 0; _discountType = "VALUE";
       });
     }
@@ -160,13 +161,13 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
             ));
           }
         } catch (e) {
-          if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
+          if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
         }
       } else {
         if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
       }
     } catch (e) {
-      if (mounted) setState(() => _msg = e.toString().replaceAll("Exception: ", ""));
+      if (mounted) setState(() => _msg = friendlyError(e));
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -253,11 +254,11 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
+      if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
     }
   }
   void _onPayError(PaymentFailureResponse res) {
-    if (mounted) setState(() { _msg = "Payment failed: ${res.message}"; _loading = false; });
+    if (mounted) setState(() { _msg = "Payment failed: ${friendlyRazorpayError(res.message)}"; _loading = false; });
   }
 
   @override Widget build(BuildContext context) {
@@ -544,7 +545,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
       });
     } catch (e) {
       if (mounted) setState(() {
-        _discountMsg = e.toString().replaceAll("Exception: ", "");
+        _discountMsg = friendlyError(e);
         _discountApplied = false; _discountAmt = 0; _discountType = "VALUE";
       });
     }
@@ -602,13 +603,13 @@ class _RenewProductPageState extends State<RenewProductPage> {
             Navigator.pop(context, true);
           }
         } catch (e) {
-          if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
+          if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
         }
       } else {
         if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
       }
     } catch(e) {
-      if (mounted) setState(() => _msg = e.toString().replaceAll("Exception: ", ""));
+      if (mounted) setState(() => _msg = friendlyError(e));
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -718,11 +719,11 @@ class _RenewProductPageState extends State<RenewProductPage> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) setState(() { _msg = e.toString().replaceAll("Exception: ", ""); _loading = false; });
+      if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
     }
   }
   void _onPayError(PaymentFailureResponse res) {
-    if (mounted) setState(() { _msg = "Payment failed: ${res.message}"; _loading = false; });
+    if (mounted) setState(() { _msg = "Payment failed: ${friendlyRazorpayError(res.message)}"; _loading = false; });
   }
 
   @override Widget build(BuildContext context) {

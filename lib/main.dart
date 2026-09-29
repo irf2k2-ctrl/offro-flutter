@@ -21,6 +21,7 @@ import 'firebase_options.dart';
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
 import 'core/services/api_service.dart';
+import 'core/services/error_mapper.dart';
 import 'core/services/fav_state.dart';
 import 'core/services/prefs_service.dart';
 import 'core/services/fcm_service.dart';
@@ -3606,9 +3607,12 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
       // FIX: was a silent swallow (`catch (_)`) — a real crash/network error
       // looked EXACTLY like "no stores in this category," making the two
       // impossible to tell apart. Now the real reason is shown on-screen.
+      // Round 9: shown through the shared classifier so the reason is
+      // never a raw exception/stack trace.
+      debugPrint('[OffrO] category stores load error: $e');
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = friendlyError(e);
           _loading = false;
         });
       }
@@ -5829,7 +5833,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                                   setH(() { v["_isFav"] = !next; _pFav = !next; });
                                   FavState.instance.toggleProduct(pid);
                                   ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
-                                    content: Text("Couldn't save favorite: ${e.toString()}"),
+                                    content: Text("Couldn't save favorite: ${friendlyError(e)}"),
                                     backgroundColor: Colors.red.shade700,
                                     duration: const Duration(seconds: 12),
                                     showCloseIcon: true));
@@ -7400,6 +7404,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         const SnackBar(content: Text("Review submitted! Thank you."),
           backgroundColor: Color(0xFF3E5F55)));
     } catch (e) {
+      debugPrint('[OffrO] product review submit error: $e');
       if (mounted) {
         setState(() => _reviewSubmitting = false);
         // FIX: detect "Session expired" and show a user-friendly message with login prompt
@@ -7408,7 +7413,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(isSessionExpired
               ? "Your session has expired. Please log in again to submit a review."
-              : errStr.replaceFirst("Exception: ", "")),
+              : friendlyError(e)),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 12),
           showCloseIcon: true,
@@ -7495,7 +7500,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       setState(() => _isFav = prev);
                       FavState.instance.setProduct(pid, prev);
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text("Couldn't save favorite: ${e.toString()}"),
+                        content: Text("Couldn't save favorite: ${friendlyError(e)}"),
                         backgroundColor: Colors.red.shade700,
                         duration: const Duration(seconds: 12),
                         showCloseIcon: true));
@@ -8495,7 +8500,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                   setState(() => _isFav = !next);
                   FavState.instance.setProduct(pid, !next);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Couldn't save favorite: ${e.toString()}"),
+                    content: Text("Couldn't save favorite: ${friendlyError(e)}"),
                     backgroundColor: Colors.red.shade700,
                     duration: const Duration(seconds: 12),
                     showCloseIcon: true));
@@ -9026,9 +9031,10 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
         ),
       );
     } catch (e) {
+      debugPrint('[OffrO] delete account request error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${e.toString().replaceAll('Exception: ', '')}"),
+        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
           backgroundColor: Colors.red),
       );
     }

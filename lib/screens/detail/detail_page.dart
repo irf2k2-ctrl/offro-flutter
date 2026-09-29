@@ -14,6 +14,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../qr/qr_page.dart';
@@ -151,10 +152,9 @@ class _DetailPageState extends State<DetailPage> with SingleTickerProviderStateM
       }
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString().replaceAll("Exception: ", "");
       debugPrint("[OFFRO] Rating submit error: \$e");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg.isNotEmpty ? msg : "Rating failed. Please try again."),
+        content: Text(friendlyError(e, fallback: "Rating failed. Please try again.")),
         backgroundColor: Colors.red));
     }
     if (mounted) setState(() => _ratingSubmitting = false);
