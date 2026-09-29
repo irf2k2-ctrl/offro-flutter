@@ -299,18 +299,52 @@ class _AccountBootstrapScreen extends StatefulWidget {
   @override State<_AccountBootstrapScreen> createState() => _AccountBootstrapScreenState();
 }
 
-class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
+class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> with WidgetsBindingObserver {
   String _status = 'Setting up your account...';
   String _err = '';
+
+  // Set only when device Location Services (the master OS switch — distinct
+  // from the app's own location PERMISSION, which may already be granted)
+  // are OFF and we've sent the person to the system Location Settings
+  // screen. While true, this screen stays on its loading state — it does
+  // NOT proceed to Role Selection yet. didChangeAppLifecycleState below
+  // re-checks Location Services as soon as the app resumes and either
+  // retries GPS automatically or, if still off, continues with an empty
+  // city (handled later at Role Selection — never a default/guessed city).
+  bool _waitingForLocationServices = false;
+  Map<String, dynamic>? _pendingAccountData;
+  String? _pendingToken;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _run();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reuses the same WidgetsBindingObserver/didChangeAppLifecycleState
+    // pattern already used elsewhere in the app (see _HomeState in
+    // main.dart) rather than introducing a new lifecycle mechanism.
+    if (state == AppLifecycleState.resumed && _waitingForLocationServices) {
+      _waitingForLocationServices = false;
+      _retryAfterLocationSettings();
+    }
+  }
+
   Future<void> _run() async {
-    if (mounted) setState(() { _err = ''; _status = 'Setting up your account...'; });
+    if (mounted) setState(() {
+      _err = '';
+      _status = 'Setting up your account...';
+      _waitingForLocationServices = false;
+    });
 
     Map<String, dynamic> d;
     try {
@@ -327,14 +361,56 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
     // CHECK ACCOUNT LOCATION → LOCATION HANDLING IF REQUIRED.
     // Already has a city → never ask again, go straight to Role Selection.
     // Missing → attempt to resolve it silently (permission may be granted
-    // or denied, GPS may or may not be available). NEVER assign a
-    // default/guessed city (no "Ballari") here — a still-empty city is
-    // handled later, only if/when the User role is actually selected.
+    // or denied, device Location Services may be off, GPS may or may not
+    // be available). NEVER assign a default/guessed city (no "Ballari")
+    // here — a still-empty city is handled later, only if/when the User
+    // role is actually selected.
     if (token.isNotEmpty && city.isEmpty) {
       if (mounted) setState(() => _status = 'Getting your location...');
       final resolvedCity = await _attemptAccountLocation(token);
+
+      if (_waitingForLocationServices) {
+        // We just sent the person to system Location Settings — hold this
+        // screen (and the fetched account data) until the app resumes; see
+        // didChangeAppLifecycleState/_retryAfterLocationSettings. Do NOT
+        // proceed to Role Selection yet, and do NOT show manual State+City
+        // yet either — the person hasn't had a chance to enable Location
+        // Services and come back.
+        _pendingAccountData = d;
+        _pendingToken = token;
+        return;
+      }
+
       if (resolvedCity != null && resolvedCity.isNotEmpty) city = resolvedCity;
     }
+
+    d['city'] = city;
+    if (!mounted) return;
+    widget.onReady(d);
+  }
+
+  /// Called when the app resumes after we sent the person to system
+  /// Location Settings. Re-checks Location Services (never assumes turning
+  /// it on happened just because they came back), and if it's now on,
+  /// retries GPS + reverse-geocode automatically — the person never has to
+  /// select User first, and manual State+City is never shown immediately
+  /// on return. If Location Services are still off, this simply continues
+  /// the bootstrap with an empty city (handled at Role Selection).
+  Future<void> _retryAfterLocationSettings() async {
+    final token = _pendingToken;
+    final d = _pendingAccountData;
+    _pendingToken = null;
+    _pendingAccountData = null;
+    if (token == null || d == null || !mounted) return;
+
+    String city = '';
+    final stillOff = !(await Geolocator.isLocationServiceEnabled());
+    if (!stillOff) {
+      if (mounted) setState(() => _status = 'Getting your location...');
+      city = await _acquireAndSaveLocation(token) ?? '';
+    }
+    // stillOff (or acquisition failed anyway) → city stays '' — no
+    // Ballari/default/guessed city, ever.
 
     d['city'] = city;
     if (!mounted) return;
@@ -353,8 +429,10 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
   /// captured independently in AddEditStorePage (merchant_screens.dart).
   ///
   /// Returns null (never a default/guessed city) whenever permission is
-  /// denied, location services are off, or the position/reverse-geocode
-  /// lookup fails for any reason.
+  /// denied, location services are off (in which case this also sends the
+  /// person to system Location Settings and sets
+  /// _waitingForLocationServices — see _run()), or the position/reverse-
+  /// geocode lookup fails for any reason.
   Future<String?> _attemptAccountLocation(String token) async {
     try {
       LocationPermission perm = await Geolocator.checkPermission();
@@ -362,10 +440,46 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
         perm = await Geolocator.requestPermission();
       }
       if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) {
+        // App-level permission denied — unrelated to the device's Location
+        // Services switch. Nothing to open; handled at Role Selection.
         return null;
       }
-      if (!await Geolocator.isLocationServiceEnabled()) return null;
 
+      // Accepting the app's location PERMISSION dialog does NOT mean the
+      // device's master Location Services switch is on — check that
+      // separately, exactly as the finalized requirements specify.
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        await _guideToLocationSettings();
+        return null;
+      }
+
+      return await _acquireAndSaveLocation(token);
+    } catch (e) {
+      debugPrint('[OFFRO] account-level location attempt failed: $e');
+      return null;
+    }
+  }
+
+  /// Opens the device's system Location Settings screen so the person can
+  /// turn Location Services on — the geolocator package's Location-Services
+  /// counterpart to Geolocator.openAppSettings() (already used elsewhere in
+  /// this app for the app-permission/deniedForever case). No new location
+  /// package is introduced.
+  Future<void> _guideToLocationSettings() async {
+    if (mounted) setState(() {
+      _status = 'Location Services are off. Please turn them on to continue...';
+      _waitingForLocationServices = true;
+    });
+    await Geolocator.openLocationSettings();
+    // Nothing else to do here — the person may spend any amount of time in
+    // system Settings; didChangeAppLifecycleState picks up the resume.
+  }
+
+  /// Shared GPS-acquire + reverse-geocode + save step, used both on the
+  /// first attempt and on the automatic retry after returning from system
+  /// Location Settings.
+  Future<String?> _acquireAndSaveLocation(String token) async {
+    try {
       final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
           .timeout(const Duration(seconds: 8));
 
@@ -379,7 +493,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
       await Api.updateCity(token, city, state: state);
       return city;
     } catch (e) {
-      debugPrint('[OFFRO] account-level location attempt failed: $e');
+      debugPrint('[OFFRO] account-level location acquisition failed: $e');
       return null;
     }
   }
