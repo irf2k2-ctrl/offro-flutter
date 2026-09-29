@@ -584,18 +584,26 @@ class MyApp extends StatelessWidget {
             (r) => false,
           );
         } else {
-          // User role selected. Account location was already checked/
-          // resolved (or, if still missing, manually collected) BEFORE Role
-          // Selection — see login_screen.dart's _AccountBootstrapScreen and
-          // _handleRoleSelected. Pass it through as forcedCity so this
-          // loader goes straight to fetching deals for that city instead of
-          // re-running its own GPS/cache resolution (and never falls back
-          // to a default/guessed city if city somehow still came through
-          // empty — LocationLoadingScreen's own fallback was removed too).
+          // User role selected + Continue tapped.
+          //
+          // Round 8 — Final User Location Flow: "Every time the user
+          // selects User → Continue, the app must start a fresh location
+          // decision" — this applies even to the very first Continue tap
+          // right after OTP verification, not just later re-entries via
+          // Switch Mode / "Back to Home" (see _goUserViaUnified below,
+          // which already does this). So this no longer passes the
+          // bootstrap-resolved accountData city through as forcedCity —
+          // that would skip straight to fetching deals for a city that may
+          // now be stale, exactly the bug already fixed for the
+          // Switch-Mode path. requireFreshGps: true runs the same
+          // permission → Location Services → GPS → reverse-geocode →
+          // manual-State+City-fallback flow uniformly for every User
+          // Continue tap. Never falls back to a default/guessed city
+          // (LocationLoadingScreen's own Ballari fallback was removed too).
           navigatorKey.currentState?.pushAndRemoveUntil(
             _route(LocationLoadingScreen(
               token: tok, name: nm, phone: ph, userId: uid,
-              forcedCity: city.isNotEmpty ? city : null,
+              requireFreshGps: true,
               onReady: ({required String city, required List<Map<String,dynamic>> stores,
                          required double? lat, required double? lng}) =>
                   goHomeWithData(token: tok, name: nm, phone: ph, userId: uid,

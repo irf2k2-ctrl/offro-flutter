@@ -13,7 +13,6 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
-import '../../core/widgets/manual_location_sheet.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../loading/location_loading_screen.dart';
@@ -1327,25 +1326,22 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         ? (accountData['merchant_id']?.toString() ?? accountData['account_id']?.toString() ?? '')
         : (accountData['user_id']?.toString()     ?? accountData['account_id']?.toString() ?? '');
 
-    String city = accountData['city']?.toString() ?? '';
-
-    // IF USER SELECTS USER ROLE AND ACCOUNT LOCATION IS STILL MISSING:
-    // location was denied/unavailable during the bootstrap step above — do
-    // NOT use Ballari or any other fallback. Require State + City manually
-    // before continuing. Merchant/Influencer are unaffected — their account
-    // location may stay empty; it is never required to enter those modes,
-    // and (for Merchant) it is never used to determine store location.
-    if (role == 'user' && city.isEmpty) {
-      final manual = await requireManualCityState(context);
-      if (manual == null) {
-        // Person backed out of the manual entry sheet — do not silently
-        // continue with an invented/default city.
-        throw Exception('Please select your State and City to continue as a User.');
-      }
-      city = manual['city']!;
-      await Api.updateCity(token, city, state: manual['state']);
-      await Prefs.saveCity(city);
-    }
+    // NOTE (Round 8 — Final User Location Flow): account-level city from
+    // bootstrap is still passed through in accountData/city below, but for
+    // role == 'user' it is NO LONGER used to skip location detection here.
+    // "Every time the user selects User → Continue, the app must start a
+    // fresh location decision" — permission → device Location Services →
+    // GPS → reverse-geocode → current city, falling back to manual
+    // State + City only if that fails. That entire decision tree (and its
+    // own manual-entry fallback — never Ballari/default/guessed) now lives
+    // in LocationLoadingScreen (requireFreshGps: true, set in main.dart's
+    // onSuccess for role == 'user'), so it runs identically whether this is
+    // the very first Continue tap right after OTP verification or a later
+    // one reached via Switch Mode / "Back to Home". Pre-resolving/requiring
+    // it here as well would just mean asking twice. Merchant/Influencer
+    // are unaffected — their account location may stay empty and is never
+    // required to enter those modes.
+    final city = accountData['city']?.toString() ?? '';
 
     await Prefs.save(token, name, phone, role, userId: userId);
     await Prefs.saveRoles(roles);
