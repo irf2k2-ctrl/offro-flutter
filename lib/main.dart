@@ -1144,7 +1144,30 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       _usePreloadedData(); // async — clears _loading when done
       // Always fetch live GPS even when preloaded — ensures distance_km is computed
       _fetchLiveGpsAndRecomputeDistances();
+    } else if (widget.savedCity.isNotEmpty) {
+      // A city was already resolved BEFORE Home was reached — either via
+      // GPS (LocationLoadingScreen's normal flow) or an explicit manual
+      // State+City selection (AccountBootstrapScreen's mandatory fallback
+      // when GPS/permission wasn't available). Either way, widget.savedCity
+      // is an AUTHORITATIVE, already-known location for this session.
+      //
+      // An empty preloadedStores list here means "zero stores in that
+      // city" (a valid, expected result — see _emptyState()/the "No
+      // Service" UI below), NOT "location unavailable". It must never be
+      // treated as a reason to re-run GPS/location-permission detection:
+      // that would incorrectly show the "Location Access Required" screen
+      // for a location the user (or GPS) already explicitly resolved, and
+      // would silently discard a manually-selected city in favor of GPS.
+      //
+      // So this takes the same path as the non-empty-stores branch above,
+      // just without the live-GPS distance refresh (there are no stores to
+      // compute distance to, and firing a GPS/permission prompt here is
+      // exactly the unwanted "second location request" this fix removes).
+      _usePreloadedData(); // async — clears _loading when done; _stores stays []
     } else {
+      // No city known at all — never resolved via GPS, never manually
+      // selected. This is the genuine "location unavailable" case, and the
+      // only one where full GPS/permission detection should run.
       _initLoc();
     }
   }
