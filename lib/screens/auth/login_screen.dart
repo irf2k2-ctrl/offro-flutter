@@ -10,10 +10,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
+import '../../core/widgets/manual_location_sheet.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../loading/location_loading_screen.dart';
@@ -1336,7 +1336,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     // location may stay empty; it is never required to enter those modes,
     // and (for Merchant) it is never used to determine store location.
     if (role == 'user' && city.isEmpty) {
-      final manual = await _requireManualCityState();
+      final manual = await requireManualCityState(context);
       if (manual == null) {
         // Person backed out of the manual entry sheet — do not silently
         // continue with an invented/default city.
@@ -1361,77 +1361,10 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// Mandatory State + City picker, shown only when a User has no account
-  /// city and location could not be resolved. Reuses the same India
-  /// State/City dropdown data (lib/core/constants/india_locations.dart)
-  /// already used by the merchant Add/Edit Store screen's manual location
-  /// fields, rather than the free-text "Enter City Manually" sheet in
-  /// LocationLoadingScreen (that one is for the deals-loading screen, not
-  /// account-level location, and only collects a city string — this flow
-  /// needs State + City). Returns null if the person dismisses the sheet
-  /// without picking both.
-  Future<Map<String, String>?> _requireManualCityState() {
-    String? selState;
-    String? selCity;
-    return showModalBottomSheet<Map<String, String>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheetState) {
-        return Padding(
-          padding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: MediaQuery.of(ctx).viewInsets.bottom + 32),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text("We couldn't detect your location",
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kPrimary)),
-            const SizedBox(height: 6),
-            const Text('Please select your State and City to continue.',
-              style: TextStyle(fontSize: 12.5, color: kMuted)),
-            const SizedBox(height: 18),
-            DropdownButtonFormField<String>(
-              value: selState,
-              items: kIndiaStates.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-              onChanged: (v) => setSheetState(() { selState = v; selCity = null; }),
-              decoration: InputDecoration(
-                labelText: 'State',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              hint: const Text('Select state'),
-            ),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<String>(
-              value: selCity,
-              items: (selState == null ? const <String>[] : (kIndiaCities[selState] ?? const <String>[]))
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (v) => setSheetState(() => selCity = v),
-              decoration: InputDecoration(
-                labelText: 'City',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              hint: const Text('Select city'),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: (selState != null && selCity != null)
-                    ? () => Navigator.pop(ctx, {'state': selState!, 'city': selCity!})
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFc8d8d2),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('Save & Continue', style: TextStyle(fontWeight: FontWeight.w800)),
-              ),
-            ),
-          ]),
-        );
-      }),
-    );
-  }
+  // Mandatory State + City picker moved to the shared, dependency-neutral
+  // core/widgets/manual_location_sheet.dart (requireManualCityState) so
+  // location_loading_screen.dart can also call it — see that file's doc
+  // comment for why (avoids a circular import).
 
   @override
   Widget build(BuildContext context) {

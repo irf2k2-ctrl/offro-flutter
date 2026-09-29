@@ -478,8 +478,17 @@ class MyApp extends StatelessWidget {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
   // Central navigation helpers — called from SplashScreen / Login / Onboarding callbacks.
+  //
+  // [requireFreshGps]: when true, LocationLoadingScreen ignores [city]
+  // entirely and always re-establishes the CURRENT device location fresh
+  // (permission → Location Services → GPS → reverse-geocode, falling back
+  // to manual State + City only if that fails) instead of reusing a
+  // previously saved/browsing city. Used for "Role Selection → User →
+  // Continue" (see _goUserViaUnified below) — NOT for splash auto-restore,
+  // which still opens instantly with the last-known city as before.
   static void goHome({required String token, required String name,
-      required String phone, required String userId, required String city}) {
+      required String phone, required String userId, required String city,
+      bool requireFreshGps = false}) {
     // TASK 2 FIX: clear stale cache + save mode so all sections reload correctly
     Api.clearCache();
     if (token.isNotEmpty) Prefs.saveMode('user');
@@ -487,8 +496,10 @@ class MyApp extends StatelessWidget {
     navigatorKey.currentState?.pushAndRemoveUntil(
       _route(LocationLoadingScreen(
         token: token, name: name, phone: phone, userId: userId,
-        // Pass saved city so it loads instantly without GPS wait
+        // Pass saved city so it loads instantly without GPS wait — ignored
+        // entirely when requireFreshGps is true.
         forcedCity: city.isNotEmpty ? city : null,
+        requireFreshGps: requireFreshGps,
         onReady: ({required String city, required List<Map<String,dynamic>> stores,
                    required double? lat, required double? lng}) =>
             goHomeWithData(token: token, name: name, phone: phone, userId: userId,
@@ -626,6 +637,20 @@ class MyApp extends StatelessWidget {
   }
 
   /// Switch to user mode — issues a fresh user session token, then routes home.
+  ///
+  /// This is the "Role Selection → User → Continue" entry point (reached
+  /// both from SwitchModeSheet and from the "Back to Home"/Role Selection
+  /// button shown on the "No Service" empty state). Per the finalized
+  /// requirement, tapping Continue as User must NOT silently reuse
+  /// whatever city was last browsed (e.g. a prior "No Service" city) — it
+  /// must re-establish the CURRENT device location fresh each time, only
+  /// falling back to manual State + City if that's genuinely unavailable.
+  /// So city is always passed as '' here AND requireFreshGps: true, so
+  /// LocationLoadingScreen runs its full permission → Location Services →
+  /// GPS → reverse-geocode → manual-fallback flow instead of its normal
+  /// cached-city fast path. The account's own saved city/state (set during
+  /// OTP bootstrap or its own manual fallback) is untouched by this —  see
+  /// LocationLoadingScreen.requireFreshGps's doc comment.
   static void _goUserViaUnified({required String phone, required String name, required String userId}) async {
     try {
       Api.clearCache();
@@ -637,15 +662,15 @@ class MyApp extends StatelessWidget {
       if (freshToken.isNotEmpty) {
         await Prefs.save(freshToken, freshName, phone, 'user', userId: freshId);
         await Prefs.saveMode('user');
-        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '');
+        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '', requireFreshGps: true);
       } else {
         // Fallback — use existing token (may cause wallet 401 but banners still load)
         await Prefs.saveMode('user');
-        goHome(token: '', name: name, phone: phone, userId: userId, city: '');
+        goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
       }
     } catch (e) {
       await Prefs.saveMode('user');
-      goHome(token: '', name: name, phone: phone, userId: userId, city: '');
+      goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
     }
   }
 
