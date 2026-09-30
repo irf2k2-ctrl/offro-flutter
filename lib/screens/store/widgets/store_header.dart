@@ -648,8 +648,18 @@ class FullScreenImageViewer extends StatefulWidget {
   // gallery in this file) keeps the exact previous look — this is purely
   // additive and optional.
   final List<Widget>? bottomOverlays;
+  // Round 12 (Task 4): when true, the image sits higher on screen (instead
+  // of dead-centered) and the bottom overlay gets extra top padding, so
+  // there's real visual separation between the image and the info panel
+  // below it, rather than the overlay's gradient floating directly over
+  // the bottom of the image. Defaults to false so the two existing callers
+  // (the plain store-photo gallery here, and the deal gallery in
+  // store_offers_section.dart) keep their exact previous look — only the
+  // product gallery opts into this.
+  final bool spacedOverlay;
   const FullScreenImageViewer(
-      {super.key, required this.images, required this.initialIndex, this.bottomOverlays});
+      {super.key, required this.images, required this.initialIndex, this.bottomOverlays,
+       this.spacedOverlay = false});
 
   @override
   State<FullScreenImageViewer> createState() =>
@@ -698,38 +708,54 @@ class _FullScreenImageViewerState
               final overlay = (widget.bottomOverlays != null && i < widget.bottomOverlays!.length)
                   ? widget.bottomOverlays![i]
                   : null;
+              final imageWidget = im.startsWith('http')
+                  ? CachedNetworkImage(
+                      imageUrl: im,
+                      fit: BoxFit.contain,
+                      placeholder: (_, __) => const Center(
+                        child: CircularProgressIndicator(
+                            color: Colors.white),
+                      ),
+                      errorWidget: (_, __, ___) => const Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                          size: 60),
+                    )
+                  : im.startsWith('data:image')
+                      ? Builder(builder: (_) {
+                          try {
+                            return Image.memory(
+                              base64Decode(im.split(',').last),
+                              fit: BoxFit.contain,
+                            );
+                          } catch (_) {
+                            return const SizedBox.shrink();
+                          }
+                        })
+                      : const SizedBox.shrink();
               return Stack(fit: StackFit.expand, children: [
                 InteractiveViewer(
                   transformationController: _tc,
                   minScale: 0.8,
                   maxScale: 4.0,
-                  child: Center(
-                    child: im.startsWith('http')
-                        ? CachedNetworkImage(
-                            imageUrl: im,
-                            fit: BoxFit.contain,
-                            placeholder: (_, __) => const Center(
-                              child: CircularProgressIndicator(
-                                  color: Colors.white),
-                            ),
-                            errorWidget: (_, __, ___) => const Icon(
-                                Icons.broken_image,
-                                color: Colors.white54,
-                                size: 60),
-                          )
-                        : im.startsWith('data:image')
-                            ? Builder(builder: (_) {
-                                try {
-                                  return Image.memory(
-                                    base64Decode(im.split(',').last),
-                                    fit: BoxFit.contain,
-                                  );
-                                } catch (_) {
-                                  return const SizedBox.shrink();
-                                }
-                              })
-                            : const SizedBox.shrink(),
-                  ),
+                  // Round 12 (Task 4): spacedOverlay shifts the image up
+                  // (Align above center) and reserves blank space below it
+                  // (the bottom Padding shrinks the box BoxFit.contain sizes
+                  // against) so the image and the info panel underneath are
+                  // visually separated instead of the info gradient sitting
+                  // directly over the image's lower edge. Pan/zoom/swipe
+                  // still work over the FULL screen — only where the image
+                  // itself is laid out changes, not InteractiveViewer's
+                  // hit-testing area.
+                  child: widget.spacedOverlay
+                      ? Align(
+                          alignment: const Alignment(0, -0.22),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 150),
+                            child: imageWidget,
+                          ),
+                        )
+                      : Center(child: imageWidget),
                 ),
                 // ── Round 10: optional bottom overlay (deal/product info) ──
                 // IgnorePointer so it never blocks the InteractiveViewer's
@@ -740,14 +766,14 @@ class _FullScreenImageViewerState
                     child: IgnorePointer(
                       child: Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(20, 48, 20, 32),
+                        padding: EdgeInsets.fromLTRB(20, widget.spacedOverlay ? 90 : 48, 20, 32),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.black.withValues(alpha: 0),
-                              Colors.black.withValues(alpha: .75),
+                              Colors.black.withValues(alpha: widget.spacedOverlay ? .70 : .75),
                             ],
                           ),
                         ),

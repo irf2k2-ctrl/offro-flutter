@@ -13,6 +13,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+// Round 12 (Task 6): shimmer placeholder for the hero/admin-banner images —
+// already a declared dependency (pubspec.yaml), just not used anywhere yet.
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -41,8 +44,30 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
+// Round 12 (Task 5): reuse the exact same full-screen deal-gallery opener
+// StoreOffersSection ("Today's Offers" inside Store Detail) already uses,
+// instead of duplicating that Navigator.push + FullScreenImageViewer logic
+// here for the Home "Hot Deals" list.
+import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
+
+// Round 12 (Task 6): shared shimmer placeholder for the hero city image and
+// the admin banner — both reserve their final box size/aspect ratio up
+// front regardless of load state (see _CityHeroSection's LayoutBuilder and
+// _BannerStoresBlock's fixed bannerH below), so swapping a flat gradient
+// box for this shimmer is a pure visual change, not a layout change.
+Widget _shimmerBox({double? width, double? height, BorderRadius? borderRadius}) {
+  return Shimmer.fromColors(
+    baseColor: const Color(0xFFE3E9E6),
+    highlightColor: const Color(0xFFF3F6F4),
+    child: Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(color: const Color(0xFFE3E9E6), borderRadius: borderRadius),
+    ),
+  );
+}
 
 
 // ─────────────────────── CONFIG ───────────────────────
@@ -1061,6 +1086,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Map<String,dynamic>> _stores=[]; List<String> _cats=["All"]; List<Map<String,dynamic>> _richCats=[];
   List<Map<String,dynamic>> _products=[];
   bool _productsLoading=true;
+  bool _adminBannersLoading=true; // ROUND 12 FIX: tracks ONLY admin-banner fetch/retry lifecycle
+  // ROUND 12 FIX (stale-request protection): bumped by every _loadSupplementary()
+  // call. Each call captures its own value at start; if a newer call bumps this
+  // before an older one finishes, the older call's results are dropped instead
+  // of overwriting the newer call's state. Nothing is cancelled — old network
+  // calls still run to completion, only their effect on state is suppressed.
+  int  _supplementaryGen = 0;
   int  _unreadCount=0; // notification badge count
   final Set<String> _favStoreIds = {}; // track favorited stores
   int  _walletPoints=0; // wallet visit points
@@ -1327,8 +1359,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadSupplementary(String c) async {
+    // ROUND 12 FIX (stale-request protection): this call's own generation
+    // token. Every state update below checks `myGen == _supplementaryGen`
+    // before writing — if a newer _loadSupplementary() call has started in
+    // the meantime (e.g. a city refresh fired while this one was still in
+    // flight), this call is stale and silently skips updating Home state.
+    final myGen = ++_supplementaryGen;
     // Show loading state for supplementary sections while fetching
-    if (mounted) setState(() { _productsLoading = true; });
+    if (mounted) setState(() { _productsLoading = true; _adminBannersLoading = true; });
     try {
       // FIX 5: individual guards — one failure won't blank all sections
       List<String> cats2 = ["All"]; List<Map<String,dynamic>> richCats2 = [];
@@ -1352,7 +1390,27 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }).catchError((_) {}),
         Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
-        Api.getAdminBanners().then((v) => adminBannerList = v).catchError((_) {}),
+        // ROUND 12 FIX: admin-banner fetch + its own retry-if-empty now live
+        // together in this one future, so `_adminBannersLoading` flips to
+        // false the instant THIS future resolves — independent of how long
+        // categories/sliders/products/wallet (the other futures in this
+        // same Future.wait) or the later hero-images/sliders-retry/product-
+        // retries take. That is the entire fix: nothing else in this
+        // function's flow, ordering, or fallback behavior changes.
+        Api.getAdminBanners().then((v) async {
+          List list = (v as List);
+          if (list.isEmpty) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            try { list = await Api.getAdminBanners(); } catch (_) { }
+          }
+          adminBannerList = list;
+          // ROUND 12 FIX (stale-request protection): only the current
+          // generation may flip this flag — a stale call's admin-banner
+          // fetch/retry finishing late must not touch it.
+          if (mounted && myGen == _supplementaryGen) setState(() { _adminBannersLoading = false; });
+        }).catchError((_) {
+          if (mounted && myGen == _supplementaryGen) setState(() { _adminBannersLoading = false; });
+        }),
 
       ]);
 
@@ -1366,7 +1424,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // 500ms retry delays, the city/expiry filtering) on a result nobody
       // can ever see. Bailing out here changes nothing for the normal
       // (still-mounted) case — it only skips wasted work after disposal.
-      if (!mounted) return;
+      // ROUND 12 FIX (stale-request protection): also bail if a newer
+      // _loadSupplementary() call has since become the current generation.
+      if (!mounted || myGen != _supplementaryGen) return;
 
       // ── Hero images: fetch arrays from /default-images, rotate every 2 min ──
       List<String> resolvedCityImgs = [];
@@ -1397,37 +1457,43 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
           _nsUrl = nsImgs.trim();
         }
-        if ((_nsUrl.startsWith("http") || _nsUrl.startsWith("data:image")) && mounted) {
+        // ROUND 12 FIX (stale-request protection): guard every write below
+        // with `myGen == _supplementaryGen` so a stale generation's
+        // /default-images response can't overwrite a newer generation's
+        // hero/default-image/fallback-banner state.
+        if ((_nsUrl.startsWith("http") || _nsUrl.startsWith("data:image")) && mounted && myGen == _supplementaryGen) {
           setState(() { _noServiceImg = _nsUrl; });
         }
         final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
         final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
         final defProd = (defaults["product"] ?? "").toString().trim();
-        if (mounted) setState(() {
+        if (mounted && myGen == _supplementaryGen) setState(() {
           if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
           if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
           if (defProd.isNotEmpty) _defaultProductImageUrl = defProd;
         });
         // merchant_banner is now an array of URLs (images or mp4 videos)
-        final _mbRaw = defaults["merchant_banner"];
-        if (_mbRaw is List) {
-          _mbFallbackSliders = _mbRaw
-              .where((u) {
-                if (u is! String) return false;
-                final s = u as String;
-                // Allow http URLs AND base64 images/videos
-                return s.startsWith("http") || s.startsWith("data:image") || s.startsWith("data:video");
-              })
-              .map<Map<String,dynamic>>((u) {
-                final uid = "mb_${(u as String).hashCode.abs()}";
-                return {"id": uid, "title": "", "subtitle": "",
-                  "image": u, "image_url": u,
-                  "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
-              }).toList();
-        } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
-          _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
-        } else {
-          _mbFallbackSliders = [];
+        if (myGen == _supplementaryGen) {
+          final _mbRaw = defaults["merchant_banner"];
+          if (_mbRaw is List) {
+            _mbFallbackSliders = _mbRaw
+                .where((u) {
+                  if (u is! String) return false;
+                  final s = u as String;
+                  // Allow http URLs AND base64 images/videos
+                  return s.startsWith("http") || s.startsWith("data:image") || s.startsWith("data:video");
+                })
+                .map<Map<String,dynamic>>((u) {
+                  final uid = "mb_${(u as String).hashCode.abs()}";
+                  return {"id": uid, "title": "", "subtitle": "",
+                    "image": u, "image_url": u,
+                    "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
+                }).toList();
+          } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
+            _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
+          } else {
+            _mbFallbackSliders = [];
+          }
         }
       } catch (e) { }
 
@@ -1449,11 +1515,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
         slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
       }
-      // Retry admin banners once if empty (large base64 image can timeout)
-      if (adminBannerList.isEmpty) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        try { adminBannerList = await Api.getAdminBanners(); } catch (_) { }
-      }
+      // ROUND 12 FIX: admin-banner empty-retry moved into the Future.wait
+      // future above (so _adminBannersLoading can flip independently) —
+      // removed from here to avoid double-retrying.
       // Retry products if fewer than expected
       if (voucs.length < 8) {
         try {
@@ -1492,7 +1556,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       }
 
 
-      if (!mounted) return;
+      // ROUND 12 FIX (stale-request protection): bail if a newer generation
+      // has since taken over — covers the final setState block below
+      // (_cats, _richCats, _sliders, _adminBanners, _products,
+      // _productsLoading, _walletPoints, _cityImageUrl(s)) plus the
+      // slider-autoplay/hero-rotation/popup-check calls that follow it.
+      if (!mounted || myGen != _supplementaryGen) return;
       final sliderList  = List<Map<String,dynamic>>.from(slides);
       final productList = List<Map<String,dynamic>>.from(voucs);
       for (int i = 0; i < sliderList.length; i++)  sliderList[i]["_idx"]  = i;
@@ -1843,7 +1912,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   tooltip:"Use GPS",
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true;});
+                    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true; _adminBannersLoading=true;});
                     final det = await detectCity();
                     try {
                       final pos = await Geolocator.getCurrentPosition(desiredAccuracy:LocationAccuracy.medium)
@@ -2195,6 +2264,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       favStoreIds: _favStoreIds,
                       onFavChanged: _loadFavStores,
                       onViewAll: () => _viewAll(context, "Explore Stores", _topStores, bigCards: false),
+                      // ROUND 12 FIX: was `_productsLoading` (the whole
+                      // _loadSupplementary() bundle — categories, sliders,
+                      // products, wallet, default-images, retries). Now
+                      // uses a dedicated flag that tracks ONLY the admin-
+                      // banner fetch/retry, so the shimmer here disappears
+                      // exactly when the banner itself is ready, regardless
+                      // of how long unrelated background loading takes.
+                      bannersLoading: _adminBannersLoading,
                     )),
 
 
@@ -4672,6 +4749,15 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     ).toList();
   }
 
+  // Round 12 (Task 5): the currently-visible (filtered) deals that have an
+  // image — same "only these can open the gallery" rule StoreOffersSection
+  // already applies to Today's Offers. `.where()` doesn't clone the Map
+  // elements, so a tapped deal from `items`/`_filtered` is still the same
+  // object instance found here, which is what openDealGallery's identity
+  // -based indexOf relies on.
+  List<Map<String,dynamic>> get _dealsWithImages =>
+      _filtered.where((d) => (d["image_url"] ?? "").toString().isNotEmpty).toList();
+
   // Parse validity date string to DateTime — handles multiple formats
   DateTime? _parseDate(String s) {
     if (s.isEmpty) return null;
@@ -4817,7 +4903,26 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                     final expired = _isExpired(endDate);
                     return GestureDetector(
                       onTap: () {
-                        // Navigate to the store's detail page
+                        // ROUND 12 FIX (Task 5): tapping a Home "Hot Deals"
+                        // row used to always open Store Detail first. Now it
+                        // opens the exact same swipeable full-screen deal
+                        // gallery Today's Offers uses (see openDealGallery
+                        // in store_offers_section.dart) directly, starting
+                        // at this exact deal, without going through Store
+                        // Detail at all.
+                        //
+                        // A deal with no image can't be shown in an image
+                        // gallery — Today's Offers has the same rule (a
+                        // no-image deal there renders a non-tappable
+                        // decorative card). Rather than leaving the tap do
+                        // nothing at all here (this list doesn't have that
+                        // decorative fallback design), it keeps going to
+                        // Store Detail in that one case, so the tap still
+                        // does something useful.
+                        if (imgUrl.isNotEmpty) {
+                          openDealGallery(ctx, _dealsWithImages, d);
+                          return;
+                        }
                         final store = <String,dynamic>{
                           "_id":        storeId,
                           "store_name": storeName,
@@ -5328,14 +5433,13 @@ class _CityHeroSection extends StatelessWidget {
               width: double.infinity,
               height: double.infinity,
               memCacheWidth: 900,
-              placeholder: (_, __) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
-                  ),
-                ),
-              ),
+              // ROUND 12 FIX (Task 6): was a flat gradient box while the
+              // image downloaded — same reserved SizedBox/height either
+              // way (see the LayoutBuilder above), so this only swaps what
+              // fills that box during the brief loading window, not the
+              // box itself. A genuine failure still falls back to the
+              // original plain gradient below (errorWidget, unchanged).
+              placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
               errorWidget: (_, __, ___) => Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -6528,11 +6632,20 @@ class _BannerStoresBlock extends StatefulWidget {
   final VoidCallback onViewAll;
   final Set<String> favStoreIds;
   final VoidCallback onFavChanged;
+  // Round 12 (Task 6): true while _loadSupplementary() (Round 11's
+  // background loader) is still in flight — i.e. `banners` being empty
+  // might just mean "not fetched yet", not "none for this city". Lets this
+  // widget reserve the banner's normal height with a shimmer instead of
+  // collapsing to the stores-only layout and then jumping open once real
+  // banners arrive. Defaults to false so a caller that doesn't pass it
+  // keeps exactly the old behavior (empty banners == no banner space).
+  final bool bannersLoading;
   const _BannerStoresBlock({
     required this.banners, required this.stores,
     required this.token,   required this.onViewAll,
     this.favStoreIds = const {},
     required this.onFavChanged,
+    this.bannersLoading = false,
   });
   @override State<_BannerStoresBlock> createState() => _BannerStoresBlockState();
 }
@@ -6580,7 +6693,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
       return CachedNetworkImage(imageUrl: imgUrl,
         fit: BoxFit.fitWidth, alignment: Alignment.topCenter,
         width: double.infinity,
-        placeholder: (_, __) => Container(color: const Color(0xFF3E5F55)),
+        // ROUND 12 FIX (Task 6): shimmer while this specific banner image
+        // downloads, instead of a flat solid box. errorWidget (a genuine
+        // load failure) keeps the original gradient fallback, unchanged.
+        placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
         errorWidget: (_, __, ___) => _gradBox());
     }
     return _gradBox();
@@ -6602,7 +6718,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   @override Widget build(BuildContext context) {
     final hasBanners = widget.banners.isNotEmpty;
     final hasStores  = widget.stores.isNotEmpty;
-    if (!hasBanners && !hasStores) return const SizedBox.shrink();
+    if (!hasBanners && !hasStores && !widget.bannersLoading) return const SizedBox.shrink();
 
     // Heights — 3:2 banner, 35-40% card overlap
     const double bannerH   = 320.0;
@@ -6611,7 +6727,38 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     const double headerH   = 0.0;
     const double topPad    = 14.0;
 
-    // Stores-only (no banner)
+    // ROUND 12 FIX (Task 6): `banners` being empty can mean two different
+    // things — "none for this city" (stay collapsed, as before) or
+    // "_loadSupplementary() just hasn't come back yet" (Round 11 made this
+    // load in the background after Home already appears). Previously both
+    // looked the same here, so Home would render in the stores-only shape
+    // and then — once the real banners arrived a moment later — suddenly
+    // grow to the taller banner+overlap shape, shoving the store cards
+    // (and everything below them) down. While still loading, this reserves
+    // that exact same taller shape up front with a shimmer standing in for
+    // the banner, so nothing shifts once the real banner swaps in.
+    if (!hasBanners && widget.bannersLoading) {
+      if (!hasStores) {
+        return Padding(
+          padding: const EdgeInsets.only(top: topPad),
+          child: SizedBox(height: bannerH, child: _shimmerBox(width: double.infinity, height: bannerH)));
+      }
+      final totalH = topPad + bannerH + cardH - overlapPx;
+      return SizedBox(
+        height: totalH,
+        child: Stack(clipBehavior: Clip.none, children: [
+          Positioned(top: topPad, left: 0, right: 0, height: bannerH,
+            child: _shimmerBox(width: double.infinity, height: bannerH)),
+          Positioned(
+            top: topPad + bannerH - overlapPx,
+            left: 0, right: 0,
+            child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
+          ),
+        ]),
+      );
+    }
+
+    // Stores-only (no banner, and we now know there genuinely isn't one)
     if (!hasBanners) return _storesOnly(cardH, headerH);
 
     // Banner-only (no stores)
@@ -6635,54 +6782,61 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         Positioned(
           top: topPad + bannerH - overlapPx,
           left: 0, right: 0,
-          child: SizedBox(
-            height: cardH,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              clipBehavior: Clip.none,
-              padding: const EdgeInsets.fromLTRB(16, 0, 4, 0),
-              // +1 for the "See All" card at the end
-              itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
-              itemBuilder: (ctx, i) {
-                final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
-                if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
-                // Last card: "See All" — matches floating store card dimensions
-                return GestureDetector(
-                  onTap: widget.onViewAll,
-                  child: Center(
-                    child: Container(
-                    width: 52, height: 120,
-                    margin: const EdgeInsets.only(left: 4, right: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withValues(alpha: .08),
-                        blurRadius: 8, offset: const Offset(0, 3))],
-                    ),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Container(
-                        width: 22, height: 22,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFe8f4ef),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.store_mall_directory_rounded, color: Color(0xFF3E5F55), size: 14),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text("See All\nStores",
-                        style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
-                        textAlign: TextAlign.center),
-                    ]),
-                  ),),
-                );
-              },
-            ),
-          ),
+          child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
         ),
       ]),
+    );
+  }
+
+  // ── Shared store-cards row (Round 12: extracted so the real "Both"
+  // layout and the new loading-shimmer layout above don't each maintain
+  // their own copy of this ListView.builder + "See All" card) ──────────
+  Widget _storeCardsList(double cardH, EdgeInsets padding) {
+    return SizedBox(
+      height: cardH,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        clipBehavior: Clip.none,
+        padding: padding,
+        // +1 for the "See All" card at the end
+        itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
+        itemBuilder: (ctx, i) {
+          final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
+          if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
+          // Last card: "See All" — matches floating store card dimensions
+          return GestureDetector(
+            onTap: widget.onViewAll,
+            child: Center(
+              child: Container(
+              width: 52, height: 120,
+              margin: const EdgeInsets.only(left: 4, right: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
+                boxShadow: [BoxShadow(
+                  color: Colors.black.withValues(alpha: .08),
+                  blurRadius: 8, offset: const Offset(0, 3))],
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Container(
+                  width: 22, height: 22,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFe8f4ef),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.store_mall_directory_rounded, color: Color(0xFF3E5F55), size: 14),
+                ),
+                const SizedBox(height: 4),
+                const Text("See All\nStores",
+                  style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
+                  textAlign: TextAlign.center),
+              ]),
+            ),),
+          );
+        },
+      ),
     );
   }
 
@@ -6730,53 +6884,12 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   }
 
   // ── Stores-only fallback (no banner) — no heading, See All as last card ──
+  // Round 12: now just calls the shared _storeCardsList helper above
+  // instead of keeping its own copy of the same ListView.builder.
   Widget _storesOnly(double cardH, double headerH) {
     return Padding(
       padding: const EdgeInsets.only(top: 14),
-      child: SizedBox(
-        height: cardH,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          clipBehavior: Clip.none,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
-          itemBuilder: (ctx, i) {
-            final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
-            if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
-            return GestureDetector(
-              onTap: widget.onViewAll,
-              child: Center(
-                child: Container(
-                width: 52, height: 120,
-                margin: const EdgeInsets.only(left: 4, right: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
-                  boxShadow: [BoxShadow(
-                    color: Colors.black.withValues(alpha: .08),
-                    blurRadius: 8, offset: const Offset(0, 3))],
-                ),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(
-                    width: 22, height: 22,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFe8f4ef),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.store_mall_directory_rounded, color: Color(0xFF3E5F55), size: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text("See All\nStores",
-                    style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
-                    textAlign: TextAlign.center),
-                ]),
-              ),),
-            );
-          },
-        ),
-      ),
+      child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 16, 0)),
     );
   }
 

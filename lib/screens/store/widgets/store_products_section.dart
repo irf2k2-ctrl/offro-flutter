@@ -47,23 +47,20 @@ _ProductPricing _resolveProductPricing(Map<String, dynamic> p) {
 /// full-screen gallery's image list (index-aligned with the products list).
 String _productImageUrl(Map<String, dynamic> p) => p['logo_url']?.toString() ?? '';
 
-/// Round 11 (Task 2, updated in the follow-up round): fixed bottom-overlay
-/// height for every Featured Products card, regardless of how much text a
-/// given product has. The name+tagline block (up to 2 lines each) is
-/// pinned to the top of this fixed box and the discount+price block is
-/// pinned to the bottom (see the Stack in _ProductCardState.build) — so
-/// both the "content start" (title) and the price row line up identically
-/// across every card, and the box itself can never grow/overflow no
-/// matter how long the text or how large the device's text-scale is.
-const double _kOverlayHeight = 112.0;
-
-/// Round 10: bottom-overlay content shown in the full-screen product
-/// gallery — product name (bold), tagline, discount offer, then sale price
-/// (prominent) with the original price struck through. No validity/date
-/// text, matching the Today's Offers gallery overlay's spirit.
+/// Round 10 (extended in Round 12, Task 4): bottom-overlay content shown in
+/// the full-screen product gallery. Task 2 (Round 12) strips the normal
+/// card down to just title + price, so this full-screen overlay is now
+/// the ONLY place several of these fields are shown at all — it carries
+/// every detail the card no longer does: name (bold), tagline, discount,
+/// sale/original price, rating, and validity (all previously either on
+/// the card or nowhere in the gallery). Nothing here reads product data
+/// differently than before; this only widens what gets DISPLAYED.
 Widget _productGalleryOverlay(Map<String, dynamic> p) {
   final title    = p['title']?.toString() ?? '';
   final subtitle = p['offer_text']?.toString() ?? '';
+  final validity = p['validity']?.toString() ?? '';
+  final rating   = (p['rating'] as num?)?.toDouble() ?? 0.0;
+  final ratingCount = (p['rating_count'] as num?)?.toInt() ?? 0;
   final pricing  = _resolveProductPricing(p);
   return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
     if (title.isNotEmpty)
@@ -73,6 +70,18 @@ Widget _productGalleryOverlay(Map<String, dynamic> p) {
       const SizedBox(height: 3),
       Text(subtitle,
           style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13, fontWeight: FontWeight.w500)),
+    ],
+    if (rating > 0) ...[
+      const SizedBox(height: 6),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 15),
+        const SizedBox(width: 3),
+        Text(rating.toStringAsFixed(1),
+            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+        if (ratingCount > 0)
+          Text(' ($ratingCount)',
+              style: TextStyle(color: Colors.white.withValues(alpha: .7), fontSize: 12)),
+      ]),
     ],
     if (pricing.discLabel.isNotEmpty) ...[
       const SizedBox(height: 6),
@@ -93,6 +102,15 @@ Widget _productGalleryOverlay(Map<String, dynamic> p) {
                   decoration: TextDecoration.lineThrough,
                   decorationColor: Colors.white.withValues(alpha: .65))),
         ],
+      ]),
+    ],
+    if (validity.isNotEmpty) ...[
+      const SizedBox(height: 6),
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.calendar_today_rounded, color: Colors.white.withValues(alpha: .75), size: 12),
+        const SizedBox(width: 5),
+        Text('Valid till $validity',
+            style: TextStyle(color: Colors.white.withValues(alpha: .75), fontSize: 12)),
       ]),
     ],
   ]);
@@ -130,6 +148,10 @@ class StoreProductsSection extends StatelessWidget {
           images: products.map(_productImageUrl).toList(),
           initialIndex: index,
           bottomOverlays: products.map(_productGalleryOverlay).toList(),
+          // Round 12 (Task 4): image sits higher with a dedicated gap above
+          // the (now much fuller) info panel — the deal gallery and the
+          // plain store-photo gallery are untouched (they don't pass this).
+          spacedOverlay: true,
         ),
       ),
     );
@@ -175,10 +197,11 @@ class StoreProductsSection extends StatelessWidget {
               style: TextStyle(color: kMuted, fontSize: 12)),
         ]),
       ),
-      // Reduced from 225 — smaller title/price fonts + rating pill moved
-      // under the image no longer need the extra vertical space.
+      // Round 12 (Task 1): 210 now matches Today's Offers' deal-card
+      // height/aspect ratio exactly (see store_offers_section.dart) so the
+      // two sections feel like the same card/gallery style.
       SizedBox(
-        height: 195,
+        height: 210,
         child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -346,21 +369,23 @@ class _ProductCardState extends State<_ProductCard> {
   Widget build(BuildContext context) {
     final p        = widget.product;
     final title    = p['title']?.toString() ?? '';
-    final subtitle = p['offer_text']?.toString() ?? '';
-    final rating    = (p['rating'] as num?)?.toDouble() ?? 0.0;
-    final ratingCount = (p['rating_count'] as num?)?.toInt() ?? 0;
     final pricing = _resolveProductPricing(p);
     final saleP = pricing.saleP;
     final origP = pricing.origP;
     final discLabel = pricing.discLabel;
 
-    // Round 10: Featured Products is now an image-card, matching Today's
-    // Offers — image fills the card, rounded corners, subtle bottom
-    // gradient, product info overlaid at the bottom. The separate white
-    // info panel and the "Valid: <date>" text are both removed per spec;
-    // `_isPremium`/validity are no longer read here (image-card has no
-    // validity display — the field lives on `widget.product` if a future
-    // round needs it back).
+    // ROUND 12 REDESIGN (Tasks 1-3):
+    // - Task 1: card is now 210x210 — the exact same size/aspect ratio as
+    //   the Today's Offers deal card in store_offers_section.dart — so the
+    //   two sections feel like the same card/gallery style.
+    // - Task 2: the normal card now shows ONLY title (line 1) and
+    //   sale/original price (line 2) over a small translucent bottom
+    //   ribbon. Tagline (offer_text), the rating chip, and validity are
+    //   no longer shown here — they're not gone, just moved to the
+    //   full-screen gallery (_productGalleryOverlay), reachable by tapping
+    //   the card, exactly like the rest of the product data always was.
+    // - Task 3: the bottom-ribbon discount text is removed entirely — the
+    //   red badge below is the only discount indicator on the card now.
     return GestureDetector(
       // Round 10: primary tap opens the swipeable full-screen gallery
       // (required behavior). Long-press preserves the previous
@@ -368,118 +393,72 @@ class _ProductCardState extends State<_ProductCard> {
       onTap: widget.onOpenGallery,
       onLongPress: () => _handleTap(context),
       child: Container(
-        width: 160,
-        height: 175,
+        width: 210,
+        height: 210,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 14, offset: const Offset(0, 4))],
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kBorder, width: 1),
+          boxShadow: [BoxShadow(color: kPrimary.withValues(alpha: .08), blurRadius: 16, offset: const Offset(0, 4))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(19),
           child: Stack(fit: StackFit.expand, children: [
             // ── Product image fills the card ──
             _img(),
 
-            // ── Bottom gradient + info overlay ──
-            // ROUND 11 FIX (Task 2): the overlay used to be
-            // `Container(padding:..., child: Column(mainAxisSize: min, ...))`
-            // with no explicit height — so its actual height (and therefore
-            // where its content started, and how far up the gradient needed
-            // to reach) tracked however many lines the title/subtitle/price
-            // happened to need, which meant a card with a short name looked
-            // different from a card with a long one. The overlay now has a
-            // single FIXED height (`_kOverlayHeight`) shared by every card
-            // regardless of text length; the gradient still fades in above
-            // that box for readability, and the content column top-aligns
-            // inside the fixed box so the title always starts at the same
-            // y-position. Name/tagline are capped to 1-2 lines with
-            // ellipsis so long text can never grow past the fixed box —
-            // it can only get clipped/ellipsized, never taller.
+            // ── Bottom gradient + info ribbon — title + price only ──
+            // No fixed height needed any more: with the content now always
+            // exactly these two short, single-line pieces (never a
+            // variable-length tagline), a plain mainAxisSize.min Column
+            // can't grow unpredictably the way the old 4-field version
+            // could, so the simpler approach used by Today's Offers'
+            // equivalent scrim is safe to reuse here too.
             Positioned(
               left: 0, right: 0, bottom: 0,
               child: Container(
-                height: _kOverlayHeight,
-                padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                padding: const EdgeInsets.fromLTRB(12, 28, 12, 12),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0),
-                      Colors.black.withValues(alpha: .45),
-                      Colors.black.withValues(alpha: .82),
-                    ],
-                    stops: const [0.0, 0.4, 1.0],
+                    colors: [Colors.black.withValues(alpha: 0), Colors.black.withValues(alpha: .72)],
                   ),
                 ),
-                // FOLLOW-UP FIX (tagline now allowed 2 lines): a
-                // Column+Spacer sharing one fixed-height parent can throw a
-                // "RenderFlex overflowed" error if every field is at its
-                // maximum length at once (2-line name + 2-line tagline +
-                // discount + price can add up to more than the 112px box
-                // leaves room for, especially under a larger accessibility
-                // text-scale setting) — which would be exactly the "card
-                // grows/breaks" failure this task must avoid. A Stack has
-                // no such failure mode: the name+tagline block is pinned to
-                // the TOP of the fixed box and the discount+price block is
-                // pinned to the BOTTOM, each sized only by its own capped
-                // line count, so the box itself can never overflow no
-                // matter how long the text or how large the text-scale is.
-                child: Stack(children: [
-                  Positioned(
-                    left: 0, right: 0, top: 0,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (title.isNotEmpty)
-                          Text(title,
-                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
-                            maxLines: 2, overflow: TextOverflow.ellipsis),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(subtitle,
-                            style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 10.5, fontWeight: FontWeight.w500),
-                            maxLines: 2, overflow: TextOverflow.ellipsis),
-                        ],
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    left: 0, right: 0, bottom: 0,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (discLabel.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(discLabel,
-                              style: const TextStyle(color: Color(0xFFFFD966), fontSize: 11, fontWeight: FontWeight.w800),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ),
-                        if (saleP != null && saleP > 0)
-                          Row(mainAxisSize: MainAxisSize.min, children: [
-                            Text("₹${saleP.toStringAsFixed(0)}",
-                              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
-                            if (origP != null) ...[
-                              const SizedBox(width: 6),
-                              Text("₹${origP.toStringAsFixed(0)}",
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: .65), fontSize: 11.5,
-                                  decoration: TextDecoration.lineThrough,
-                                  decorationColor: Colors.white.withValues(alpha: .65))),
-                            ],
-                          ]),
-                      ],
-                    ),
-                  ),
-                ]),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Line 1: product title
+                    if (title.isNotEmpty)
+                      Text(title,
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    // Line 2: sale price + original price (struck through)
+                    if (saleP != null && saleP > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text("₹${saleP.toStringAsFixed(0)}",
+                            style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                          if (origP != null) ...[
+                            const SizedBox(width: 6),
+                            Text("₹${origP.toStringAsFixed(0)}",
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: .65), fontSize: 11.5,
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: Colors.white.withValues(alpha: .65))),
+                          ],
+                        ]),
+                      ),
+                  ],
+                ),
               ),
             ),
 
-            // Discount badge (top-left) — same visual language as Today's Offers
+            // Discount badge (top-left) — the ONE discount indicator on the
+            // card now (Task 3 removed the bottom-ribbon yellow discount
+            // text that used to duplicate this).
             if (discLabel.isNotEmpty)
               Positioned(top: 8, left: 8,
                 child: Container(
@@ -505,24 +484,6 @@ class _ProductCardState extends State<_ProductCard> {
                       color: _isFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
                       size: 14),
                   ),
-                )),
-
-            // Rating chip — top-right, below the heart when both present
-            if (rating > 0)
-              Positioned(top: widget.token.isNotEmpty ? 38 : 8, right: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
-                    const SizedBox(width: 1),
-                    Text(rating.toStringAsFixed(1),
-                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                    if (ratingCount > 0)
-                      Text(" ($ratingCount)",
-                        style: const TextStyle(color: Colors.white70, fontSize: 8)),
-                  ]),
                 )),
           ]),
         ),

@@ -5,6 +5,48 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
 import 'store_header.dart' show FullScreenImageViewer;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Round 12 (Task 5): shared full-screen deal-gallery opener. Previously
+// this Navigator.push + FullScreenImageViewer construction lived only
+// inside StoreOffersSection (Today's Offers, inside Store Detail). Home's
+// "Hot Deals" list (_AllDealsScreen in main.dart) now needs to open the
+// exact same full-screen deal viewer directly — rather than navigating to
+// Store Detail first — so this is pulled out to a top-level function both
+// call sites share, instead of duplicating the gallery-opening logic.
+// ─────────────────────────────────────────────────────────────────────────────
+/// Opens the swipeable full-screen deal gallery. [dealsWithImages] is the
+/// list to swipe across — already filtered to deals that have an image,
+/// since a deal without one can't be shown in an image gallery.
+/// [tappedDeal] must be the SAME Map instance as one of
+/// [dealsWithImages]'s entries (not a copy/clone) — the starting index is
+/// resolved by object identity via `indexOf`, because deal payloads from
+/// the backend (both Store Detail's `get_store()` and the city-wide
+/// `/deals/all`) don't reliably carry an `_id` to match on instead.
+void openDealGallery(BuildContext context, List<Map<String, dynamic>> dealsWithImages,
+    Map<String, dynamic> tappedDeal) {
+  final startIndex = dealsWithImages.indexOf(tappedDeal);
+  Navigator.push(
+    context,
+    PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black,
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, __, ___) => FullScreenImageViewer(
+        images: dealsWithImages.map((d) => d['image_url'].toString()).toList(),
+        initialIndex: startIndex < 0 ? 0 : startIndex,
+        bottomOverlays: dealsWithImages.map((d) {
+          final t = d['title']?.toString() ?? '';
+          return t.isEmpty
+              ? const SizedBox.shrink()
+              : Text(t,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800));
+        }).toList(),
+      ),
+    ),
+  );
+}
+
 class StoreOffersSection extends StatelessWidget {
   final List<Map<String, dynamic>> deals;
   final String storeName;
@@ -45,37 +87,6 @@ class StoreOffersSection extends StatelessWidget {
   // decorative fallback card below, which has no tap target, unchanged).
   List<Map<String, dynamic>> get _dealsWithImages =>
       deals.where((d) => (d['image_url']?.toString() ?? '').isNotEmpty).toList();
-
-  void _openDealGallery(BuildContext context, Map<String, dynamic> tappedDeal) {
-    final withImages = _dealsWithImages;
-    // Round 10 FIX: the deals returned by the backend's store-detail
-    // endpoint (routers/public.py get_store()) don't include an `_id` field
-    // — matching by id would always resolve to index 0. `.where()` below
-    // doesn't copy the maps, so the tapped deal is the exact same object
-    // instance as its entry here; indexOf's default identity-based `==`
-    // finds it reliably without needing an id.
-    final startIndex = withImages.indexOf(tappedDeal);
-    Navigator.push(
-      context,
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.black,
-        transitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, __, ___) => FullScreenImageViewer(
-          images: withImages.map((d) => d['image_url'].toString()).toList(),
-          initialIndex: startIndex < 0 ? 0 : startIndex,
-          bottomOverlays: withImages.map((d) {
-            final t = d['title']?.toString() ?? '';
-            return t.isEmpty
-                ? const SizedBox.shrink()
-                : Text(t,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800));
-          }).toList(),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +210,7 @@ class StoreOffersSection extends StatelessWidget {
                     // deal (for this store) that has an image, starting at
                     // the exact deal tapped — replaces the old single-image
                     // viewer.
-                    onTap: () => _openDealGallery(ctx, d),
+                    onTap: () => openDealGallery(ctx, _dealsWithImages, d),
                     child: Container(
                       width: 210,
                       height: 210,
