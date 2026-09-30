@@ -47,6 +47,16 @@ _ProductPricing _resolveProductPricing(Map<String, dynamic> p) {
 /// full-screen gallery's image list (index-aligned with the products list).
 String _productImageUrl(Map<String, dynamic> p) => p['logo_url']?.toString() ?? '';
 
+/// Round 11 (Task 2, updated in the follow-up round): fixed bottom-overlay
+/// height for every Featured Products card, regardless of how much text a
+/// given product has. The name+tagline block (up to 2 lines each) is
+/// pinned to the top of this fixed box and the discount+price block is
+/// pinned to the bottom (see the Stack in _ProductCardState.build) — so
+/// both the "content start" (title) and the price row line up identically
+/// across every card, and the box itself can never grow/overflow no
+/// matter how long the text or how large the device's text-scale is.
+const double _kOverlayHeight = 112.0;
+
 /// Round 10: bottom-overlay content shown in the full-screen product
 /// gallery — product name (bold), tagline, discount offer, then sale price
 /// (prominent) with the original price struck through. No validity/date
@@ -133,9 +143,33 @@ class StoreProductsSection extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Featured Products',
-              style: TextStyle(
-                  color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
+          Row(children: [
+            const Text('Featured Products',
+                style: TextStyle(
+                    color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
+            const SizedBox(width: 4),
+            // FOLLOW-UP: single tap now opens the full-screen gallery, and
+            // the older "view full details + leave a review" flow moved to
+            // long-press — a change that isn't otherwise visible anywhere
+            // on the card. This small (i) is just a discoverability hint
+            // for that, not a promo — tapping it shows a one-line tip and
+            // does nothing else (doesn't open the gallery or the detail
+            // sheet, so it can't be confused with either).
+            GestureDetector(
+              onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Tip: Long-press a product image to view details and leave a review.'),
+                  backgroundColor: kPrimary,
+                  duration: Duration(seconds: 4),
+                  showCloseIcon: true,
+                ));
+              },
+              child: const Padding(
+                padding: EdgeInsets.all(2),
+                child: Icon(Icons.info_outline, size: 15, color: kMuted),
+              ),
+            ),
+          ]),
           const SizedBox(height: 2),
           const Text('Products available at this store',
               style: TextStyle(color: kMuted, fontSize: 12)),
@@ -348,54 +382,100 @@ class _ProductCardState extends State<_ProductCard> {
             _img(),
 
             // ── Bottom gradient + info overlay ──
+            // ROUND 11 FIX (Task 2): the overlay used to be
+            // `Container(padding:..., child: Column(mainAxisSize: min, ...))`
+            // with no explicit height — so its actual height (and therefore
+            // where its content started, and how far up the gradient needed
+            // to reach) tracked however many lines the title/subtitle/price
+            // happened to need, which meant a card with a short name looked
+            // different from a card with a long one. The overlay now has a
+            // single FIXED height (`_kOverlayHeight`) shared by every card
+            // regardless of text length; the gradient still fades in above
+            // that box for readability, and the content column top-aligns
+            // inside the fixed box so the title always starts at the same
+            // y-position. Name/tagline are capped to 1-2 lines with
+            // ellipsis so long text can never grow past the fixed box —
+            // it can only get clipped/ellipsized, never taller.
             Positioned(
               left: 0, right: 0, bottom: 0,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 26, 10, 10),
+                height: _kOverlayHeight,
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.black.withValues(alpha: 0), Colors.black.withValues(alpha: .78)],
+                    colors: [
+                      Colors.black.withValues(alpha: 0),
+                      Colors.black.withValues(alpha: .45),
+                      Colors.black.withValues(alpha: .82),
+                    ],
+                    stops: const [0.0, 0.4, 1.0],
                   ),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (title.isNotEmpty)
-                      Text(title,
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(subtitle,
-                        style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 10.5, fontWeight: FontWeight.w500),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ],
-                    if (discLabel.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(discLabel,
-                        style: const TextStyle(color: Color(0xFFFFD966), fontSize: 11, fontWeight: FontWeight.w800),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ],
-                    if (saleP != null && saleP > 0) ...[
-                      const SizedBox(height: 3),
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text("₹${saleP.toStringAsFixed(0)}",
-                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
-                        if (origP != null) ...[
-                          const SizedBox(width: 6),
-                          Text("₹${origP.toStringAsFixed(0)}",
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: .65), fontSize: 11.5,
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor: Colors.white.withValues(alpha: .65))),
+                // FOLLOW-UP FIX (tagline now allowed 2 lines): a
+                // Column+Spacer sharing one fixed-height parent can throw a
+                // "RenderFlex overflowed" error if every field is at its
+                // maximum length at once (2-line name + 2-line tagline +
+                // discount + price can add up to more than the 112px box
+                // leaves room for, especially under a larger accessibility
+                // text-scale setting) — which would be exactly the "card
+                // grows/breaks" failure this task must avoid. A Stack has
+                // no such failure mode: the name+tagline block is pinned to
+                // the TOP of the fixed box and the discount+price block is
+                // pinned to the BOTTOM, each sized only by its own capped
+                // line count, so the box itself can never overflow no
+                // matter how long the text or how large the text-scale is.
+                child: Stack(children: [
+                  Positioned(
+                    left: 0, right: 0, top: 0,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (title.isNotEmpty)
+                          Text(title,
+                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(subtitle,
+                            style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 10.5, fontWeight: FontWeight.w500),
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
                         ],
-                      ]),
-                    ],
-                  ],
-                ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    left: 0, right: 0, bottom: 0,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (discLabel.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2),
+                            child: Text(discLabel,
+                              style: const TextStyle(color: Color(0xFFFFD966), fontSize: 11, fontWeight: FontWeight.w800),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                        if (saleP != null && saleP > 0)
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text("₹${saleP.toStringAsFixed(0)}",
+                              style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                            if (origP != null) ...[
+                              const SizedBox(width: 6),
+                              Text("₹${origP.toStringAsFixed(0)}",
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: .65), fontSize: 11.5,
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Colors.white.withValues(alpha: .65))),
+                            ],
+                          ]),
+                      ],
+                    ),
+                  ),
+                ]),
               ),
             ),
 

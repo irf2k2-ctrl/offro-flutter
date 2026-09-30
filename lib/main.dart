@@ -1279,10 +1279,26 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           .compareTo((b["distance_km"] as double?) ?? 9999.0));
     }
 
+    // ROUND 11 FIX (Task 3, Candidate E): this used to keep `_loading` (and
+    // therefore the FULL-SCREEN skeleton — see build()'s `_loading ? ... :`
+    // branch) true until _loadSupplementary() below finished — i.e. until
+    // categories, sliders, both product endpoints, wallet AND admin
+    // banners had all come back, including two hard-coded 800ms/500ms retry
+    // delays if any came back empty. City + the actual store list are
+    // already fully known right here (LocationLoadingScreen already
+    // resolved and fetched them), so there is no real reason for Home's
+    // main content to keep waiting on that unrelated secondary data. Each
+    // section below (_CategoryChipsRow, _BannerStoresBlock,
+    // _DiscoverProductsSection, _PromoSliderSection, ...) already renders
+    // straight from its own list (_richCats/_adminBanners/_products/
+    // _sliders) with no separate loading flag, so it's safe to let those
+    // populate independently — they simply show empty/skeleton for the
+    // brief moment before _loadSupplementary's own setState (below) fills
+    // them in, exactly like a normal incremental page load.
     setState(() {
       city     = cityStr;
       _stores  = sl;
-      // Keep _loading=true until banners + products are ready
+      _loading = false;
     });
     if (cityStr.isNotEmpty) {
       Prefs.saveCity(cityStr);
@@ -1296,9 +1312,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _cachedLng    = widget.preloadedLng;
     _cacheTime    = DateTime.now();
 
-    // Await banners + products — only then clear loading overlay
-    await _loadSupplementary(cityStr);
-    if (mounted) setState(() => _loading = false);
+    // Fire-and-forget: secondary/supplementary content loads in the
+    // background and fills in via its own setState once ready — Home's
+    // main store content is already visible by this point (see above).
+    unawaited(_loadSupplementary(cityStr));
     FcmService.init(
       city: cityStr,
       token: widget.token,
@@ -1338,6 +1355,19 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         Api.getAdminBanners().then((v) => adminBannerList = v).catchError((_) {}),
 
       ]);
+
+      // ROUND 11 FOLLOW-UP — lifecycle safety: every setState below this
+      // point was already individually guarded by `mounted` (see the
+      // audit), so a disposed Home could never crash from this background
+      // work. This early return is the one thing that WASN'T already
+      // guarded: if the person has already left/disposed this Home by the
+      // time the network batch above finishes, there is no point spending
+      // more background work (the default-images fetch, the two 800ms/
+      // 500ms retry delays, the city/expiry filtering) on a result nobody
+      // can ever see. Bailing out here changes nothing for the normal
+      // (still-mounted) case — it only skips wasted work after disposal.
+      if (!mounted) return;
+
       // ── Hero images: fetch arrays from /default-images, rotate every 2 min ──
       List<String> resolvedCityImgs = [];
       try {
