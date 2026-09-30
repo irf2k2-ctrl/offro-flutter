@@ -55,13 +55,17 @@ String _productImageUrl(Map<String, dynamic> p) => p['logo_url']?.toString() ?? 
 /// sale/original price, rating, and validity (all previously either on
 /// the card or nowhere in the gallery). Nothing here reads product data
 /// differently than before; this only widens what gets DISPLAYED.
+// ROUND 12 FOLLOW-UP (product viewer redesign): rating and validity are no
+// longer shown here — validity is not required per the new design, and
+// rating never appeared in the reference mockup. Discount now lives INSIDE
+// the single price row (same red badge style used on the card) instead of
+// as a separate line above it, so it appears exactly once, next to the
+// price it applies to.
 Widget _productGalleryOverlay(Map<String, dynamic> p) {
   final title    = p['title']?.toString() ?? '';
   final subtitle = p['offer_text']?.toString() ?? '';
-  final validity = p['validity']?.toString() ?? '';
-  final rating   = (p['rating'] as num?)?.toDouble() ?? 0.0;
-  final ratingCount = (p['rating_count'] as num?)?.toInt() ?? 0;
   final pricing  = _resolveProductPricing(p);
+  final hasPrice = pricing.saleP != null && pricing.saleP! > 0;
   return Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
     if (title.isNotEmpty)
       Text(title,
@@ -71,46 +75,31 @@ Widget _productGalleryOverlay(Map<String, dynamic> p) {
       Text(subtitle,
           style: TextStyle(color: Colors.white.withValues(alpha: .85), fontSize: 13, fontWeight: FontWeight.w500)),
     ],
-    if (rating > 0) ...[
-      const SizedBox(height: 6),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 15),
-        const SizedBox(width: 3),
-        Text(rating.toStringAsFixed(1),
-            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
-        if (ratingCount > 0)
-          Text(' ($ratingCount)',
-              style: TextStyle(color: Colors.white.withValues(alpha: .7), fontSize: 12)),
-      ]),
-    ],
-    if (pricing.discLabel.isNotEmpty) ...[
-      const SizedBox(height: 6),
-      Text(pricing.discLabel,
-          style: const TextStyle(color: Color(0xFFFFD966), fontSize: 13, fontWeight: FontWeight.w800)),
-    ],
-    if (pricing.saleP != null && pricing.saleP! > 0) ...[
-      const SizedBox(height: 6),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Text('₹${pricing.saleP!.toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-        if (pricing.origP != null) ...[
+    if (hasPrice || pricing.discLabel.isNotEmpty) ...[
+      const SizedBox(height: 8),
+      Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+        if (pricing.discLabel.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(20)),
+            child: Text(pricing.discLabel,
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+          ),
           const SizedBox(width: 8),
-          Text('₹${pricing.origP!.toStringAsFixed(0)}',
-              style: TextStyle(
-                  color: Colors.white.withValues(alpha: .65),
-                  fontSize: 14,
-                  decoration: TextDecoration.lineThrough,
-                  decorationColor: Colors.white.withValues(alpha: .65))),
         ],
-      ]),
-    ],
-    if (validity.isNotEmpty) ...[
-      const SizedBox(height: 6),
-      Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(Icons.calendar_today_rounded, color: Colors.white.withValues(alpha: .75), size: 12),
-        const SizedBox(width: 5),
-        Text('Valid till $validity',
-            style: TextStyle(color: Colors.white.withValues(alpha: .75), fontSize: 12)),
+        if (hasPrice) ...[
+          Text('₹${pricing.saleP!.toStringAsFixed(0)}',
+              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+          if (pricing.origP != null) ...[
+            const SizedBox(width: 8),
+            Text('₹${pricing.origP!.toStringAsFixed(0)}',
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: .65),
+                    fontSize: 14,
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: Colors.white.withValues(alpha: .65))),
+          ],
+        ],
       ]),
     ],
   ]);
@@ -148,10 +137,14 @@ class StoreProductsSection extends StatelessWidget {
           images: products.map(_productImageUrl).toList(),
           initialIndex: index,
           bottomOverlays: products.map(_productGalleryOverlay).toList(),
-          // Round 12 (Task 4): image sits higher with a dedicated gap above
-          // the (now much fuller) info panel — the deal gallery and the
-          // plain store-photo gallery are untouched (they don't pass this).
-          spacedOverlay: true,
+          // ROUND 12 FOLLOW-UP (product viewer redesign): spacedOverlay
+          // (image shifted up + a reserved gap below it) was what created
+          // the "separate details panel" / unwanted side-bar look. Reverting
+          // to the default (false) makes the product gallery share the
+          // exact same full-bleed image + direct bottom-gradient-overlay
+          // style already used by the deal gallery and the plain
+          // store-photo gallery — no new viewer code, just reusing what
+          // already works elsewhere in this shared widget.
         ),
       ),
     );

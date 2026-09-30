@@ -1087,6 +1087,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Map<String,dynamic>> _products=[];
   bool _productsLoading=true;
   bool _adminBannersLoading=true; // ROUND 12 FIX: tracks ONLY admin-banner fetch/retry lifecycle
+  // ROUND 12 FIX (partial-Home fix): tracks ONLY the hero/city-image fetch
+  // (the /default-images call inside _loadSupplementary()) — mirrors
+  // _adminBannersLoading's pattern so _CityHeroSection can show a shimmer
+  // while its own photo is still loading instead of jumping straight to
+  // the "no image" flat-gradient fallback look.
+  bool _heroImageLoading=true;
   // ROUND 12 FIX (stale-request protection): bumped by every _loadSupplementary()
   // call. Each call captures its own value at start; if a newer call bumps this
   // before an older one finishes, the older call's results are dropped instead
@@ -1366,7 +1372,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // flight), this call is stale and silently skips updating Home state.
     final myGen = ++_supplementaryGen;
     // Show loading state for supplementary sections while fetching
-    if (mounted) setState(() { _productsLoading = true; _adminBannersLoading = true; });
+    if (mounted) setState(() { _productsLoading = true; _adminBannersLoading = true; _heroImageLoading = true; });
     try {
       // FIX 5: individual guards — one failure won't blank all sections
       List<String> cats2 = ["All"]; List<Map<String,dynamic>> richCats2 = [];
@@ -1404,10 +1410,24 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             try { list = await Api.getAdminBanners(); } catch (_) { }
           }
           adminBannerList = list;
+          // ROUND 12 FIX (partial-Home fix): apply the banner DATA here too,
+          // not just the loading flag. Previously `_adminBanners` was only
+          // ever assigned in the big end-of-function setState — which runs
+          // much later, after the hero-images fetch (up to a 10s timeout),
+          // the sliders retry and the product retries. That meant the
+          // shimmer could correctly disappear (flag flips here) while the
+          // real banner data sat unused for several more seconds, leaving
+          // _BannerStoresBlock with hasBanners=false/bannersLoading=false —
+          // i.e. nothing shown at all. Assigning it here closes that gap.
           // ROUND 12 FIX (stale-request protection): only the current
-          // generation may flip this flag — a stale call's admin-banner
-          // fetch/retry finishing late must not touch it.
-          if (mounted && myGen == _supplementaryGen) setState(() { _adminBannersLoading = false; });
+          // generation may write either of these — a stale call's
+          // admin-banner fetch/retry finishing late must not touch them.
+          if (mounted && myGen == _supplementaryGen) {
+            setState(() {
+              _adminBannersLoading = false;
+              _adminBanners = List<Map<String,dynamic>>.from(adminBannerList);
+            });
+          }
         }).catchError((_) {
           if (mounted && myGen == _supplementaryGen) setState(() { _adminBannersLoading = false; });
         }),
@@ -1449,6 +1469,28 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
         resolvedCityImg = resolvedCityImgs.isNotEmpty ? resolvedCityImgs[0] : "";
+        // ROUND 12 FIX (partial-Home fix): apply the hero/city-image DATA
+        // here too, not just later — same issue as the admin-banner fix
+        // above: previously `_cityImageUrl(s)` were only ever assigned in
+        // the big end-of-function setState, which runs after the sliders
+        // retry and product retries finish. Applying it here, right where
+        // it's resolved, means the hero photo (or the fallback, if there
+        // genuinely isn't one) can appear as soon as it's actually known,
+        // instead of sitting resolved-but-unapplied for several more
+        // seconds. `_heroImageLoading` flips false in the same setState so
+        // _CityHeroSection's shimmer and its real content change together.
+        if (mounted && myGen == _supplementaryGen) {
+          setState(() {
+            _heroImageLoading = false;
+            if (resolvedCityImgs.isNotEmpty) {
+              _cityImageUrls = resolvedCityImgs;
+              _cityImageUrl  = resolvedCityImgs[0];
+            } else if (resolvedCityImg.isNotEmpty) {
+              _cityImageUrls = [resolvedCityImg];
+              _cityImageUrl  = resolvedCityImg;
+            }
+          });
+        }
         // Load no-service config (handle String or List from backend)
         final nsImgs = defaults["no_service_url"];
         String _nsUrl = "";
@@ -1495,7 +1537,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             _mbFallbackSliders = [];
           }
         }
-      } catch (e) { }
+      } catch (e) {
+        // ROUND 12 FIX (partial-Home fix): the /default-images call itself
+        // failed or timed out (up to 10s) — don't leave the hero shimmer
+        // spinning forever. Flip it false here too so _CityHeroSection
+        // falls back to its existing flat-gradient look, same as "hero
+        // image genuinely doesn't exist".
+        if (mounted && myGen == _supplementaryGen) setState(() { _heroImageLoading = false; });
+      }
 
       final cats = cats2;
 
@@ -2236,6 +2285,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       cityImageUrl: _cityImageUrl,
                       cityManual: _cityManual,
                       unreadCount: _unreadCount,
+                      // ROUND 12 FIX (partial-Home fix): while the hero
+                      // photo is still loading, show a shimmer (reserving
+                      // the same height) instead of jumping straight to the
+                      // "no image" flat-gradient fallback.
+                      imageLoading: _heroImageLoading,
                       onCityTap: () => _showCityPicker(context),
                       onBellTap: () => _openNotifications(context),
                     )),
@@ -5398,11 +5452,19 @@ class _CityHeroSection extends StatelessWidget {
   final String cityImageUrl;   // URL from /default-images → "city" key
   final bool cityManual;
   final int unreadCount;
+  // ROUND 12 FIX (partial-Home fix): true while _loadSupplementary()'s
+  // hero/city-image fetch is still in flight for the current generation —
+  // i.e. `cityImageUrl` being empty might just mean "not fetched yet", not
+  // "no hero image for this city". Defaults to false so this stays a
+  // purely additive change. Mirrors _adminBannersLoading's role for
+  // _BannerStoresBlock.
+  final bool imageLoading;
   final VoidCallback onCityTap;
   final VoidCallback onBellTap;
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     required this.cityManual, required this.unreadCount,
+    this.imageLoading = false,
     required this.onCityTap, required this.onBellTap,
   });
 
@@ -5449,14 +5511,24 @@ class _CityHeroSection extends StatelessWidget {
                 ),
               ),
             )
-          : Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+          // ROUND 12 FIX (partial-Home fix): `cityImageUrl` empty used to
+          // always mean "show the flat brand-gradient fallback", with no
+          // way to tell "genuinely no hero image" apart from "the fetch
+          // just hasn't come back yet". While `imageLoading` is true it's
+          // the latter — reserve the same box (SizedBox/heroH unchanged)
+          // and shimmer instead, so this section doesn't visually "finish"
+          // before its own data has actually arrived. Once imageLoading is
+          // false, this falls through to the exact original fallback.
+          : imageLoading
+            ? _shimmerBox(width: double.infinity, height: double.infinity)
+            : Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+                  ),
                 ),
               ),
-            ),
 
         // ── Dark scrim for readability ──
         Positioned.fill(
