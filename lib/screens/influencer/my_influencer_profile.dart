@@ -386,97 +386,175 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
         await _loadReviews();
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        // Horizontal inset moved OFF the ListView itself — the hero below
+        // needs to render edge-to-edge (no card margin) so the background
+        // asset reads as part of the page rather than a boxed banner.
+        // Every other section keeps the same 20px side margin as before,
+        // now applied by the single Padding wrapped around them further
+        // down instead of by this top-level padding.
+        padding: const EdgeInsets.only(top: 16, bottom: 28),
         children: [
-          // ── Hero card ──
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kBorder),
-            ),
-            child: Column(children: [
-              Stack(clipBehavior: Clip.none, children: [
-                _avatar(96),
-                Positioned(
-                  bottom: -2, right: -2,
-                  child: GestureDetector(
-                    onTap: () async {
-                      final updated = await Navigator.push<Map<String,dynamic>>(context,
-                        MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
-                          token: token, existing: profile, onProfileSaved: onProfileUpdated)));
-                      if (updated != null) onProfileUpdated(updated);
-                    },
-                    child: Container(
-                      width: 28, height: 28,
-                      decoration: BoxDecoration(color: kPrimary, shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2)),
-                      child: const Icon(Icons.camera_alt_rounded, size: 13, color: Colors.white),
+          // ── Hero — the main visual focus of the screen, no longer a
+          // bordered/white card: the background asset is the page's own
+          // decorative surface, flowing full-bleed behind the photo, with
+          // the profile photo + text sitting directly on top of/below it
+          // as one continuous composition (no rounded-rectangle boundary,
+          // no border, no shadow around the whole section). Every value
+          // below is the same data the previous card read (name, verified,
+          // roleLabel, city/state, bio, rating, reviewCount, categories) —
+          // only the container/boxing around it was removed. ──
+          Column(children: [
+              // ── Decorative background asset (full page width) + profile photo ──
+              // Uses the supplied background image as-is (no CustomPainter,
+              // no generated shapes) as the hero's visual foundation. The
+              // asset is 841×1870 and its curved artwork occupies the top
+              // 664px of that (verified by pixel-sampling the file); the
+              // box height is (664/841) of the card's own width — via
+              // LayoutBuilder, so it's always derived from the real
+              // rendered width, never a hardcoded pixel — times 1.22 for
+              // ~22% more vertical presence per the latest feedback. The
+              // extra height simply reveals a bit more of the SAME asset
+              // below the curve line; pixel-sampling confirms that strip is
+              // already a near-white/cream tone almost identical to the
+              // page's own kBg, so BoxFit.cover + Alignment.topCenter still
+              // blends seamlessly with no synthetic backdrop needed. The
+              // photo is raised off the very bottom edge to sit prominently
+              // over the curve artwork: positioned at 49% down the hero's
+              // own height (Positioned(top: heroH * 0.49, ...), a fraction
+              // of the computed height, so it stays responsive) instead of
+              // being pinned to the bottom. Camera badge stays attached to
+              // the photo as before.
+              LayoutBuilder(builder: (context, constraints) {
+                final heroW = constraints.maxWidth;
+                final heroH = heroW * (664 / 841) * 1.22;
+                return SizedBox(
+                height: heroH,
+                width: double.infinity,
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/influencer_profile_bg.png',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
                     ),
                   ),
-                ),
-              ]),
-              const SizedBox(height: 12),
-              Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-                Flexible(child: Text(name, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: kText))),
-                if (verified) ...[
-                  const SizedBox(width: 5),
-                  const Icon(Icons.verified_rounded, size: 18, color: kPrimary),
-                ],
-              ]),
-              const SizedBox(height: 4),
-              Text(roleLabel, style: const TextStyle(fontSize: 12.5, color: kPrimary, fontWeight: FontWeight.w700)),
-              if (city.isNotEmpty || state.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.location_on_rounded, size: 13, color: kMuted),
-                  const SizedBox(width: 3),
-                  Text([if (city.isNotEmpty) city, if (state.isNotEmpty) state].join(", "),
-                    style: const TextStyle(fontSize: 12.5, color: kMuted)),
+                  Positioned(
+                    top: heroH * 0.49,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Stack(clipBehavior: Clip.none, children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white,
+                            boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 14, offset: Offset(0, 4))]),
+                          child: _avatar(108),
+                        ),
+                        Positioned(
+                          bottom: 2, right: 2,
+                          child: GestureDetector(
+                            onTap: () async {
+                              final updated = await Navigator.push<Map<String,dynamic>>(context,
+                                MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
+                                  token: token, existing: profile, onProfileSaved: onProfileUpdated)));
+                              if (updated != null) onProfileUpdated(updated);
+                            },
+                            child: Container(
+                              width: 32, height: 32,
+                              decoration: BoxDecoration(color: kPrimary, shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2.5)),
+                              child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  ),
                 ]),
-              ],
-              if (bio.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(bio, textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12.5, color: kText, height: 1.4)),
-              ],
-              const SizedBox(height: 12),
-              Row(mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 18),
-                const SizedBox(width: 4),
-                Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
-                const SizedBox(width: 4),
-                Text("($reviewCount reviews)", style: const TextStyle(fontSize: 12, color: kMuted)),
-              ]),
-              const SizedBox(height: 14),
-              SizedBox(width: double.infinity, child: OutlinedButton(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => InfluencerProfileScreen(influencer: profile, token: token))),
-                style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(vertical: 11),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                child: const Text("View public profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
-              )),
+              );
+              }),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
+                child: Column(children: [
+                  Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Flexible(child: Text(name, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kText))),
+                    if (verified) ...[
+                      const SizedBox(width: 6),
+                      const Icon(Icons.verified_rounded, size: 20, color: kPrimary),
+                    ],
+                  ]),
+                  // ── Role/category + location on one line (same pattern
+                  // already used in store_header.dart's category/location
+                  // row) — matches the reference's own "Restaurant ·
+                  // 📍 City, State" example, same underlying data.
+                  if (roleLabel.isNotEmpty || city.isNotEmpty || state.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                      if (roleLabel.isNotEmpty)
+                        Text(roleLabel, style: const TextStyle(fontSize: 13.5, color: kPrimary, fontWeight: FontWeight.w700)),
+                      if (roleLabel.isNotEmpty && (city.isNotEmpty || state.isNotEmpty))
+                        const Padding(padding: EdgeInsets.symmetric(horizontal: 6),
+                          child: Text("·", style: TextStyle(color: kMuted, fontSize: 13))),
+                      if (city.isNotEmpty || state.isNotEmpty) ...[
+                        const Icon(Icons.location_on_rounded, size: 14, color: kMuted),
+                        const SizedBox(width: 3),
+                        Text([if (city.isNotEmpty) city, if (state.isNotEmpty) state].join(", "),
+                          style: const TextStyle(fontSize: 13.5, color: kMuted)),
+                      ],
+                    ]),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 19),
+                    const SizedBox(width: 4),
+                    Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+                    const SizedBox(width: 4),
+                    Text("($reviewCount reviews)", style: const TextStyle(fontSize: 12.5, color: kMuted)),
+                  ]),
+                  if (bio.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(bio, textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, color: kText, height: 1.45)),
+                  ],
+                  if (displayCategories.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    Center(child: _categoryChips(displayCategories)),
+                  ],
+                  const SizedBox(height: 16),
+                  SizedBox(width: double.infinity, child: OutlinedButton(
+                    onPressed: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => InfluencerProfileScreen(influencer: profile, token: token))),
+                    style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    child: const Text("View public profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13.5)),
+                  )),
+                ]),
+              ),
             ]),
-          ),
 
-          // ── Category chips ──
-          if (displayCategories.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            _categoryChips(displayCategories),
-          ],
-
-          // ── Stats ──
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(child: _statCard(Icons.visibility_rounded, "$viewCount", "Profile Views")),
-            const SizedBox(width: 12),
-            Expanded(child: _statCard(Icons.favorite_rounded, "$favoriteCount", "Favourites")),
-          ]),
-
+          // ── Everything below the hero keeps the page's normal 20px side
+          // margin — only the hero above renders edge-to-edge. Wrapping the
+          // rest in one Padding (instead of the ListView's own padding, now
+          // reduced to vertical-only) is what lets the hero's background
+          // asset extend full-bleed while these sections stay inset exactly
+          // as they were. ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(children: [
+          // ── Social — always shown as its own card now (previously only
+          // appeared once a link existed, so it looked "missing"); shows a
+          // proper empty state otherwise. Same underlying social data/rows
+          // as before (_socialRow unchanged). ──
           const SizedBox(height: 16),
+          _socialCard(social),
+
+          // ── Stats — merged into one card with a divider, with real
+          // padding (not squeezed) — same values/icons as before. ──
+          const SizedBox(height: 16),
+          _statsCard(viewCount, favoriteCount),
+
+          const SizedBox(height: 18),
           _buildSubscriptionStatusBanner(),
           const SizedBox(height: 8),
           // FIX (Bug 1): a draft/pending/failed profile gets a direct,
@@ -503,38 +581,60 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
             ),
 
           // ── Reviews (real data — never hardcoded example businesses) ──
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Row(children: [
-            const Text("Reviews", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+            const Text("Reviews", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kText)),
             const Spacer(),
             if (_reviews.isNotEmpty)
               GestureDetector(
                 onTap: () => Navigator.push(context, MaterialPageRoute(
                   builder: (_) => _MyInfluencerAllReviewsScreen(influencerId: _influencerId, name: name))),
-                child: const Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                  Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
+                  Icon(Icons.chevron_right_rounded, size: 16, color: kPrimary),
+                ]),
               ),
           ]),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           if (_loadingReviews)
             const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
           else if (_reviews.isEmpty)
-            const Text("No reviews yet", style: TextStyle(fontSize: 12, color: kMuted))
+            // Proper empty state (matches the Social card's treatment)
+            // instead of a lone line of text leaving a large blank gap.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+              child: Column(children: [
+                Container(width: 40, height: 40,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
+                  child: const Icon(Icons.star_border_rounded, size: 20, color: kMuted)),
+                const SizedBox(height: 8),
+                const Text("No reviews yet", style: TextStyle(fontSize: 12.5, color: kMuted, fontWeight: FontWeight.w600)),
+              ]),
+            )
           else
             ..._reviews.map((r) => _reviewCard(r)),
 
           const SizedBox(height: 20),
-          SizedBox(width: double.infinity, child: OutlinedButton.icon(
+          // Edit Profile is now the primary (filled) action — matches the
+          // reference's cleaner button hierarchy. Disable/Delete below stay
+          // outlined so the two destructive/account-management actions
+          // remain visually distinct, per the redesign brief. onPressed
+          // logic is byte-for-byte unchanged from before.
+          SizedBox(width: double.infinity, child: ElevatedButton.icon(
             onPressed: () async {
               final updated = await Navigator.push<Map<String,dynamic>>(context,
                 MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
                   token: token, existing: profile, onProfileSaved: onProfileUpdated)));
               if (updated != null) onProfileUpdated(updated);
             },
-            icon: const Icon(Icons.edit_rounded, size: 16, color: kPrimary),
-            label: const Text("Edit Profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
-            style: OutlinedButton.styleFrom(side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(vertical: 12)),
+            icon: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
+            label: const Text("Edit Profile", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 12),
+              elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
           )),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           // Enable/Disable — a visibility toggle only. Deliberately never
           // touches payment_status/publish_status: disabling a paid,
           // published profile keeps it PAID; re-enabling never re-charges.
@@ -545,24 +645,15 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
               style: const TextStyle(color: kText, fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(side: const BorderSide(color: kBorder), padding: const EdgeInsets.symmetric(vertical: 12)),
           )),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SizedBox(width: double.infinity, child: OutlinedButton.icon(
             onPressed: _busy ? null : _confirmDelete,
             icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
             label: const Text("Delete Profile", style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 12)),
           )),
-          if (social.values.any((v) => (v?.toString() ?? "").isNotEmpty)) ...[
-            const SizedBox(height: 24),
-            const Text("Social", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
-            const SizedBox(height: 8),
-            if ((social["instagram"] ?? "").toString().isNotEmpty)
-              _socialRow(Icons.camera_alt_rounded, const Color(0xFFD4537E), "Instagram", social["instagram"].toString()),
-            if ((social["youtube"] ?? "").toString().isNotEmpty)
-              _socialRow(Icons.play_circle_fill_rounded, const Color(0xFFE24B4A), "YouTube", social["youtube"].toString()),
-            if ((social["facebook"] ?? "").toString().isNotEmpty)
-              _socialRow(Icons.facebook_rounded, const Color(0xFF378ADD), "Facebook", social["facebook"].toString()),
-          ],
+            ]),
+          ),
         ],
       ),
     );
@@ -591,42 +682,106 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     ]);
   }
 
-  Widget _statCard(IconData icon, String value, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+  /// ROUND redesign: the two previous separate bordered `_statCard`s are
+  /// now one merged card with a vertical divider between them — same
+  /// values/icons/labels, just presented as "clean cards/dividers" per the
+  /// reference instead of two boxes.
+  Widget _statsCard(int viewCount, int favoriteCount) {
+    Widget stat(IconData icon, String value, String label) => Expanded(
       child: Column(children: [
-        Icon(icon, size: 18, color: kPrimary),
-        const SizedBox(height: 6),
-        Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kText)),
+        Container(width: 36, height: 36,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
+          child: Icon(icon, size: 18, color: kPrimary)),
+        const SizedBox(height: 8),
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kText)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: kMuted), textAlign: TextAlign.center),
+        Text(label, style: const TextStyle(fontSize: 11.5, color: kMuted), textAlign: TextAlign.center),
+      ]),
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
+      child: Row(children: [
+        stat(Icons.visibility_rounded, "$viewCount", "Profile Views"),
+        Container(width: 1, height: 44, color: kBorder),
+        stat(Icons.favorite_rounded, "$favoriteCount", "Favourites"),
+      ]),
+    );
+  }
+
+  /// Social — always rendered as its own card (previously this whole
+  /// section only existed once a real link was saved, which is why it
+  /// "disappeared" from the visible result even though the data/logic was
+  /// always there). Empty state added; `_socialRow` and the underlying
+  /// `social` map/data are completely unchanged.
+  Widget _socialCard(Map social) {
+    final hasAny = social.values.any((v) => (v?.toString() ?? "").isNotEmpty);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text("Social", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+        const SizedBox(height: 12),
+        if (!hasAny)
+          Row(children: [
+            Container(width: 34, height: 34,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
+              child: const Icon(Icons.share_rounded, size: 16, color: kMuted)),
+            const SizedBox(width: 10),
+            const Text("No social links added yet", style: TextStyle(fontSize: 12.5, color: kMuted)),
+          ])
+        else ...[
+          if ((social["instagram"] ?? "").toString().isNotEmpty)
+            _socialRow(Icons.camera_alt_rounded, const Color(0xFFD4537E), "Instagram", social["instagram"].toString()),
+          if ((social["youtube"] ?? "").toString().isNotEmpty)
+            _socialRow(Icons.play_circle_fill_rounded, const Color(0xFFE24B4A), "YouTube", social["youtube"].toString()),
+          if ((social["facebook"] ?? "").toString().isNotEmpty)
+            _socialRow(Icons.facebook_rounded, const Color(0xFF378ADD), "Facebook", social["facebook"].toString()),
+        ],
       ]),
     );
   }
 
   /// Real review card — reviewer name/rating/date/text, sourced entirely
   /// from Api.getInfluencerReviews (the same data the public profile screen
-  /// shows). No example/placeholder reviews are ever rendered here.
+  /// shows). No example/placeholder reviews are ever rendered here. A
+  /// trailing chevron was added purely as a visual affordance (matches the
+  /// reference) — the card isn't tappable, same as before.
+  /// The optional review image (`image_url`/`photo_url`, whichever the
+  /// payload happens to carry) is shown only "where available" — current
+  /// review submissions never attach one, so this stays dormant until/
+  /// unless the backend starts sending it; nothing here requires that field.
   Widget _reviewCard(Map<String, dynamic> r) {
     final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? "Anonymous";
     final stars = (r["rating"] as num?)?.toInt() ?? 0;
     final text = r["text"]?.toString() ?? "";
     final ts = r["created_at"]?.toString() ?? "";
     final ago = ts.isNotEmpty ? _reviewTimeAgo(ts) : "";
+    final imageUrl = (r["image_url"] ?? r["photo_url"])?.toString() ?? "";
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: 34, height: 34,
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: kLight),
-          alignment: Alignment.center,
-          child: Text(reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : "?",
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: kPrimary)),
-        ),
-        const SizedBox(width: 10),
+        if (imageUrl.startsWith("http")) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: CachedNetworkImage(imageUrl: imageUrl, width: 46, height: 46, fit: BoxFit.cover,
+              placeholder: (_, __) => Container(width: 46, height: 46, color: kLight),
+              errorWidget: (_, __, ___) => Container(width: 46, height: 46, color: kLight)),
+          ),
+          const SizedBox(width: 12),
+        ] else ...[
+          Container(
+            width: 38, height: 38,
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: kLight),
+            alignment: Alignment.center,
+            child: Text(reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : "?",
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kPrimary)),
+          ),
+          const SizedBox(width: 12),
+        ],
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(child: Text(reviewerName, overflow: TextOverflow.ellipsis,
@@ -643,6 +798,8 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
             Text(text, style: const TextStyle(fontSize: 12, color: kText, height: 1.35)),
           ],
         ])),
+        const SizedBox(width: 4),
+        const Icon(Icons.chevron_right_rounded, size: 18, color: kMuted),
       ]),
     );
   }
