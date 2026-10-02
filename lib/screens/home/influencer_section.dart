@@ -276,6 +276,44 @@ class _InfluencerCard extends StatelessWidget {
   }
 }
 
+/// Clean, attractive "coming soon" state for the Home "City influencers"
+/// section — shown ONLY when the API has genuinely returned an empty list
+/// for the current city (never while still loading, and never a fake
+/// influencer or a literal "0 influencers" message). Matches the existing
+/// OffrO card style (white, kBorder, 16px radius) used elsewhere on Home,
+/// so it reads as an intentional, premium placeholder rather than an
+/// error or missing-data state.
+Widget _influencerComingSoonCard() {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kBorder),
+      ),
+      child: Column(children: [
+        Container(
+          width: 56, height: 56,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
+          alignment: Alignment.center,
+          child: const Icon(Icons.auto_awesome_rounded, size: 26, color: kPrimary),
+        ),
+        const SizedBox(height: 14),
+        const Text("Influencers are coming soon ✨",
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: kText)),
+        const SizedBox(height: 6),
+        const Text("We're bringing local creators and their recommendations to OffrO. Stay tuned!",
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12.5, color: kMuted, height: 1.4)),
+      ]),
+    ),
+  );
+}
+
 /// City Influencers — home screen section.
 class CityInfluencersSection extends StatefulWidget {
   final String city;
@@ -309,21 +347,36 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
   @override
   Widget build(BuildContext context) {
     final influencers = _influencers;
-    // Section stays hidden on the home feed when there's nothing for this
-    // city — the dedicated listing screen (via View All) is where an
-    // explicit "no influencers yet" message is shown instead.
-    if (influencers == null || influencers.isEmpty) return const SizedBox.shrink();
+    // Still loading (first fetch hasn't returned yet) — stay hidden exactly
+    // as before, so nothing flashes on screen before we know either way.
+    // This is the ONLY case that still hides the section entirely.
+    if (influencers == null) return const SizedBox.shrink();
+
+    // FIX: previously `influencers.isEmpty` ALSO returned SizedBox.shrink()
+    // here, which hid this whole section (heading included) the moment the
+    // API returned zero influencers for a city — exactly what happened in
+    // production. The section must now always render; only the horizontal
+    // card row is swapped for a coming-soon card when the list is
+    // genuinely empty. No API/data logic changed — `fetchInfluencers()`
+    // and `_load()` above are untouched, so real cards still appear
+    // automatically the moment influencers exist for this city again.
+    final isEmpty = influencers.isEmpty;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("City influencers", style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Discover creators from your city", style: TextStyle(color: kMuted, fontSize: 12)),
+            Text(isEmpty ? "City Influencers" : "City influencers",
+              style: const TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(isEmpty ? "Discover local creators and recommendations" : "Discover creators from your city",
+              style: const TextStyle(color: kMuted, fontSize: 12)),
           ]),
         ),
+        if (isEmpty)
+          _influencerComingSoonCard()
+        else
         // Item 1: row height matches Discover Products (170) exactly.
         SizedBox(
           height: 170,
