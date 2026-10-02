@@ -1,6 +1,51 @@
 // lib/screens/store/widgets/store_offers_section.dart
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
+import 'store_header.dart' show FullScreenImageViewer;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Round 12 (Task 5): shared full-screen deal-gallery opener. Previously
+// this Navigator.push + FullScreenImageViewer construction lived only
+// inside StoreOffersSection (Today's Offers, inside Store Detail). Home's
+// "Hot Deals" list (_AllDealsScreen in main.dart) now needs to open the
+// exact same full-screen deal viewer directly — rather than navigating to
+// Store Detail first — so this is pulled out to a top-level function both
+// call sites share, instead of duplicating the gallery-opening logic.
+// ─────────────────────────────────────────────────────────────────────────────
+/// Opens the swipeable full-screen deal gallery. [dealsWithImages] is the
+/// list to swipe across — already filtered to deals that have an image,
+/// since a deal without one can't be shown in an image gallery.
+/// [tappedDeal] must be the SAME Map instance as one of
+/// [dealsWithImages]'s entries (not a copy/clone) — the starting index is
+/// resolved by object identity via `indexOf`, because deal payloads from
+/// the backend (both Store Detail's `get_store()` and the city-wide
+/// `/deals/all`) don't reliably carry an `_id` to match on instead.
+void openDealGallery(BuildContext context, List<Map<String, dynamic>> dealsWithImages,
+    Map<String, dynamic> tappedDeal) {
+  final startIndex = dealsWithImages.indexOf(tappedDeal);
+  Navigator.push(
+    context,
+    PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black,
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, __, ___) => FullScreenImageViewer(
+        images: dealsWithImages.map((d) => d['image_url'].toString()).toList(),
+        initialIndex: startIndex < 0 ? 0 : startIndex,
+        bottomOverlays: dealsWithImages.map((d) {
+          final t = d['title']?.toString() ?? '';
+          return t.isEmpty
+              ? const SizedBox.shrink()
+              : Text(t,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800));
+        }).toList(),
+      ),
+    ),
+  );
+}
 
 class StoreOffersSection extends StatelessWidget {
   final List<Map<String, dynamic>> deals;
@@ -8,6 +53,11 @@ class StoreOffersSection extends StatelessWidget {
   final String storeArea;
   final String storeCity;
   final String storeId;
+  // Round 7 (Issue 4): true while StoreDetailPage's real fetchStoreDetail()
+  // call is still in flight. See the skeleton block in build() below for why
+  // this exists — defaults to false so this widget's behavior is unchanged
+  // for any other/future caller that doesn't pass it.
+  final bool loading;
 
   const StoreOffersSection({
     super.key,
@@ -16,6 +66,7 @@ class StoreOffersSection extends StatelessWidget {
     this.storeArea = '',
     this.storeCity = '',
     this.storeId = '',
+    this.loading = false,
   });
 
   /// Format a date string (yyyy-MM-dd or dd MMM yyyy) as "d MMM yyyy"
@@ -31,6 +82,12 @@ class StoreOffersSection extends StatelessWidget {
     return raw;
   }
 
+  // Round 10: the deals that actually have an image — only these can be
+  // opened in the full-screen gallery (a deal without an image renders the
+  // decorative fallback card below, which has no tap target, unchanged).
+  List<Map<String, dynamic>> get _dealsWithImages =>
+      deals.where((d) => (d['image_url']?.toString() ?? '').isNotEmpty).toList();
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -44,7 +101,7 @@ class StoreOffersSection extends StatelessWidget {
                 style: TextStyle(
                     color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
             const Spacer(),
-            if (deals.isNotEmpty)
+            if (deals.isNotEmpty && !loading)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
@@ -60,8 +117,50 @@ class StoreOffersSection extends StatelessWidget {
           ]),
         ),
 
+        // ── Loading skeleton (Round 7, Issue 4) ──
+        // Root cause of "old/default Today's Offers card flashes before the
+        // current deal images load": StoreDetailPage renders this section
+        // immediately in initState() using widget.store['deals'], which for
+        // navigation from Home is a SYNTHESIZED placeholder deal built from
+        // the home list card's plain-text offer summary (see
+        // _enrichStoreForDetail() in home_screen.dart) — it never has an
+        // image_url, so it always fell into the pre-Round-6 decorative
+        // "green circles" card below. Once the real fetchStoreDetail() API
+        // call resolved, _store['deals'] was replaced with the real deals
+        // (with real image_url), and the section re-rendered with the new
+        // image card — producing the reported flash from the generic
+        // decorative card to the real one.
+        // Fix: while the real fetch is in flight, show a proper loading
+        // skeleton instead of rendering (possibly placeholder/mismatched)
+        // deal content at all. This never shows stale or synthesized
+        // content, and — because fetchStoreDetail() is typically fast — adds
+        // no perceptible delay versus the immediate-render behavior it
+        // replaces. The synthesized placeholder in _enrichStoreForDetail()
+        // is left in place (harmless/unused here) in case any other caller
+        // still relies on it.
+        if (loading)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: SizedBox(
+              height: 210,
+              child: Row(children: [
+                for (var i = 0; i < 2; i++) ...[
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: kLight.withValues(alpha: .55),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: kBorder, width: 1),
+                      ),
+                    ),
+                  ),
+                  if (i == 0) const SizedBox(width: 12),
+                ],
+              ]),
+            ),
+          )
         // ── Empty state ──
-        if (deals.isEmpty)
+        else if (deals.isEmpty)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
             child: Container(
@@ -95,8 +194,102 @@ class StoreOffersSection extends StatelessWidget {
                 final title   = d['title']?.toString() ?? '';
                 final desc    = d['description']?.toString() ?? '';
                 final disc    = d['discount']?.toString() ?? '0';
-                final endDate = d['end_date']?.toString() ?? '';
                 final discInt = int.tryParse(disc) ?? 0;
+                // Round 6 (Issue 2): the deal's own uploaded image, if any.
+                // Root cause of "image not showing" was purely here — the
+                // backend (routers/public.py) already returned image_url in
+                // this same deals list (added in Round 5), but this card
+                // never read it and always rendered the generic decorative
+                // design. Falls back to that exact unchanged design when
+                // empty, so deals without an image keep working as before.
+                final imageUrl = d['image_url']?.toString() ?? '';
+
+                if (imageUrl.isNotEmpty) {
+                  return GestureDetector(
+                    // Round 10: opens the swipeable gallery across every
+                    // deal (for this store) that has an image, starting at
+                    // the exact deal tapped — replaces the old single-image
+                    // viewer.
+                    onTap: () => openDealGallery(ctx, _dealsWithImages, d),
+                    child: Container(
+                      width: 210,
+                      height: 210,
+                      margin: EdgeInsets.only(right: idx < deals.length - 1 ? 12 : 0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: kBorder, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                              color: kPrimary.withValues(alpha: .08),
+                              blurRadius: 16,
+                              offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(19),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // ── Deal image fills the card ──
+                            imageUrl.startsWith('data:image')
+                                ? Builder(builder: (_) {
+                                    try {
+                                      return Image.memory(
+                                          base64Decode(imageUrl.split(',').last),
+                                          fit: BoxFit.cover);
+                                    } catch (_) {
+                                      return Container(color: kLight);
+                                    }
+                                  })
+                                : CachedNetworkImage(
+                                    imageUrl: imageUrl,
+                                    fit: BoxFit.cover,
+                                    placeholder: (_, __) => Container(color: kLight),
+                                    errorWidget: (_, __, ___) => Container(color: kLight,
+                                        child: const Icon(Icons.broken_image_outlined, color: kMuted, size: 32)),
+                                  ),
+                            // ── Bottom scrim for text readability ──
+                            Positioned(
+                              left: 0, right: 0, bottom: 0,
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(12, 28, 12, 12),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [Colors.black.withValues(alpha: 0), Colors.black.withValues(alpha: .72)],
+                                  ),
+                                ),
+                                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                                  // Round 10: validity/date text removed from
+                                  // the deal card per spec — image, discount
+                                  // badge and title only.
+                                  if (title.isNotEmpty)
+                                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+                                ]),
+                              ),
+                            ),
+                            // ── Discount % chip, top-left ──
+                            if (discInt > 0)
+                              Positioned(
+                                top: 10, left: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: kPrimary,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text('$discInt% OFF',
+                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
 
                 return Container(
                   width: 210,
@@ -243,38 +436,9 @@ class StoreOffersSection extends StatelessWidget {
                               ),
 
                             const Spacer(),
-
-                            // Valid till — bottom
-                            if (endDate.isNotEmpty)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: kLight.withValues(alpha: .8),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: kBorder.withValues(alpha: .6)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.calendar_today_rounded,
-                                        size: 9, color: kPrimary),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        'Valid till ${_formatDate(endDate)}',
-                                        style: const TextStyle(
-                                            color: kPrimary,
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            // Round 10: validity/date text removed from the
+                            // deal card per spec (this decorative no-image
+                            // fallback card is otherwise unchanged).
                           ],
                         ),
                       ),

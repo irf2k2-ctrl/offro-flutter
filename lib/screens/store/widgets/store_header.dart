@@ -37,7 +37,7 @@ class StoreHeader extends StatelessWidget {
         opaque: false,
         barrierColor: Colors.black,
         transitionDuration: const Duration(milliseconds: 280),
-        pageBuilder: (_, __, ___) => _FullScreenImageViewer(
+        pageBuilder: (_, __, ___) => FullScreenImageViewer(
           images: images,
           initialIndex: imgPage,
         ),
@@ -632,19 +632,42 @@ class _BtnData {
 }
 
 // ─── Full Screen Image Viewer ─────────────────────────────────
-class _FullScreenImageViewer extends StatefulWidget {
+// Made public (Round 6 — Issue 2) so other screens can reuse the same
+// gallery viewer instead of building a second one — e.g. the Store Detail
+// "Today's Offers" deal card now opens a tapped deal image through this
+// same widget. Works for a single image too (images: [url], initialIndex: 0
+// — the "n / total" counter simply doesn't render for a length-1 list).
+class FullScreenImageViewer extends StatefulWidget {
   final List<String> images;
   final int initialIndex;
-  const _FullScreenImageViewer(
-      {required this.images, required this.initialIndex});
+  // Round 10: optional per-image bottom overlay content (e.g. a deal title,
+  // or a product's name/tagline/discount/price) shown above a subtle
+  // bottom gradient, same position for every caller so the deal and
+  // product galleries share one consistent viewer. Index-aligned with
+  // `images`; a caller that passes nothing (e.g. the existing store-photo
+  // gallery in this file) keeps the exact previous look — this is purely
+  // additive and optional.
+  final List<Widget>? bottomOverlays;
+  // Round 12 (Task 4): when true, the image sits higher on screen (instead
+  // of dead-centered) and the bottom overlay gets extra top padding, so
+  // there's real visual separation between the image and the info panel
+  // below it, rather than the overlay's gradient floating directly over
+  // the bottom of the image. Defaults to false so the two existing callers
+  // (the plain store-photo gallery here, and the deal gallery in
+  // store_offers_section.dart) keep their exact previous look — only the
+  // product gallery opts into this.
+  final bool spacedOverlay;
+  const FullScreenImageViewer(
+      {super.key, required this.images, required this.initialIndex, this.bottomOverlays,
+       this.spacedOverlay = false});
 
   @override
-  State<_FullScreenImageViewer> createState() =>
+  State<FullScreenImageViewer> createState() =>
       _FullScreenImageViewerState();
 }
 
 class _FullScreenImageViewerState
-    extends State<_FullScreenImageViewer> {
+    extends State<FullScreenImageViewer> {
   late int _current;
   late PageController _pc;
   late TransformationController _tc;
@@ -682,38 +705,83 @@ class _FullScreenImageViewerState
             onPageChanged: (i) => setState(() => _current = i),
             itemBuilder: (_, i) {
               final im = widget.images[i];
-              return InteractiveViewer(
-                transformationController: _tc,
-                minScale: 0.8,
-                maxScale: 4.0,
-                child: Center(
-                  child: im.startsWith('http')
-                      ? CachedNetworkImage(
-                          imageUrl: im,
-                          fit: BoxFit.contain,
-                          placeholder: (_, __) => const Center(
-                            child: CircularProgressIndicator(
-                                color: Colors.white),
+              final overlay = (widget.bottomOverlays != null && i < widget.bottomOverlays!.length)
+                  ? widget.bottomOverlays![i]
+                  : null;
+              final imageWidget = im.startsWith('http')
+                  ? CachedNetworkImage(
+                      imageUrl: im,
+                      fit: BoxFit.contain,
+                      placeholder: (_, __) => const Center(
+                        child: CircularProgressIndicator(
+                            color: Colors.white),
+                      ),
+                      errorWidget: (_, __, ___) => const Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                          size: 60),
+                    )
+                  : im.startsWith('data:image')
+                      ? Builder(builder: (_) {
+                          try {
+                            return Image.memory(
+                              base64Decode(im.split(',').last),
+                              fit: BoxFit.contain,
+                            );
+                          } catch (_) {
+                            return const SizedBox.shrink();
+                          }
+                        })
+                      : const SizedBox.shrink();
+              return Stack(fit: StackFit.expand, children: [
+                InteractiveViewer(
+                  transformationController: _tc,
+                  minScale: 0.8,
+                  maxScale: 4.0,
+                  // Round 12 (Task 4): spacedOverlay shifts the image up
+                  // (Align above center) and reserves blank space below it
+                  // (the bottom Padding shrinks the box BoxFit.contain sizes
+                  // against) so the image and the info panel underneath are
+                  // visually separated instead of the info gradient sitting
+                  // directly over the image's lower edge. Pan/zoom/swipe
+                  // still work over the FULL screen — only where the image
+                  // itself is laid out changes, not InteractiveViewer's
+                  // hit-testing area.
+                  child: widget.spacedOverlay
+                      ? Align(
+                          alignment: const Alignment(0, -0.22),
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 150),
+                            child: imageWidget,
                           ),
-                          errorWidget: (_, __, ___) => const Icon(
-                              Icons.broken_image,
-                              color: Colors.white54,
-                              size: 60),
                         )
-                      : im.startsWith('data:image')
-                          ? Builder(builder: (_) {
-                              try {
-                                return Image.memory(
-                                  base64Decode(im.split(',').last),
-                                  fit: BoxFit.contain,
-                                );
-                              } catch (_) {
-                                return const SizedBox.shrink();
-                              }
-                            })
-                          : const SizedBox.shrink(),
+                      : Center(child: imageWidget),
                 ),
-              );
+                // ── Round 10: optional bottom overlay (deal/product info) ──
+                // IgnorePointer so it never blocks the InteractiveViewer's
+                // pan/zoom/swipe gestures underneath it.
+                if (overlay != null)
+                  Positioned(
+                    left: 0, right: 0, bottom: 0,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.fromLTRB(20, widget.spacedOverlay ? 90 : 48, 20, 32),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: 0),
+                              Colors.black.withValues(alpha: widget.spacedOverlay ? .70 : .75),
+                            ],
+                          ),
+                        ),
+                        child: SafeArea(top: false, child: overlay),
+                      ),
+                    ),
+                  ),
+              ]);
             },
           ),
           Positioned(

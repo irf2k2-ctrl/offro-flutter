@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 
@@ -20,7 +21,7 @@ class _WalletState extends State<WalletPage>{
     // (same backend endpoint) — this is purely a UI/wording change for Google Play
     // policy compliance. No business logic, API, or DB fields were changed.
     try{final r=await Api.withdraw(widget.token,200);if(!mounted)return;ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(r["message"]??"Done")));_load();}
-    catch(e){if(!mounted)return;ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString().replaceAll("Exception: ",""))));}
+    catch(e){debugPrint('[OffrO] wallet withdraw error: $e');if(!mounted)return;ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(friendlyError(e))));}
   }
   @override Widget build(BuildContext ctx){
     int total=vp;
@@ -74,7 +75,20 @@ class HistoryPage extends StatefulWidget {
 class _HistoryState extends State<HistoryPage>{
   List _h=[]; bool _l=true;
   @override void initState(){super.initState();_load();}
-  Future<void> _load() async { _h=await Api.getRedemptions(widget.token); if(mounted)setState(()=>_l=false); }
+  Future<void> _load() async {
+    // Round 9 FIX: Api.getRedemptions() already swallows its own failures
+    // and returns [] (an intentional "silent empty" case, unchanged here),
+    // but the await itself was previously unguarded — if the call ever
+    // threw for an unrelated reason the whole screen would be stuck
+    // loading forever. Guard it so the screen always settles.
+    try {
+      _h = await Api.getRedemptions(widget.token);
+    } catch (e) {
+      debugPrint('[OffrO] scan history load error: $e');
+      _h = [];
+    }
+    if(mounted)setState(()=>_l=false);
+  }
   @override Widget build(BuildContext ctx)=>Scaffold(
     appBar:AppBar(title:const Text("Scan History"),backgroundColor:kPrimary,foregroundColor:Colors.white),backgroundColor:kBg,
     body:_l?const Center(child:CircularProgressIndicator(color:kPrimary)):

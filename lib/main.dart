@@ -13,6 +13,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+// Round 12 (Task 6): shimmer placeholder for the hero/admin-banner images —
+// already a declared dependency (pubspec.yaml), just not used anywhere yet.
+import 'package:shimmer/shimmer.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -21,6 +24,7 @@ import 'firebase_options.dart';
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
 import 'core/services/api_service.dart';
+import 'core/services/error_mapper.dart';
 import 'core/services/fav_state.dart';
 import 'core/services/prefs_service.dart';
 import 'core/services/fcm_service.dart';
@@ -34,16 +38,43 @@ import 'screens/favorites/favorites_page.dart';
 import 'screens/detail/detail_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
+import 'screens/home/influencer_section.dart';
+import 'screens/influencer/my_influencer_profile.dart';
 import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
+// Round 12 (Task 5): reuse the exact same full-screen deal-gallery opener
+// StoreOffersSection ("Today's Offers" inside Store Detail) already uses,
+// instead of duplicating that Navigator.push + FullScreenImageViewer logic
+// here for the Home "Hot Deals" list.
+import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 
 PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
+// Round 12 (Task 6): shared shimmer placeholder for the hero city image and
+// the admin banner — both reserve their final box size/aspect ratio up
+// front regardless of load state (see _CityHeroSection's LayoutBuilder and
+// _BannerStoresBlock's fixed bannerH below), so swapping a flat gradient
+// box for this shimmer is a pure visual change, not a layout change.
+Widget _shimmerBox({double? width, double? height, BorderRadius? borderRadius}) {
+  return Shimmer.fromColors(
+    baseColor: const Color(0xFFE3E9E6),
+    highlightColor: const Color(0xFFF3F6F4),
+    child: Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(color: const Color(0xFFE3E9E6), borderRadius: borderRadius),
+    ),
+  );
+}
+
 
 // ─────────────────────── CONFIG ───────────────────────
-const kBaseUrl = "https://offro-backend-production.up.railway.app";
+const kBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'https://offro-backend-production.up.railway.app',
+);
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
 // ─────────────────────── COLORS ───────────────────────
@@ -79,6 +110,26 @@ Future<void> _clearIOSBadge() async {
   }
 }
 
+// BUG FIX (Item 2 — iOS badge doesn't reflect real unread count): the
+// backend used to send a hardcoded "badge": 1 in every push's APNs payload
+// (routers/admin.py's _build_fcm_message), which iOS applies as an absolute
+// value the instant the push is delivered — even while the app is
+// backgrounded, with no app code involved — so 5 backgrounded pushes would
+// still only ever show "1", never "5". The backend has no server-side
+// per-device unread-count to send instead (unread state is tracked purely
+// on-device via Prefs, same as the existing in-app bell badge), so the
+// payload's badge key is now omitted entirely and the app asserts the true
+// count itself via the same already-existing native method channel used by
+// _clearIOSBadge() above — reusing Prefs.getUnreadCount(), the same source
+// of truth the in-app bell badge already reads.
+Future<void> _syncIOSBadgeCount(int n) async {
+  if (!Platform.isIOS) return;
+  try {
+    await _badgeChannel.invokeMethod('setBadge', n);
+  } catch (e) {
+  }
+}
+
 // ─────────────────────── PREFS ───────────────────────
 
 // ─────────────────────── LOCATION ───────────────────────
@@ -93,8 +144,10 @@ double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
 /// Detect city from a pre-fetched GPS position.
 /// Tries: (1) Haversine match against /cities if they have lat/lng,
 ///        (2) geocoder locality matched against city name list,
-///        (3) raw geocoder locality,
-///        (4) "Ballari" hardcoded fallback.
+///        (3) raw geocoder locality/sub-admin area.
+/// Returns "" (never a hardcoded default city) when none of the above
+/// resolve anything — callers must treat an empty result as "location
+/// unavailable", not silently substitute a guessed city.
 Future<String> detectCityFromPosition(Position pos) async {
   try {
     List cityList = [];
@@ -151,11 +204,13 @@ Future<String> detectCityFromPosition(Position pos) async {
     }
 
     // ── Step 3: Return raw geocoder result if no city list match ──
+    // No further fallback — "" means location could not be resolved to a
+    // city, which callers must handle explicitly (never a guessed city).
     final fallback = rawLocality.isNotEmpty ? rawLocality :
-                     rawSubAdmin.isNotEmpty ? rawSubAdmin : "Ballari";
+                     rawSubAdmin.isNotEmpty ? rawSubAdmin : "";
     return fallback;
   } catch (e) {
-    return "Ballari";
+    return "";
   }
 }
 
@@ -163,11 +218,11 @@ Future<String> detectCityFromPosition(Position pos) async {
 Future<String> detectCity() async {
   try {
     final perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return "Ballari";
+    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return "";
     final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
         .timeout(const Duration(seconds: 10));
     return detectCityFromPosition(pos);
-  } catch (_) { return "Ballari"; }
+  } catch (_) { return ""; }
 }
 
 /// Haversine distance in km between two lat/lng points (uses dart:math)
@@ -221,7 +276,12 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         title: title, body: body, imageUrl: imageUrl,
         type: notifType, screen: screen, messageId: msgId,
       );
-      if (saved) await Prefs.incrementUnread();
+      if (saved) {
+        await Prefs.incrementUnread();
+        // Item 2: assert the real unread count as the iOS badge right away —
+        // see _syncIOSBadgeCount's comment for why the payload can't do this.
+        await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+      }
     }
   } catch (e) {
   }
@@ -303,7 +363,10 @@ Future<void> main() async {
             title: _it, body: _ib, imageUrl: _ii,
             type: _iy, screen: _isc, messageId: _im,
           );
-          if (saved) await Prefs.incrementUnread();
+          if (saved) {
+            await Prefs.incrementUnread();
+            await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+          }
         }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _handleNotificationNavigation(_isc, _iy);
@@ -331,6 +394,7 @@ Future<void> main() async {
           if (saved) {
             await Prefs.incrementUnread();
             _unreadNotifier.value++;
+            await _syncIOSBadgeCount(await Prefs.getUnreadCount());
           }
         }
 
@@ -355,7 +419,10 @@ Future<void> main() async {
             title: _t, body: _b, imageUrl: _i,
             type: _y, screen: _sc, messageId: _mi,
           );
-          if (saved) await Prefs.incrementUnread();
+          if (saved) {
+            await Prefs.incrementUnread();
+            await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+          }
         }
         // Navigate to the appropriate screen
         _handleNotificationNavigation(_sc, _y);
@@ -363,6 +430,18 @@ Future<void> main() async {
       }
     });
   }
+
+  // BUG FIX (Item 2 — "kill/reopen app must restore correct badge"): the OS
+  // badge is a native, persistent value that lives outside Flutter/Prefs, so
+  // if it was ever left out of sync (e.g. an older push still carrying a
+  // stale hardcoded badge before this fix, or a delivery outside the app's
+  // control), it would keep showing that stale number across app restarts
+  // forever, never self-correcting. Every cold start now re-asserts the
+  // badge from the real stored unread count exactly once, so the two can
+  // never drift apart for more than a moment.
+  try {
+    await _syncIOSBadgeCount(await Prefs.getUnreadCount());
+  } catch (e) { }
 
   try {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light));
@@ -425,8 +504,17 @@ class MyApp extends StatelessWidget {
   static final navigatorKey = GlobalKey<NavigatorState>();
 
   // Central navigation helpers — called from SplashScreen / Login / Onboarding callbacks.
+  //
+  // [requireFreshGps]: when true, LocationLoadingScreen ignores [city]
+  // entirely and always re-establishes the CURRENT device location fresh
+  // (permission → Location Services → GPS → reverse-geocode, falling back
+  // to manual State + City only if that fails) instead of reusing a
+  // previously saved/browsing city. Used for "Role Selection → User →
+  // Continue" (see _goUserViaUnified below) — NOT for splash auto-restore,
+  // which still opens instantly with the last-known city as before.
   static void goHome({required String token, required String name,
-      required String phone, required String userId, required String city}) {
+      required String phone, required String userId, required String city,
+      bool requireFreshGps = false}) {
     // TASK 2 FIX: clear stale cache + save mode so all sections reload correctly
     Api.clearCache();
     if (token.isNotEmpty) Prefs.saveMode('user');
@@ -434,8 +522,10 @@ class MyApp extends StatelessWidget {
     navigatorKey.currentState?.pushAndRemoveUntil(
       _route(LocationLoadingScreen(
         token: token, name: name, phone: phone, userId: userId,
-        // Pass saved city so it loads instantly without GPS wait
+        // Pass saved city so it loads instantly without GPS wait — ignored
+        // entirely when requireFreshGps is true.
         forcedCity: city.isNotEmpty ? city : null,
+        requireFreshGps: requireFreshGps,
         onReady: ({required String city, required List<Map<String,dynamic>> stores,
                    required double? lat, required double? lng}) =>
             goHomeWithData(token: token, name: name, phone: phone, userId: userId,
@@ -494,20 +584,52 @@ class MyApp extends StatelessWidget {
             (r) => false,
           );
         },
-        onSuccess: (tok, nm, ph, uid, role) async {
+        onSuccess: (tok, nm, ph, uid, role, city) async {
         if (role == 'merchant') {
           // Merchant role selected → request/check location, then continue
           // to the merchant loader even if permission was denied.
           // Awaited so the Continue button's loading state (in
           // _ContinueAsState._proceed) stays true until this entire chain
           // — including the location permission prompt — actually finishes.
+          // NOTE: this is the MERCHANT ACCOUNT's own location gate — it is
+          // completely independent of store location, which is captured
+          // separately (and is mandatory) in AddEditStorePage.
           await _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
+        } else if (role == 'influencer') {
+          // C3: Influencer role selected. No new auth system, no location
+          // gate — the existing C1/C2 flow already handles both "has a
+          // profile" (shows it) and "no profile yet" (shows the existing
+          // Add Influencer Profile form) once inside the module, using
+          // only the authenticated token. Never a client-supplied
+          // influencer_id/account_id.
+          navigatorKey.currentState?.pushAndRemoveUntil(
+            _route(InfluencerModuleScreen(
+              token: tok, phone: ph, currentMode: 'influencer',
+              onSwitchMode: (newRole) => goSwitchMode(tok, nm, ph, uid, newRole),
+            )),
+            (r) => false,
+          );
         } else {
-          // User role selected → GPS location loader → user home
-          // (unchanged — navigates immediately, no intermediate async gap)
+          // User role selected + Continue tapped.
+          //
+          // Round 8 — Final User Location Flow: "Every time the user
+          // selects User → Continue, the app must start a fresh location
+          // decision" — this applies even to the very first Continue tap
+          // right after OTP verification, not just later re-entries via
+          // Switch Mode / "Back to Home" (see _goUserViaUnified below,
+          // which already does this). So this no longer passes the
+          // bootstrap-resolved accountData city through as forcedCity —
+          // that would skip straight to fetching deals for a city that may
+          // now be stale, exactly the bug already fixed for the
+          // Switch-Mode path. requireFreshGps: true runs the same
+          // permission → Location Services → GPS → reverse-geocode →
+          // manual-State+City-fallback flow uniformly for every User
+          // Continue tap. Never falls back to a default/guessed city
+          // (LocationLoadingScreen's own Ballari fallback was removed too).
           navigatorKey.currentState?.pushAndRemoveUntil(
             _route(LocationLoadingScreen(
               token: tok, name: nm, phone: ph, userId: uid,
+              requireFreshGps: true,
               onReady: ({required String city, required List<Map<String,dynamic>> stores,
                          required double? lat, required double? lng}) =>
                   goHomeWithData(token: tok, name: nm, phone: ph, userId: uid,
@@ -525,13 +647,44 @@ class MyApp extends StatelessWidget {
   static void goSwitchMode(String token, String name, String phone, String userId, String role) {
     if (role == 'merchant') {
       _goMerchantViaUnified(phone: phone, name: name);
+    } else if (role == 'influencer') {
+      // C4: same authenticated account/token — no separate identity to
+      // fetch (unlike User/Merchant, which issue a fresh role-specific
+      // token below). Just navigates into the existing C1/C2-backed
+      // Influencer module, which resolves everything from the token alone
+      // — never a client-supplied influencer_id/account_id.
+      _goInfluencerViaUnified(token: token, name: name, phone: phone, userId: userId);
     } else {
       // TASK 2 FIX: get a fresh user token so getWallet and user APIs work correctly
       _goUserViaUnified(phone: phone, name: name, userId: userId);
     }
   }
 
+  static void _goInfluencerViaUnified({required String token, required String name, required String phone, required String userId}) {
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      _route(InfluencerModuleScreen(
+        token: token, phone: phone, currentMode: 'influencer',
+        onSwitchMode: (newRole) => goSwitchMode(token, name, phone, userId, newRole),
+      )),
+      (r) => false,
+    );
+  }
+
   /// Switch to user mode — issues a fresh user session token, then routes home.
+  ///
+  /// This is the "Role Selection → User → Continue" entry point (reached
+  /// both from SwitchModeSheet and from the "Back to Home"/Role Selection
+  /// button shown on the "No Service" empty state). Per the finalized
+  /// requirement, tapping Continue as User must NOT silently reuse
+  /// whatever city was last browsed (e.g. a prior "No Service" city) — it
+  /// must re-establish the CURRENT device location fresh each time, only
+  /// falling back to manual State + City if that's genuinely unavailable.
+  /// So city is always passed as '' here AND requireFreshGps: true, so
+  /// LocationLoadingScreen runs its full permission → Location Services →
+  /// GPS → reverse-geocode → manual-fallback flow instead of its normal
+  /// cached-city fast path. The account's own saved city/state (set during
+  /// OTP bootstrap or its own manual fallback) is untouched by this —  see
+  /// LocationLoadingScreen.requireFreshGps's doc comment.
   static void _goUserViaUnified({required String phone, required String name, required String userId}) async {
     try {
       Api.clearCache();
@@ -543,15 +696,15 @@ class MyApp extends StatelessWidget {
       if (freshToken.isNotEmpty) {
         await Prefs.save(freshToken, freshName, phone, 'user', userId: freshId);
         await Prefs.saveMode('user');
-        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '');
+        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '', requireFreshGps: true);
       } else {
         // Fallback — use existing token (may cause wallet 401 but banners still load)
         await Prefs.saveMode('user');
-        goHome(token: '', name: name, phone: phone, userId: userId, city: '');
+        goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
       }
     } catch (e) {
       await Prefs.saveMode('user');
-      goHome(token: '', name: name, phone: phone, userId: userId, city: '');
+      goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
     }
   }
 
@@ -933,6 +1086,19 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Map<String,dynamic>> _stores=[]; List<String> _cats=["All"]; List<Map<String,dynamic>> _richCats=[];
   List<Map<String,dynamic>> _products=[];
   bool _productsLoading=true;
+  bool _adminBannersLoading=true; // ROUND 12 FIX: tracks ONLY admin-banner fetch/retry lifecycle
+  // ROUND 12 FIX (partial-Home fix): tracks ONLY the hero/city-image fetch
+  // (the /default-images call inside _loadSupplementary()) — mirrors
+  // _adminBannersLoading's pattern so _CityHeroSection can show a shimmer
+  // while its own photo is still loading instead of jumping straight to
+  // the "no image" flat-gradient fallback look.
+  bool _heroImageLoading=true;
+  // ROUND 12 FIX (stale-request protection): bumped by every _loadSupplementary()
+  // call. Each call captures its own value at start; if a newer call bumps this
+  // before an older one finishes, the older call's results are dropped instead
+  // of overwriting the newer call's state. Nothing is cancelled — old network
+  // calls still run to completion, only their effect on state is suppressed.
+  int  _supplementaryGen = 0;
   int  _unreadCount=0; // notification badge count
   final Set<String> _favStoreIds = {}; // track favorited stores
   int  _walletPoints=0; // wallet visit points
@@ -1035,26 +1201,45 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _unreadNotifier.addListener(_onUnreadChanged);
     FavState.instance.addListener(_onFavChanged);
     // FIX 1: scroll listener for FAB visibility
-    double _lastScrollOffset = 0;
+    // Item 3: the "hide bottom nav on scroll down" behavior (previously
+    // toggling _navVisible here) has been removed — the existing bottom
+    // nav (Home | Deals | Scan | Search | Profile) now stays fixed/visible
+    // while Home content scrolls. _navVisible itself, its ValueNotifier,
+    // and the AnimatedPositioned that reads it are all untouched — this
+    // only removes what was setting it to false.
     _scrollCtrl.addListener(() {
       final offset = _scrollCtrl.offset;
       // FAB: show when scrolled down > 120px
       _fabVisible.value = offset > 120;
-      // Nav: hide when scrolling DOWN, show when scrolling UP or near top
-      if (offset <= 10) {
-        _navVisible.value = true;
-      } else if (offset > _lastScrollOffset + 8) {
-        _navVisible.value = false; // scrolling down
-      } else if (offset < _lastScrollOffset - 8) {
-        _navVisible.value = true;  // scrolling up
-      }
-      _lastScrollOffset = offset;
     });
     if (widget.preloadedStores.isNotEmpty) {
       _usePreloadedData(); // async — clears _loading when done
       // Always fetch live GPS even when preloaded — ensures distance_km is computed
       _fetchLiveGpsAndRecomputeDistances();
+    } else if (widget.savedCity.isNotEmpty) {
+      // A city was already resolved BEFORE Home was reached — either via
+      // GPS (LocationLoadingScreen's normal flow) or an explicit manual
+      // State+City selection (AccountBootstrapScreen's mandatory fallback
+      // when GPS/permission wasn't available). Either way, widget.savedCity
+      // is an AUTHORITATIVE, already-known location for this session.
+      //
+      // An empty preloadedStores list here means "zero stores in that
+      // city" (a valid, expected result — see _emptyState()/the "No
+      // Service" UI below), NOT "location unavailable". It must never be
+      // treated as a reason to re-run GPS/location-permission detection:
+      // that would incorrectly show the "Location Access Required" screen
+      // for a location the user (or GPS) already explicitly resolved, and
+      // would silently discard a manually-selected city in favor of GPS.
+      //
+      // So this takes the same path as the non-empty-stores branch above,
+      // just without the live-GPS distance refresh (there are no stores to
+      // compute distance to, and firing a GPS/permission prompt here is
+      // exactly the unwanted "second location request" this fix removes).
+      _usePreloadedData(); // async — clears _loading when done; _stores stays []
     } else {
+      // No city known at all — never resolved via GPS, never manually
+      // selected. This is the genuine "location unavailable" case, and the
+      // only one where full GPS/permission detection should run.
       _initLoc();
     }
   }
@@ -1132,10 +1317,26 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           .compareTo((b["distance_km"] as double?) ?? 9999.0));
     }
 
+    // ROUND 11 FIX (Task 3, Candidate E): this used to keep `_loading` (and
+    // therefore the FULL-SCREEN skeleton — see build()'s `_loading ? ... :`
+    // branch) true until _loadSupplementary() below finished — i.e. until
+    // categories, sliders, both product endpoints, wallet AND admin
+    // banners had all come back, including two hard-coded 800ms/500ms retry
+    // delays if any came back empty. City + the actual store list are
+    // already fully known right here (LocationLoadingScreen already
+    // resolved and fetched them), so there is no real reason for Home's
+    // main content to keep waiting on that unrelated secondary data. Each
+    // section below (_CategoryChipsRow, _BannerStoresBlock,
+    // _DiscoverProductsSection, _PromoSliderSection, ...) already renders
+    // straight from its own list (_richCats/_adminBanners/_products/
+    // _sliders) with no separate loading flag, so it's safe to let those
+    // populate independently — they simply show empty/skeleton for the
+    // brief moment before _loadSupplementary's own setState (below) fills
+    // them in, exactly like a normal incremental page load.
     setState(() {
       city     = cityStr;
       _stores  = sl;
-      // Keep _loading=true until banners + products are ready
+      _loading = false;
     });
     if (cityStr.isNotEmpty) {
       Prefs.saveCity(cityStr);
@@ -1149,9 +1350,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _cachedLng    = widget.preloadedLng;
     _cacheTime    = DateTime.now();
 
-    // Await banners + products — only then clear loading overlay
-    await _loadSupplementary(cityStr);
-    if (mounted) setState(() => _loading = false);
+    // Fire-and-forget: secondary/supplementary content loads in the
+    // background and fills in via its own setState once ready — Home's
+    // main store content is already visible by this point (see above).
+    unawaited(_loadSupplementary(cityStr));
     FcmService.init(
       city: cityStr,
       token: widget.token,
@@ -1163,8 +1365,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadSupplementary(String c) async {
+    // ROUND 12 FIX (stale-request protection): this call's own generation
+    // token. Every state update below checks `myGen == _supplementaryGen`
+    // before writing — if a newer _loadSupplementary() call has started in
+    // the meantime (e.g. a city refresh fired while this one was still in
+    // flight), this call is stale and silently skips updating Home state.
+    final myGen = ++_supplementaryGen;
     // Show loading state for supplementary sections while fetching
-    if (mounted) setState(() { _productsLoading = true; });
+    if (mounted) setState(() { _productsLoading = true; _adminBannersLoading = true; _heroImageLoading = true; });
     try {
       // FIX 5: individual guards — one failure won't blank all sections
       List<String> cats2 = ["All"]; List<Map<String,dynamic>> richCats2 = [];
@@ -1188,9 +1396,58 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }).catchError((_) {}),
         Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
-        Api.getAdminBanners().then((v) => adminBannerList = v).catchError((_) {}),
+        // ROUND 12 FIX: admin-banner fetch + its own retry-if-empty now live
+        // together in this one future, so `_adminBannersLoading` flips to
+        // false the instant THIS future resolves — independent of how long
+        // categories/sliders/products/wallet (the other futures in this
+        // same Future.wait) or the later hero-images/sliders-retry/product-
+        // retries take. That is the entire fix: nothing else in this
+        // function's flow, ordering, or fallback behavior changes.
+        Api.getAdminBanners().then((v) async {
+          List list = (v as List);
+          if (list.isEmpty) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            try { list = await Api.getAdminBanners(); } catch (_) { }
+          }
+          adminBannerList = list;
+          // ROUND 12 FIX (partial-Home fix): apply the banner DATA here too,
+          // not just the loading flag. Previously `_adminBanners` was only
+          // ever assigned in the big end-of-function setState — which runs
+          // much later, after the hero-images fetch (up to a 10s timeout),
+          // the sliders retry and the product retries. That meant the
+          // shimmer could correctly disappear (flag flips here) while the
+          // real banner data sat unused for several more seconds, leaving
+          // _BannerStoresBlock with hasBanners=false/bannersLoading=false —
+          // i.e. nothing shown at all. Assigning it here closes that gap.
+          // ROUND 12 FIX (stale-request protection): only the current
+          // generation may write either of these — a stale call's
+          // admin-banner fetch/retry finishing late must not touch them.
+          if (mounted && myGen == _supplementaryGen) {
+            setState(() {
+              _adminBannersLoading = false;
+              _adminBanners = List<Map<String,dynamic>>.from(adminBannerList);
+            });
+          }
+        }).catchError((_) {
+          if (mounted && myGen == _supplementaryGen) setState(() { _adminBannersLoading = false; });
+        }),
 
       ]);
+
+      // ROUND 11 FOLLOW-UP — lifecycle safety: every setState below this
+      // point was already individually guarded by `mounted` (see the
+      // audit), so a disposed Home could never crash from this background
+      // work. This early return is the one thing that WASN'T already
+      // guarded: if the person has already left/disposed this Home by the
+      // time the network batch above finishes, there is no point spending
+      // more background work (the default-images fetch, the two 800ms/
+      // 500ms retry delays, the city/expiry filtering) on a result nobody
+      // can ever see. Bailing out here changes nothing for the normal
+      // (still-mounted) case — it only skips wasted work after disposal.
+      // ROUND 12 FIX (stale-request protection): also bail if a newer
+      // _loadSupplementary() call has since become the current generation.
+      if (!mounted || myGen != _supplementaryGen) return;
+
       // ── Hero images: fetch arrays from /default-images, rotate every 2 min ──
       List<String> resolvedCityImgs = [];
       try {
@@ -1212,6 +1469,28 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }
         resolvedCityImg = resolvedCityImgs.isNotEmpty ? resolvedCityImgs[0] : "";
+        // ROUND 12 FIX (partial-Home fix): apply the hero/city-image DATA
+        // here too, not just later — same issue as the admin-banner fix
+        // above: previously `_cityImageUrl(s)` were only ever assigned in
+        // the big end-of-function setState, which runs after the sliders
+        // retry and product retries finish. Applying it here, right where
+        // it's resolved, means the hero photo (or the fallback, if there
+        // genuinely isn't one) can appear as soon as it's actually known,
+        // instead of sitting resolved-but-unapplied for several more
+        // seconds. `_heroImageLoading` flips false in the same setState so
+        // _CityHeroSection's shimmer and its real content change together.
+        if (mounted && myGen == _supplementaryGen) {
+          setState(() {
+            _heroImageLoading = false;
+            if (resolvedCityImgs.isNotEmpty) {
+              _cityImageUrls = resolvedCityImgs;
+              _cityImageUrl  = resolvedCityImgs[0];
+            } else if (resolvedCityImg.isNotEmpty) {
+              _cityImageUrls = [resolvedCityImg];
+              _cityImageUrl  = resolvedCityImg;
+            }
+          });
+        }
         // Load no-service config (handle String or List from backend)
         final nsImgs = defaults["no_service_url"];
         String _nsUrl = "";
@@ -1220,39 +1499,52 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
           _nsUrl = nsImgs.trim();
         }
-        if ((_nsUrl.startsWith("http") || _nsUrl.startsWith("data:image")) && mounted) {
+        // ROUND 12 FIX (stale-request protection): guard every write below
+        // with `myGen == _supplementaryGen` so a stale generation's
+        // /default-images response can't overwrite a newer generation's
+        // hero/default-image/fallback-banner state.
+        if ((_nsUrl.startsWith("http") || _nsUrl.startsWith("data:image")) && mounted && myGen == _supplementaryGen) {
           setState(() { _noServiceImg = _nsUrl; });
         }
         final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
         final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
         final defProd = (defaults["product"] ?? "").toString().trim();
-        if (mounted) setState(() {
+        if (mounted && myGen == _supplementaryGen) setState(() {
           if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
           if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
           if (defProd.isNotEmpty) _defaultProductImageUrl = defProd;
         });
         // merchant_banner is now an array of URLs (images or mp4 videos)
-        final _mbRaw = defaults["merchant_banner"];
-        if (_mbRaw is List) {
-          _mbFallbackSliders = _mbRaw
-              .where((u) {
-                if (u is! String) return false;
-                final s = u as String;
-                // Allow http URLs AND base64 images/videos
-                return s.startsWith("http") || s.startsWith("data:image") || s.startsWith("data:video");
-              })
-              .map<Map<String,dynamic>>((u) {
-                final uid = "mb_${(u as String).hashCode.abs()}";
-                return {"id": uid, "title": "", "subtitle": "",
-                  "image": u, "image_url": u,
-                  "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
-              }).toList();
-        } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
-          _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
-        } else {
-          _mbFallbackSliders = [];
+        if (myGen == _supplementaryGen) {
+          final _mbRaw = defaults["merchant_banner"];
+          if (_mbRaw is List) {
+            _mbFallbackSliders = _mbRaw
+                .where((u) {
+                  if (u is! String) return false;
+                  final s = u as String;
+                  // Allow http URLs AND base64 images/videos
+                  return s.startsWith("http") || s.startsWith("data:image") || s.startsWith("data:video");
+                })
+                .map<Map<String,dynamic>>((u) {
+                  final uid = "mb_${(u as String).hashCode.abs()}";
+                  return {"id": uid, "title": "", "subtitle": "",
+                    "image": u, "image_url": u,
+                    "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
+                }).toList();
+          } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
+            _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
+          } else {
+            _mbFallbackSliders = [];
+          }
         }
-      } catch (e) { }
+      } catch (e) {
+        // ROUND 12 FIX (partial-Home fix): the /default-images call itself
+        // failed or timed out (up to 10s) — don't leave the hero shimmer
+        // spinning forever. Flip it false here too so _CityHeroSection
+        // falls back to its existing flat-gradient look, same as "hero
+        // image genuinely doesn't exist".
+        if (mounted && myGen == _supplementaryGen) setState(() { _heroImageLoading = false; });
+      }
 
       final cats = cats2;
 
@@ -1272,11 +1564,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
         slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
       }
-      // Retry admin banners once if empty (large base64 image can timeout)
-      if (adminBannerList.isEmpty) {
-        await Future.delayed(const Duration(milliseconds: 500));
-        try { adminBannerList = await Api.getAdminBanners(); } catch (_) { }
-      }
+      // ROUND 12 FIX: admin-banner empty-retry moved into the Future.wait
+      // future above (so _adminBannersLoading can flip independently) —
+      // removed from here to avoid double-retrying.
       // Retry products if fewer than expected
       if (voucs.length < 8) {
         try {
@@ -1315,7 +1605,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       }
 
 
-      if (!mounted) return;
+      // ROUND 12 FIX (stale-request protection): bail if a newer generation
+      // has since taken over — covers the final setState block below
+      // (_cats, _richCats, _sliders, _adminBanners, _products,
+      // _productsLoading, _walletPoints, _cityImageUrl(s)) plus the
+      // slider-autoplay/hero-rotation/popup-check calls that follow it.
+      if (!mounted || myGen != _supplementaryGen) return;
       final sliderList  = List<Map<String,dynamic>>.from(slides);
       final productList = List<Map<String,dynamic>>.from(voucs);
       for (int i = 0; i < sliderList.length; i++)  sliderList[i]["_idx"]  = i;
@@ -1666,7 +1961,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   tooltip:"Use GPS",
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true;});
+                    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true; _adminBannersLoading=true;});
                     final det = await detectCity();
                     try {
                       final pos = await Geolocator.getCurrentPosition(desiredAccuracy:LocationAccuracy.medium)
@@ -1850,7 +2145,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // Pass position directly — avoids a second GPS fetch inside detectCity()
       det = await detectCityFromPosition(pos).timeout(const Duration(seconds: 10));
     } catch (e) {
-      // Use cached coords city if available, else savedCity, else default
+      // Use cached coords city if available, else savedCity. NEVER a
+      // hardcoded default city (no "Ballari") — the account's city was
+      // already resolved (via GPS or mandatory manual State+City entry) or
+      // intentionally left empty before Role Selection (see
+      // login_screen.dart's _AccountBootstrapScreen/_handleRoleSelected);
+      // this live-GPS refresh (for distance sorting) must never silently
+      // override that with a guessed city when it fails.
       if (_userLat != null && _userLng != null) {
         try {
           final cachedPos = Position(
@@ -1860,10 +2161,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           );
           det = await detectCityFromPosition(cachedPos).timeout(const Duration(seconds: 8));
         } catch (_) {
-          det = widget.savedCity.isNotEmpty ? widget.savedCity : "Ballari";
+          det = widget.savedCity;
         }
       } else {
-        det = widget.savedCity.isNotEmpty ? widget.savedCity : "Ballari";
+        det = widget.savedCity;
       }
     }
 
@@ -1984,6 +2285,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       cityImageUrl: _cityImageUrl,
                       cityManual: _cityManual,
                       unreadCount: _unreadCount,
+                      // ROUND 12 FIX (partial-Home fix): while the hero
+                      // photo is still loading, show a shimmer (reserving
+                      // the same height) instead of jumping straight to the
+                      // "no image" flat-gradient fallback.
+                      imageLoading: _heroImageLoading,
                       onCityTap: () => _showCityPicker(context),
                       onBellTap: () => _openNotifications(context),
                     )),
@@ -2012,6 +2318,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       favStoreIds: _favStoreIds,
                       onFavChanged: _loadFavStores,
                       onViewAll: () => _viewAll(context, "Explore Stores", _topStores, bigCards: false),
+                      // ROUND 12 FIX: was `_productsLoading` (the whole
+                      // _loadSupplementary() bundle — categories, sliders,
+                      // products, wallet, default-images, retries). Now
+                      // uses a dedicated flag that tracks ONLY the admin-
+                      // banner fetch/retry, so the shimmer here disappears
+                      // exactly when the banner itself is ready, regardless
+                      // of how long unrelated background loading takes.
+                      bannersLoading: _adminBannersLoading,
                     )),
 
 
@@ -2022,6 +2336,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       token: widget.token,
                       defaultProductImageUrl: _defaultProductImageUrl,
                     )),
+
+                    // ══════ 6b. CITY INFLUENCERS (reuses screens/home/influencer_section.dart) ══════
+                    SliverToBoxAdapter(child: CityInfluencersSection(city: city, token: widget.token)),
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
@@ -2854,6 +3171,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _load() async {
     await Prefs.clearUnread(); // Mark all as read when page opens
+    // BUG FIX (Item 2 — iOS badge stuck after reading): this is the ONE
+    // place that always runs whenever the Notifications page is opened,
+    // regardless of entry path (home-screen bell tap via _openNotifications
+    // — which already did this two lines below — OR tapping a push
+    // notification directly via _handleNotificationNavigation, which pushes
+    // this same page WITHOUT going through _openNotifications). The direct-
+    // from-push path never reset _unreadNotifier or called _clearIOSBadge(),
+    // so the real iOS home-screen badge stayed stuck at whatever value the
+    // last push delivered — this is the actual root cause of "badge remains
+    // after reading" for that entry path. Doing it here as well (harmless,
+    // idempotent, if _openNotifications also just ran it) closes the gap
+    // for every current and future way of reaching this page.
+    _unreadNotifier.value = 0;
+    await _clearIOSBadge();
     // Auto-purge notifications older than 30 days
     final rawList = await Prefs.getNotifications();
     final cutoff  = DateTime.now().subtract(const Duration(days: 30));
@@ -2913,9 +3244,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
+  // BUG FIX (Round 4 — Bug 2, "time shown is wrong"): backend timestamps
+  // are UTC, but historically serialized without an explicit timezone
+  // suffix. DateTime.parse() treats a timezone-less string as LOCAL time
+  // instead of UTC, which on an IST (UTC+5:30) device silently shifted the
+  // parsed instant, making a fresh timestamp look ~5.5h old. Force UTC
+  // interpretation whenever the string has no timezone marker of its own —
+  // correct for both old (naive) and new (explicit "Z") timestamps.
   String _timeAgo(String isoTs) {
     try {
-      final dt   = DateTime.parse(isoTs);
+      final s = isoTs.trim();
+      final hasTzMarker = RegExp(r'(Z|[+-]\d{2}:?\d{2})$').hasMatch(s);
+      final dt   = DateTime.parse(hasTzMarker ? s : '${s}Z');
       final diff = DateTime.now().difference(dt);
       if (diff.inMinutes < 1)  return "just now";
       if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
@@ -3428,9 +3768,12 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
       // FIX: was a silent swallow (`catch (_)`) — a real crash/network error
       // looked EXACTLY like "no stores in this category," making the two
       // impossible to tell apart. Now the real reason is shown on-screen.
+      // Round 9: shown through the shared classifier so the reason is
+      // never a raw exception/stack trace.
+      debugPrint('[OffrO] category stores load error: $e');
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = friendlyError(e);
           _loading = false;
         });
       }
@@ -4460,6 +4803,15 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     ).toList();
   }
 
+  // Round 12 (Task 5): the currently-visible (filtered) deals that have an
+  // image — same "only these can open the gallery" rule StoreOffersSection
+  // already applies to Today's Offers. `.where()` doesn't clone the Map
+  // elements, so a tapped deal from `items`/`_filtered` is still the same
+  // object instance found here, which is what openDealGallery's identity
+  // -based indexOf relies on.
+  List<Map<String,dynamic>> get _dealsWithImages =>
+      _filtered.where((d) => (d["image_url"] ?? "").toString().isNotEmpty).toList();
+
   // Parse validity date string to DateTime — handles multiple formats
   DateTime? _parseDate(String s) {
     if (s.isEmpty) return null;
@@ -4605,7 +4957,26 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                     final expired = _isExpired(endDate);
                     return GestureDetector(
                       onTap: () {
-                        // Navigate to the store's detail page
+                        // ROUND 12 FIX (Task 5): tapping a Home "Hot Deals"
+                        // row used to always open Store Detail first. Now it
+                        // opens the exact same swipeable full-screen deal
+                        // gallery Today's Offers uses (see openDealGallery
+                        // in store_offers_section.dart) directly, starting
+                        // at this exact deal, without going through Store
+                        // Detail at all.
+                        //
+                        // A deal with no image can't be shown in an image
+                        // gallery — Today's Offers has the same rule (a
+                        // no-image deal there renders a non-tappable
+                        // decorative card). Rather than leaving the tap do
+                        // nothing at all here (this list doesn't have that
+                        // decorative fallback design), it keeps going to
+                        // Store Detail in that one case, so the tap still
+                        // does something useful.
+                        if (imgUrl.isNotEmpty) {
+                          openDealGallery(ctx, _dealsWithImages, d);
+                          return;
+                        }
                         final store = <String,dynamic>{
                           "_id":        storeId,
                           "store_name": storeName,
@@ -5081,11 +5452,19 @@ class _CityHeroSection extends StatelessWidget {
   final String cityImageUrl;   // URL from /default-images → "city" key
   final bool cityManual;
   final int unreadCount;
+  // ROUND 12 FIX (partial-Home fix): true while _loadSupplementary()'s
+  // hero/city-image fetch is still in flight for the current generation —
+  // i.e. `cityImageUrl` being empty might just mean "not fetched yet", not
+  // "no hero image for this city". Defaults to false so this stays a
+  // purely additive change. Mirrors _adminBannersLoading's role for
+  // _BannerStoresBlock.
+  final bool imageLoading;
   final VoidCallback onCityTap;
   final VoidCallback onBellTap;
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     required this.cityManual, required this.unreadCount,
+    this.imageLoading = false,
     required this.onCityTap, required this.onBellTap,
   });
 
@@ -5116,14 +5495,13 @@ class _CityHeroSection extends StatelessWidget {
               width: double.infinity,
               height: double.infinity,
               memCacheWidth: 900,
-              placeholder: (_, __) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
-                  ),
-                ),
-              ),
+              // ROUND 12 FIX (Task 6): was a flat gradient box while the
+              // image downloaded — same reserved SizedBox/height either
+              // way (see the LayoutBuilder above), so this only swaps what
+              // fills that box during the brief loading window, not the
+              // box itself. A genuine failure still falls back to the
+              // original plain gradient below (errorWidget, unchanged).
+              placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
               errorWidget: (_, __, ___) => Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -5133,14 +5511,24 @@ class _CityHeroSection extends StatelessWidget {
                 ),
               ),
             )
-          : Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+          // ROUND 12 FIX (partial-Home fix): `cityImageUrl` empty used to
+          // always mean "show the flat brand-gradient fallback", with no
+          // way to tell "genuinely no hero image" apart from "the fetch
+          // just hasn't come back yet". While `imageLoading` is true it's
+          // the latter — reserve the same box (SizedBox/heroH unchanged)
+          // and shimmer instead, so this section doesn't visually "finish"
+          // before its own data has actually arrived. Once imageLoading is
+          // false, this falls through to the exact original fallback.
+          : imageLoading
+            ? _shimmerBox(width: double.infinity, height: double.infinity)
+            : Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                    colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+                  ),
                 ),
               ),
-            ),
 
         // ── Dark scrim for readability ──
         Positioned.fill(
@@ -5494,8 +5882,11 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Text("Discover Products",
-            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Discover Products",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -5531,8 +5922,11 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Text("Discover Products",
-            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Discover Products",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
         ),
         SizedBox(
           height: 170, // reduced — title/price fonts are smaller now
@@ -5645,7 +6039,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                                   setH(() { v["_isFav"] = !next; _pFav = !next; });
                                   FavState.instance.toggleProduct(pid);
                                   ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
-                                    content: Text("Couldn't save favorite: ${e.toString()}"),
+                                    content: Text("Couldn't save favorite: ${friendlyError(e)}"),
                                     backgroundColor: Colors.red.shade700,
                                     duration: const Duration(seconds: 12),
                                     showCloseIcon: true));
@@ -6310,11 +6704,20 @@ class _BannerStoresBlock extends StatefulWidget {
   final VoidCallback onViewAll;
   final Set<String> favStoreIds;
   final VoidCallback onFavChanged;
+  // Round 12 (Task 6): true while _loadSupplementary() (Round 11's
+  // background loader) is still in flight — i.e. `banners` being empty
+  // might just mean "not fetched yet", not "none for this city". Lets this
+  // widget reserve the banner's normal height with a shimmer instead of
+  // collapsing to the stores-only layout and then jumping open once real
+  // banners arrive. Defaults to false so a caller that doesn't pass it
+  // keeps exactly the old behavior (empty banners == no banner space).
+  final bool bannersLoading;
   const _BannerStoresBlock({
     required this.banners, required this.stores,
     required this.token,   required this.onViewAll,
     this.favStoreIds = const {},
     required this.onFavChanged,
+    this.bannersLoading = false,
   });
   @override State<_BannerStoresBlock> createState() => _BannerStoresBlockState();
 }
@@ -6362,7 +6765,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
       return CachedNetworkImage(imageUrl: imgUrl,
         fit: BoxFit.fitWidth, alignment: Alignment.topCenter,
         width: double.infinity,
-        placeholder: (_, __) => Container(color: const Color(0xFF3E5F55)),
+        // ROUND 12 FIX (Task 6): shimmer while this specific banner image
+        // downloads, instead of a flat solid box. errorWidget (a genuine
+        // load failure) keeps the original gradient fallback, unchanged.
+        placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
         errorWidget: (_, __, ___) => _gradBox());
     }
     return _gradBox();
@@ -6384,7 +6790,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   @override Widget build(BuildContext context) {
     final hasBanners = widget.banners.isNotEmpty;
     final hasStores  = widget.stores.isNotEmpty;
-    if (!hasBanners && !hasStores) return const SizedBox.shrink();
+    if (!hasBanners && !hasStores && !widget.bannersLoading) return const SizedBox.shrink();
 
     // Heights — 3:2 banner, 35-40% card overlap
     const double bannerH   = 320.0;
@@ -6393,7 +6799,38 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     const double headerH   = 0.0;
     const double topPad    = 14.0;
 
-    // Stores-only (no banner)
+    // ROUND 12 FIX (Task 6): `banners` being empty can mean two different
+    // things — "none for this city" (stay collapsed, as before) or
+    // "_loadSupplementary() just hasn't come back yet" (Round 11 made this
+    // load in the background after Home already appears). Previously both
+    // looked the same here, so Home would render in the stores-only shape
+    // and then — once the real banners arrived a moment later — suddenly
+    // grow to the taller banner+overlap shape, shoving the store cards
+    // (and everything below them) down. While still loading, this reserves
+    // that exact same taller shape up front with a shimmer standing in for
+    // the banner, so nothing shifts once the real banner swaps in.
+    if (!hasBanners && widget.bannersLoading) {
+      if (!hasStores) {
+        return Padding(
+          padding: const EdgeInsets.only(top: topPad),
+          child: SizedBox(height: bannerH, child: _shimmerBox(width: double.infinity, height: bannerH)));
+      }
+      final totalH = topPad + bannerH + cardH - overlapPx;
+      return SizedBox(
+        height: totalH,
+        child: Stack(clipBehavior: Clip.none, children: [
+          Positioned(top: topPad, left: 0, right: 0, height: bannerH,
+            child: _shimmerBox(width: double.infinity, height: bannerH)),
+          Positioned(
+            top: topPad + bannerH - overlapPx,
+            left: 0, right: 0,
+            child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
+          ),
+        ]),
+      );
+    }
+
+    // Stores-only (no banner, and we now know there genuinely isn't one)
     if (!hasBanners) return _storesOnly(cardH, headerH);
 
     // Banner-only (no stores)
@@ -6417,54 +6854,61 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         Positioned(
           top: topPad + bannerH - overlapPx,
           left: 0, right: 0,
-          child: SizedBox(
-            height: cardH,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
-              clipBehavior: Clip.none,
-              padding: const EdgeInsets.fromLTRB(16, 0, 4, 0),
-              // +1 for the "See All" card at the end
-              itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
-              itemBuilder: (ctx, i) {
-                final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
-                if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
-                // Last card: "See All" — matches floating store card dimensions
-                return GestureDetector(
-                  onTap: widget.onViewAll,
-                  child: Center(
-                    child: Container(
-                    width: 52, height: 120,
-                    margin: const EdgeInsets.only(left: 4, right: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withValues(alpha: .08),
-                        blurRadius: 8, offset: const Offset(0, 3))],
-                    ),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Container(
-                        width: 22, height: 22,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFe8f4ef),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.store_mall_directory_rounded, color: Color(0xFF3E5F55), size: 14),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text("See All\nStores",
-                        style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
-                        textAlign: TextAlign.center),
-                    ]),
-                  ),),
-                );
-              },
-            ),
-          ),
+          child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
         ),
       ]),
+    );
+  }
+
+  // ── Shared store-cards row (Round 12: extracted so the real "Both"
+  // layout and the new loading-shimmer layout above don't each maintain
+  // their own copy of this ListView.builder + "See All" card) ──────────
+  Widget _storeCardsList(double cardH, EdgeInsets padding) {
+    return SizedBox(
+      height: cardH,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        clipBehavior: Clip.none,
+        padding: padding,
+        // +1 for the "See All" card at the end
+        itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
+        itemBuilder: (ctx, i) {
+          final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
+          if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
+          // Last card: "See All" — matches floating store card dimensions
+          return GestureDetector(
+            onTap: widget.onViewAll,
+            child: Center(
+              child: Container(
+              width: 52, height: 120,
+              margin: const EdgeInsets.only(left: 4, right: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
+                boxShadow: [BoxShadow(
+                  color: Colors.black.withValues(alpha: .08),
+                  blurRadius: 8, offset: const Offset(0, 3))],
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Container(
+                  width: 22, height: 22,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFe8f4ef),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.store_mall_directory_rounded, color: Color(0xFF3E5F55), size: 14),
+                ),
+                const SizedBox(height: 4),
+                const Text("See All\nStores",
+                  style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
+                  textAlign: TextAlign.center),
+              ]),
+            ),),
+          );
+        },
+      ),
     );
   }
 
@@ -6512,53 +6956,12 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   }
 
   // ── Stores-only fallback (no banner) — no heading, See All as last card ──
+  // Round 12: now just calls the shared _storeCardsList helper above
+  // instead of keeping its own copy of the same ListView.builder.
   Widget _storesOnly(double cardH, double headerH) {
     return Padding(
       padding: const EdgeInsets.only(top: 14),
-      child: SizedBox(
-        height: cardH,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          clipBehavior: Clip.none,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
-          itemBuilder: (ctx, i) {
-            final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
-            if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
-            return GestureDetector(
-              onTap: widget.onViewAll,
-              child: Center(
-                child: Container(
-                width: 52, height: 120,
-                margin: const EdgeInsets.only(left: 4, right: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
-                  boxShadow: [BoxShadow(
-                    color: Colors.black.withValues(alpha: .08),
-                    blurRadius: 8, offset: const Offset(0, 3))],
-                ),
-                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(
-                    width: 22, height: 22,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFe8f4ef),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.store_mall_directory_rounded, color: Color(0xFF3E5F55), size: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text("See All\nStores",
-                    style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
-                    textAlign: TextAlign.center),
-                ]),
-              ),),
-            );
-          },
-        ),
-      ),
+      child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 16, 0)),
     );
   }
 
@@ -6958,8 +7361,11 @@ class _PromoSliderSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Text("Featured Banners",
-            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Featured Banners",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Latest offers from our stores", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
         ),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -7213,6 +7619,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         const SnackBar(content: Text("Review submitted! Thank you."),
           backgroundColor: Color(0xFF3E5F55)));
     } catch (e) {
+      debugPrint('[OffrO] product review submit error: $e');
       if (mounted) {
         setState(() => _reviewSubmitting = false);
         // FIX: detect "Session expired" and show a user-friendly message with login prompt
@@ -7221,7 +7628,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(isSessionExpired
               ? "Your session has expired. Please log in again to submit a review."
-              : errStr.replaceFirst("Exception: ", "")),
+              : friendlyError(e)),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 12),
           showCloseIcon: true,
@@ -7308,7 +7715,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       setState(() => _isFav = prev);
                       FavState.instance.setProduct(pid, prev);
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text("Couldn't save favorite: ${e.toString()}"),
+                        content: Text("Couldn't save favorite: ${friendlyError(e)}"),
                         backgroundColor: Colors.red.shade700,
                         duration: const Duration(seconds: 12),
                         showCloseIcon: true));
@@ -8308,7 +8715,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                   setState(() => _isFav = !next);
                   FavState.instance.setProduct(pid, !next);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Couldn't save favorite: ${e.toString()}"),
+                    content: Text("Couldn't save favorite: ${friendlyError(e)}"),
                     backgroundColor: Colors.red.shade700,
                     duration: const Duration(seconds: 12),
                     showCloseIcon: true));
@@ -8839,9 +9246,10 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
         ),
       );
     } catch (e) {
+      debugPrint('[OffrO] delete account request error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${e.toString().replaceAll('Exception: ', '')}"),
+        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
           backgroundColor: Colors.red),
       );
     }

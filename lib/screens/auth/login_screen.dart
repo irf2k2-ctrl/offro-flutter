@@ -8,8 +8,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
@@ -75,6 +77,31 @@ class _OtpScreenState extends State<OtpScreen> {
 
   String get _enteredOtp => _ctls.map((c) => c.text).join();
 
+  // Item 4: handles both a normal single-keystroke digit (unchanged
+  // auto-advance behavior) and a multi-character value inserted all at
+  // once by Android's SMS/autofill framework (AutofillHints.oneTimeCode),
+  // which would otherwise only land in whichever single box it targets.
+  void _handleOtpChange(int i, String v) {
+    if (v.length > 1) {
+      final digits = v.replaceAll(RegExp(r'[^0-9]'), '');
+      for (int j = 0; j < 4; j++) {
+        _ctls[j].text = j < digits.length ? digits[j] : '';
+      }
+      setState(() {});
+      if (_enteredOtp.length == 4) {
+        FocusScope.of(context).unfocus();
+        _verify();
+      } else if (digits.isNotEmpty) {
+        FocusScope.of(context).requestFocus(_foci[digits.length.clamp(0, 3)]);
+      }
+      return;
+    }
+    setState(() {});
+    if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_foci[i + 1]);
+    else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_foci[i - 1]);
+    if (_enteredOtp.length == 4) _verify();
+  }
+
   Future<void> _verify() async {
     final otp = _enteredOtp;
     if (otp.length < 4) {
@@ -99,8 +126,11 @@ class _OtpScreenState extends State<OtpScreen> {
         if (mounted) setState(() { _msg = err; _msgOk = false; _loading = false; });
       }
     } catch (e) {
+      // Round 9: OTPWidget.verifyOTP (MSG91 SDK) exceptions — network/SDK
+      // failures never reach the customer as raw technical text.
+      debugPrint('[OffrO] OTP verify error: $e');
       if (mounted) setState(() {
-        _msg = e.toString().replaceAll('Exception: ', '');
+        _msg = friendlyError(e, fallback: "Unable to verify OTP right now. Please try again.");
         _msgOk = false; _loading = false;
       });
     }
@@ -122,7 +152,13 @@ class _OtpScreenState extends State<OtpScreen> {
         if (ok) { _startResendTimer(); FocusScope.of(context).requestFocus(_foci[0]); }
       }
     } catch (e) {
-      if (mounted) setState(() { _msg = e.toString().replaceAll('Exception: ', ''); _msgOk = false; _resending = false; });
+      // Round 9: OTPWidget.retryOTP (MSG91 SDK) exceptions — same mapping
+      // as _verify() above.
+      debugPrint('[OffrO] OTP resend error: $e');
+      if (mounted) setState(() {
+        _msg = friendlyError(e, fallback: "Unable to resend OTP right now. Please try again.");
+        _msgOk = false; _resending = false;
+      });
     }
   }
 
@@ -166,7 +202,8 @@ class _OtpScreenState extends State<OtpScreen> {
                 style: TextStyle(color: Colors.white.withValues(alpha: .65), fontSize: 13, height: 1.5)),
               const SizedBox(height: 32),
               // OTP boxes
-              Row(
+              AutofillGroup(
+                child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(4, (i) => Container(
                   width: 60, height: 64,
@@ -182,17 +219,20 @@ class _OtpScreenState extends State<OtpScreen> {
                     controller: _ctls[i], focusNode: _foci[i],
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
-                    maxLength: 1,
+                    // Item 4: no maxLength here anymore — Android's SMS
+                    // autofill can insert the full detected code (e.g.
+                    // "1234") into whichever field it targets; a maxLength
+                    // of 1 would silently truncate that to a single digit.
+                    // _handleOtpChange below distributes a multi-character
+                    // value across all 4 boxes; a single keystroke behaves
+                    // exactly as before (unchanged auto-advance behavior).
+                    autofillHints: const [AutofillHints.oneTimeCode],
                     style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
                     decoration: const InputDecoration(counterText: '', border: InputBorder.none),
-                    onChanged: (v) {
-                      setState(() {});
-                      if (v.isNotEmpty && i < 3) FocusScope.of(context).requestFocus(_foci[i + 1]);
-                      else if (v.isEmpty && i > 0) FocusScope.of(context).requestFocus(_foci[i - 1]);
-                      if (_enteredOtp.length == 4) _verify();
-                    },
+                    onChanged: (v) => _handleOtpChange(i, v),
                   ),
                 )),
+                ),
               ),
               if (_msg.isNotEmpty) ...[
                 const SizedBox(height: 14),
@@ -245,6 +285,266 @@ class _OtpScreenState extends State<OtpScreen> {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ACCOUNT BOOTSTRAP  — runs right after OTP verification, before Role
+// Selection. New flow (per the finalized location requirements):
+//
+//   OTP VERIFIED → ACCOUNT LOGIN/LOAD ACCOUNT → CHECK ACCOUNT LOCATION
+//   → LOCATION HANDLING IF REQUIRED → ROLE SELECTION
+//
+// This calls /user/account-login exactly ONCE for the whole OTP → Role
+// Selection journey — the resulting account data (token/roles/city/etc.) is
+// threaded through to ContinueAsScreen and _handleRoleSelected below, which
+// must NOT call account-login again (avoids the duplicate-call regression
+// called out in the requirements).
+//
+// Account location and store location are completely independent — this
+// screen only ever reads/writes accounts.city (via PUT /user/city), never
+// touches a merchant's store city/lat/lng.
+// ══════════════════════════════════════════════════════════════════════════════
+class _AccountBootstrapScreen extends StatefulWidget {
+  final String phone;
+  final void Function(Map<String, dynamic> accountData) onReady;
+  const _AccountBootstrapScreen({required this.phone, required this.onReady});
+  @override State<_AccountBootstrapScreen> createState() => _AccountBootstrapScreenState();
+}
+
+class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> with WidgetsBindingObserver {
+  String _status = 'Setting up your account...';
+  String _err = '';
+
+  // Set only when device Location Services (the master OS switch — distinct
+  // from the app's own location PERMISSION, which may already be granted)
+  // are OFF and we've sent the person to the system Location Settings
+  // screen. While true, this screen stays on its loading state — it does
+  // NOT proceed to Role Selection yet. didChangeAppLifecycleState below
+  // re-checks Location Services as soon as the app resumes and either
+  // retries GPS automatically or, if still off, continues with an empty
+  // city (handled later at Role Selection — never a default/guessed city).
+  bool _waitingForLocationServices = false;
+  Map<String, dynamic>? _pendingAccountData;
+  String? _pendingToken;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _run();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Reuses the same WidgetsBindingObserver/didChangeAppLifecycleState
+    // pattern already used elsewhere in the app (see _HomeState in
+    // main.dart) rather than introducing a new lifecycle mechanism.
+    if (state == AppLifecycleState.resumed && _waitingForLocationServices) {
+      _waitingForLocationServices = false;
+      _retryAfterLocationSettings();
+    }
+  }
+
+  Future<void> _run() async {
+    if (mounted) setState(() {
+      _err = '';
+      _status = 'Setting up your account...';
+      _waitingForLocationServices = false;
+    });
+
+    Map<String, dynamic> d;
+    try {
+      // The single, unified account-login call for this entire journey.
+      d = await Api.loginAccount(widget.phone);
+    } catch (e) {
+      debugPrint('[OffrO] account bootstrap login error: $e');
+      if (mounted) setState(() => _err = friendlyError(e));
+      return;
+    }
+
+    final token = d['token']?.toString() ?? '';
+    String city = d['city']?.toString() ?? '';
+
+    // CHECK ACCOUNT LOCATION → LOCATION HANDLING IF REQUIRED.
+    // Already has a city → never ask again, go straight to Role Selection.
+    // Missing → attempt to resolve it silently (permission may be granted
+    // or denied, device Location Services may be off, GPS may or may not
+    // be available). NEVER assign a default/guessed city (no "Ballari")
+    // here — a still-empty city is handled later, only if/when the User
+    // role is actually selected.
+    if (token.isNotEmpty && city.isEmpty) {
+      if (mounted) setState(() => _status = 'Getting your location...');
+      final resolvedCity = await _attemptAccountLocation(token);
+
+      if (_waitingForLocationServices) {
+        // We just sent the person to system Location Settings — hold this
+        // screen (and the fetched account data) until the app resumes; see
+        // didChangeAppLifecycleState/_retryAfterLocationSettings. Do NOT
+        // proceed to Role Selection yet, and do NOT show manual State+City
+        // yet either — the person hasn't had a chance to enable Location
+        // Services and come back.
+        _pendingAccountData = d;
+        _pendingToken = token;
+        return;
+      }
+
+      if (resolvedCity != null && resolvedCity.isNotEmpty) city = resolvedCity;
+    }
+
+    d['city'] = city;
+    if (!mounted) return;
+    widget.onReady(d);
+  }
+
+  /// Called when the app resumes after we sent the person to system
+  /// Location Settings. Re-checks Location Services (never assumes turning
+  /// it on happened just because they came back), and if it's now on,
+  /// retries GPS + reverse-geocode automatically — the person never has to
+  /// select User first, and manual State+City is never shown immediately
+  /// on return. If Location Services are still off, this simply continues
+  /// the bootstrap with an empty city (handled at Role Selection).
+  Future<void> _retryAfterLocationSettings() async {
+    final token = _pendingToken;
+    final d = _pendingAccountData;
+    _pendingToken = null;
+    _pendingAccountData = null;
+    if (token == null || d == null || !mounted) return;
+
+    String city = '';
+    final stillOff = !(await Geolocator.isLocationServiceEnabled());
+    if (!stillOff) {
+      if (mounted) setState(() => _status = 'Getting your location...');
+      city = await _acquireAndSaveLocation(token) ?? '';
+    }
+    // stillOff (or acquisition failed anyway) → city stays '' — no
+    // Ballari/default/guessed city, ever.
+
+    d['city'] = city;
+    if (!mounted) return;
+    widget.onReady(d);
+  }
+
+  /// Resolve the ACCOUNT's city from device GPS, reusing the same
+  /// permission-request pattern (MyApp.ensureLocationPermission) and the
+  /// same backend reverse-geocode endpoint (Api.reverseGeocode →
+  /// GET /reverse-geocode) already used by the merchant Add Store "Current
+  /// Location" flow, instead of building a second location system.
+  ///
+  /// This is strictly an ACCOUNT-level lookup: it only ever saves to
+  /// accounts.city/accounts.state via Api.updateCity(). It is never used to
+  /// determine or overwrite a merchant store's location — store location is
+  /// captured independently in AddEditStorePage (merchant_screens.dart).
+  ///
+  /// Returns null (never a default/guessed city) whenever permission is
+  /// denied, location services are off (in which case this also sends the
+  /// person to system Location Settings and sets
+  /// _waitingForLocationServices — see _run()), or the position/reverse-
+  /// geocode lookup fails for any reason.
+  Future<String?> _attemptAccountLocation(String token) async {
+    try {
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) {
+        // App-level permission denied — unrelated to the device's Location
+        // Services switch. Nothing to open; handled at Role Selection.
+        return null;
+      }
+
+      // Accepting the app's location PERMISSION dialog does NOT mean the
+      // device's master Location Services switch is on — check that
+      // separately, exactly as the finalized requirements specify.
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        await _guideToLocationSettings();
+        return null;
+      }
+
+      return await _acquireAndSaveLocation(token);
+    } catch (e) {
+      debugPrint('[OFFRO] account-level location attempt failed: $e');
+      return null;
+    }
+  }
+
+  /// Opens the device's system Location Settings screen so the person can
+  /// turn Location Services on — the geolocator package's Location-Services
+  /// counterpart to Geolocator.openAppSettings() (already used elsewhere in
+  /// this app for the app-permission/deniedForever case). No new location
+  /// package is introduced.
+  Future<void> _guideToLocationSettings() async {
+    if (mounted) setState(() {
+      _status = 'Location Services are off. Please turn them on to continue...';
+      _waitingForLocationServices = true;
+    });
+    await Geolocator.openLocationSettings();
+    // Nothing else to do here — the person may spend any amount of time in
+    // system Settings; didChangeAppLifecycleState picks up the resume.
+  }
+
+  /// Shared GPS-acquire + reverse-geocode + save step, used both on the
+  /// first attempt and on the automatic retry after returning from system
+  /// Location Settings.
+  Future<String?> _acquireAndSaveLocation(String token) async {
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
+          .timeout(const Duration(seconds: 8));
+
+      final geo = await Api.reverseGeocode(pos.latitude, pos.longitude);
+      final city  = (geo['city']  ?? '').toString().trim();
+      final state = (geo['state'] ?? '').toString().trim();
+      if (city.isEmpty) return null;
+
+      await Prefs.saveLocation(pos.latitude, pos.longitude);
+      await Prefs.saveCity(city);
+      await Api.updateCity(token, city, state: state);
+      return city;
+    } catch (e) {
+      debugPrint('[OFFRO] account-level location acquisition failed: $e');
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(children: [
+        Container(decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0d2b24), Color(0xFF1e4a3f), Color(0xFF3E5F55)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight))),
+        SafeArea(child: Center(child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            buildImageLogo(height: 90, white: true),
+            const SizedBox(height: 32),
+            if (_err.isEmpty) ...[
+              const SizedBox(width: 26, height: 26,
+                child: CircularProgressIndicator(color: kLight, strokeWidth: 2.5)),
+              const SizedBox(height: 20),
+              Text(_status, textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: .8), fontSize: 14)),
+            ] else ...[
+              Text(_err, textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFFFF6B6B), fontSize: 14, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _run,
+                style: ElevatedButton.styleFrom(backgroundColor: kLight, foregroundColor: kPrimary),
+                child: const Text('Retry'),
+              ),
+            ],
+          ]),
+        ))),
+      ]),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // CONTINUE AS SCREEN  — shown after OTP verified
 // User picks role: 👤 User  or  🏪 Merchant
 // ══════════════════════════════════════════════════════════════════════════════
@@ -284,7 +584,8 @@ class _ContinueAsState extends State<ContinueAsScreen>
     try {
       await widget.onRoleSelected(_selected!, _remember);
     } catch (e) {
-      if (mounted) setState(() => _err = e.toString().replaceAll('Exception: ', ''));
+      debugPrint('[OffrO] role selection error: $e');
+      if (mounted) setState(() => _err = friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -355,6 +656,27 @@ class _ContinueAsState extends State<ContinueAsScreen>
                     iconColor: const Color(0xFF2c5fd4),
                     icon: Icons.storefront_rounded,
                     emoji: '🏪',
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ── INFLUENCER card (C3) — same authenticated
+                  // account/session as User and Merchant; the existing C1
+                  // backend is what actually grants the role once a
+                  // profile is created via the existing C2 flow, so this
+                  // card only needs to authenticate and navigate, exactly
+                  // like the two cards above.
+                  _PremiumRoleCard(
+                    role: 'influencer',
+                    selected: _selected == 'influencer',
+                    onTap: () => setState(() => _selected = 'influencer'),
+                    title: 'Influencer',
+                    desc: 'Promote stores,\nbuild your audience',
+                    supportText: 'Create your influencer profile and get discovered by customers.',
+                    bgColor: const Color(0xFFfdf3e7),
+                    iconColor: const Color(0xFFB8860B),
+                    icon: Icons.star_rounded,
+                    emoji: '⭐',
                   ),
 
                   const SizedBox(height: 28),
@@ -681,6 +1003,45 @@ class SwitchModeSheet extends StatefulWidget {
 class _SwitchModeSheetState extends State<SwitchModeSheet> {
   bool _loading = false;
   String _msg   = '';
+  bool _hasInfluencerRole = false; // C4: only show Influencer when the account actually has the role
+
+  @override
+  void initState() {
+    super.initState();
+    // BUG FIX (Round 4 — Bug 3, "Influencer mode disappears after switching
+    // back to User"): this used to read ONLY the locally-cached role list
+    // (Prefs.isInfluencer(), populated once at login from the login
+    // response). A brand-new influencer profile created later in the same
+    // session adds "influencer" to the account's roles on the SERVER
+    // (routers/users.py::create_influencer_profile does
+    // {"$addToSet": {"roles": "influencer"}}) but that never refreshed the
+    // stale local cache, so the very next "Switch Mode" open — even
+    // switching Influencer → User → back to Influencer — silently lost the
+    // tile. Fixed by re-checking the account's LIVE roles from the server
+    // on every open, with the local cache only as an offline fallback (and
+    // self-healed from the live result so future offline opens stay
+    // correct too). Nothing here is hardcoded — the tile still only shows
+    // when a role is actually present, just read from an up-to-date source.
+    _loadInfluencerRole();
+  }
+
+  Future<void> _loadInfluencerRole() async {
+    // Cached value first, so the sheet doesn't flash "no Influencer tile"
+    // for a moment before the network call resolves.
+    final cached = await Prefs.isInfluencer();
+    if (mounted) setState(() => _hasInfluencerRole = cached);
+    try {
+      final me = await Api.getMe(widget.token);
+      final roles = (me?['roles'] as List?)?.map((r) => r.toString()).toList();
+      if (roles != null) {
+        await Prefs.saveRoles(roles); // keep the local cache in sync
+        if (mounted) setState(() => _hasInfluencerRole = roles.contains('influencer'));
+      }
+    } catch (_) {
+      // Offline/network failure — keep whatever the cached value already
+      // set above; never worse than the previous (cache-only) behavior.
+    }
+  }
 
   Future<void> _switch(String role) async {
     if (role == widget.currentMode || _loading) return;
@@ -704,17 +1065,24 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
         }
       }
       // One account, one identity — no separate merchant record needed.
-      // Any registered user can switch to merchant mode freely.
+      // Any registered user can switch to merchant mode freely. Influencer
+      // mode uses the SAME authenticated account/token too — the existing
+      // C1 backend is what actually granted the role (via the existing C2
+      // profile-creation flow), this sheet only offers the switch once
+      // that role is already present.
       await Prefs.saveMode(role);
       if (mounted) Navigator.pop(context);
       widget.onSwitch(role);
     } catch (e) {
-      if (mounted) setState(() { _msg = e.toString().replaceAll('Exception: ', ''); _loading = false; });
+      debugPrint('[OffrO] switch mode error: $e');
+      if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final modeLabel = widget.currentMode == 'user' ? 'User'
+        : widget.currentMode == 'merchant' ? 'Merchant' : 'Influencer';
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -728,7 +1096,7 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
         const Text('Switch Mode',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: kPrimary)),
         const SizedBox(height: 6),
-        Text('You are currently in ${widget.currentMode == "user" ? "User" : "Merchant"} mode',
+        Text('You are currently in $modeLabel mode',
           style: const TextStyle(fontSize: 12.5, color: kMuted)),
         const SizedBox(height: 24),
         _ModeTile(
@@ -744,6 +1112,18 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
           active: widget.currentMode == 'merchant',
           onTap: _loading ? null : () => _switch('merchant'),
         ),
+        // C4: Influencer tile only appears when the account already has
+        // the role (i.e. has created a profile via C1/C2) — matching the
+        // requirement that it must not appear for every account.
+        if (_hasInfluencerRole) ...[
+          const SizedBox(height: 12),
+          _ModeTile(
+            emoji: '⭐', title: 'Influencer',
+            subtitle: 'Manage your influencer profile',
+            active: widget.currentMode == 'influencer',
+            onTap: _loading ? null : () => _switch('influencer'),
+          ),
+        ],
         if (_msg.isNotEmpty) ...[
           const SizedBox(height: 16),
           Container(
@@ -812,7 +1192,7 @@ class _ModeTile extends StatelessWidget {
 // Single phone input → OTP → Continue As
 // ══════════════════════════════════════════════════════════════════════════════
 class LoginScreen extends StatefulWidget {
-  final Future<void> Function(String token, String name, String phone, String userId, String role)? onSuccess;
+  final Future<void> Function(String token, String name, String phone, String userId, String role, String city)? onSuccess;
   final void Function()? onGuest;
   const LoginScreen({super.key, this.onSuccess, this.onGuest});
   @override State<LoginScreen> createState() => _LoginState();
@@ -902,7 +1282,13 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       // Send OTP
       final sendResp = await OTPWidget.sendOTP({'identifier': e164});
       if (sendResp == null || sendResp['type'] != 'success') {
-        final err = sendResp?['message']?.toString() ?? 'Failed to send OTP.';
+        // Round 9: MSG91 SDK failure message — map through the same
+        // classifier so a technical SDK/gateway dump never reaches the
+        // customer, while a clean SDK message (if any) is preserved.
+        final err = friendlyError(
+          sendResp?['message']?.toString() ?? '',
+          fallback: "Unable to send OTP right now. Please try again.",
+        );
         _setMsg(err); return;
       }
       final reqId = sendResp['message']?.toString() ?? '';
@@ -914,40 +1300,75 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         phone: phone,
         reqId: reqId,
         onVerified: () async {
-          // OTP passed → show Continue As screen
+          // OTP passed → ACCOUNT LOGIN/LOAD ACCOUNT → CHECK ACCOUNT LOCATION
+          // → LOCATION HANDLING IF REQUIRED, all before Role Selection.
+          // See _AccountBootstrapScreen for the single account-login call
+          // this entire journey reuses.
           if (!mounted) return;
-          await Navigator.push(context, _offroRoute(ContinueAsScreen(
+          await Navigator.push(context, _offroRoute(_AccountBootstrapScreen(
             phone: phone,
-            onRoleSelected: (role, remember) async {
-              await _handleRoleSelected(phone, role, remember);
+            onReady: (accountData) {
+              if (!mounted) return;
+              // Replace the bootstrap screen so back-navigation from
+              // Continue As doesn't return to a stale loading screen.
+              Navigator.pushReplacement(context, _offroRoute(ContinueAsScreen(
+                phone: phone,
+                onRoleSelected: (role, remember) async {
+                  await _handleRoleSelected(accountData, phone, role, remember);
+                },
+              )));
             },
           )));
         },
       )));
     } catch (e) {
-      _setMsg(e.toString().replaceAll('Exception: ', ''));
+      // Round 9: this is the site of the originally-reported raw
+      // HandshakeException leak — checkUserPhone/registerUser/OTPWidget
+      // failures now always go through the shared classifier.
+      debugPrint('[OffrO] send OTP flow error: $e');
+      _setMsg(friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _handleRoleSelected(String phone, String role, bool remember) async {
-    // Always use unified /account-login — one token for all roles.
-    // Errors propagate up to _ContinueAsState._proceed() which shows them in-screen.
-    final d     = await Api.loginAccount(phone);
-    final token = d['token']?.toString() ?? '';
-    final name  = d['name']?.toString()  ?? '';
+  Future<void> _handleRoleSelected(Map<String, dynamic> accountData, String phone, String role, bool remember) async {
+    // Reuses the account data already fetched once by _AccountBootstrapScreen
+    // right after OTP verification — does NOT call /user/account-login again
+    // here (avoids the duplicate-call regression called out in the
+    // requirements). Errors propagate up to _ContinueAsState._proceed(),
+    // which shows them in-screen — the existing Role Selection UI/behavior
+    // is otherwise unchanged.
+    final token = accountData['token']?.toString() ?? '';
+    final name  = accountData['name']?.toString()  ?? '';
     if (token.isEmpty) throw Exception('Login failed — please try again.');
 
-    final roles      = (d['roles'] as List?)?.map((r) => r.toString()).toList() ?? [role];
+    final roles      = (accountData['roles'] as List?)?.map((r) => r.toString()).toList() ?? [role];
     final isMerchant = roles.contains('merchant');
     final userId     = isMerchant
-        ? (d['merchant_id']?.toString() ?? d['account_id']?.toString() ?? '')
-        : (d['user_id']?.toString()     ?? d['account_id']?.toString() ?? '');
+        ? (accountData['merchant_id']?.toString() ?? accountData['account_id']?.toString() ?? '')
+        : (accountData['user_id']?.toString()     ?? accountData['account_id']?.toString() ?? '');
+
+    // NOTE (Round 8 — Final User Location Flow): account-level city from
+    // bootstrap is still passed through in accountData/city below, but for
+    // role == 'user' it is NO LONGER used to skip location detection here.
+    // "Every time the user selects User → Continue, the app must start a
+    // fresh location decision" — permission → device Location Services →
+    // GPS → reverse-geocode → current city, falling back to manual
+    // State + City only if that fails. That entire decision tree (and its
+    // own manual-entry fallback — never Ballari/default/guessed) now lives
+    // in LocationLoadingScreen (requireFreshGps: true, set in main.dart's
+    // onSuccess for role == 'user'), so it runs identically whether this is
+    // the very first Continue tap right after OTP verification or a later
+    // one reached via Switch Mode / "Back to Home". Pre-resolving/requiring
+    // it here as well would just mean asking twice. Merchant/Influencer
+    // are unaffected — their account location may stay empty and is never
+    // required to enter those modes.
+    final city = accountData['city']?.toString() ?? '';
 
     await Prefs.save(token, name, phone, role, userId: userId);
     await Prefs.saveRoles(roles);
-    if (isMerchant) await Prefs.saveMerchantId(d['merchant_id']?.toString() ?? '');
+    if (isMerchant) await Prefs.saveMerchantId(accountData['merchant_id']?.toString() ?? '');
     await Prefs.saveMode(role);
     await Prefs.saveRememberMode(remember);
 
@@ -955,9 +1376,14 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     // goHome) already calls pushAndRemoveUntil((r) => false) which clears the
     // entire stack including OtpScreen and ContinueAsScreen.
     if (mounted && widget.onSuccess != null) {
-      await widget.onSuccess!(token, name, phone, userId, role);
+      await widget.onSuccess!(token, name, phone, userId, role, city);
     }
   }
+
+  // Mandatory State + City picker moved to the shared, dependency-neutral
+  // core/widgets/manual_location_sheet.dart (requireManualCityState) so
+  // location_loading_screen.dart can also call it — see that file's doc
+  // comment for why (avoids a circular import).
 
   @override
   Widget build(BuildContext context) {

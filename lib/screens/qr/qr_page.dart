@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 
@@ -30,7 +31,7 @@ class _QRState extends State<QRPage>{
             title:Row(children:[const Icon(Icons.check_circle,color:kPrimary),const SizedBox(width:8),const Text("Points Added!")]),
             content:Text("${res["message"]??"Done!"}\n\n🔐 Store QR has been refreshed for security."),
             actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text("Great!",style:TextStyle(color:kPrimary)))]));
-        }catch(e){if(!mounted)return;Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(e.toString().replaceAll("Exception: ",""))));}
+        }catch(e){debugPrint('[OffrO] QR redeem error: $e');if(!mounted)return;Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(friendlyError(e))));}
       }),
       Center(child:Container(width:220,height:220,decoration:BoxDecoration(border:Border.all(color:kPrimary,width:3),borderRadius:BorderRadius.circular(16)))),
       const Positioned(bottom:60,left:0,right:0,child:Text("Point at store QR code",textAlign:TextAlign.center,style:TextStyle(color:Colors.white,fontSize:14))),

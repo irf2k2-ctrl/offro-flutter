@@ -5,6 +5,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
+import '../../../core/services/error_mapper.dart';
 
 class StoreReviewsSection extends StatefulWidget {
   final String storeId;
@@ -145,8 +146,9 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
         );
       }
     } catch (e) {
+      debugPrint('[OffrO] store review submit error: $e');
       setState(() {
-        _msg = e.toString().replaceAll('Exception: ', '');
+        _msg = friendlyError(e);
         _submitting = false;
       });
     }

@@ -390,6 +390,11 @@ class Prefs {
     return roles.contains('merchant');
   }
 
+  static Future<bool> isInfluencer() async {
+    final roles = await getRoles();
+    return roles.contains('influencer');
+  }
+
   // ── Favorite Products ──
   static const _kFavProducts = 'fav_vouchers';
 

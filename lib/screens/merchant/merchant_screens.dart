@@ -22,13 +22,18 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../payment/payment_success_screen.dart';
 import 'products_phase2.dart';
+// Round 7 Item 2: reuse the existing full-screen image viewer for the Merchant
+// Deals list thumbnail tap-to-view — no duplicate viewer implementation.
+import '../store/widgets/store_header.dart' show FullScreenImageViewer;
 
 PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
 
@@ -105,8 +110,17 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   }
 
   // FIX7: never treat load-error as "new merchant" — only show onboarding if stores truly empty
-  bool get _hasEligibleStore => !_loadError && _stores.any((s)=>
-    ["active","inactive","waiting_approval","paid","draft","pending_subscription","pending"].contains(s["status"]));
+  //
+  // BUG FIX: this used to be named _hasEligibleStore and included "draft"
+  // (and other non-active statuses) in the list that counted as
+  // "eligible", which meant a brand-new, never-subscribed store already
+  // unlocked Banner/Product creation — the exact bug reported. Banner/
+  // Product must stay locked until at least one of the merchant's stores
+  // is genuinely subscribed AND admin-approved, which is the single
+  // "active" value of stores.status (the same field this screen already
+  // reads for the "X Active" count above, and the same field
+  // routers/admin.py's approve_store() sets — no new status system).
+  bool get _hasActiveStore => !_loadError && _stores.any((s) => s["status"] == "active");
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kBg,
@@ -166,14 +180,15 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
               ),
               const SizedBox(height:12),
 
-              // Banner card — locked if no eligible store
+              // Banner card — locked until a subscribed+active store exists
               _SectionCard(
                 icon: Icons.view_carousel_rounded,
-                color: _hasEligibleStore ? const Color(0xFFc0392b) : kMuted,
-                bgColor: _hasEligibleStore ? const Color(0xFFfde8e8) : const Color(0xFFf0f0f0),
+                color: _hasActiveStore ? const Color(0xFFc0392b) : kMuted,
+                bgColor: _hasActiveStore ? const Color(0xFFfde8e8) : const Color(0xFFf0f0f0),
                 title: "My Banner",
-                subtitle: !_hasEligibleStore
-                  ? "🔒 Create a store first to unlock"
+                locked: !_hasActiveStore,
+                subtitle: !_hasActiveStore
+                  ? "🔒 Subscribe your store to create banners."
                   : _banners.isEmpty
                     ? "No banners yet — promote your store"
                     : ((){
@@ -182,22 +197,23 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         final parts=<String>[];if(live>0)parts.add("$live Live");if(pend>0)parts.add("$pend Pending");
                         return "${_banners.length} Banner${_banners.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
                       })(),
-                onTap: _hasEligibleStore
+                onTap: _hasActiveStore
                   ? ()=>Navigator.push(context,_offroRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Create an active store first to create banners."),
+                      content:Text("Subscribe your store to create banners."),
                       backgroundColor:Colors.orange)),
               ),
               const SizedBox(height:12),
 
-              // Product card — locked if no eligible store
+              // Product card — locked until a subscribed+active store exists
               _SectionCard(
                 icon: Icons.local_activity_rounded,
-                color: _hasEligibleStore ? const Color(0xFF856404) : kMuted,
-                bgColor: _hasEligibleStore ? const Color(0xFFfff3cd) : const Color(0xFFf0f0f0),
+                color: _hasActiveStore ? const Color(0xFF856404) : kMuted,
+                bgColor: _hasActiveStore ? const Color(0xFFfff3cd) : const Color(0xFFf0f0f0),
                 title: "My Products",
-                subtitle: !_hasEligibleStore
-                  ? "🔒 Create a store first to unlock"
+                locked: !_hasActiveStore,
+                subtitle: !_hasActiveStore
+                  ? "🔒 Subscribe your store to add products."
                   : _products.isEmpty
                     ? "No products yet — add your first product"
                     : ((){
@@ -213,10 +229,10 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         if(live>0) parts.add("$live Live");
                         return parts.join('  ·  ');
                       })(),
-                onTap: _hasEligibleStore
+                onTap: _hasActiveStore
                   ? ()=>Navigator.push(context,_offroRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Create an active store first to create products."),
+                      content:Text("Subscribe your store to add products."),
                       backgroundColor:Colors.orange)),
               ),
 
@@ -231,8 +247,13 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
 class _SectionCard extends StatelessWidget {
   final IconData icon; final Color color, bgColor;
   final String title, subtitle; final VoidCallback onTap;
+  // Item 1 (draft-store lock): when true, shows a "Locked" pill instead of
+  // "Open →" so the card visually communicates it can't be opened yet.
+  // Defaults to false so existing call sites (e.g. "My Store", which is
+  // never locked) don't need to change.
+  final bool locked;
   const _SectionCard({required this.icon, required this.color, required this.bgColor,
-    required this.title, required this.subtitle, required this.onTap});
+    required this.title, required this.subtitle, required this.onTap, this.locked = false});
 
   @override Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
@@ -267,9 +288,15 @@ class _SectionCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text("Open", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-              const SizedBox(width: 4),
-              Icon(Icons.arrow_forward_rounded, color: color, size: 13),
+              if (locked) ...[
+                Icon(Icons.lock_rounded, color: color, size: 12),
+                const SizedBox(width: 4),
+                Text("Locked", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+              ] else ...[
+                Text("Open", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 4),
+                Icon(Icons.arrow_forward_rounded, color: color, size: 13),
+              ],
             ]),
           ),
         ]),
@@ -492,8 +519,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                               await Api.updateMerchantBanner(widget.token, b["_id"]??"", {"title": newTitle});
                               _load();
                             } catch(e) {
+                              debugPrint('[MerchantBanners] rename error: $e');
                               if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
+                                SnackBar(content:Text(friendlyError(e)),backgroundColor:Colors.red));
                             }
                           }
                         },
@@ -533,8 +561,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 await Api.toggleMerchantBanner(widget.token, b["_id"]??"");
                                 _load();
                               } catch(e) {
+                                debugPrint('[MerchantBanners] toggle error: $e');
                                 if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content:Text("Error: $e"),backgroundColor:Colors.red));
+                                  SnackBar(content:Text(friendlyError(e)),backgroundColor:Colors.red));
                               }
                             }
                           },
@@ -820,6 +849,13 @@ class _AddBannerState extends State<AddBannerPage> {
         "days":       _days,
         "from_date":  _fromDateStr,
         "discount_code": _appliedCode ?? "",
+        // Item 1 (draft-store lock): send store_id here too so a draft/
+        // unsubscribed store is rejected fail-fast at order-creation time,
+        // instead of only at activation. Backend's create_banner_order()
+        // treats this field as optional, so this is purely an earlier,
+        // better-UX check — activate_free_banner()/verify_banner_payment()
+        // still enforce it regardless.
+        "store_id":   (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
       });
       if (!mounted) return;
       final payMode = order["pay_mode"] ?? "manual";
@@ -850,7 +886,7 @@ class _AddBannerState extends State<AddBannerPage> {
           _openRazorpayBanner(order);
         }
       }
-    } catch(e) { setState(()=>_msg=e.toString().replaceAll("Exception:","").trim()); }
+    } catch(e) { setState(()=>_msg=friendlyError(e)); }
     if (mounted) setState(()=>_loading=false);
   }
 
@@ -911,7 +947,7 @@ class _AddBannerState extends State<AddBannerPage> {
         _appliedDiscount     = 0;
         _appliedDiscountType = null;
         _discountOk      = false;
-        _discountMsg     = e.toString().replaceAll("Exception: ", "");
+        _discountMsg     = friendlyError(e);
       });
     }
     if (mounted) setState(() => _applyingCode = false);
@@ -937,7 +973,8 @@ class _AddBannerState extends State<AddBannerPage> {
         "theme":       {"color":"#3E5F55"},
       });
     } catch (e) {
-      if (mounted) setState(()=>_msg="Failed to open payment: $e");
+      debugPrint('[MerchantBanners] Razorpay open error: $e');
+      if (mounted) setState(()=>_msg=friendlyError(e, fallback: "Could not open payment. Please try again."));
     }
   }
 
@@ -969,11 +1006,11 @@ class _AddBannerState extends State<AddBannerPage> {
           ),
         ));
       }
-    } catch(e) { if(mounted) setState(()=>_msg=e.toString().replaceAll("Exception:","").trim()); }
+    } catch(e) { if(mounted) setState(()=>_msg=friendlyError(e)); }
   }
 
   void _onPayError(PaymentFailureResponse res) {
-    if(mounted) setState(()=>_msg="Payment failed: ${res.message??'Unknown error'}");
+    if(mounted) setState(()=>_msg="Payment failed: ${friendlyRazorpayError(res.message)}");
   }
 
   Future<bool?> _showBannerSummaryDialog(Map order, {required bool manual}) async =>
@@ -1459,9 +1496,10 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     try {
       await Api.setProductAvailability(widget.token, pid, !current);
     } catch (e) {
+      debugPrint('[MerchantProducts] toggle availability error: $e');
       if (mounted) setState(() { v["is_active"] = current; _applyFilters(); });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Toggle failed: $e"), backgroundColor: Colors.red));
+        SnackBar(content: Text("Toggle failed: ${friendlyError(e)}"), backgroundColor: Colors.red));
     }
   }
 
@@ -1903,8 +1941,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Product updated!"), backgroundColor: Color(0xFF1a6640)));
       } catch (e) {
+        debugPrint('[MerchantProducts] update error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString().replaceAll('Exception: ','')}"), backgroundColor: Colors.red));
+          SnackBar(content: Text("Error: ${friendlyError(e)}"), backgroundColor: Colors.red));
       }
     }
   }
@@ -1928,8 +1967,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Product deleted."), backgroundColor: Colors.red));
       } catch (e) {
+        debugPrint('[MerchantProducts] delete error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error deleting: ${e.toString().replaceAll('Exception: ','')}"), backgroundColor: Colors.red));
+          SnackBar(content: Text("Error deleting: ${friendlyError(e)}"), backgroundColor: Colors.red));
       }
     }
   }
@@ -2316,7 +2356,7 @@ class _StandardProductState extends State<StandardProductPage> {
             backgroundColor: const Color(0xFF1a6640)));
       }
     } catch (e) {
-      setState(() => _msg = e.toString().replaceAll("Exception:", "").trim());
+      setState(() => _msg = friendlyError(e));
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -2618,7 +2658,7 @@ class _AddProductState extends State<AddProductPage> {
         _appliedVCode         = "";
         _appliedVDiscount     = 0;
         _appliedVDiscountType = null;
-        _discountVMsg     = e.toString().replaceAll("Exception: ","");
+        _discountVMsg     = friendlyError(e);
         _discountVOk      = false;
         _applyingVCode    = false;
       });
@@ -2634,7 +2674,17 @@ class _AddProductState extends State<AddProductPage> {
     if(_days<1){setState(()=>_msg="Enter number of days (minimum 1)");return;}
     setState((){_loading=true;_msg="";});
     try{
-      final order=await Api.createProductOrder(widget.token,{"days":_days,"from_date":_fromDateStr,"discount_code":_appliedVCode});
+      // Item 1 (draft-store lock): send store_id here too so a draft/
+      // unsubscribed store is rejected fail-fast at order-creation time
+      // (backend's create_voucher_order() treats it as optional) instead of
+      // only at activation — activate_free_voucher()/verify_voucher_payment()
+      // still enforce it regardless.
+      final order=await Api.createProductOrder(widget.token,{
+        "days":_days,
+        "from_date":_fromDateStr,
+        "discount_code":_appliedVCode,
+        "store_id":(_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString(),
+      });
       if(!mounted)return;
       final payMode=order["pay_mode"]??"manual";
       final amtPaise=(order["amount_paise"] as num?)?.toInt()??0;
@@ -2664,7 +2714,7 @@ class _AddProductState extends State<AddProductPage> {
         final confirmed=await _showProductSummaryDialog(order,manual:false);
         if(confirmed==true&&mounted) _openRazorpay(order);
       }
-    }catch(e){setState(()=>_msg=e.toString().replaceAll("Exception:","").trim());}
+    }catch(e){setState(()=>_msg=friendlyError(e));}
     if(mounted)setState(()=>_loading=false);
   }
 
@@ -2688,7 +2738,8 @@ class _AddProductState extends State<AddProductPage> {
       "theme":{"color":"#3E5F55"},
     });
     } catch(e) {
-      if(mounted) setState(()=>_msg="Payment error: ${e.toString().replaceAll('Exception: ','')}");
+      debugPrint('[MerchantProducts] Razorpay open error: $e');
+      if(mounted) setState(()=>_msg="Payment error: ${friendlyError(e, fallback: "Could not open payment. Please try again.")}");
     }
   }
 
@@ -2721,11 +2772,11 @@ class _AddProductState extends State<AddProductPage> {
           ),
         ));
       }
-    }catch(e){if(mounted)setState(()=>_msg=e.toString().replaceAll("Exception:","").trim());}
+    }catch(e){if(mounted)setState(()=>_msg=friendlyError(e));}
   }
 
   void _onPayError(PaymentFailureResponse res){
-    if(mounted)setState(()=>_msg="Payment failed: ${res.message??'Unknown error'}");
+    if(mounted)setState(()=>_msg="Payment failed: ${friendlyRazorpayError(res.message)}");
   }
 
   Future<bool?> _showProductSummaryDialog(Map order,{required bool manual})=>
@@ -3214,7 +3265,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                         final res = await Api.resetStoreQr(sid, widget.token);
                         final qr = res["qr_code"]??"";
                         if(qr.isNotEmpty){ setState(()=>s["qr_code"]=qr); if(mounted)_showQR(context,s["store_name"]??"",qr); }
-                      } catch(e){ if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: $e"))); }
+                      } catch(e){ debugPrint('[MerchantStores] reset QR error: $e'); if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: ${friendlyError(e)}"))); }
                     })),
             ]);
           } else {
@@ -3323,6 +3374,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 // ─────────── Add/Edit Store Page ───────────
 
 // ─────────────────────── INDIA STATES & CITIES ───────────────────────
+// kIndiaCities/kIndiaStates now live in
+// lib/core/constants/india_locations.dart (imported above) so they can be
+// shared with the account-level manual State+City entry flow in
+// login_screen.dart without a circular import. Values are unchanged.
+
 // Flat city list for banner/product city targeting
 List<String> get _allCities {
   final set = <String>{};
@@ -3330,56 +3386,6 @@ List<String> get _allCities {
   final list = set.toList()..sort();
   return list;
 }
-
-const Map<String,List<String>> kIndiaCities = {
-  "Andhra Pradesh": ["Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Rajahmundry","Tirupati","Kakinada","Kadapa","Anantapur"],
-  "Arunachal Pradesh": ["Itanagar","Naharlagun","Pasighat"],
-  "Assam": ["Guwahati","Silchar","Dibrugarh","Jorhat","Nagaon","Tinsukia"],
-  "Bihar": ["Patna","Gaya","Bhagalpur","Muzaffarpur","Purnia","Darbhanga","Bihar Sharif","Arrah"],
-  "Chhattisgarh": ["Raipur","Bhilai","Bilaspur","Korba","Durg","Rajnandgaon","Jagdalpur"],
-  "Goa": ["Panaji","Margao","Vasco da Gama","Mapusa","Ponda"],
-  "Gujarat": ["Ahmedabad","Surat","Vadodara","Rajkot","Bhavnagar","Jamnagar","Gandhinagar","Junagadh","Anand"],
-  "Haryana": ["Faridabad","Gurugram","Panipat","Ambala","Yamunanagar","Rohtak","Hisar","Karnal","Sonipat","Panchkula"],
-  "Himachal Pradesh": ["Shimla","Solan","Dharamshala","Mandi","Baddi","Palampur","Kullu"],
-  "Jharkhand": ["Ranchi","Jamshedpur","Dhanbad","Bokaro","Deoghar","Hazaribagh"],
-  "Karnataka": ["Bengaluru","Mysuru","Mangaluru","Hubli","Dharwad","Belagavi","Kalaburagi","Ballari","Vijayapura","Shivamogga","Tumkur","Davangere","Hassan","Udupi"],
-  "Kerala": ["Thiruvananthapuram","Kochi","Kozhikode","Thrissur","Kollam","Kannur","Palakkad","Alappuzha","Malappuram","Kottayam"],
-  "Madhya Pradesh": ["Bhopal","Indore","Jabalpur","Gwalior","Ujjain","Sagar","Dewas","Satna","Ratlam","Rewa"],
-  "Maharashtra": ["Mumbai","Pune","Nagpur","Nashik","Thane","Aurangabad","Solapur","Kolhapur","Amravati","Nanded","Sangli","Malegaon","Jalgaon","Akola","Latur"],
-  "Manipur": ["Imphal","Thoubal","Bishnupur","Churachandpur"],
-  "Meghalaya": ["Shillong","Tura","Jowai"],
-  "Mizoram": ["Aizawl","Lunglei","Champhai"],
-  "Nagaland": ["Kohima","Dimapur","Mokokchung"],
-  "Odisha": ["Bhubaneswar","Cuttack","Rourkela","Berhampur","Sambalpur","Puri","Balasore"],
-  "Punjab": ["Ludhiana","Amritsar","Jalandhar","Patiala","Bathinda","Mohali","Firozpur","Hoshiarpur"],
-  "Rajasthan": ["Jaipur","Jodhpur","Kota","Bikaner","Ajmer","Udaipur","Bhilwara","Alwar","Bharatpur","Sikar"],
-  "Sikkim": ["Gangtok","Namchi","Gyalshing"],
-  "Tamil Nadu": ["Chennai","Coimbatore","Madurai","Tiruchirappalli","Salem","Tirunelveli","Vellore","Erode","Thoothukudi","Tiruppur","Dindigul","Thanjavur"],
-  "Telangana": ["Hyderabad","Warangal","Nizamabad","Karimnagar","Ramagundam","Khammam","Mahbubnagar","Nalgonda","Adilabad"],
-  "Tripura": ["Agartala","Dharmanagar","Udaipur"],
-  "Uttar Pradesh": ["Lucknow","Kanpur","Agra","Varanasi","Prayagraj","Meerut","Bareilly","Aligarh","Ghaziabad","Noida","Mathura","Moradabad","Gorakhpur"],
-  "Uttarakhand": ["Dehradun","Haridwar","Roorkee","Haldwani","Rishikesh","Nainital","Kashipur","Rudrapur"],
-  "West Bengal": ["Kolkata","Asansol","Siliguri","Durgapur","Bardhaman","Malda","Baharampur","Kharagpur"],
-  "Delhi": ["New Delhi","Dwarka","Rohini","Pitampura","Laxmi Nagar","Janakpuri","Saket","Karol Bagh","Connaught Place"],
-  "Jammu and Kashmir": ["Srinagar","Jammu","Anantnag","Baramulla","Sopore","Kathua"],
-  "Ladakh": ["Leh","Kargil"],
-  "Andaman and Nicobar Islands": ["Port Blair","Diglipur","Rangat"],
-  "Chandigarh": ["Chandigarh"],
-  "Dadra and Nagar Haveli and Daman and Diu": ["Daman","Diu","Silvassa"],
-  "Lakshadweep": ["Kavaratti","Agatti"],
-  "Puducherry": ["Puducherry","Karaikal","Mahe","Yanam"],
-};
-const List<String> kIndiaStates = [
-  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
-  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand",
-  "Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur",
-  "Meghalaya","Mizoram","Nagaland","Odisha","Punjab",
-  "Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura",
-  "Uttar Pradesh","Uttarakhand","West Bengal","Delhi",
-  "Jammu and Kashmir","Ladakh","Andaman and Nicobar Islands",
-  "Chandigarh","Dadra and Nagar Haveli and Daman and Diu",
-  "Lakshadweep","Puducherry",
-];
 
 class AddEditStorePage extends StatefulWidget {
   final String token; final Map? store;
@@ -3404,7 +3410,12 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   String? _selState; String? _selCity;
   List<String> _areas = []; bool _areasLoading = false;
   bool _locLoading = false; bool _locConfirmed = false;
-  bool _locDenied = false; // Issue 4: true once permission denied once in this screen — disables the button and stops re-prompting
+  bool _locDenied = false; // true after a denial THIS attempt — button stays enabled, tapping again retries
+  // Location-specific error, shown directly under the "Current Location"
+  // button — kept separate from the form-wide _msg (which only shows after
+  // Create Store validation) so a GPS/permission problem never appears at
+  // the bottom of the whole form.
+  String _locMsg = "";
   final _mapsUrlCtrl = TextEditingController();
   bool _mapsResolving = false;
   bool _mapsApplied = false;
@@ -3431,27 +3442,27 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   }
 
   Future<void> _captureGpsLocation() async {
-    setState(() { _locLoading = true; _locConfirmed = false; });
+    setState(() { _locLoading = true; _locConfirmed = false; _locMsg = ""; });
     try {
-      bool hasPermission;
-      if (_locDenied) {
-        // Already denied once in this screen — never re-trigger the OS
-        // permission prompt (Issue 4). Just read the current platform
-        // permission state (no request) in case it changed via Settings
-        // since the last attempt, so this can still recover if granted.
-        final current = await Geolocator.checkPermission();
-        hasPermission = current == LocationPermission.whileInUse ||
-            current == LocationPermission.always;
-      } else {
-        // First attempt from this screen — unchanged from the existing
-        // flow; may show the OS permission prompt exactly as it does today.
-        hasPermission = await MyApp.ensureLocationPermission();
-      }
+      // Always retry the permission/location flow on every tap — including
+      // after a previous denial. A first denial must not permanently block
+      // this button; MyApp.ensureLocationPermission() checks the current
+      // platform state and re-requests when it is still "denied" (as
+      // opposed to "deniedForever", which the OS itself won't re-prompt
+      // for), so tapping again after allowing it via Settings, or after
+      // dismissing the OS dialog, can still succeed. This is the SAME
+      // permission-request helper used everywhere else in the app
+      // (MyApp.ensureLocationPermission → Geolocator.checkPermission() then
+      // Geolocator.requestPermission()), so tapping the button when
+      // permission isn't granted always triggers the native OS prompt
+      // (or, on a platform/state where the OS won't re-show it, surfaces
+      // the denial below so the merchant knows to allow it from Settings).
+      final hasPermission = await MyApp.ensureLocationPermission();
       if (!hasPermission) {
         if (mounted) setState(() {
           _locLoading = false;
           _locDenied  = true;
-          _msg = "Location permission is required for current location. "
+          _locMsg = "Location permission is required for current location. "
               "Allow it and try again.";
         });
         return;
@@ -3459,7 +3470,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       if (!await Geolocator.isLocationServiceEnabled()) {
         if (mounted) setState(() {
           _locLoading = false;
-          _msg = "Device location is turned off. Turn it on and try again.";
+          _locMsg = "Device location is turned off. Turn it on and try again.";
         });
         return;
       }
@@ -3470,12 +3481,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _locConfirmed = true;
         _locLoading   = false;
         _locDenied    = false;
+        _locMsg       = "";
       });
       await _reverseGeocode(pos.latitude, pos.longitude);
     } catch (e) {
       if (mounted) setState(() {
         _locLoading = false;
-        _msg = "Could not get location: ${e.toString().replaceAll('Exception: ','')}";
+        _locMsg = "Could not get location: ${e.toString().replaceAll('Exception: ','')}";
       });
     }
   }
@@ -4015,10 +4027,34 @@ class _AddEditStoreState extends State<AddEditStorePage> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) { setState(()=>_msg="Store name required"); return; }
+    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg="Please select a state to continue"); return; }
     if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city to continue"); return; }
     final _phoneVal = _phone.text.trim();
     if (_phoneVal.isEmpty) { setState(()=>_msg="Mobile number is required"); return; }
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg="Enter a valid 10-digit mobile number (starts with 6–9)"); return; }
+
+    // COORDINATES ARE MANDATORY — a store cannot be created with only
+    // State + City. "Use Current Location" and the Google Maps link
+    // resolver both already populate _lat/_lng with valid values; this is
+    // the save-time gate that enforces it (mirrored server-side as
+    // defense-in-depth in routers/merchant_app.py).
+    final latVal = double.tryParse(_lat.text.trim());
+    final lngVal = double.tryParse(_lng.text.trim());
+    final hasValidCoords = latVal != null && lngVal != null &&
+        latVal >= -90 && latVal <= 90 && lngVal >= -180 && lngVal <= 180;
+    if (!_isEdit && !hasValidCoords) {
+      setState(() => _msg = 'Please set the store\'s location using "Use Current Location" '
+          'or a Google Maps link before creating the store.');
+      return;
+    }
+    if (_isEdit && (_lat.text.trim().isNotEmpty || _lng.text.trim().isNotEmpty) && !hasValidCoords) {
+      // Only blocks a location left in a broken/partial state THIS session
+      // — an older store's untouched (possibly empty) coordinates are left
+      // alone here and are not force-fixed on an unrelated edit.
+      setState(() => _msg = 'The store location looks incomplete. Use "Use Current Location" '
+          'or a Google Maps link to set a valid location.');
+      return;
+    }
     setState(()=>_loading=true); _msg="";
     final data = {
       "store_name":_name.text.trim(),"category":_category,
@@ -4036,7 +4072,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       else         await Api.createMerchantStore(widget.token, data);
       if (!mounted) return;
       Navigator.pop(context);
-    } catch(e) { setState(()=>_msg=e.toString().replaceAll("Exception: ","")); }
+    } catch(e) { setState(()=>_msg=friendlyError(e)); }
     if (mounted) setState(()=>_loading=false);
   }
 
@@ -4067,17 +4103,27 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13)),
           const SizedBox(height: 10),
           ElevatedButton.icon(
-            onPressed: (_locLoading || _locDenied) ? null : _captureGpsLocation,
+            // The button stays enabled even after a denial — tapping it
+            // again retries the permission/location flow (see
+            // _captureGpsLocation) instead of permanently blocking it. The
+            // label stays permanently "Current Location" — it never
+            // switches to a "permission denied" variant; a denial is
+            // surfaced only in the small message below the button.
+            onPressed: _locLoading ? null : _captureGpsLocation,
             icon: _locLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: Text(_locLoading ? "Detecting..." : (_locDenied ? "Location permission denied" : "Use Current Location")),
+            label: const Text("Current Location"),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white, foregroundColor: kText,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
           ),
+          if (_locMsg.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(_locMsg, style: const TextStyle(color: Colors.red, fontSize: 12)),
+          ],
           if (_locConfirmed && !_mapsApplied) ...[
             const SizedBox(height: 8),
             Container(
@@ -4423,7 +4469,8 @@ class _SubscribeState extends State<SubscribePage> {
       };
       _razorpay.open(opts);
     } catch(e) {
-      if (mounted) setState(() => _msg = 'Could not open payment: $e');
+      debugPrint('[MerchantSubscription] Razorpay open error: $e');
+      if (mounted) setState(() => _msg = friendlyError(e, fallback: "Could not open payment. Please try again."));
     }
   }
 
@@ -4480,7 +4527,7 @@ class _SubscribeState extends State<SubscribePage> {
   }
 
   void _onPayError(PaymentFailureResponse resp) {
-    if (mounted) setState(() { final m = resp.message ?? ""; _msg = "Payment cancelled or failed: $m"; });
+    if (mounted) setState(() { final m = friendlyRazorpayError(resp.message); _msg = "Payment cancelled or failed: $m"; });
   }
 
   void _onExtWallet(ExternalWalletResponse resp) {
@@ -4510,7 +4557,7 @@ class _SubscribeState extends State<SubscribePage> {
     } catch(e) {
       setState((){
         _appliedCode = null; _discountValue = 0; _discountType = null;
-        _discMsg = e.toString().replaceAll("Exception: ","");
+        _discMsg = friendlyError(e);
       });
     }
     if (mounted) setState(()=>_validatingDisc=false);
@@ -4626,7 +4673,7 @@ class _SubscribeState extends State<SubscribePage> {
         ],
       ));
     } catch(e) {
-      if (mounted) setState(()=>_msg=e.toString().replaceAll("Exception: ",""));
+      if (mounted) setState(()=>_msg=friendlyError(e));
     }
     if (mounted) setState(()=>_loading=false);
   }
@@ -5334,6 +5381,15 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
                   final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
                   Navigator.of(context).pop(); // close profile
                   MyApp.goSwitchMode(token, name, phone, uid, 'user');
+                } else if (role == 'influencer') {
+                  // C4: Merchant → Influencer, same goSwitchMode dispatch
+                  // pattern as the User branch above.
+                  final token = widget.token;
+                  final name  = widget.merchant['name']?.toString() ?? '';
+                  final phone = widget.merchant['phone']?.toString() ?? '';
+                  final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
+                  Navigator.of(context).pop(); // close profile
+                  MyApp.goSwitchMode(token, name, phone, uid, 'influencer');
                 }
               },
             ),
@@ -5519,13 +5575,42 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
         itemCount: _deals.length,
         itemBuilder: (_, i) {
           final d = _deals[i] as Map;
+          // Round 7 Item 2: compact 44x44 thumbnail when the deal has its own
+          // image_url; falls back to the existing discount-% chip (and, for a
+          // deal with neither, a generic offer icon) so the list tile's
+          // height/layout never changes — same 44x44 leading slot as before.
+          final dealImg = (d['image_url'] ?? '').toString();
+          final discPct = "${d['discount'] ?? 0}%";
+          final hasDisc = (int.tryParse((d['discount'] ?? '0').toString()) ?? 0) > 0;
+          Widget leadingWidget;
+          if (dealImg.isNotEmpty) {
+            leadingWidget = GestureDetector(
+              onTap: () => Navigator.push(context, PageRouteBuilder(
+                opaque: false, barrierColor: Colors.black,
+                pageBuilder: (_, __, ___) => FullScreenImageViewer(images: [dealImg], initialIndex: 0),
+              )),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: dealImg.startsWith('data:image')
+                    ? Image.memory(base64Decode(dealImg.split(',').last), width: 44, height: 44, fit: BoxFit.cover)
+                    : CachedNetworkImage(imageUrl: dealImg, width: 44, height: 44, fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(width: 44, height: 44, color: kLight.withValues(alpha: .5)),
+                        errorWidget: (_, __, ___) => Container(width: 44, height: 44,
+                          color: kLight.withValues(alpha: .5),
+                          child: const Icon(Icons.broken_image_outlined, color: kMuted, size: 18))),
+              ),
+            );
+          } else {
+            leadingWidget = Container(width: 44, height: 44,
+              decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
+              child: Center(child: hasDisc
+                  ? Text(discPct, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13))
+                  : const Icon(Icons.local_offer_outlined, color: kPrimary, size: 18)));
+          }
           return Card(elevation: 2, margin: const EdgeInsets.only(bottom: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
-              leading: Container(width: 44, height: 44,
-                decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
-                child: Center(child: Text("${d['discount'] ?? 0}%",
-                  style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13)))),
+              leading: leadingWidget,
               title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kText)),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -5605,13 +5690,22 @@ class AddDealPage extends StatefulWidget {
 class _AddDealState extends State<AddDealPage> {
   final _title = TextEditingController();
   final _desc  = TextEditingController();
-  final _disc  = TextEditingController();
   String _category = ""; bool _loading = false; String _msg = "";
   List<dynamic> _categories = [];
   late String _selectedStoreId;
   late String _selectedStoreName;
   late String _endDate;
   DateTime? _storeExpiryDate;
+  // Item 3 (Add Deal image upload): same two-variable convention already
+  // used by this file's other image pickers (e.g. MerchantStoreEditPage's
+  // _imgB64/_imgUrl) — _dealImgB64 holds a freshly picked image as a
+  // base64 data URI, _dealImgUrl holds the existing CDN URL prefilled in
+  // edit mode until the merchant replaces it. Whichever is non-null is what
+  // gets sent; the backend's existing _cloudinary_upload helper is a no-op
+  // pass-through for an already-uploaded http(s) URL, so re-sending the
+  // existing image on every save never re-uploads it.
+  String? _dealImgB64;
+  String? _dealImgUrl;
 
   bool get _isEdit => widget.editDeal != null;
 
@@ -5625,11 +5719,13 @@ class _AddDealState extends State<AddDealPage> {
       final d = widget.editDeal!;
       _title.text = d["title"]?.toString() ?? "";
       _desc.text  = d["description"]?.toString() ?? "";
-      _disc.text  = d["discount"]?.toString() ?? "";
       _category  = d["category"]?.toString() ?? "";
       _endDate   = d["end_date"]?.toString() ?? "";
       _selectedStoreId = d["store_id"]?.toString() ?? widget.storeId;
       _selectedStoreName = d["store_name"]?.toString() ?? widget.storeName;
+      // Item 3: prefill the existing image so Edit Deal shows it, per requirement.
+      final existingImg = d["image_url"]?.toString() ?? "";
+      if (existingImg.isNotEmpty) _dealImgUrl = existingImg;
     } else {
       _endDate = DateTime.now().add(const Duration(days: 30)).toIso8601String().substring(0, 10);
     }
@@ -5674,7 +5770,7 @@ class _AddDealState extends State<AddDealPage> {
     return null;
   }
 
-  @override void dispose() { _title.dispose(); _desc.dispose(); _disc.dispose(); super.dispose(); }
+  @override void dispose() { _title.dispose(); _desc.dispose(); super.dispose(); }
 
   Future<void> _pickEndDate() async {
     final now = DateTime.now();
@@ -5708,12 +5804,25 @@ class _AddDealState extends State<AddDealPage> {
     return "${_storeExpiryDate!.day} ${months[_storeExpiryDate!.month - 1]} ${_storeExpiryDate!.year}";
   }
 
+  // Item 3 (Add Deal image upload): identical pattern to AddBannerPage's
+  // _pickImage / the Premium product form's _pickLogo elsewhere in this
+  // file — same picker source, size guard and base64 data-URI encoding —
+  // so this reuses the existing image-upload convention instead of a new one.
+  Future<void> _pickDealImage() async {
+    final picker = ImagePicker();
+    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 1200);
+    if (img == null) return;
+    final bytes = await File(img.path).readAsBytes();
+    if (bytes.length > 2 * 1024 * 1024) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Image too large. Max 2MB."), backgroundColor: Colors.red));
+      return;
+    }
+    setState(() { _dealImgB64 = "data:image/jpeg;base64,${base64Encode(bytes)}"; _dealImgUrl = null; });
+  }
+
   Future<void> _save() async {
-    final discVal = int.tryParse(_disc.text.trim()) ?? 0;
     if (_title.text.trim().isEmpty) { setState(() => _msg = "Deal title is required"); return; }
-    if (_disc.text.trim().isEmpty)  { setState(() => _msg = "Discount % is required"); return; }
-    if (discVal <= 0)               { setState(() => _msg = "Discount must be greater than 0%"); return; }
-    if (discVal > 100)              { setState(() => _msg = "Discount cannot exceed 100%"); return; }
     if (_endDate.isEmpty)           { setState(() => _msg = "End date is required"); return; }
 
     if (_storeExpiryDate != null) {
@@ -5730,10 +5839,24 @@ class _AddDealState extends State<AddDealPage> {
         "store_id":    _selectedStoreId,
         "title":       _title.text.trim(),
         "description": _desc.text.trim(),
-        "discount":    discVal,
+        // Item 1 (Round 7): the Discount % field was removed from this form.
+        // The "discount" key is intentionally omitted here rather than sent
+        // as 0 so that editing an existing deal never overwrites/clears its
+        // previously stored discount value (update_deal() falls back to
+        // existing.get("discount", 0) when the key is absent). New deals
+        // simply get the backend's existing default of 0, and every deal
+        // card already guards its "% OFF" badge behind discount > 0 /
+        // isNotEmpty, so a 0/absent discount just shows no badge instead of
+        // a broken one.
         "category":    _category,
         "start_date":  _isEdit ? (widget.editDeal!["start_date"]?.toString() ?? DateTime.now().toIso8601String().substring(0, 10)) : DateTime.now().toIso8601String().substring(0, 10),
         "end_date":    _endDate,
+        // Item 3: optional — "" if the merchant never picked one, matching
+        // this app's existing pattern of optional imagery elsewhere.
+        // Prefer a freshly picked image; otherwise resend the existing CDN
+        // URL unchanged (backend's _cloudinary_upload is a no-op pass-
+        // through for it, so this never re-uploads or loses the image).
+        "image_url":   _dealImgB64 ?? _dealImgUrl ?? "",
       };
       if (_isEdit) {
         await Api.updateDeal(widget.token, widget.editDeal!["_id"].toString(), payload);
@@ -5747,7 +5870,7 @@ class _AddDealState extends State<AddDealPage> {
           content: Text("Deal added!"), backgroundColor: Color(0xFF1a6640)));
       }
       Navigator.pop(context);
-    } catch (e) { setState(() => _msg = e.toString().replaceAll("Exception: ", "")); }
+    } catch (e) { setState(() => _msg = friendlyError(e)); }
     if (mounted) setState(() => _loading = false);
   }
 
@@ -5777,11 +5900,6 @@ class _AddDealState extends State<AddDealPage> {
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
       const SizedBox(height: 12),
-      TextField(controller: _disc, keyboardType: TextInputType.number,
-        decoration: InputDecoration(hintText: "Discount %", prefixIcon: const Icon(Icons.percent, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
-      const SizedBox(height: 12),
       DropdownButtonFormField<String>(
         isExpanded: true,
         value: _category.isEmpty ? null : _category,
@@ -5795,6 +5913,53 @@ class _AddDealState extends State<AddDealPage> {
         decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+      const SizedBox(height: 12),
+      // ── Item 3: Deal Image (optional) ──
+      const Text("Deal Image", style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+      const SizedBox(height: 6),
+      GestureDetector(
+        onTap: _pickDealImage,
+        child: Container(
+          height: 130,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: (_dealImgB64 != null || _dealImgUrl != null) ? kPrimary : kBorder),
+          ),
+          child: _dealImgB64 != null
+              ? Stack(children: [
+                  ClipRRect(borderRadius: BorderRadius.circular(11),
+                    child: Image.memory(base64Decode(_dealImgB64!.split(",").last), width: double.infinity, height: 130, fit: BoxFit.cover)),
+                  Positioned(top: 6, right: 6, child: GestureDetector(
+                    onTap: () => setState(() => _dealImgB64 = null),
+                    child: Container(padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                      child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+                ])
+              : (_dealImgUrl != null && _dealImgUrl!.isNotEmpty)
+                  ? Stack(children: [
+                      ClipRRect(borderRadius: BorderRadius.circular(11),
+                        child: Image.network(_dealImgUrl!, width: double.infinity, height: 130, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.broken_image_outlined, color: kMuted, size: 32),
+                            const SizedBox(height: 6),
+                            const Text("Tap to replace image", style: TextStyle(color: kMuted, fontSize: 12)),
+                          ]))),
+                      Positioned(top: 6, right: 6, child: GestureDetector(
+                        onTap: () => setState(() => _dealImgUrl = null),
+                        child: Container(padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                          child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+                    ])
+                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                      const Icon(Icons.add_photo_alternate_outlined, size: 32, color: kAccent),
+                      const SizedBox(height: 6),
+                      const Text("[ Upload Image ]", style: TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      _InfoChip("📦 Max 2MB · Optional"),
+                    ]),
+        ),
+      ),
       const SizedBox(height: 12),
       InkWell(
         onTap: _pickEndDate,
@@ -6266,9 +6431,10 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
         ),
       );
     } catch (e) {
+      debugPrint('[MerchantAccount] delete request error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${e.toString().replaceAll('Exception: ', '')}"),
+        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
           backgroundColor: Colors.red),
       );
     }

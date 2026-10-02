@@ -200,8 +200,17 @@ class _StoreDetailPageState extends State<StoreDetailPage>
   @override
   Widget build(BuildContext context) {
     final allImgs  = _allImages;
-    // FIX 8: Always parse deals from _store immediately (initial data may already have deals)
-    // so StoreOffersSection renders without waiting for _fetchAll() to complete.
+    // Round 7 (Issue 4): previously ("FIX 8") this always parsed deals from
+    // _store immediately so StoreOffersSection would never wait for
+    // _fetchAll() — but _store starts as widget.store, whose 'deals' (when
+    // opened from Home) is a synthesized, image-less placeholder built by
+    // _enrichStoreForDetail() in home_screen.dart. Rendering that
+    // immediately, then swapping to the real fetched deals, is exactly what
+    // produced the reported "old/default card" flash. StoreOffersSection
+    // now takes its own `loading` flag and shows a proper skeleton instead
+    // of deal content while true, so `deals` here simply reflects whatever
+    // _store currently holds — see store_offers_section.dart's loading
+    // branch for how the flash is actually avoided.
     final deals    = ((_store['deals'] as List?) ?? [])
             .map((d) => Map<String, dynamic>.from(d as Map))
             .toList();
@@ -247,6 +256,7 @@ class _StoreDetailPageState extends State<StoreDetailPage>
                       storeArea: _store['area']?.toString() ?? '',
                       storeCity: _store['city']?.toString() ?? '',
                       storeId:   storeId,
+                      loading:   _loading,
                     ),
           ),
 

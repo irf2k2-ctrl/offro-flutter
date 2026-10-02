@@ -94,9 +94,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
+  // BUG FIX (Round 4 — Bug 2, "time shown is wrong"): backend timestamps
+  // are UTC, but historically serialized without an explicit timezone
+  // suffix. DateTime.parse() treats a timezone-less string as LOCAL time
+  // instead of UTC, which on an IST (UTC+5:30) device silently shifted the
+  // parsed instant, making a fresh timestamp look ~5.5h old. Force UTC
+  // interpretation whenever the string has no timezone marker of its own —
+  // correct for both old (naive) and new (explicit "Z") timestamps.
   String _timeAgo(String isoTs) {
     try {
-      final dt   = DateTime.parse(isoTs);
+      final s = isoTs.trim();
+      final hasTzMarker = RegExp(r'(Z|[+-]\d{2}:?\d{2})$').hasMatch(s);
+      final dt   = DateTime.parse(hasTzMarker ? s : '${s}Z');
       final diff = DateTime.now().difference(dt);
       if (diff.inMinutes < 1)  return "just now";
       if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";

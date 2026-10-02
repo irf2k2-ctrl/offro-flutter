@@ -9,6 +9,7 @@ class FavState extends ChangeNotifier {
 
   final Set<String> _storeIds   = {};
   final Set<String> _productIds = {};
+  final Set<String> _influencerIds = {};
 
   // Store favourites
   bool hasStore(String id) => _storeIds.contains(id);
@@ -50,5 +51,28 @@ class FavState extends ChangeNotifier {
     final had = _productIds.contains(id);
     if (fav) { _productIds.add(id); } else { _productIds.remove(id); }
     if (had != _productIds.contains(id)) notifyListeners();
+  }
+
+  // Influencer favourites — same exact pattern as Store/Product above, so
+  // the Influencer heart on the public profile screen behaves identically
+  // (instant, cross-screen sync via this singleton, optimistic-toggle +
+  // server-confirmed revert handled by the caller).
+  bool hasInfluencer(String id) => _influencerIds.contains(id);
+
+  /// Replace entire influencer favourite set (called after API load).
+  void initInfluencers(Iterable<String> ids) {
+    _influencerIds..clear()..addAll(ids);
+    notifyListeners();
+  }
+
+  void toggleInfluencer(String id) {
+    if (_influencerIds.contains(id)) { _influencerIds.remove(id); } else { _influencerIds.add(id); }
+    notifyListeners();
+  }
+
+  void setInfluencer(String id, bool fav) {
+    final had = _influencerIds.contains(id);
+    if (fav) { _influencerIds.add(id); } else { _influencerIds.remove(id); }
+    if (had != _influencerIds.contains(id)) notifyListeners();
   }
 }
