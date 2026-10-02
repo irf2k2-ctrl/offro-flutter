@@ -117,6 +117,42 @@ Widget _socialRow(Map social) {
   return Column(children: rows);
 }
 
+/// Redesigned Social card for the public/user-facing profile — ONLY the 3
+/// platform icons (YouTube, Instagram, Facebook), no "Social" heading, no
+/// labels, no URLs/usernames shown. Reuses the same `_openSocial` launcher
+/// and the same `social` map/data as the original `_socialRow` (unchanged
+/// underlying data/functionality) — only the presentation differs. All 3
+/// icons always render, evenly spaced; a platform with a configured URL
+/// shows full color and is tappable, one without is faded/inactive and
+/// not tappable (no GestureDetector wrapped around it at all).
+Widget _socialIconsCard(Map social) {
+  Widget platformIcon(String key, IconData icon, Color color, double bgAlpha) {
+    final url = social[key]?.toString() ?? "";
+    final active = url.isNotEmpty;
+    final bubble = Container(
+      width: 48, height: 48,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color.withValues(alpha: active ? bgAlpha : bgAlpha * 0.5)),
+      alignment: Alignment.center,
+      child: Opacity(
+        opacity: active ? 1.0 : 0.35,
+        child: Icon(icon, size: 24, color: color),
+      ),
+    );
+    if (!active) return bubble; // inactive — visible but not tappable
+    return GestureDetector(onTap: () => _openSocial(url), child: bubble);
+  }
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 28),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      platformIcon("youtube", Icons.play_circle_fill_rounded, const Color(0xFFE24B4A), .10),
+      platformIcon("instagram", Icons.camera_alt_rounded, const Color(0xFFD4537E), .12),
+      platformIcon("facebook", Icons.facebook_rounded, const Color(0xFF378ADD), .10),
+    ]),
+  );
+}
+
 Widget _ratingRow(Map influencer, {double fontSize = 11}) {
   final rating = (influencer["rating"] as num?)?.toStringAsFixed(1) ?? "-";
   final reviews = influencer["review_count"]?.toString() ?? "0";
@@ -656,22 +692,74 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
       ),
       body: Stack(children: [
         ListView(
-        padding: const EdgeInsets.all(20),
+        // Hero below renders edge-to-edge (full-bleed background asset, no
+        // card/border/shadow around it) — horizontal inset is applied only
+        // to the sections after it, via the single Padding wrapped around
+        // them further down (same technique as the owner's own profile
+        // screen). Top padding is 0 so the background starts immediately
+        // under the app bar, matching the approved mockup.
+        padding: const EdgeInsets.only(bottom: 28),
         children: [
-          Center(child: _avatar(inf, 100)),
-          const SizedBox(height: 14),
-          Center(child: Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kText))),
-          const SizedBox(height: 2),
-          Center(child: Text("${inf["city"] ?? ""} · ${inf["category"] ?? ""}",
-            style: const TextStyle(fontSize: 13, color: kMuted))),
-          const SizedBox(height: 8),
-          Center(child: _ratingRow({"rating": _displayRating, "review_count": _displayReviewCount}, fontSize: 13)),
-          const SizedBox(height: 16),
+          // ── Hero — decorative background asset (as supplied, no
+          // CustomPainter/generated shapes), large circular photo with a
+          // white ring overlapping it, then name → location+category (one
+          // line) → rating, all directly on the page background. No
+          // card/border/shadow anywhere in this section. ──
+          Column(children: [
+            LayoutBuilder(builder: (context, constraints) {
+              final heroW = constraints.maxWidth;
+              final heroH = heroW * (664 / 841) * 1.22;
+              return SizedBox(
+                height: heroH,
+                width: double.infinity,
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      'assets/influencer_profile_bg.png',
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                    ),
+                  ),
+                  Positioned(
+                    top: heroH * 0.49,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white,
+                          boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 14, offset: Offset(0, 4))]),
+                        child: _avatar(inf, 108),
+                      ),
+                    ),
+                  ),
+                ]),
+              );
+            }),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Column(children: [
+                Text(name, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kText)),
+                const SizedBox(height: 6),
+                Text("${inf["city"] ?? ""} · ${inf["category"] ?? ""}",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 13.5, color: kMuted)),
+                const SizedBox(height: 10),
+                _ratingRow({"rating": _displayRating, "review_count": _displayReviewCount}, fontSize: 14),
+              ]),
+            ),
+          ]),
           // Item 10: Follow button removed (was local-only, never real).
           // Item 11: body "Share Profile" button removed — only the AppBar
           // share icon remains, now producing a branded share image
           // (see _buildAndShareCard below) instead of plain text.
 
+          // ── Everything below the hero keeps the page's normal 20px side
+          // margin — only the hero above renders full-bleed. ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(children: [
           if (about.isNotEmpty) ...[
             const SizedBox(height: 24),
             const Text("About", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
@@ -679,10 +767,11 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
             Text(about, style: const TextStyle(fontSize: 13, color: kText, height: 1.4)),
           ],
 
-          const SizedBox(height: 24),
-          const Text("Social", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
-          const SizedBox(height: 4),
-          _socialRow(social),
+          const SizedBox(height: 20),
+          // ── Social — heading removed; icon-only card (see
+          // _socialIconsCard) replaces the old labelled _socialRow. Same
+          // `social` data/`_openSocial` launcher underneath. ──
+          _socialIconsCard(social),
 
           const SizedBox(height: 24),
           const Text("Rate this influencer", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
@@ -730,13 +819,27 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kPrimary)),
               ),
           ]),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           if (_loadingReviews)
             const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
           else if (_reviews.isEmpty)
-            const Text("No reviews yet", style: TextStyle(fontSize: 12, color: kMuted))
+            // Proper empty-state card instead of a lone line of text.
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+              child: Column(children: [
+                Container(width: 40, height: 40,
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
+                  child: const Icon(Icons.star_border_rounded, size: 20, color: kMuted)),
+                const SizedBox(height: 8),
+                const Text("No reviews yet", style: TextStyle(fontSize: 12.5, color: kMuted, fontWeight: FontWeight.w600)),
+              ]),
+            )
           else
             ..._reviews.take(2).map((r) => _reviewTile(r)),
+            ]),
+          ),
         ],
         ),
         // Off-screen branded share card — laid out and paintable, but never
