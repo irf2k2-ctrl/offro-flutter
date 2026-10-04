@@ -387,7 +387,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   int    _heroImgIndex = 0;          // current hero image index
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
   String _defaultCityImageUrl = "";    // fallback from /admin/default-images
-  String _defaultProductImageUrl = ""; // default product image from /admin/default-images
+  List<String> _defaultProductImageUrls = []; // default product images from /admin/default-images (all configured)
   int _sliderPage=0;
   final PageController _sliderPc = PageController(initialPage: 49999); // FIX 5: start at midpoint for infinite scroll
   Timer? _sliderTimer;
@@ -676,11 +676,26 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
         final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
-        final defProd = (defaults["product"] ?? "").toString().trim();
+        // Default product images: backend now returns the full configured list
+        // (same _all_urls() pattern already used for city/merchant_banner),
+        // but tolerate an older/legacy single-string response too.
+        final defProdVal = defaults["product"];
+        List<String> resolvedDefProdImgs = [];
+        if (defProdVal is List) {
+          resolvedDefProdImgs = defProdVal
+              .map((v) => v.toString().trim())
+              .where((v) => v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video"))
+              .toList();
+        } else if (defProdVal is String && defProdVal.trim().isNotEmpty) {
+          final v = defProdVal.trim();
+          if (v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video")) {
+            resolvedDefProdImgs = [v];
+          }
+        }
         if (mounted) setState(() {
           if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
           if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
-          if (defProd.isNotEmpty) _defaultProductImageUrl = defProd;
+          if (resolvedDefProdImgs.isNotEmpty) _defaultProductImageUrls = resolvedDefProdImgs;
         });
         _mbFallbackUrl = (defaults["merchant_banner"] ?? "").toString().trim();
       } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getDefaultImages error: $e"); }
@@ -1471,7 +1486,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       products: _products,
                       onViewAll: () => _viewAllProducts(context),
                       token: widget.token,
-                      defaultProductImageUrl: _defaultProductImageUrl,
+                      defaultProductImageUrls: _defaultProductImageUrls,
                     )),
 
                     // ══════ 6b. CITY INFLUENCERS (new — mock data, UI-only step) ══════
@@ -4289,12 +4304,12 @@ class _DiscoverProductsSection extends StatelessWidget {
   final List<Map<String,dynamic>> products;
   final VoidCallback onViewAll;
   final String token;
-  final String defaultProductImageUrl;
+  final List<String> defaultProductImageUrls;
   const _DiscoverProductsSection({
     required this.products,
     required this.onViewAll,
     this.token = "",
-    this.defaultProductImageUrl = "",
+    this.defaultProductImageUrls = const [],
   });
 
   static num? _numVal(Map v, List<String> keys) {
@@ -4349,8 +4364,7 @@ class _DiscoverProductsSection extends StatelessWidget {
     );
   }
 
-  Widget _defaultProductPlaceholder(BuildContext context) {
-    final imgUrl = defaultProductImageUrl;
+  Widget _defaultProductImage(String imgUrl) {
     Widget imgW;
     if (imgUrl.startsWith("data:image")) {
       try {
@@ -4364,6 +4378,15 @@ class _DiscoverProductsSection extends StatelessWidget {
       imgW = Container(color: const Color(0xFFe8f5f0),
         child: const Icon(Icons.image_not_supported_outlined, color: Color(0xFF6b8c7e), size: 36));
     }
+    return imgW;
+  }
+
+  // Renders ALL configured default product images (not a hardcoded count).
+  // A single image keeps the original full-width look; multiple images lay
+  // out side-by-side (same card count, scrollable if they overflow), so the
+  // placeholder still reads as a Discover-Products-style section.
+  Widget _defaultProductPlaceholder(BuildContext context) {
+    final urls = defaultProductImageUrls;
     return Container(
       color: const Color(0xFFF4F9F6),
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
@@ -4373,20 +4396,272 @@ class _DiscoverProductsSection extends StatelessWidget {
           child: Text("Discover Products",
             style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(height: 170, width: double.infinity, child: imgW),
+        if (urls.length <= 1)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(height: 170, width: double.infinity,
+                child: urls.isNotEmpty ? _defaultProductImage(urls.first) : _defaultProductImage("")),
+            ),
+          )
+        else
+          SizedBox(
+            height: 170,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: urls.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) => ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(width: 170, height: 170, child: _defaultProductImage(urls[i])),
+              ),
+            ),
           ),
-        ),
       ]),
     );
   }
 
+  // Groups product indices into Bento blocks: a 3-item group renders as
+  // 1 feature card + 2 stacked small cards; leftover groups of 2 or 1 fall
+  // back to simpler side-by-side / single-card blocks. Works for any count.
+  List<List<int>> _bentoGroups(int total) {
+    final groups = <List<int>>[];
+    int i = 0;
+    while (i < total) {
+      final remaining = total - i;
+      if (remaining >= 3) {
+        groups.add([i, i + 1, i + 2]);
+        i += 3;
+      } else if (remaining == 2) {
+        groups.add([i, i + 1]);
+        i += 2;
+      } else {
+        groups.add([i]);
+        i += 1;
+      }
+    }
+    return groups;
+  }
+
+  // Single product card — same visuals/data/navigation as before, now
+  // parameterized by size so it can be used as either the big "feature"
+  // tile or a smaller stacked tile inside a Bento block.
+  Widget _productCard(BuildContext ctx, Map<String,dynamic> v, int gradIndex, List<List<Color>> cardGrads,
+      {required double width, required double imgHeight, required double cardHeight, bool compact = false}) {
+    final title     = _resolveTitle(v);
+    final offerText = v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
+    final storeName = _resolveStoreName(v);
+    final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
+    final badge     = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
+    final imgSrc    = _resolveImg(v);
+    final grad      = cardGrads[gradIndex % cardGrads.length];
+
+    return GestureDetector(
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(
+        builder: (_) => ProductDetailsPage(product: v, token: token))),
+      child: Container(
+        width: width,
+        height: cardHeight,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [grad[0], grad[1]],
+            begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0,4))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Top image
+          Stack(children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+              child: SizedBox(
+                width: width, height: imgHeight,
+                child: imgSrc.startsWith("http")
+                  ? CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
+                      width: width, height: imgHeight,
+                      placeholder: (_, __) => Container(width: width, height: imgHeight, color: grad[1]),
+                      errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]]))
+                  : imgSrc.startsWith("data:image")
+                    ? _b64Img(imgSrc, _fallback(title, [grad[0], grad[1]]))
+                    : Container(width: width, height: imgHeight,
+                        decoration: BoxDecoration(gradient: LinearGradient(colors:[grad[0],grad[1]], begin:Alignment.topLeft, end:Alignment.bottomRight)),
+                        child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
+                          style: TextStyle(color: const Color(0xFF3E5F55), fontSize: compact ? 20 : 26, fontWeight: FontWeight.w900)))),
+              ),
+            ),
+            if (badge.isNotEmpty)
+              Positioned(top: 7, left: 7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
+                  child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                )),
+            // ── Product wishlist heart — live toggle ──
+            Positioned(top: 6, right: 6,
+              child: StatefulBuilder(
+                builder: (ctx2, setH) {
+                  final _pid0 = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
+                  bool _pFav = FavState.instance.hasProduct(_pid0) || v["_isFav"] == true;
+                  return GestureDetector(
+                    onTap: () async {
+                      final pid = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
+                      if (pid.isEmpty || token.isEmpty) return;
+                      final next = !_pFav;
+                      setH(() { v["_isFav"] = next; _pFav = next; });
+                      FavState.instance.toggleProduct(pid);
+                      try {
+                        await Api.toggleProductFavorite(token, pid);
+                      } catch (_) {
+                        setH(() { v["_isFav"] = !next; _pFav = !next; });
+                        FavState.instance.toggleProduct(pid);
+                      }
+                    },
+                    child: Container(
+                      width: 26, height: 26,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .88),
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius: 4)],
+                      ),
+                      child: Icon(
+                        _pFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: _pFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
+                        size: 14),
+                    ),
+                  );
+                },
+              )),
+          ]),
+          // Bottom text with prices — fills remaining card height
+          Expanded(
+            child: Builder(builder: (_) {
+              // Resolve prices
+              num? saleP = _numVal(v, ["offer_price","sale_price","price","current_price"]); // ITEM10
+              num? origP = _numVal(v, ["original_price","mrp","was_price","compare_price"]);
+              if (origP != null && saleP != null && origP <= saleP) origP = null;
+              return Padding(
+                padding: compact
+                    ? const EdgeInsets.fromLTRB(8, 4, 8, 4)
+                    : const EdgeInsets.fromLTRB(9, 5, 9, 6), // ITEM8: tighter
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text(title.isNotEmpty ? title : offerText,
+                    style: TextStyle(color: const Color(0xFF2c3e35), fontSize: compact ? 12 : 18, fontWeight: FontWeight.w800),
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+                  // ── FIX 6: Rating below title (full-size cards only — no room on compact stacked cards) ──
+                  if (!compact) Builder(builder: (_ctx) {
+                    final _pr = (v["rating"] as num?)?.toDouble() ?? 0.0;
+                    final _pc = (v["rating_count"] ?? v["review_count"] as num?)?.toInt() ?? 0;
+                    if (_pr <= 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
+                        const SizedBox(width: 2),
+                        Text(_pr.toStringAsFixed(1),
+                          style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 10, fontWeight: FontWeight.w700)),
+                        if (_pc > 0) Text(" ($_pc)",
+                          style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
+                      ]),
+                    );
+                  }),
+                  if (!compact) const SizedBox(height: 3),
+                  if (!compact && storeName.isNotEmpty)
+                    Text("Seller: " + storeName,
+                      style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  // Offer text shown on full-size cards only — compact stacked
+                  // cards keep just title + price to avoid overflowing their
+                  // small fixed height.
+                  if (!compact && offerText.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(offerText,
+                      style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 13, fontWeight: FontWeight.w700),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                  if (saleP != null || origP != null) ...[
+                    SizedBox(height: compact ? 3 : 4),
+                    Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      if (origP != null && !compact) ...[
+                        Text("₹${origP.toStringAsFixed(0)}",
+                          style: const TextStyle(
+                            color: Color(0xFF9e9e9e), fontSize: 14, fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: Color(0xFF9e9e9e))),
+                        const SizedBox(width: 4),
+                      ],
+                      if (saleP != null)
+                        Text("₹${saleP.toStringAsFixed(0)}",
+                          style: TextStyle(color: const Color(0xFF2c7a4b), fontSize: compact ? 13 : 18, fontWeight: FontWeight.w900))
+                      else if (origP != null && compact)
+                        Text("₹${origP.toStringAsFixed(0)}",
+                          style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 13, fontWeight: FontWeight.w900)),
+                    ]),
+                  ],
+                ]),
+              );
+            }),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  // Renders one Bento block for a group of 1, 2 or 3 product indices.
+  static const double _bentoHeight = 230;
+  Widget _bentoGroup(BuildContext ctx, List<int> idxs, List<Map<String,dynamic>> items, List<List<Color>> cardGrads) {
+    if (idxs.length == 3) {
+      final bigIdx = idxs[0], s1 = idxs[1], s2 = idxs[2];
+      const double smallH = (_bentoHeight - 10) / 2;
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: SizedBox(
+          height: _bentoHeight,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 170, imgHeight: 120, cardHeight: _bentoHeight),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 150,
+              height: _bentoHeight,
+              child: Column(children: [
+                _productCard(ctx, items[s1], s1, cardGrads, width: 150, imgHeight: 56, cardHeight: smallH, compact: true),
+                const SizedBox(height: 10),
+                _productCard(ctx, items[s2], s2, cardGrads, width: 150, imgHeight: 56, cardHeight: smallH, compact: true),
+              ]),
+            ),
+          ]),
+        ),
+      );
+    } else if (idxs.length == 2) {
+      final a = idxs[0], b = idxs[1];
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: SizedBox(
+          height: _bentoHeight,
+          child: Row(children: [
+            _productCard(ctx, items[a], a, cardGrads, width: 160, imgHeight: 130, cardHeight: _bentoHeight),
+            const SizedBox(width: 10),
+            _productCard(ctx, items[b], b, cardGrads, width: 160, imgHeight: 130, cardHeight: _bentoHeight),
+          ]),
+        ),
+      );
+    } else {
+      final a = idxs[0];
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: SizedBox(
+          height: _bentoHeight,
+          width: 220,
+          child: _productCard(ctx, items[a], a, cardGrads, width: 220, imgHeight: 140, cardHeight: _bentoHeight),
+        ),
+      );
+    }
+  }
+
   @override Widget build(BuildContext context) {
     if (products.isEmpty) {
-      return defaultProductImageUrl.isNotEmpty
+      return defaultProductImageUrls.isNotEmpty
           ? _defaultProductPlaceholder(context)
           : const SizedBox.shrink();
     }
@@ -4400,6 +4675,12 @@ class _DiscoverProductsSection extends StatelessWidget {
       [Color(0xFFf5eef0), Color(0xFFe8c8d4)],
     ];
 
+    // Bento-style grouping: 1 feature card + 2 stacked small cards per group
+    // of 3, with graceful 2- and 1-item blocks for the remainder. Preserves
+    // the same products/onViewAll/token contract and per-card tap navigation.
+    final _items = products.map((p) => Map<String,dynamic>.from(p as Map)).toList();
+    final _groups = _bentoGroups(_items.length);
+
     return Container(
       color: const Color(0xFFF4F9F6),
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
@@ -4412,15 +4693,14 @@ class _DiscoverProductsSection extends StatelessWidget {
           ]),
         ),
         SizedBox(
-          height: 170, // ITEM8: reduced card height
+          height: _bentoHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            itemCount: products.length + 1,
+            itemCount: _groups.length + 1,
             itemBuilder: (ctx, i) {
-              final maxCount = products.length;
-              if (i == maxCount) {
+              if (i == _groups.length) {
                 return GestureDetector(
                   onTap: onViewAll,
                   child: Center(
@@ -4453,153 +4733,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                   ),
                 );
               }
-              final v = Map<String,dynamic>.from(products[i] as Map);
-              final title     = _resolveTitle(v);
-              final offerText = v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
-              final storeName = _resolveStoreName(v);
-              final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
-              final badge     = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
-              final imgSrc    = _resolveImg(v);
-              final grad      = _cardGrads[i % _cardGrads.length];
-
-              return GestureDetector(
-                onTap: () => Navigator.push(ctx, MaterialPageRoute(
-                  builder: (_) => ProductDetailsPage(product: v, token: token))),
-                child: Container(
-                  width: 140,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [grad[0], grad[1]],
-                      begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0,4))],
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Top image
-                    Stack(children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
-                        child: SizedBox(
-                          width: 140, height: 84, // ITEM8: reduced image height
-                          child: imgSrc.startsWith("http")
-                            ? CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
-                                width: 140, height: 84,
-                                placeholder: (_, __) => Container(width:140, height:84, color: grad[1]),
-                                errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]]))
-                            : imgSrc.startsWith("data:image")
-                              ? _b64Img(imgSrc, _fallback(title, [grad[0], grad[1]]))
-                              : Container(width:140, height:84,
-                                  decoration: BoxDecoration(gradient: LinearGradient(colors:[grad[0],grad[1]], begin:Alignment.topLeft, end:Alignment.bottomRight)),
-                                  child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
-                                    style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 26, fontWeight: FontWeight.w900)))),
-                        ),
-                      ),
-                      if (badge.isNotEmpty)
-                        Positioned(top: 7, left: 7,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
-                            child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                          )),
-                      // ── Product wishlist heart — live toggle ──
-                      Positioned(top: 6, right: 6,
-                        child: StatefulBuilder(
-                          builder: (ctx2, setH) {
-                            final _pid0 = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
-                            bool _pFav = FavState.instance.hasProduct(_pid0) || v["_isFav"] == true;
-                            return GestureDetector(
-                              onTap: () async {
-                                final pid = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
-                                if (pid.isEmpty || token.isEmpty) return;
-                                final next = !_pFav;
-                                setH(() { v["_isFav"] = next; _pFav = next; });
-                                FavState.instance.toggleProduct(pid);
-                                try {
-                                  await Api.toggleProductFavorite(token, pid);
-                                } catch (_) {
-                                  setH(() { v["_isFav"] = !next; _pFav = !next; });
-                                  FavState.instance.toggleProduct(pid);
-                                }
-                              },
-                              child: Container(
-                                width: 26, height: 26,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: .88),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius: 4)],
-                                ),
-                                child: Icon(
-                                  _pFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                  color: _pFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
-                                  size: 14),
-                              ),
-                            );
-                          },
-                        )),
-                    ]),
-                    // Bottom text with prices
-                    Builder(builder: (_) {
-                      // Resolve prices
-                      num? saleP = _numVal(v, ["offer_price","sale_price","price","current_price"]); // ITEM10
-                      num? origP = _numVal(v, ["original_price","mrp","was_price","compare_price"]);
-                      if (origP != null && saleP != null && origP <= saleP) origP = null;
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(9, 5, 9, 6), // ITEM8: tighter
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          Text(title.isNotEmpty ? title : offerText,
-                            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800),
-                            maxLines: 2, overflow: TextOverflow.ellipsis),
-                          // ── FIX 6: Rating below title ──
-                          Builder(builder: (_ctx) {
-                            final _pr = (v["rating"] as num?)?.toDouble() ?? 0.0;
-                            final _pc = (v["rating_count"] ?? v["review_count"] as num?)?.toInt() ?? 0;
-                            if (_pr <= 0) return const SizedBox.shrink();
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 3),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                                const SizedBox(width: 2),
-                                Text(_pr.toStringAsFixed(1),
-                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 10, fontWeight: FontWeight.w700)),
-                                if (_pc > 0) Text(" ($_pc)",
-                                  style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
-                              ]),
-                            );
-                          }),
-                          const SizedBox(height: 3),
-                          if (storeName.isNotEmpty)
-                            Text("Seller: " + storeName,
-                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          if (offerText.isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Text(offerText,
-                              style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 13, fontWeight: FontWeight.w700),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          ],
-                          if (saleP != null || origP != null) ...[
-                            const SizedBox(height: 4),
-                            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                              if (origP != null) ...[
-                                Text("₹${origP.toStringAsFixed(0)}",
-                                  style: const TextStyle(
-                                    color: Color(0xFF9e9e9e), fontSize: 14, fontWeight: FontWeight.w500,
-                                    decoration: TextDecoration.lineThrough,
-                                    decorationColor: Color(0xFF9e9e9e))),
-                                const SizedBox(width: 4),
-                              ],
-                              if (saleP != null)
-                                Text("₹${saleP.toStringAsFixed(0)}",
-                                  style: const TextStyle(color: Color(0xFF2c7a4b), fontSize: 18, fontWeight: FontWeight.w900)),
-                            ]),
-                          ],
-                        ]),
-                      );
-                    }),
-                  ]),
-                ),
-              );
+              return _bentoGroup(ctx, _groups[i], _items, _cardGrads);
             },
           ),
         ),
@@ -5082,7 +5216,9 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   void _startTimer() {
     _timer?.cancel();
     if (widget.banners.length > 1) {
-      _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      // Slowed from 4s to 7s so each banner stays visible longer; manual
+      // swipe (same PageController) and the 500ms easeInOut transition are unchanged.
+      _timer = Timer.periodic(const Duration(seconds: 7), (_) {
         _pc.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
       });
     }
