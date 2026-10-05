@@ -45,7 +45,6 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     with SingleTickerProviderStateMixin, RouteAware {
   Map<String, dynamic> _store = {};
   bool  _loading   = true;
-  bool  _isFav     = false;
   int   _imgPage   = 0;
   int   _walletPts = 0;
   final PageController _imgPc = PageController();
@@ -53,12 +52,33 @@ class _StoreDetailPageState extends State<StoreDetailPage>
   late TabController _tabCtrl;
   static const _tabs = ['About', 'Products', 'Reviews', 'Rewards'];
 
+  String get _storeId =>
+      (_store['_id'] ?? widget.store['_id'] ?? widget.store['id'] ?? '').toString();
+
+  // BUG FIX (QA): favorite state is now derived directly from the shared
+  // FavState singleton — the exact same source the Home Screen store card
+  // reads (lib/main.dart's _BannerStoresBlockState) — instead of a private
+  // `_isFav` field that defaulted to false and was only corrected after a
+  // separate, slower Api.isFavorite() network call resolved. That stale
+  // local copy is what caused the reported bug: Store Detail showed an
+  // empty heart for an already-favorited store, and tapping it (to
+  // "favorite" it) actually called the backend's blind toggle against the
+  // real (already-favorited) state and removed the favorite.
+  bool get _isFav => FavState.instance.hasStore(_storeId);
+
   @override
   void initState() {
     super.initState();
     _store = Map<String, dynamic>.from(widget.store);
     _tabCtrl = TabController(length: _tabs.length, vsync: this);
+    // Keep this page in sync if the favorite state changes elsewhere
+    // (Home Screen card, Favorites list) while this page is open.
+    FavState.instance.addListener(_onFavChanged);
     _fetchAll();
+  }
+
+  void _onFavChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -82,6 +102,7 @@ class _StoreDetailPageState extends State<StoreDetailPage>
 
   @override
   void dispose() {
+    FavState.instance.removeListener(_onFavChanged);
     routeObserver.unsubscribe(this);
     _imgPc.dispose();
     _tabCtrl.dispose();
@@ -133,7 +154,11 @@ class _StoreDetailPageState extends State<StoreDetailPage>
           if (full['created_at'] == null || full['created_at'].toString().isEmpty) {
             _store['created_at'] = savedCreatedAt ?? '';
           }
-          _isFav    = isFav;
+          // _isFav is now a getter derived from FavState — just correct the
+          // shared singleton with this fresher, confirmed server value.
+          // (A no-op if Home Screen already seeded it correctly, which is
+          // the common case — this is a safety net for deep-links / cold
+          // opens where FavState hasn't been populated yet.)
           FavState.instance.setStore(id, isFav);
           _walletPts = (wallet['points'] as num?)?.toInt() ?? 0;
           _loading  = false;
@@ -167,16 +192,18 @@ class _StoreDetailPageState extends State<StoreDetailPage>
 
 
   Future<void> _toggleFav() async {
-    final id = _store['_id']?.toString() ?? '';
+    final id = _storeId;
     if (id.isEmpty || widget.token.isEmpty) return;
-    final prev = _isFav;
-    setState(() => _isFav = !_isFav);
-    FavState.instance.toggleStore(id);
+    final prev = _isFav; // read from FavState — the real current state
+    // Use setStore (explicit set) rather than toggleStore (blind flip) for
+    // both the optimistic update and the revert-on-failure below, so this
+    // can never double-flip even if something else changes FavState
+    // concurrently — avoids the duplicate/incorrect-toggle bug from QA.
+    FavState.instance.setStore(id, !prev);
     try {
       await Api.toggleFavorite(widget.token, id);
     } catch (_) {
-      if (mounted) setState(() => _isFav = prev);
-      FavState.instance.toggleStore(id);
+      FavState.instance.setStore(id, prev);
     }
   }
 
