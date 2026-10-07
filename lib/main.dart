@@ -4964,7 +4964,6 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                   itemBuilder: (ctx, i) {
                     final d = items[i];
                     final imgUrl  = (d["image_url"]  ?? "").toString();
-                    final discount= (d["discount"]   ?? "").toString();
                     final endDate = (d["end_date"]   ?? "").toString();
                     final storeName = (d["store_name"] ?? "").toString();
                     final storeArea = (d["store_area"] ?? "").toString();
@@ -5036,18 +5035,10 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                           Expanded(child: Padding(
                             padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              // Discount badge
-                              if (discount.isNotEmpty && !expired)
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 5),
-                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: kPrimary,
-                                    borderRadius: BorderRadius.circular(20)),
-                                  child: Text(
-                                    discount.contains('%') ? discount : "${discount}% OFF",
-                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
-                                ),
+                              // QA fix: percentage/discount badge removed from
+                              // the Hot Deals LIST card (still shown in the
+                              // deal's own full detail/gallery view — only
+                              // this list presentation was asked to drop it).
                               if (expired)
                                 Container(
                                   margin: const EdgeInsets.only(bottom: 5),
@@ -5082,20 +5073,8 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                                     style: const TextStyle(fontSize: 11, color: kMuted)),
                                 ]),
                               ],
-                              // Validity
-                              if (endDate.isNotEmpty && !endDate.contains('dt.day') && !endDate.contains(r'\${')) ...[
-                                const SizedBox(height: 4),
-                                Row(children: [
-                                  Icon(Icons.calendar_today_rounded, size: 11,
-                                    color: expired ? Colors.red : kMuted),
-                                  const SizedBox(width: 4),
-                                  Text("Valid till ${_fmtDate(endDate)}",
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: expired ? Colors.red : kMuted,
-                                      fontWeight: expired ? FontWeight.w600 : FontWeight.normal)),
-                                ]),
-                              ],
+                              // QA fix: validity/"Valid till" date line removed
+                              // from the Hot Deals LIST card presentation.
                             ]),
                           )),
                           // Chevron
@@ -5966,7 +5945,7 @@ class _DiscoverProductsSection extends StatelessWidget {
   // parameterized by size so it can be the big "feature" tile or a smaller
   // stacked tile inside a Bento block.
   Widget _productCard(BuildContext ctx, Map<String,dynamic> v, int gradIndex, List<List<Color>> cardGrads,
-      {required double width, required double imgHeight, required double cardHeight, bool compact = false}) {
+      {required double width, required double imgHeight, required double cardHeight, bool compact = false, bool showReviewRow = false}) {
     final title     = _resolveTitle(v);
     final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
     final storeName = _resolveStoreName(v);
@@ -5995,13 +5974,34 @@ class _DiscoverProductsSection extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
               child: SizedBox(
                 width: width, height: imgHeight,
+                // QA fix: Bento Home Screen product images were too
+                // zoomed/cropped (BoxFit.cover always fills the box,
+                // cropping whatever doesn't fit the aspect ratio). Switched
+                // to BoxFit.contain on a soft background fill so the whole
+                // product photo is visible, uncropped, the way it actually
+                // looks — same change ProductDetailsPage's own image
+                // rendering is explicitly NOT touched (separate widget).
                 child: imgSrc.startsWith("http")
-                  ? CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
+                  ? Container(
                       width: width, height: imgHeight,
-                      placeholder: (_, __) => Container(width: width, height: imgHeight, color: grad[1]),
-                      errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]]))
+                      color: grad[1].withValues(alpha: .25),
+                      child: CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.contain,
+                        width: width, height: imgHeight,
+                        placeholder: (_, __) => Container(width: width, height: imgHeight, color: grad[1]),
+                        errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]])))
                   : imgSrc.startsWith("data:image")
-                    ? _b64Img(imgSrc, _fallback(title, [grad[0], grad[1]]))
+                    ? Container(
+                        width: width, height: imgHeight,
+                        color: grad[1].withValues(alpha: .25),
+                        child: Builder(builder: (_) {
+                          try {
+                            return Image.memory(base64Decode(imgSrc.split(",").last),
+                              fit: BoxFit.contain, width: width, height: imgHeight,
+                              errorBuilder: (_, __, ___) => _fallback(title, [grad[0], grad[1]]));
+                          } catch (_) {
+                            return _fallback(title, [grad[0], grad[1]]);
+                          }
+                        }))
                     : Container(width: width, height: imgHeight,
                         color: const Color(0xFFF5F5F5),
                         child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
@@ -6055,8 +6055,10 @@ class _DiscoverProductsSection extends StatelessWidget {
                   );
                 },
               )),
-            // ── Rating chip — bottom-right corner of image (full-size cards only) ──
-            if (!compact) Builder(builder: (_rc) {
+            // ── Rating chip — bottom-right corner of image (full-size cards
+            // only, and not when the fuller review row below already shows
+            // it — avoids showing the same rating twice on the feature card) ──
+            if (!compact && !showReviewRow) Builder(builder: (_rc) {
               final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
               final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
               if (_pr <= 0) return const SizedBox.shrink();
@@ -6101,6 +6103,28 @@ class _DiscoverProductsSection extends StatelessWidget {
                         style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
                         maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
+                  // QA fix: review/rating info on the large Bento feature
+                  // card — real data only (never hard-coded), simply absent
+                  // (no placeholder/zero shown) when a product has no
+                  // rating yet, so the card stays balanced either way.
+                  if (showReviewRow) Builder(builder: (_rr) {
+                    final _prRaw = v["rating"];
+                    final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
+                    final _pcRaw = v["rating_count"] ?? v["review_count"];
+                    final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
+                    if (_pr <= 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 13),
+                        const SizedBox(width: 3),
+                        Text(_pr.toStringAsFixed(1),
+                          style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w700)),
+                        if (_pc > 0) Text(" (${_pc} review${_pc == 1 ? '' : 's'})",
+                          style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
+                      ]),
+                    );
+                  }),
                   if (saleP != null && saleP > 0) Padding(
                     padding: EdgeInsets.only(top: compact ? 4 : 6),
                     child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -6140,7 +6164,11 @@ class _DiscoverProductsSection extends StatelessWidget {
         child: SizedBox(
           height: _bentoHeight,
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 170, imgHeight: 120, cardHeight: _bentoHeight),
+            // QA fix: imgHeight bumped 120→130 (uses the available card
+            // space better) and showReviewRow enabled — together these
+            // close the unnecessary white space that used to sit below the
+            // title/seller/price block on this feature card.
+            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 170, imgHeight: 130, cardHeight: _bentoHeight, showReviewRow: true),
             const SizedBox(width: 10),
             SizedBox(
               width: 150,
@@ -6174,7 +6202,7 @@ class _DiscoverProductsSection extends StatelessWidget {
         child: SizedBox(
           height: _bentoHeight,
           width: 220,
-          child: _productCard(ctx, items[a], a, cardGrads, width: 220, imgHeight: 140, cardHeight: _bentoHeight),
+          child: _productCard(ctx, items[a], a, cardGrads, width: 220, imgHeight: 130, cardHeight: _bentoHeight, showReviewRow: true),
         ),
       );
     }

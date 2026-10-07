@@ -203,6 +203,68 @@ Widget _avatar(Map influencer, double size) {
   return _avatarFallback(name, size);
 }
 
+// QA fix: SQUARE avatar for the Home Screen influencer card specifically
+// (_InfluencerCard below) — kept separate from _avatar()/_avatarFallback()
+// above, which stay circular for every OTHER place they're used (the "View
+// All" influencer list, the profile screen header, etc.), since only the
+// Home Screen card was asked to change. Mirrors _avatar()'s structure
+// exactly, swapping BoxShape.circle/ClipOval for a lightly-rounded square
+// (ClipRRect) so it still reads as an intentional OffrO card shape rather
+// than a plain cropped rectangle.
+Widget _squareAvatar(Map influencer, double size) {
+  final name = influencer["name"]?.toString() ?? "?";
+  final photoUrl = influencer["photo_url"]?.toString() ?? "";
+  if (photoUrl.startsWith("http")) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder, width: 1)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: CachedNetworkImage(
+          imageUrl: photoUrl, width: size, height: size, fit: BoxFit.cover,
+          placeholder: (_, __) => _squareAvatarFallback(name, size, bordered: false),
+          errorWidget: (_, __, ___) => _squareAvatarFallback(name, size, bordered: false),
+        ),
+      ),
+    );
+  }
+  if (photoUrl.startsWith("data:")) {
+    try {
+      final b64 = photoUrl.split(",").last;
+      return Container(
+        width: size, height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: kBorder, width: 1)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Image.memory(base64Decode(b64), width: size, height: size, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _squareAvatarFallback(name, size, bordered: false)),
+        ),
+      );
+    } catch (_) {
+      return _squareAvatarFallback(name, size);
+    }
+  }
+  return _squareAvatarFallback(name, size);
+}
+
+Widget _squareAvatarFallback(String name, double size, {bool bordered = true}) {
+  return Container(
+    width: size, height: size,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(14),
+      color: _avatarColor(name),
+      border: bordered ? Border.all(color: kBorder, width: 1) : null,
+    ),
+    alignment: Alignment.center,
+    child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?",
+      style: TextStyle(fontSize: size * 0.36, fontWeight: FontWeight.w800, color: kPrimary)),
+  );
+}
+
 Widget _avatarFallback(String name, double size, {bool bordered = true}) {
   return Container(
     width: size, height: size,
@@ -258,11 +320,18 @@ class _InfluencerCard extends StatelessWidget {
           // Items 8 & 9: no social-icon overlay and no city on the Home
           // card — both were removed here specifically; the profile screen
           // still shows city and social links in full.
-          // Avatar kept at its exact existing explicit size (108) — NOT
-          // wrapped in AspectRatio anymore, since AspectRatio would stretch
-          // it to fill the new, wider card. Centered instead so only the
-          // card grew, not the avatar.
-          Center(child: _avatar(influencer, 108)),
+          // QA fix: square image instead of circular, sized down from 108 to
+          // 92 (rather than just swapping the shape at the same size) so
+          // the card's existing 10px padding plus this smaller size leaves
+          // visible white space on the left/right (card is 155 wide, 135
+          // after padding, so ~21px either side of a 92px square) — the
+          // square doesn't touch the card edges. A few extra px of top
+          // padding are added too, since a square's corners read as
+          // "closer to the edge" than a circle's at the same inset.
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Center(child: _squareAvatar(influencer, 92)),
+          ),
           const SizedBox(height: 8),
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
@@ -368,10 +437,13 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(isEmpty ? "City Influencers" : "City influencers",
-              style: const TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(isEmpty ? "Discover local creators and recommendations" : "Discover creators from your city",
-              style: const TextStyle(color: kMuted, fontSize: 12)),
+            // QA rename: "City Influencers" / "Discover local creators..."
+            // -> "Local Voices" / "People shaping the city" (same text in
+            // both the empty and non-empty state — functionality unchanged).
+            const Text("Local Voices",
+              style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text("People shaping the city",
+              style: TextStyle(color: kMuted, fontSize: 12)),
           ]),
         ),
         if (isEmpty)
@@ -465,7 +537,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
         backgroundColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: kText),
-        title: const Text("City influencers", style: TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
+        title: const Text("Local Voices", style: TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
       ),
       body: influencers == null
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
