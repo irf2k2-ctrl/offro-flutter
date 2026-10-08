@@ -6864,6 +6864,12 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
 // ═══════════════════════════════════════════════════════════════
 // 1. ADMIN BANNER SECTION — large, full-width, with page dots
 // ═══════════════════════════════════════════════════════════════
+class _StoreCardLayout {
+  final double height;
+  final bool stackRating;
+  const _StoreCardLayout(this.height, this.stackRating);
+}
+
 class _BannerStoresBlock extends StatefulWidget {
   final List<Map<String,dynamic>> banners;
   final List<Map<String,dynamic>> stores;
@@ -6965,11 +6971,9 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     // Heights — 3:2 banner, 35-40% card overlap
     const double bannerH   = 320.0;
     const double overlapPx = 100.0; // ~31% of bannerH — cards peek but don't obscure banner
-    // QA round (Oct 2026): raised 212→226 so the redesigned _storeCard
-    // (bigger top image + left-aligned info block below) has enough room
-    // even when a store name wraps to 2 lines and the full status row is
-    // shown — no overflow, same overlap math otherwise.
-    const double cardH     = 252.0;
+    // QA round (Oct 2026): computed from the tallest store card actually in
+    // the list (see _storeLayout) instead of a fixed worst-case constant.
+    final double cardH     = _storeRowHeight(context);
     const double headerH   = 0.0;
     const double topPad    = 14.0;
 
@@ -7204,6 +7208,137 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     return resolved;
   }
 
+  // Open/close status — logic moved verbatim out of _storeCard so the row-height
+  // calculation below can know whether the status row will be shown. Returns
+  // [statusLabel, closingInfo].
+  List<String> _storeStatus(Map<String,dynamic> s) {
+  final openTime  = s["open_time"]?.toString()  ?? "";
+  final closeTime = s["close_time"]?.toString() ?? "";
+  final now       = TimeOfDay.now();
+
+  // Open/close status
+  String statusLabel = "";
+  String closingInfo = "";
+  // ITEM4: treat "00:00" as "not configured" to avoid showing "Opens 12 AM • Closes 12 AM"
+  final bool _timesConfigured = !(openTime == "00:00" && closeTime == "00:00")
+      && !(openTime.isEmpty && closeTime == "00:00");
+  if (closeTime.isNotEmpty && _timesConfigured) {
+    try {
+      final cParts    = closeTime.split(":");
+      final closeH    = int.parse(cParts[0]);
+      final closeM    = cParts.length > 1 ? int.parse(cParts[1]) : 0;
+      final nowMins   = now.hour * 60 + now.minute;
+      final closeMins = closeH * 60 + closeM;
+      final cSuffix   = closeH >= 12 ? "PM" : "AM";
+      final cH12      = closeH > 12 ? closeH - 12 : (closeH == 0 ? 12 : closeH);
+      final cMinStr   = closeM > 0 ? ":${closeM.toString().padLeft(2,'0')}" : "";
+      if (nowMins < closeMins) {
+        statusLabel = "Open";
+        closingInfo = "Closes $cH12$cMinStr $cSuffix";
+      } else {
+        statusLabel = "Closed";
+        if (openTime.isNotEmpty) {
+          final oParts  = openTime.split(":");
+          final oH      = int.parse(oParts[0]);
+          final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
+          final oSuffix = oH >= 12 ? "PM" : "AM";
+          final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
+          final oMinStr = oM > 0 ? ":${oM.toString().padLeft(2,'0')}" : "";
+          closingInfo = "Opens $oH12$oMinStr $oSuffix";
+        }
+      }
+    } catch (_) { }
+  }
+    return [statusLabel, closingInfo];
+  }
+
+  // Card geometry shared by _storeCard and the carousel row height. The card
+  // hugs its content, and the parent horizontal ListView needs a fixed height,
+  // so that height is computed as the tallest card actually in the list (text
+  // measured with the same styles/widths the card uses) instead of a
+  // worst-case constant.
+  double _storeCardW(BuildContext ctx) =>
+      (MediaQuery.of(ctx).size.width * 0.72).clamp(240.0, 290.0);
+
+  _StoreCardLayout _storeLayout(BuildContext ctx, Map<String,dynamic> s) {
+    final scaler = MediaQuery.textScalerOf(ctx);
+    double mh(String t, TextStyle st, double w, [int lines = 1]) {
+      final tp = TextPainter(text: TextSpan(text: t, style: st),
+        textDirection: TextDirection.ltr, maxLines: lines, textScaler: scaler)
+        ..layout(maxWidth: w);
+      return tp.height;
+    }
+    double mw(String t, TextStyle st) {
+      final tp = TextPainter(text: TextSpan(text: t, style: st),
+        textDirection: TextDirection.ltr, maxLines: 1, textScaler: scaler)
+        ..layout();
+      return tp.width;
+    }
+    const nameSt  = TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.2);
+    const ratSt   = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800);
+    const cntSt   = TextStyle(fontSize: 11.5);
+    const catSt   = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500);
+    const pillSt  = TextStyle(fontSize: 12, fontWeight: FontWeight.w800);
+    const hoursSt = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600);
+
+    final name     = s["store_name"]?.toString() ?? "";
+    final cat      = s["category"]?.toString() ?? "";
+    final rating   = (s["rating"] as num?)?.toDouble() ?? 0.0;
+    final revCount = (s["rating_count"] ?? s["review_count"] as num?)?.toInt() ?? 0;
+    final st       = _storeStatus(s);
+    final hasBadge = _resolveStoreBadge(s) != null;
+
+    final cardW  = _storeCardW(ctx);
+    final imgH   = (cardW * 0.57).roundToDouble();
+    final innerW = cardW - 2 - 28; // border + horizontal padding
+
+    // Rating width (star + value + " (count)")
+    final ratingW = rating > 0
+        ? 18 + mw(rating.toStringAsFixed(1), ratSt) + (revCount > 0 ? mw(" ($revCount)", cntSt) : 0)
+        : 0.0;
+    // If side-by-side would leave the name too narrow, the rating moves to the
+    // category line instead (name never gets squeezed).
+    final nameAvail = innerW - (rating > 0 ? 8 + ratingW : 0);
+    final stack = rating > 0 && nameAvail < 120;
+
+    final nameH = mh(name, nameSt, stack || rating <= 0 ? innerW : nameAvail, 2);
+    double row2 = 0;
+    if (stack) {
+      row2 = max(cat.isNotEmpty ? mh(cat, catSt, innerW - ratingW - 6) : 0, 17);
+    } else if (cat.isNotEmpty) {
+      row2 = mh(cat, catSt, innerW);
+    }
+    double statusH = 0;
+    if (st[0].isNotEmpty || st[1].isNotEmpty) {
+      final pillH = st[0].isNotEmpty ? mh("Open Now", pillSt, 200) + 10 : 0.0;
+      final hoursH = st[1].isNotEmpty ? max(14.0, mh(st[1], hoursSt, 200)) : 0.0;
+      statusH = 9 + 1 + 9 + max(pillH, hoursH);
+    }
+    final infoH = 22 + max(nameH, rating > 0 && !stack ? 17.0 : 0) +
+        (row2 > 0 ? 2 + row2 : 0) + statusH;
+    final total = 8 + 6 + 2 + imgH + (hasBadge ? 30 : 0) + infoH + 2; // margins + border + safety
+    return _StoreCardLayout(total.ceilToDouble(), stack);
+  }
+
+  double _storeRowHeight(BuildContext ctx) {
+    final n = widget.stores.length > 8 ? 8 : widget.stores.length;
+    double m = 0;
+    for (int i = 0; i < n; i++) {
+      m = max(m, _storeLayout(ctx, widget.stores[i]).height);
+    }
+    return m > 0 ? m : 260.0;
+  }
+
+  Widget _ratingChip(double rating, int revCount) =>
+    Row(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 16),
+      const SizedBox(width: 2),
+      Text(rating.toStringAsFixed(1),
+        style: const TextStyle(color: Color(0xFF1a2e27), fontSize: 13.5, fontWeight: FontWeight.w800)),
+      if (revCount > 0) Text(" ($revCount)",
+        style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11.5)),
+    ]);
+
   Widget _storeCard(BuildContext ctx, Map<String,dynamic> s) {
     final name      = s["store_name"]?.toString() ?? "";
     final cat       = s["category"]?.toString() ?? "";
@@ -7213,44 +7348,9 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     final distTxt   = dist != null
         ? (dist < 1.0 ? "${(dist * 1000).toStringAsFixed(0)} m" : "${dist.toStringAsFixed(1)} km")
         : null; // Hide badge when GPS/distance not yet available
-    final openTime  = s["open_time"]?.toString()  ?? "";
-    final closeTime = s["close_time"]?.toString() ?? "";
-    final now       = TimeOfDay.now();
-
-    // Open/close status
-    String statusLabel = "";
-    String closingInfo = "";
-    // ITEM4: treat "00:00" as "not configured" to avoid showing "Opens 12 AM • Closes 12 AM"
-    final bool _timesConfigured = !(openTime == "00:00" && closeTime == "00:00")
-        && !(openTime.isEmpty && closeTime == "00:00");
-    if (closeTime.isNotEmpty && _timesConfigured) {
-      try {
-        final cParts    = closeTime.split(":");
-        final closeH    = int.parse(cParts[0]);
-        final closeM    = cParts.length > 1 ? int.parse(cParts[1]) : 0;
-        final nowMins   = now.hour * 60 + now.minute;
-        final closeMins = closeH * 60 + closeM;
-        final cSuffix   = closeH >= 12 ? "PM" : "AM";
-        final cH12      = closeH > 12 ? closeH - 12 : (closeH == 0 ? 12 : closeH);
-        final cMinStr   = closeM > 0 ? ":${closeM.toString().padLeft(2,'0')}" : "";
-        if (nowMins < closeMins) {
-          statusLabel = "Open";
-          closingInfo = "Closes $cH12$cMinStr $cSuffix";
-        } else {
-          statusLabel = "Closed";
-          if (openTime.isNotEmpty) {
-            final oParts  = openTime.split(":");
-            final oH      = int.parse(oParts[0]);
-            final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
-            final oSuffix = oH >= 12 ? "PM" : "AM";
-            final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
-            final oMinStr = oM > 0 ? ":${oM.toString().padLeft(2,'0')}" : "";
-            closingInfo = "Opens $oH12$oMinStr $oSuffix";
-          }
-        }
-      } catch (_) { }
-    }
-
+    final _st         = _storeStatus(s);
+    final String statusLabel = _st[0];
+    final String closingInfo = _st[1];
     // ── Badge key for glass ribbon ──
     final String? badgeKey = _resolveStoreBadge(s);
 
@@ -7272,7 +7372,15 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     // still shown; only the layout/sizing/hierarchy changed. Same API/
     // data/navigation/favorite-toggle/distance calc as before — none of
     // that logic was touched below.
-    const double _cardImgH = 132;
+    // QA round (Oct 2026) — Main Store Card follows the approved mockup:
+    // large full-width image (distance badge + heart over it) -> full-width
+    // ribbon band directly under the image -> name (left) + rating/reviews
+    // (right) -> category -> divider -> status | hours row. The card hugs its
+    // content (Align below) so no blank area is left at the bottom. All data,
+    // favorite toggle, distance, status logic and navigation are unchanged.
+    final double _cardW = _storeCardW(ctx);
+    final bool _stack = _storeLayout(ctx, s).stackRating;
+    final double _cardImgH = (_cardW * 0.57).roundToDouble();
     Widget storeImageWidget;
     if (logoSrc.startsWith("http")) {
       storeImageWidget = CachedNetworkImage(
@@ -7289,63 +7397,61 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     } else {
       storeImageWidget = _storeFallback(name);
     }
+    final String _sid = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
 
-    return GestureDetector(
+    return Align(
+      alignment: Alignment.topLeft,
+      child: GestureDetector(
       onTap: () => Navigator.push(ctx, MaterialPageRoute(
         builder: (_) => StoreDetailPage(
           store: _enrichStoreForDetail(Map<String,dynamic>.from(s)),
           token: widget.token, userName: "",
           onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))).then((_) => widget.onFavChanged()),
       child: Container(
-        width: 196,
+        width: _cardW,
         margin: const EdgeInsets.only(right: 12, top: 8, bottom: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F6F5),
-          borderRadius: BorderRadius.circular(20),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: const Color(0xFFe0ece6), width: 1.0),
           boxShadow: [BoxShadow(
-            color: Colors.black.withValues(alpha: .07),
-            blurRadius: 14, offset: const Offset(0, 4))],
+            color: Colors.black.withValues(alpha: .09),
+            blurRadius: 16, offset: const Offset(0, 5))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          borderRadius: BorderRadius.circular(22),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-            // ── Store image block — the card's main visual element now,
-            // with the distance badge, favorite heart and badge ribbon all
-            // layered directly on top of it (reference-style placement). ──
+            // ── Large store image with distance badge + heart over it ──
             SizedBox(
               width: double.infinity,
               height: _cardImgH,
               child: Stack(children: [
                 Positioned.fill(child: storeImageWidget),
 
-                // Distance badge — top-left over the image (FIX3: only here)
+                // Distance badge — OffrO green filled pill, white content
                 if (distTxt != null)
-                  Positioned(top: 8, left: 8,
+                  Positioned(top: 10, left: 10,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: const Color(0xFF3E5F55),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .18), blurRadius: 4)],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .20), blurRadius: 5)],
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.location_on_rounded,
-                          color: Colors.white, size: 10),
-                        const SizedBox(width: 2),
+                        const Icon(Icons.location_on_rounded, color: Colors.white, size: 14),
+                        const SizedBox(width: 3),
                         Text(distTxt,
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700)),
+                            color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800)),
                       ]),
                     ),
                   ),
 
-                // Favorite heart — top-right over the image (FIX 7: live,
-                // real-time sync via FavState — same toggle logic as before)
-                Positioned(top: 8, right: 8,
+                // Favorite heart — top-right, circular, light background
+                // (same FavState / Api.toggleFavorite logic as before)
+                Positioned(top: 10, right: 10,
                   child: GestureDetector(
                     onTap: () async {
                       final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
@@ -7359,146 +7465,134 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                       }
                     },
                     child: Container(
-                      width: 26, height: 26,
+                      width: 34, height: 34,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .88),
+                        color: Colors.white.withValues(alpha: .95),
                         shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .12), blurRadius: 4)],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .15), blurRadius: 5)],
                       ),
                       child: Icon(
-                        FavState.instance.hasStore(
-                          s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
+                        FavState.instance.hasStore(_sid)
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
-                        color: FavState.instance.hasStore(
-                          s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
+                        color: FavState.instance.hasStore(_sid)
                             ? const Color(0xFFe74c3c)
                             : const Color(0xFF9e9e9e),
-                        size: 15),
+                        size: 19),
                     ),
                   ),
                 ),
-
-                // ── Glass badge ribbon — now anchored to the image's
-                // bottom edge instead of the whole card's bottom edge ──
-                if (badgeKey != null)
-                  Positioned(
-                    bottom: 0, left: 0, right: 0,
-                    child: ClipRRect(
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                        child: Container(
-                          height: 24,
-                          color: Colors.black.withValues(alpha: 0.62),
-                          alignment: Alignment.center,
-                          child: Text(
-                            _badgeRibbonMeta[badgeKey]!["label"]!,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.4,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
               ]),
             ),
 
-            // ── Info block — name, category + rating, divider, status.
-            // Left-aligned hierarchy (was centered) for a more premium,
-            // e-commerce-card feel, matching the reference. ──
-            Padding(
-              padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                // ── Store name ──
-                Text(name,
+            // ── Ribbon band — full card width, directly below the image ──
+            if (badgeKey != null)
+              Container(
+                width: double.infinity,
+                height: 30,
+                color: const Color(0xFF3a3a35),
+                alignment: Alignment.center,
+                child: Text(
+                  _badgeRibbonMeta[badgeKey]!["label"]!,
                   style: const TextStyle(
-                    color: Color(0xFF1a2e27),
-                    fontSize: 13,
+                    color: Colors.white,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    height: 1.2),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis),
+                    letterSpacing: 0.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
 
-                // ── Category + rating on one row (same data as before,
-                // just combined for a tighter information hierarchy) ──
-                if (cat.isNotEmpty || rating > 0) ...[
-                  const SizedBox(height: 3),
+            // ── Info block ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // Name (left) + rating/reviews (right). If the rating is too wide
+                // to leave the name readable, it drops to the category line.
+                if (_stack)
+                  Text(name,
+                    style: const TextStyle(
+                      color: Color(0xFF1a2e27), fontSize: 16,
+                      fontWeight: FontWeight.w800, height: 1.2),
+                    maxLines: 2, overflow: TextOverflow.ellipsis)
+                else
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(
+                      child: Text(name,
+                        style: const TextStyle(
+                          color: Color(0xFF1a2e27), fontSize: 16,
+                          fontWeight: FontWeight.w800, height: 1.2),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                    if (rating > 0) ...[
+                      const SizedBox(width: 8),
+                      Padding(padding: const EdgeInsets.only(top: 1), child: _ratingChip(rating, revCount)),
+                    ],
+                  ]),
+
+                if (cat.isNotEmpty || (_stack && rating > 0)) ...[
+                  const SizedBox(height: 2),
                   Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                    if (cat.isNotEmpty)
-                      Expanded(
-                        child: Text(cat,
-                          style: const TextStyle(
-                            color: Color(0xFF9e9e9e),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      ),
-                    if (cat.isNotEmpty && rating > 0) const SizedBox(width: 6),
-                    if (rating > 0)
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                        const SizedBox(width: 2),
-                        Text(rating.toStringAsFixed(1),
-                          style: const TextStyle(color: Color(0xFF555555), fontSize: 10, fontWeight: FontWeight.w700)),
-                        if (revCount > 0) Text(" ($revCount)",
-                          style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
-                      ]),
+                    Expanded(
+                      child: cat.isNotEmpty
+                        ? Text(cat,
+                            style: const TextStyle(
+                              color: Color(0xFF8a9a93), fontSize: 12.5,
+                              fontWeight: FontWeight.w500),
+                            maxLines: 1, overflow: TextOverflow.ellipsis)
+                        : const SizedBox.shrink(),
+                    ),
+                    if (_stack && rating > 0) ...[
+                      const SizedBox(width: 6),
+                      _ratingChip(rating, revCount),
+                    ],
                   ]),
                 ],
 
-                const SizedBox(height: 7),
-
-                // ── Divider ──
-                Container(height: 1, color: const Color(0xFFf0f0f0)),
-
-                const SizedBox(height: 6),
-
-                // ── Open / Closed status row (always shown; same logic) ──
+                // Divider + status row (same status/hours logic; empty = hidden)
                 Builder(builder: (_ctx) {
                   final _displayLabel = statusLabel.isNotEmpty ? statusLabel : "";
-                  final _displayInfo  = closingInfo.isNotEmpty ? closingInfo
-                      : "";  // FIX 2: empty = hide row when no times configured
+                  final _displayInfo  = closingInfo.isNotEmpty ? closingInfo : "";
                   if (_displayLabel.isEmpty && _displayInfo.isEmpty) return const SizedBox.shrink();
-                  return Row(mainAxisAlignment: MainAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min, children: [
-                    if (_displayLabel.isNotEmpty) Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _displayLabel == "Open"
-                          ? const Color(0xFFe8f5f0)
-                          : const Color(0xFFfdf0f0),
-                        borderRadius: BorderRadius.circular(20),
+                  final bool _open = _displayLabel == "Open";
+                  return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const SizedBox(height: 9),
+                    Container(height: 1, color: const Color(0xFFeef2f0)),
+                    const SizedBox(height: 9),
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      if (_displayLabel.isNotEmpty) Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: _open ? const Color(0xFFe8f5f0) : const Color(0xFFfdf0f0),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(_open ? "Open Now" : _displayLabel,
+                          style: TextStyle(
+                            color: _open ? const Color(0xFF3E5F55) : const Color(0xFFc0392b),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800)),
                       ),
-                      child: Text(_displayLabel,
-                        style: TextStyle(
-                          color: _displayLabel == "Open"
-                            ? const Color(0xFF3E5F55)
-                            : const Color(0xFFc0392b),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800)),
-                    ),
-                    if (_displayLabel.isNotEmpty && _displayInfo.isNotEmpty) ...[
-                      const SizedBox(width: 5),
-                      const Text("·",
-                        style: TextStyle(color: Color(0xFF9e9e9e), fontSize: 12)),
-                      const SizedBox(width: 5),
-                    ],
-                    if (_displayInfo.isNotEmpty) Flexible(
-                      child: Text(_displayInfo,
-                        style: const TextStyle(
-                          color: Color(0xFF555555),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ),
+                      if (_displayLabel.isNotEmpty && _displayInfo.isNotEmpty)
+                        Container(
+                          width: 1, height: 16,
+                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                          color: const Color(0xFFd9e2de)),
+                      if (_displayInfo.isNotEmpty) ...[
+                        const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF8a9a93)),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(_displayInfo,
+                            style: const TextStyle(
+                              color: Color(0xFF555555),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ]),
                   ]);
                 }),
 
@@ -7507,7 +7601,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
           ]),
         ),
       ),
-    );
+    ));
   }
 
   Widget _storeFallback(String name) => Container(
