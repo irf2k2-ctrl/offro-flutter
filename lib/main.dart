@@ -2273,7 +2273,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: const Color(0xFFF5FBF7),
+        backgroundColor: const Color(0xFFE9F1ED),
         body: _locationDenied
           ? _locationDeniedState()
           : Stack(children: [
@@ -5985,19 +5985,19 @@ class _DiscoverProductsSection extends StatelessWidget {
                 child: imgSrc.startsWith("http")
                   ? Container(
                       width: width, height: imgHeight,
-                      color: grad[1].withValues(alpha: .25),
-                      child: CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.contain,
+                      color: grad[1],
+                      child: CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
                         width: width, height: imgHeight,
                         placeholder: (_, __) => Container(width: width, height: imgHeight, color: grad[1]),
                         errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]])))
                   : imgSrc.startsWith("data:image")
                     ? Container(
                         width: width, height: imgHeight,
-                        color: grad[1].withValues(alpha: .25),
+                        color: grad[1],
                         child: Builder(builder: (_) {
                           try {
                             return Image.memory(base64Decode(imgSrc.split(",").last),
-                              fit: BoxFit.contain, width: width, height: imgHeight,
+                              fit: BoxFit.cover, width: width, height: imgHeight,
                               errorBuilder: (_, __, ___) => _fallback(title, [grad[0], grad[1]]));
                           } catch (_) {
                             return _fallback(title, [grad[0], grad[1]]);
@@ -6092,11 +6092,11 @@ class _DiscoverProductsSection extends StatelessWidget {
                 padding: compact
                     ? const EdgeInsets.fromLTRB(8, 5, 8, 5)
                     : const EdgeInsets.fromLTRB(10, 6, 10, 7),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.max, children: [
                   if (title.isNotEmpty)
                     Text(title,
                       style: TextStyle(color: const Color(0xFF2c3e35), fontSize: compact ? 12 : 15, fontWeight: FontWeight.w800, height: 1.25),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                      maxLines: compact ? 1 : 2, overflow: TextOverflow.ellipsis),
                   if (!compact && storeName.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -6126,6 +6126,10 @@ class _DiscoverProductsSection extends StatelessWidget {
                       ]),
                     );
                   }),
+                  // Spacer anchors the price row to the bottom of the card so
+                  // any slack sits between the text and the price, never as a
+                  // blank band under the price.
+                  const Spacer(),
                   if (saleP != null && saleP > 0) Padding(
                     padding: EdgeInsets.only(top: compact ? 4 : 6),
                     child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
@@ -6176,7 +6180,7 @@ class _DiscoverProductsSection extends StatelessWidget {
             // Feature card: wider (170→190) and its image taller (130→168,
             // ~62% of the 270 card height) so the product photo is the
             // dominant visual element, per the Bento reference direction.
-            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 190, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
+            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 190, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
             const SizedBox(width: 10),
             SizedBox(
               width: 150,
@@ -6200,9 +6204,9 @@ class _DiscoverProductsSection extends StatelessWidget {
         child: SizedBox(
           height: _bentoHeight,
           child: Row(children: [
-            _productCard(ctx, items[a], a, cardGrads, width: 180, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
+            _productCard(ctx, items[a], a, cardGrads, width: 180, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
             const SizedBox(width: 10),
-            _productCard(ctx, items[b], b, cardGrads, width: 180, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
+            _productCard(ctx, items[b], b, cardGrads, width: 180, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
           ]),
         ),
       );
@@ -6213,7 +6217,7 @@ class _DiscoverProductsSection extends StatelessWidget {
         child: SizedBox(
           height: _bentoHeight,
           width: 240,
-          child: _productCard(ctx, items[a], a, cardGrads, width: 240, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
+          child: _productCard(ctx, items[a], a, cardGrads, width: 240, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
         ),
       );
     }
@@ -7278,8 +7282,8 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     const ratSt   = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800);
     const cntSt   = TextStyle(fontSize: 11.5);
     const catSt   = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500);
-    const pillSt  = TextStyle(fontSize: 12, fontWeight: FontWeight.w800);
-    const hoursSt = TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600);
+    const pillSt  = TextStyle(fontSize: 13, fontWeight: FontWeight.w800);
+    const hoursSt = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500);
 
     final name     = s["store_name"]?.toString() ?? "";
     final cat      = s["category"]?.toString() ?? "";
@@ -7310,9 +7314,9 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     }
     double statusH = 0;
     if (st[0].isNotEmpty || st[1].isNotEmpty) {
-      final pillH = st[0].isNotEmpty ? mh("Open Now", pillSt, 200) + 10 : 0.0;
-      final hoursH = st[1].isNotEmpty ? max(14.0, mh(st[1], hoursSt, 200)) : 0.0;
-      statusH = 9 + 1 + 9 + max(pillH, hoursH);
+      final pillH = st[0].isNotEmpty ? mh("Open Now", pillSt, 200) + 12 : 0.0;
+      final hoursH = st[1].isNotEmpty ? max(17.0, mh(st[1], hoursSt, 200)) : 0.0;
+      statusH = 10 + 1 + 10 + max(max(pillH, hoursH), 22.0);
     }
     final infoH = 22 + max(nameH, rating > 0 && !stack ? 17.0 : 0) +
         (row2 > 0 ? 2 + row2 : 0) + statusH;
@@ -7559,36 +7563,39 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                   if (_displayLabel.isEmpty && _displayInfo.isEmpty) return const SizedBox.shrink();
                   final bool _open = _displayLabel == "Open";
                   return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    const SizedBox(height: 9),
-                    Container(height: 1, color: const Color(0xFFeef2f0)),
-                    const SizedBox(height: 9),
-                    Row(mainAxisSize: MainAxisSize.min, children: [
+                    const SizedBox(height: 10),
+                    Container(height: 1, color: const Color(0xFFe6ece9)),
+                    const SizedBox(height: 10),
+                    // Status row (matches approved reference): green pill |
+                    // vertical divider | clock icon + dynamic hours text,
+                    // all on one horizontal line.
+                    Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                       if (_displayLabel.isNotEmpty) Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _open ? const Color(0xFFe8f5f0) : const Color(0xFFfdf0f0),
+                          color: _open ? const Color(0xFFCDEBD6) : const Color(0xFFfdf0f0),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(_open ? "Open Now" : _displayLabel,
                           style: TextStyle(
-                            color: _open ? const Color(0xFF3E5F55) : const Color(0xFFc0392b),
-                            fontSize: 12,
+                            color: _open ? const Color(0xFF2f5a47) : const Color(0xFFc0392b),
+                            fontSize: 13,
                             fontWeight: FontWeight.w800)),
                       ),
                       if (_displayLabel.isNotEmpty && _displayInfo.isNotEmpty)
                         Container(
-                          width: 1, height: 16,
-                          margin: const EdgeInsets.symmetric(horizontal: 10),
-                          color: const Color(0xFFd9e2de)),
+                          width: 1, height: 22,
+                          margin: const EdgeInsets.symmetric(horizontal: 11),
+                          color: const Color(0xFFd5ddd9)),
                       if (_displayInfo.isNotEmpty) ...[
-                        const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF8a9a93)),
-                        const SizedBox(width: 4),
+                        const Icon(Icons.access_time_rounded, size: 17, color: Color(0xFF6b7c75)),
+                        const SizedBox(width: 5),
                         Flexible(
                           child: Text(_displayInfo,
                             style: const TextStyle(
-                              color: Color(0xFF555555),
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600),
+                              color: Color(0xFF5f6f68),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500),
                             maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ],
@@ -9132,17 +9139,9 @@ class _OffroHomeBgPainter extends CustomPainter {
     final h = size.height;
 
     // ── Base gradient fill ──────────────────────────────────────
-    final bgPaint = Paint()
-      ..shader = LinearGradient(
-        colors: const [
-          Color(0xFFF0FAF5),
-          Color(0xFFE8F7F0),
-          Color(0xFFF5FBF8),
-          Color(0xFFECF9F2),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    // QA round: flat #E9F1ED mint (approved reference) instead of a
+    // multi-stop gradient; the soft circles/waves below stay as before.
+    final bgPaint = Paint()..color = const Color(0xFFE9F1ED);
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
 
     // ── Large soft circle — top left ──────────────────────────

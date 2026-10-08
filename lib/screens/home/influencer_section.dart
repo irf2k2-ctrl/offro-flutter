@@ -311,33 +311,32 @@ class _InfluencerCard extends StatelessWidget {
         // card edge). Top/bottom padding (10 / 8) plus the inner top
         // Padding(4) below keep the same ~14px top inset as before — the
         // user explicitly wants the top spacing left alone.
-        width: 176,
+        // Redesign to match the approved reference: white rounded card, a
+        // large square image filling almost the whole upper area (8px inset),
+        // then ONE compact row — name left, rating/reviews right. Card is
+        // 184 wide -> 168px square image; no extra whitespace below.
+        width: 184,
         margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 9),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kBorder),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Items 8 & 9: no social-icon overlay and no city on the Home
-          // card — both were removed here specifically; the profile screen
-          // still shows city and social links in full.
-          // QA fix (this round): image enlarged from 92 to 150 — occupies
-          // nearly the full inner card width (172 - 16 padding = 156, so a
-          // ~3px margin either side of the 150px square: still balanced,
-          // never touching the edge) and pushes left/right/bottom outward
-          // while the top inset above stays the same as before. Only
-          // enough room is left below for the name + rating row (~2 lines).
+          _squareAvatar(influencer, 168),
+          const SizedBox(height: 8),
           Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Center(child: _squareAvatar(influencer, 156)),
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Expanded(
+                child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: kText)),
+              ),
+              const SizedBox(width: 6),
+              _ratingRow(influencer, fontSize: 11.5),
+            ]),
           ),
-          const SizedBox(height: 4),
-          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
-          const SizedBox(height: 2),
-          _ratingRow(influencer),
           // Item 10: Follow button removed — it was local-UI-only and never
           // actually persisted a follow relationship anywhere.
         ]),
@@ -456,7 +455,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
         // nothing clips/overflows. No longer tied to Discover Products'
         // row height — that match was incidental, not a requirement.
         SizedBox(
-          height: 224,
+          height: 218,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
