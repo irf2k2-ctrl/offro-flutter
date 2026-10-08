@@ -311,9 +311,9 @@ class _InfluencerCard extends StatelessWidget {
         // card edge). Top/bottom padding (10 / 8) plus the inner top
         // Padding(4) below keep the same ~14px top inset as before — the
         // user explicitly wants the top spacing left alone.
-        width: 172,
+        width: 176,
         margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -331,12 +331,12 @@ class _InfluencerCard extends StatelessWidget {
           // enough room is left below for the name + rating row (~2 lines).
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Center(child: _squareAvatar(influencer, 150)),
+            child: Center(child: _squareAvatar(influencer, 156)),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           _ratingRow(influencer),
           // Item 10: Follow button removed — it was local-UI-only and never
           // actually persisted a follow relationship anywhere.
@@ -456,7 +456,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
         // nothing clips/overflows. No longer tied to Discover Products'
         // row height — that match was incidental, not a requirement.
         SizedBox(
-          height: 232,
+          height: 224,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),

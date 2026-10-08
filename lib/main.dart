@@ -2388,13 +2388,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       token: widget.token,
                     )),
 
-                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 124)),
                   ]),
                 ),
 
             // Scroll-to-top FAB
             Positioned(
-              bottom: 90, right: 16,
+              bottom: 104, right: 16,
               child: ValueListenableBuilder<bool>(
                 valueListenable: _fabVisible,
                 builder: (_, visible, __) => AnimatedOpacity(
@@ -2421,26 +2421,28 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
 
-            // ══ BOTTOM NAV v2 — Home | Deals | [QR] | Search | Profile ══
+            // ══ BOTTOM NAV v3 (floating pill) — Home | Deals | [QR] | Search | Profile ══
+            // QA round (Oct 2026): same items/handlers as before, now inside a
+            // floating rounded pill with margins from the left/right/bottom
+            // edges. QR stays the prominent centre action, lifted above the bar.
             ValueListenableBuilder<bool>(
               valueListenable: _navVisible,
               builder: (_, visible, child) => AnimatedPositioned(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeInOut,
-                bottom: (visible && (_cityFiltered.isNotEmpty || _loading)) ? 0 : -80,
-                left: 0, right: 0,
+                bottom: (visible && (_cityFiltered.isNotEmpty || _loading))
+                    ? 12 + MediaQuery.of(context).padding.bottom : -120,
+                left: 16, right: 16,
                 child: child!,
               ),
-              child: ClipRRect(
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                  child: Container(
-                    height: 72,
+              child: Container(
+                    height: 68,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .92),
-                      border: const Border(top: BorderSide(color: Color(0xFFe8f5ee), width: 1)),
+                      color: Colors.white.withValues(alpha: .95),
+                      borderRadius: BorderRadius.circular(34),
+                      border: Border.all(color: const Color(0xFFCDEBD6), width: 1),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 16, offset: const Offset(0,-3)),
+                        BoxShadow(color: kPrimary.withValues(alpha: .18), blurRadius: 24, offset: const Offset(0,8)),
                       ],
                     ),
                     child: Row(children: [
@@ -2468,11 +2470,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Container(
-                            width: 52, height: 52,
-                            margin: const EdgeInsets.only(bottom: 6),
+                            width: 56, height: 56,
+                            transform: Matrix4.translationValues(0, -6, 0),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: kPrimary,
+                              border: Border.all(color: Colors.white, width: 3),
                               boxShadow: [
                                 BoxShadow(color: kPrimary.withValues(alpha: .40), blurRadius: 14, offset: const Offset(0, 4)),
                               ],
@@ -2497,8 +2500,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       )),
                     ]),
                   ),
-                ),
-              ),
             ),
           ]),
       ),
@@ -6968,7 +6969,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     // (bigger top image + left-aligned info block below) has enough room
     // even when a store name wraps to 2 lines and the full status row is
     // shown — no overflow, same overlap math otherwise.
-    const double cardH     = 226.0;
+    const double cardH     = 252.0;
     const double headerH   = 0.0;
     const double topPad    = 14.0;
 
@@ -7271,7 +7272,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     // still shown; only the layout/sizing/hierarchy changed. Same API/
     // data/navigation/favorite-toggle/distance calc as before — none of
     // that logic was touched below.
-    const double _cardImgH = 115;
+    const double _cardImgH = 132;
     Widget storeImageWidget;
     if (logoSrc.startsWith("http")) {
       storeImageWidget = CachedNetworkImage(
@@ -7296,7 +7297,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
           token: widget.token, userName: "",
           onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))).then((_) => widget.onFavChanged()),
       child: Container(
-        width: 168,
+        width: 196,
         margin: const EdgeInsets.only(right: 12, top: 8, bottom: 6),
         decoration: BoxDecoration(
           color: const Color(0xFFF4F6F5),
@@ -7325,18 +7326,18 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .92),
+                        color: const Color(0xFF3E5F55),
                         borderRadius: BorderRadius.circular(20),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 4)],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .18), blurRadius: 4)],
                       ),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.location_on_rounded,
-                          color: Color(0xFF3E5F55), size: 9),
+                          color: Colors.white, size: 10),
                         const SizedBox(width: 2),
                         Text(distTxt,
                           style: const TextStyle(
-                            color: Color(0xFF3E5F55),
-                            fontSize: 9.5,
+                            color: Colors.white,
+                            fontSize: 10,
                             fontWeight: FontWeight.w700)),
                       ]),
                     ),
@@ -7431,7 +7432,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                   const SizedBox(height: 3),
                   Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                     if (cat.isNotEmpty)
-                      Flexible(
+                      Expanded(
                         child: Text(cat,
                           style: const TextStyle(
                             color: Color(0xFF9e9e9e),
@@ -7440,10 +7441,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis),
                       ),
-                    if (cat.isNotEmpty && rating > 0) const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: Text("·", style: TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
-                    ),
+                    if (cat.isNotEmpty && rating > 0) const SizedBox(width: 6),
                     if (rating > 0)
                       Row(mainAxisSize: MainAxisSize.min, children: [
                         const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
