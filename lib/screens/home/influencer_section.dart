@@ -304,13 +304,16 @@ class _InfluencerCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: influencer, token: token))),
       child: Container(
-        // Item 1: matches Discover Products' card width (155) and right
-        // margin (12) exactly (see _DiscoverProductsSection in main.dart).
-        // The row height is set to 170 at the SizedBox wrapper in
-        // CityInfluencersSection below, also matching Discover Products.
-        width: 155,
+        // QA round (Oct 2026): widened from 155 to let the influencer image
+        // grow substantially. Left/right padding was tightened from 10 to 8
+        // so the image gets more of the extra width too, while still
+        // leaving a small, even margin on both sides (never touching the
+        // card edge). Top/bottom padding (10 / 8) plus the inner top
+        // Padding(4) below keep the same ~14px top inset as before — the
+        // user explicitly wants the top spacing left alone.
+        width: 172,
         margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(8, 10, 8, 8),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -320,22 +323,20 @@ class _InfluencerCard extends StatelessWidget {
           // Items 8 & 9: no social-icon overlay and no city on the Home
           // card — both were removed here specifically; the profile screen
           // still shows city and social links in full.
-          // QA fix: square image instead of circular, sized down from 108 to
-          // 92 (rather than just swapping the shape at the same size) so
-          // the card's existing 10px padding plus this smaller size leaves
-          // visible white space on the left/right (card is 155 wide, 135
-          // after padding, so ~21px either side of a 92px square) — the
-          // square doesn't touch the card edges. A few extra px of top
-          // padding are added too, since a square's corners read as
-          // "closer to the edge" than a circle's at the same inset.
+          // QA fix (this round): image enlarged from 92 to 150 — occupies
+          // nearly the full inner card width (172 - 16 padding = 156, so a
+          // ~3px margin either side of the 150px square: still balanced,
+          // never touching the edge) and pushes left/right/bottom outward
+          // while the top inset above stays the same as before. Only
+          // enough room is left below for the name + rating row (~2 lines).
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: Center(child: _squareAvatar(influencer, 92)),
+            child: Center(child: _squareAvatar(influencer, 150)),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           _ratingRow(influencer),
           // Item 10: Follow button removed — it was local-UI-only and never
           // actually persisted a follow relationship anywhere.
@@ -449,9 +450,13 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
         if (isEmpty)
           _influencerComingSoonCard()
         else
-        // Item 1: row height matches Discover Products (170) exactly.
+        // QA round (Oct 2026): row height raised from 170 to 232 to fit the
+        // enlarged 150px square image (was 92px) plus the card's padding,
+        // name and rating row beneath it, with a small safety margin so
+        // nothing clips/overflows. No longer tied to Discover Products'
+        // row height — that match was incidental, not a requirement.
         SizedBox(
-          height: 170,
+          height: 232,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),

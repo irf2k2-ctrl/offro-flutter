@@ -6154,7 +6154,15 @@ class _DiscoverProductsSection extends StatelessWidget {
   }
 
   // Renders one Bento block for a group of 1, 2 or 3 product indices.
-  static const double _bentoHeight = 230;
+  // QA round (Oct 2026): redesigned proportions, not just a bumped height —
+  // _bentoHeight raised 230→270 and every card's imgHeight recalculated so
+  // the product image now takes roughly 60-65% of the card (was ~55-57%),
+  // with the text block beneath sized to the content it actually holds
+  // (title/seller/review/price) plus a small ~6-8px buffer — not a huge
+  // leftover Expanded gap like before. The 2-item blocks also gained
+  // showReviewRow so they use their now-larger text area the same way the
+  // feature/solo cards do, instead of leaving it mostly blank.
+  static const double _bentoHeight = 270;
   Widget _bentoGroup(BuildContext ctx, List<int> idxs, List<Map<String,dynamic>> items, List<List<Color>> cardGrads) {
     if (idxs.length == 3) {
       final bigIdx = idxs[0], s1 = idxs[1], s2 = idxs[2];
@@ -6164,19 +6172,21 @@ class _DiscoverProductsSection extends StatelessWidget {
         child: SizedBox(
           height: _bentoHeight,
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // QA fix: imgHeight bumped 120→130 (uses the available card
-            // space better) and showReviewRow enabled — together these
-            // close the unnecessary white space that used to sit below the
-            // title/seller/price block on this feature card.
-            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 170, imgHeight: 130, cardHeight: _bentoHeight, showReviewRow: true),
+            // Feature card: wider (170→190) and its image taller (130→168,
+            // ~62% of the 270 card height) so the product photo is the
+            // dominant visual element, per the Bento reference direction.
+            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 190, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
             const SizedBox(width: 10),
             SizedBox(
               width: 150,
               height: _bentoHeight,
               child: Column(children: [
-                _productCard(ctx, items[s1], s1, cardGrads, width: 150, imgHeight: 56, cardHeight: smallH, compact: true),
+                // Small stacked cards: image enlarged 56→76 to match the
+                // feature card's fuller-image proportion at this smaller
+                // scale, rather than staying a thin strip above the text.
+                _productCard(ctx, items[s1], s1, cardGrads, width: 150, imgHeight: 76, cardHeight: smallH, compact: true),
                 const SizedBox(height: 10),
-                _productCard(ctx, items[s2], s2, cardGrads, width: 150, imgHeight: 56, cardHeight: smallH, compact: true),
+                _productCard(ctx, items[s2], s2, cardGrads, width: 150, imgHeight: 76, cardHeight: smallH, compact: true),
               ]),
             ),
           ]),
@@ -6189,9 +6199,9 @@ class _DiscoverProductsSection extends StatelessWidget {
         child: SizedBox(
           height: _bentoHeight,
           child: Row(children: [
-            _productCard(ctx, items[a], a, cardGrads, width: 160, imgHeight: 130, cardHeight: _bentoHeight),
+            _productCard(ctx, items[a], a, cardGrads, width: 180, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
             const SizedBox(width: 10),
-            _productCard(ctx, items[b], b, cardGrads, width: 160, imgHeight: 130, cardHeight: _bentoHeight),
+            _productCard(ctx, items[b], b, cardGrads, width: 180, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
           ]),
         ),
       );
@@ -6201,8 +6211,8 @@ class _DiscoverProductsSection extends StatelessWidget {
         padding: const EdgeInsets.only(right: 12),
         child: SizedBox(
           height: _bentoHeight,
-          width: 220,
-          child: _productCard(ctx, items[a], a, cardGrads, width: 220, imgHeight: 130, cardHeight: _bentoHeight, showReviewRow: true),
+          width: 240,
+          child: _productCard(ctx, items[a], a, cardGrads, width: 240, imgHeight: 168, cardHeight: _bentoHeight, showReviewRow: true),
         ),
       );
     }
@@ -6954,7 +6964,11 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     // Heights — 3:2 banner, 35-40% card overlap
     const double bannerH   = 320.0;
     const double overlapPx = 100.0; // ~31% of bannerH — cards peek but don't obscure banner
-    const double cardH     = 212.0; // reduced ~22% — compact card height
+    // QA round (Oct 2026): raised 212→226 so the redesigned _storeCard
+    // (bigger top image + left-aligned info block below) has enough room
+    // even when a store name wraps to 2 lines and the full status row is
+    // shown — no overflow, same overlap math otherwise.
+    const double cardH     = 226.0;
     const double headerH   = 0.0;
     const double topPad    = 14.0;
 
@@ -7244,21 +7258,35 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     if (logoSrc.isEmpty)
       logoSrc = s["image_url"]?.toString() ?? s["image"]?.toString() ?? s["image_thumb"]?.toString() ?? "";
 
-    Widget logoWidget;
+    // QA round (Oct 2026) — Main Store Card redesign (visual only).
+    // Was: a small 56px circular logo centered above center-aligned text,
+    // with the distance badge/heart in their own header row above it. Now:
+    // the store photo is the dominant visual element at the top of the
+    // card (like the reference e-commerce card), with the distance badge
+    // and favorite heart overlaid directly on the image — matching the
+    // reference's badge/heart placement — and the badge ribbon (new/
+    // trending/etc.) moved from the bottom of the whole card to the bottom
+    // of the image. All the same fields (name, category, distance, rating,
+    // open/closed status, opening/closing info, favorite state, badge) are
+    // still shown; only the layout/sizing/hierarchy changed. Same API/
+    // data/navigation/favorite-toggle/distance calc as before — none of
+    // that logic was touched below.
+    const double _cardImgH = 115;
+    Widget storeImageWidget;
     if (logoSrc.startsWith("http")) {
-      logoWidget = CachedNetworkImage(
+      storeImageWidget = CachedNetworkImage(
         imageUrl: logoSrc,
-        fit: BoxFit.cover,    // FIX 2: cover inside rounded square
-        width: 60, height: 60,
+        fit: BoxFit.cover,
+        width: double.infinity, height: _cardImgH,
         placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
         errorWidget: (_, __, ___) => _storeFallback(name));
     } else if (logoSrc.startsWith("data:image")) {
       try {
-        logoWidget = Image.memory(base64Decode(logoSrc.split(",").last),
-          fit: BoxFit.cover, width: 60, height: 60);
-      } catch (_) { logoWidget = _storeFallback(name); }
+        storeImageWidget = Image.memory(base64Decode(logoSrc.split(",").last),
+          fit: BoxFit.cover, width: double.infinity, height: _cardImgH);
+      } catch (_) { storeImageWidget = _storeFallback(name); }
     } else {
-      logoWidget = _storeFallback(name);
+      storeImageWidget = _storeFallback(name);
     }
 
     return GestureDetector(
@@ -7268,7 +7296,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
           token: widget.token, userName: "",
           onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))).then((_) => widget.onFavChanged()),
       child: Container(
-        width: 152,
+        width: 168,
         margin: const EdgeInsets.only(right: 12, top: 8, bottom: 6),
         decoration: BoxDecoration(
           color: const Color(0xFFF4F6F5),
@@ -7280,210 +7308,205 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              Padding(
-          padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-            // ── Top row: distance badge (FIX3: only here) + heart + rating (FIX4) ──
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              // Distance badge — only location_top
-              if (distTxt != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFe8f5f0),
-                    borderRadius: BorderRadius.circular(20),
+            // ── Store image block — the card's main visual element now,
+            // with the distance badge, favorite heart and badge ribbon all
+            // layered directly on top of it (reference-style placement). ──
+            SizedBox(
+              width: double.infinity,
+              height: _cardImgH,
+              child: Stack(children: [
+                Positioned.fill(child: storeImageWidget),
+
+                // Distance badge — top-left over the image (FIX3: only here)
+                if (distTxt != null)
+                  Positioned(top: 8, left: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .92),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 4)],
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.location_on_rounded,
+                          color: Color(0xFF3E5F55), size: 9),
+                        const SizedBox(width: 2),
+                        Text(distTxt,
+                          style: const TextStyle(
+                            color: Color(0xFF3E5F55),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
                   ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.location_on_rounded,
-                      color: Color(0xFF3E5F55), size: 9),
-                    const SizedBox(width: 2),
-                    Text(distTxt,
-                      style: const TextStyle(
-                        color: Color(0xFF3E5F55),
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700)),
-                  ]),
-                )
-              else
-                const SizedBox(width: 4),
 
-              // FIX 7: live heart — real-time sync via FavState
-              GestureDetector(
-                onTap: () async {
-                  final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
-                  if (id.isEmpty || widget.token.isEmpty) return;
-                  FavState.instance.toggleStore(id);
-                  try {
-                    await Api.toggleFavorite(widget.token, id);
-                    widget.onFavChanged();
-                  } catch (_) {
-                    FavState.instance.toggleStore(id);
-                  }
-                },
-                child: Icon(
-                  FavState.instance.hasStore(
-                    s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color: FavState.instance.hasStore(
-                    s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
-                      ? const Color(0xFFe74c3c)
-                      : const Color(0xFF9e9e9e),
-                  size: 17),
-              ),
-            ]),
-
-            const SizedBox(height: 7),
-
-            // ── FIX 2: Double circle logo ──
-            // Outer circle: white bg + Offro green border (84px)
-            Container(
-              width: 78, height: 78,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFA9CDBA), width: 1.5),
-                boxShadow: [BoxShadow(
-                  color: Colors.black.withValues(alpha: .06),
-                  blurRadius: 8, offset: const Offset(0, 2))],
-              ),
-              child: Center(
-                // Inner rounded image (62px, radius 16)
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: SizedBox(
-                    width: 56, height: 56,
-                    child: logoWidget,
+                // Favorite heart — top-right over the image (FIX 7: live,
+                // real-time sync via FavState — same toggle logic as before)
+                Positioned(top: 8, right: 8,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
+                      if (id.isEmpty || widget.token.isEmpty) return;
+                      FavState.instance.toggleStore(id);
+                      try {
+                        await Api.toggleFavorite(widget.token, id);
+                        widget.onFavChanged();
+                      } catch (_) {
+                        FavState.instance.toggleStore(id);
+                      }
+                    },
+                    child: Container(
+                      width: 26, height: 26,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .88),
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .12), blurRadius: 4)],
+                      ),
+                      child: Icon(
+                        FavState.instance.hasStore(
+                          s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: FavState.instance.hasStore(
+                          s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
+                            ? const Color(0xFFe74c3c)
+                            : const Color(0xFF9e9e9e),
+                        size: 15),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 5),
-
-            // ── Store name ──
-            Text(name,
-              style: const TextStyle(
-                color: Color(0xFF1a2e27),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-                height: 1.2),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
-
-            if (cat.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(cat,
-                style: const TextStyle(
-                  color: Color(0xFF9e9e9e),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            ],
-
-            if (rating > 0) ...[
-              const SizedBox(height: 3),
-              Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                const SizedBox(width: 2),
-                Text(rating.toStringAsFixed(1),
-                  style: const TextStyle(color: Color(0xFF555555), fontSize: 10, fontWeight: FontWeight.w700)),
-                if (revCount > 0) Text(" ($revCount)",
-                  style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
-              ]),
-            ],
-
-            const SizedBox(height: 4),
-
-            // ── Divider ──
-            Container(height: 1, color: const Color(0xFFf0f0f0)),
-
-            const SizedBox(height: 3),
-
-            // ── Open / Closed status row (always shown) ──
-            Builder(builder: (_ctx) {
-              final _displayLabel = statusLabel.isNotEmpty ? statusLabel : "";
-              final _displayInfo  = closingInfo.isNotEmpty ? closingInfo
-                  : "";  // FIX 2: empty = hide row when no times configured
-              if (_displayLabel.isEmpty && _displayInfo.isEmpty) return const SizedBox.shrink();
-              return Column(mainAxisSize: MainAxisSize.min, children: [
-                const SizedBox(height: 4),
-                Row(mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min, children: [
-                  if (_displayLabel.isNotEmpty) Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _displayLabel == "Open"
-                        ? const Color(0xFFe8f5f0)
-                        : const Color(0xFFfdf0f0),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(_displayLabel,
-                      style: TextStyle(
-                        color: _displayLabel == "Open"
-                          ? const Color(0xFF3E5F55)
-                          : const Color(0xFFc0392b),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800)),
-                  ),
-                  if (_displayLabel.isNotEmpty && _displayInfo.isNotEmpty) ...[
-                    const SizedBox(width: 5),
-                    const Text("·",
-                      style: TextStyle(color: Color(0xFF9e9e9e), fontSize: 12)),
-                    const SizedBox(width: 5),
-                  ],
-                  if (_displayInfo.isNotEmpty) Flexible(
-                    child: Text(_displayInfo,
-                      style: const TextStyle(
-                        color: Color(0xFF555555),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ),
-                ]),
-              ]);
-            }),
-
-          ]),
-        ),
-              // ── Glass badge ribbon (bottom overlay, 28px, no layout shift) ──
-              if (badgeKey != null)
-                Positioned(
-                  bottom: 0, left: 0, right: 0,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft:  Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                      child: Container(
-                        height: 28,
-                        color: Colors.black.withValues(alpha: 0.62),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _badgeRibbonMeta[badgeKey]!["label"]!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.4,
+                // ── Glass badge ribbon — now anchored to the image's
+                // bottom edge instead of the whole card's bottom edge ──
+                if (badgeKey != null)
+                  Positioned(
+                    bottom: 0, left: 0, right: 0,
+                    child: ClipRRect(
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                        child: Container(
+                          height: 24,
+                          color: Colors.black.withValues(alpha: 0.62),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _badgeRibbonMeta[badgeKey]!["label"]!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.4,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ]),
+            ),
+
+            // ── Info block — name, category + rating, divider, status.
+            // Left-aligned hierarchy (was centered) for a more premium,
+            // e-commerce-card feel, matching the reference. ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(11, 9, 11, 9),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // ── Store name ──
+                Text(name,
+                  style: const TextStyle(
+                    color: Color(0xFF1a2e27),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    height: 1.2),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+
+                // ── Category + rating on one row (same data as before,
+                // just combined for a tighter information hierarchy) ──
+                if (cat.isNotEmpty || rating > 0) ...[
+                  const SizedBox(height: 3),
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    if (cat.isNotEmpty)
+                      Flexible(
+                        child: Text(cat,
+                          style: const TextStyle(
+                            color: Color(0xFF9e9e9e),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      ),
+                    if (cat.isNotEmpty && rating > 0) const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4),
+                      child: Text("·", style: TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
+                    ),
+                    if (rating > 0)
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
+                        const SizedBox(width: 2),
+                        Text(rating.toStringAsFixed(1),
+                          style: const TextStyle(color: Color(0xFF555555), fontSize: 10, fontWeight: FontWeight.w700)),
+                        if (revCount > 0) Text(" ($revCount)",
+                          style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
+                      ]),
+                  ]),
+                ],
+
+                const SizedBox(height: 7),
+
+                // ── Divider ──
+                Container(height: 1, color: const Color(0xFFf0f0f0)),
+
+                const SizedBox(height: 6),
+
+                // ── Open / Closed status row (always shown; same logic) ──
+                Builder(builder: (_ctx) {
+                  final _displayLabel = statusLabel.isNotEmpty ? statusLabel : "";
+                  final _displayInfo  = closingInfo.isNotEmpty ? closingInfo
+                      : "";  // FIX 2: empty = hide row when no times configured
+                  if (_displayLabel.isEmpty && _displayInfo.isEmpty) return const SizedBox.shrink();
+                  return Row(mainAxisAlignment: MainAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min, children: [
+                    if (_displayLabel.isNotEmpty) Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _displayLabel == "Open"
+                          ? const Color(0xFFe8f5f0)
+                          : const Color(0xFFfdf0f0),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(_displayLabel,
+                        style: TextStyle(
+                          color: _displayLabel == "Open"
+                            ? const Color(0xFF3E5F55)
+                            : const Color(0xFFc0392b),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800)),
+                    ),
+                    if (_displayLabel.isNotEmpty && _displayInfo.isNotEmpty) ...[
+                      const SizedBox(width: 5),
+                      const Text("·",
+                        style: TextStyle(color: Color(0xFF9e9e9e), fontSize: 12)),
+                      const SizedBox(width: 5),
+                    ],
+                    if (_displayInfo.isNotEmpty) Flexible(
+                      child: Text(_displayInfo,
+                        style: const TextStyle(
+                          color: Color(0xFF555555),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  ]);
+                }),
+
+              ]),
+            ),
+          ]),
         ),
       ),
     );
