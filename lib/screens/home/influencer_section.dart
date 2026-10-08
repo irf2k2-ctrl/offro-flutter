@@ -419,7 +419,42 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
     // Still loading (first fetch hasn't returned yet) — stay hidden exactly
     // as before, so nothing flashes on screen before we know either way.
     // This is the ONLY case that still hides the section entirely.
-    if (influencers == null) return const SizedBox.shrink();
+    // QA round: instead of collapsing to nothing (which made everything below
+    // jump down once the list arrived), reserve the same header + row height
+    // with plain placeholder cards.
+    if (influencers == null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Local Voices",
+                style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
+              Text("People shaping the city",
+                style: TextStyle(color: kMuted, fontSize: 12)),
+            ]),
+          ),
+          SizedBox(
+            height: 218,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: List.generate(2, (_) => Container(
+                width: 184, height: 208,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kBorder),
+                ),
+              )),
+            ),
+          ),
+        ]),
+      );
+    }
 
     // FIX: previously `influencers.isEmpty` ALSO returned SizedBox.shrink()
     // here, which hid this whole section (heading included) the moment the

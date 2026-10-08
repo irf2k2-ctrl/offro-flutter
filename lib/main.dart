@@ -1364,45 +1364,134 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _loadSupplementary(String c) async {
-    // ROUND 12 FIX (stale-request protection): this call's own generation
-    // token. Every state update below checks `myGen == _supplementaryGen`
-    // before writing — if a newer _loadSupplementary() call has started in
-    // the meantime (e.g. a city refresh fired while this one was still in
-    // flight), this call is stale and silently skips updating Home state.
+  // ── Home secondary data (categories, sliders, products, wallet, admin
+  // banners, hero/default images) ─────────────────────────────────────────
+  // QA round (Oct 2026) — rewritten so Home fills in ONE coordinated step:
+  //   * every independent request starts at the same time (parallel),
+  //     including /default-images, which used to run AFTER the others;
+  //   * the duplicate product calls are gone (getPublicProducts and
+  //     fetchPublicProducts hit the same /gift-vouchers-public URL, and the
+  //     "<8 products" retries hit it twice more);
+  //   * products, categories, sliders and banners are applied together in a
+  //     single setState, and the Discover Products section shows a skeleton
+  //     until then — default product images can no longer flash first;
+  //   * default images are only waited for when they are actually needed as
+  //     a fallback (no products or no sliders).
+  // [coreLoaded]: _loadAll() already fetched categories/sliders/products
+  // moments ago — don't fetch those again, only banners/wallet/defaults.
+  Future<void> _loadSupplementary(String c, {bool coreLoaded = false}) async {
+    // Stale-request protection (Round 12): only the newest call may write state.
     final myGen = ++_supplementaryGen;
-    // Show loading state for supplementary sections while fetching
-    if (mounted) setState(() { _productsLoading = true; _adminBannersLoading = true; _heroImageLoading = true; });
+    if (mounted && (!_productsLoading || !_adminBannersLoading || !_heroImageLoading)) {
+      setState(() { _productsLoading = true; _adminBannersLoading = true; _heroImageLoading = true; });
+    }
     try {
-      // FIX 5: individual guards — one failure won't blank all sections
-      List<String> cats2 = ["All"]; List<Map<String,dynamic>> richCats2 = [];
-      List slides = []; List voucs = []; Map<String,dynamic> wallet = {};
-      List adminBannerList = []; String resolvedCityImg = "";
+      List<String> cats2 = List<String>.from(_cats);
+      List<Map<String,dynamic>> richCats2 = List<Map<String,dynamic>>.from(_richCats);
+      List slides = coreLoaded ? List.from(_sliders) : [];
+      List voucs  = coreLoaded ? List.from(_products) : [];
+      Map<String,dynamic> wallet = {};
+      List adminBannerList = [];
+      final bool needCats    = !(coreLoaded && _richCats.isNotEmpty);
+      final bool needSliders = !(coreLoaded && _sliders.isNotEmpty);
+      final bool needProds   = !(coreLoaded && _products.isNotEmpty);
+      if (needCats) { cats2 = ["All"]; richCats2 = []; }
+
+      // /default-images starts NOW, in parallel with everything below. It
+      // feeds the hero photo, fallback banners and the default-product
+      // fallback. Applied in its own single setState as soon as it resolves.
+      final Future<void> defaultsApplied = (() async {
+        Map<String,dynamic> defaults = {};
+        try {
+          defaults = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
+        } catch (_) { defaults = {}; }
+        if (!mounted || myGen != _supplementaryGen) return;
+
+        List<String> cityImgs = [];
+        final cityVal = defaults["city"];
+        if (cityVal is List) {
+          cityImgs = cityVal.map((v) => v.toString().trim()).where((v) => v.startsWith("http")).toList();
+        } else if (cityVal is String && cityVal.startsWith("http")) {
+          cityImgs = [cityVal];
+        }
+        if (cityImgs.isEmpty) {
+          for (final key in ["city_image_url", "city_image", "hero_image_url", "image_url"]) {
+            final v = (defaults[key] ?? "").toString().trim();
+            if (v.startsWith("http")) { cityImgs = [v]; break; }
+          }
+        }
+        final nsImgs = defaults["no_service_url"];
+        String nsUrl = "";
+        if (nsImgs is List && nsImgs.isNotEmpty) {
+          nsUrl = nsImgs.last.toString().trim();
+        } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
+          nsUrl = nsImgs.trim();
+        }
+        final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
+        final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
+        // Default product images: full configured list (tolerates a legacy
+        // single-string response).
+        final defProdVal = defaults["product"];
+        List<String> defProd = [];
+        bool okImg(String v) => v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video");
+        if (defProdVal is List) {
+          defProd = defProdVal.map((v) => v.toString().trim()).where(okImg).toList();
+        } else if (defProdVal is String && defProdVal.trim().isNotEmpty && okImg(defProdVal.trim())) {
+          defProd = [defProdVal.trim()];
+        }
+        // merchant_banner: array of URLs (images or mp4 videos)
+        List<Map<String,dynamic>> mb = [];
+        final mbRaw = defaults["merchant_banner"];
+        if (mbRaw is List) {
+          mb = mbRaw.where((u) => u is String && okImg(u)).map<Map<String,dynamic>>((u) {
+            final uid = "mb_${(u as String).hashCode.abs()}";
+            return {"id": uid, "title": "", "subtitle": "", "image": u, "image_url": u,
+              "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
+          }).toList();
+        } else if (mbRaw is String && mbRaw.startsWith("http")) {
+          mb = [{"id":"default","title":"","subtitle":"","image":mbRaw,"image_url":mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
+        }
+        setState(() {
+          _heroImageLoading = false;
+          if (cityImgs.isNotEmpty) { _cityImageUrls = cityImgs; _cityImageUrl = cityImgs[0]; }
+          if ((nsUrl.startsWith("http") || nsUrl.startsWith("data:image"))) _noServiceImg = nsUrl;
+          if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
+          if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
+          if (defProd.isNotEmpty) _defaultProductImageUrls = defProd;
+          _mbFallbackSliders = mb;
+        });
+        _startHeroRotation();
+      })().catchError((_) {
+        // A malformed /default-images payload must never leave the hero
+        // shimmer spinning or block the fallback decision below.
+        if (mounted && myGen == _supplementaryGen) setState(() { _heroImageLoading = false; });
+      });
+
+      // Core data — all in parallel. Each future guards its own failure so
+      // one bad endpoint can't blank the others.
       await Future.wait([
-        Api.fetchCategories().then((v) {
+        if (needCats) Api.fetchCategories().then((v) {
           final raw = v as List;
           richCats2 = raw.map((e) => e is Map ? Map<String,dynamic>.from(e) : <String,dynamic>{"name":e.toString(),"icon":"🏪","image_url":"","subtitle":""}).toList();
           cats2 = ["All", ...richCats2.map((e) => e["name"].toString())];
         }).catchError((_) {}),
-        Api.getSliders().then((v) => slides = v as List).catchError((_) {}),
-        Api.getPublicProducts(city: c).then((v) => voucs = v as List).catchError((_) {}),
-        Api.fetchPublicProducts(city: c).then((v) {
-          // Merge public products into products list (avoid duplicates by title)
-          final existing = Set<String>.from(
-              voucs.map((x) => (x["title"] ?? x["name"] ?? "").toString().toLowerCase()));
-          for (final p in v) {
-            final t = (p["title"] ?? p["name"] ?? "").toString().toLowerCase();
-            if (!existing.contains(t)) { voucs.add(p); existing.add(t); }
+        if (needSliders) Api.getSliders().then((v) async {
+          slides = v as List;
+          if (slides.isEmpty) { // race-condition retry, now concurrent with the rest
+            await Future.delayed(const Duration(milliseconds: 800));
+            try { slides = await Api.getSliders(); } catch (_) { }
+          }
+        }).catchError((_) {}),
+        // ONE products request (getPublicProducts + fetchPublicProducts were
+        // the same endpoint; merging them by title returned the same list).
+        // A single retry only when the first response is genuinely empty.
+        if (needProds) Api.getPublicProducts(city: c).then((v) async {
+          voucs = v as List;
+          if (voucs.isEmpty) {
+            try { voucs = await Api.getPublicProducts(city: c); } catch (_) { }
           }
         }).catchError((_) {}),
         Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
-        // ROUND 12 FIX: admin-banner fetch + its own retry-if-empty now live
-        // together in this one future, so `_adminBannersLoading` flips to
-        // false the instant THIS future resolves — independent of how long
-        // categories/sliders/products/wallet (the other futures in this
-        // same Future.wait) or the later hero-images/sliders-retry/product-
-        // retries take. That is the entire fix: nothing else in this
-        // function's flow, ordering, or fallback behavior changes.
         Api.getAdminBanners().then((v) async {
           List list = (v as List);
           if (list.isEmpty) {
@@ -1410,209 +1499,26 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             try { list = await Api.getAdminBanners(); } catch (_) { }
           }
           adminBannerList = list;
-          // ROUND 12 FIX (partial-Home fix): apply the banner DATA here too,
-          // not just the loading flag. Previously `_adminBanners` was only
-          // ever assigned in the big end-of-function setState — which runs
-          // much later, after the hero-images fetch (up to a 10s timeout),
-          // the sliders retry and the product retries. That meant the
-          // shimmer could correctly disappear (flag flips here) while the
-          // real banner data sat unused for several more seconds, leaving
-          // _BannerStoresBlock with hasBanners=false/bannersLoading=false —
-          // i.e. nothing shown at all. Assigning it here closes that gap.
-          // ROUND 12 FIX (stale-request protection): only the current
-          // generation may write either of these — a stale call's
-          // admin-banner fetch/retry finishing late must not touch them.
-          if (mounted && myGen == _supplementaryGen) {
-            setState(() {
-              _adminBannersLoading = false;
-              _adminBanners = List<Map<String,dynamic>>.from(adminBannerList);
-            });
-          }
-        }).catchError((_) {
-          if (mounted && myGen == _supplementaryGen) setState(() { _adminBannersLoading = false; });
-        }),
-
+        }).catchError((_) {}),
       ]);
 
-      // ROUND 11 FOLLOW-UP — lifecycle safety: every setState below this
-      // point was already individually guarded by `mounted` (see the
-      // audit), so a disposed Home could never crash from this background
-      // work. This early return is the one thing that WASN'T already
-      // guarded: if the person has already left/disposed this Home by the
-      // time the network batch above finishes, there is no point spending
-      // more background work (the default-images fetch, the two 800ms/
-      // 500ms retry delays, the city/expiry filtering) on a result nobody
-      // can ever see. Bailing out here changes nothing for the normal
-      // (still-mounted) case — it only skips wasted work after disposal.
-      // ROUND 12 FIX (stale-request protection): also bail if a newer
-      // _loadSupplementary() call has since become the current generation.
       if (!mounted || myGen != _supplementaryGen) return;
 
-      // ── Hero images: fetch arrays from /default-images, rotate every 2 min ──
-      List<String> resolvedCityImgs = [];
-      try {
-        final defaults = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
-        final cityVal = defaults["city"];
-        if (cityVal is List) {
-          resolvedCityImgs = cityVal
-              .map((v) => v.toString().trim())
-              .where((v) => v.startsWith("http"))
-              .toList();
-        } else if (cityVal is String && cityVal.startsWith("http")) {
-          resolvedCityImgs = [cityVal];
-        }
-        // Fallback: old single-string keys
-        if (resolvedCityImgs.isEmpty) {
-          for (final key in ["city_image_url", "city_image", "hero_image_url", "image_url"]) {
-            final v = (defaults[key] ?? "").toString().trim();
-            if (v.startsWith("http")) { resolvedCityImgs = [v]; break; }
-          }
-        }
-        resolvedCityImg = resolvedCityImgs.isNotEmpty ? resolvedCityImgs[0] : "";
-        // ROUND 12 FIX (partial-Home fix): apply the hero/city-image DATA
-        // here too, not just later — same issue as the admin-banner fix
-        // above: previously `_cityImageUrl(s)` were only ever assigned in
-        // the big end-of-function setState, which runs after the sliders
-        // retry and product retries finish. Applying it here, right where
-        // it's resolved, means the hero photo (or the fallback, if there
-        // genuinely isn't one) can appear as soon as it's actually known,
-        // instead of sitting resolved-but-unapplied for several more
-        // seconds. `_heroImageLoading` flips false in the same setState so
-        // _CityHeroSection's shimmer and its real content change together.
-        if (mounted && myGen == _supplementaryGen) {
-          setState(() {
-            _heroImageLoading = false;
-            if (resolvedCityImgs.isNotEmpty) {
-              _cityImageUrls = resolvedCityImgs;
-              _cityImageUrl  = resolvedCityImgs[0];
-            } else if (resolvedCityImg.isNotEmpty) {
-              _cityImageUrls = [resolvedCityImg];
-              _cityImageUrl  = resolvedCityImg;
-            }
-          });
-        }
-        // Load no-service config (handle String or List from backend)
-        final nsImgs = defaults["no_service_url"];
-        String _nsUrl = "";
-        if (nsImgs is List && (nsImgs as List).isNotEmpty) {
-          _nsUrl = (nsImgs as List).last.toString().trim();
-        } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
-          _nsUrl = nsImgs.trim();
-        }
-        // ROUND 12 FIX (stale-request protection): guard every write below
-        // with `myGen == _supplementaryGen` so a stale generation's
-        // /default-images response can't overwrite a newer generation's
-        // hero/default-image/fallback-banner state.
-        if ((_nsUrl.startsWith("http") || _nsUrl.startsWith("data:image")) && mounted && myGen == _supplementaryGen) {
-          setState(() { _noServiceImg = _nsUrl; });
-        }
-        final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
-        final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
-        // Default product images: backend now returns the full configured
-        // list (QA fix — same _all_urls() pattern already used for
-        // city/merchant_banner), but tolerate an older/legacy single-string
-        // response too.
-        final defProdVal = defaults["product"];
-        List<String> resolvedDefProdImgs = [];
-        if (defProdVal is List) {
-          resolvedDefProdImgs = defProdVal
-              .map((v) => v.toString().trim())
-              .where((v) => v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video"))
-              .toList();
-        } else if (defProdVal is String && defProdVal.trim().isNotEmpty) {
-          final v = defProdVal.trim();
-          if (v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video")) {
-            resolvedDefProdImgs = [v];
-          }
-        }
-        if (mounted && myGen == _supplementaryGen) setState(() {
-          if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
-          if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
-          if (resolvedDefProdImgs.isNotEmpty) _defaultProductImageUrls = resolvedDefProdImgs;
-        });
-        // merchant_banner is now an array of URLs (images or mp4 videos)
-        if (myGen == _supplementaryGen) {
-          final _mbRaw = defaults["merchant_banner"];
-          if (_mbRaw is List) {
-            _mbFallbackSliders = _mbRaw
-                .where((u) {
-                  if (u is! String) return false;
-                  final s = u as String;
-                  // Allow http URLs AND base64 images/videos
-                  return s.startsWith("http") || s.startsWith("data:image") || s.startsWith("data:video");
-                })
-                .map<Map<String,dynamic>>((u) {
-                  final uid = "mb_${(u as String).hashCode.abs()}";
-                  return {"id": uid, "title": "", "subtitle": "",
-                    "image": u, "image_url": u,
-                    "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
-                }).toList();
-          } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
-            _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
-          } else {
-            _mbFallbackSliders = [];
-          }
-        }
-      } catch (e) {
-        // ROUND 12 FIX (partial-Home fix): the /default-images call itself
-        // failed or timed out (up to 10s) — don't leave the hero shimmer
-        // spinning forever. Flip it false here too so _CityHeroSection
-        // falls back to its existing flat-gradient look, same as "hero
-        // image genuinely doesn't exist".
-        if (mounted && myGen == _supplementaryGen) setState(() { _heroImageLoading = false; });
-      }
-
-      final cats = cats2;
-
-      // Retry sliders once if empty (FIX: banner disappear race condition)
-      if (slides.isEmpty) {
-        await Future.delayed(const Duration(milliseconds: 800));
-        try { slides = await Api.getSliders(); } catch (_) { }
-      }
-      // City filter for promo sliders/banners
+      // City filter for promo sliders
       if (c.isNotEmpty) {
-        slides = (slides).where((s) {
+        slides = slides.where((s) {
           final sCity = (s["city"] ?? "").toString().trim().toLowerCase();
           return sCity.isEmpty || sCity == c.toLowerCase().trim();
         }).toList();
       }
-      // Fallback — when no active banners exist for the city, show default merchant banners (images or videos)
-      if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
-        slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
-      }
-      // ROUND 12 FIX: admin-banner empty-retry moved into the Future.wait
-      // future above (so _adminBannersLoading can flip independently) —
-      // removed from here to avoid double-retrying.
-      // Retry products if fewer than expected
-      if (voucs.length < 8) {
-        try {
-          final extra = await Api.getPublicProducts(city: c);
-          final existingT = Set<String>.from(voucs.map((x)=>(x["title"]??x["name"]??"").toString().toLowerCase()));
-          for (final p in extra) {
-            final t = (p["title"]??p["name"]??"").toString().toLowerCase();
-            if (!existingT.contains(t)) { voucs.add(p); existingT.add(t); }
-          }
-        } catch (_) { }
-      }
-      if (voucs.length < 8) {
-        try {
-          final pubP = await Api.fetchPublicProducts(city: c);
-          final existingT2 = Set<String>.from(voucs.map((x)=>(x["title"]??x["name"]??"").toString().toLowerCase()));
-          for (final p in pubP) {
-            final t = (p["title"]??p["name"]??"").toString().toLowerCase();
-            if (!existingT2.contains(t)) { voucs.add(p); existingT2.add(t); }
-          }
-        } catch (_) { }
-      }
-
       // TASK 6 FIX: filter out expired products (end_date in past)
-      final _now6 = DateTime.now();
+      final now6 = DateTime.now();
       voucs = voucs.where((v) {
         final endRaw = (v["end_date"] ?? v["validity_end"] ?? "").toString();
         if (endRaw.isEmpty) return true;
-        try { return DateTime.parse(endRaw).isAfter(_now6); } catch (_) { return true; }
+        try { return DateTime.parse(endRaw).isAfter(now6); } catch (_) { return true; }
       }).toList();
-      // City filter: only show products/banners matching current city
+      // City filter: only products matching the current city
       if (c.isNotEmpty) {
         voucs = voucs.where((v) {
           final vCity = (v["city"] ?? v["store_city"] ?? "").toString().trim().toLowerCase();
@@ -1620,42 +1526,42 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         }).toList();
       }
 
-
-      // ROUND 12 FIX (stale-request protection): bail if a newer generation
-      // has since taken over — covers the final setState block below
-      // (_cats, _richCats, _sliders, _adminBanners, _products,
-      // _productsLoading, _walletPoints, _cityImageUrl(s)) plus the
-      // slider-autoplay/hero-rotation/popup-check calls that follow it.
+      // Default images are only needed as a fallback. If there ARE real
+      // products and sliders we don't wait for them at all.
+      if (slides.isEmpty || voucs.isEmpty) await defaultsApplied;
       if (!mounted || myGen != _supplementaryGen) return;
+
+      // Fallback — no active banners for the city: default merchant banners
+      if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
+        slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
+      }
       final sliderList  = List<Map<String,dynamic>>.from(slides);
       final productList = List<Map<String,dynamic>>.from(voucs);
       for (int i = 0; i < sliderList.length; i++)  sliderList[i]["_idx"]  = i;
       for (int i = 0; i < productList.length; i++) productList[i]["_idx"] = i;
 
-      // City image fetched in parallel in Future.wait above
-
+      // ONE setState: categories, sliders, banners, products and wallet
+      // appear in the same frame.
       setState(() {
-        if (cats.length > 1 || _cats.length <= 1) _cats = List<String>.from(cats);
+        if (cats2.length > 1 || _cats.length <= 1) _cats = List<String>.from(cats2);
         if (richCats2.isNotEmpty) _richCats = richCats2;
         else if (_richCats.isEmpty) Api.clearCache(); // force refetch next time
-        _sliders         = sliderList;
-        _adminBanners    = List<Map<String,dynamic>>.from(adminBannerList);
-        _products        = productList;
-        _productsLoading = false;
-        _walletPoints    = (wallet["visit_points"] as num?)?.toInt() ?? 0;
-        if (resolvedCityImgs.isNotEmpty) {
-          _cityImageUrls = resolvedCityImgs;
-          _cityImageUrl  = resolvedCityImgs[0];
-        } else if (resolvedCityImg.isNotEmpty) {
-          _cityImageUrls = [resolvedCityImg];
-          _cityImageUrl  = resolvedCityImg;
-        }
+        _sliders             = sliderList;
+        _adminBanners        = List<Map<String,dynamic>>.from(adminBannerList);
+        _adminBannersLoading = false;
+        _products            = productList;
+        _productsLoading     = false;
+        _walletPoints        = (wallet["visit_points"] as num?)?.toInt() ?? 0;
         _recomputeDistances();
       });
       _startSliderAutoPlay();
       _startHeroRotation();
       WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndShowPopup());
     } catch (e) {
+      // Never leave a section stuck on its loading skeleton.
+      if (mounted && myGen == _supplementaryGen) {
+        setState(() { _productsLoading = false; _adminBannersLoading = false; _heroImageLoading = false; });
+      }
     }
   }
 
@@ -1871,7 +1777,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadAllRunning = false;
     _startSliderAutoPlay();
     // FIX 6: trigger hero + admin banners load immediately on first open
-    _loadSupplementary(c);
+    _loadSupplementary(c, coreLoaded: true);
     if(mounted) setState((){_isTimeout=false;});
     // Init FCM after data loads — city is known at this point
     FcmService.init(
@@ -2351,6 +2257,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       onViewAll: () => _viewAllProducts(context),
                       token: widget.token,
                       defaultProductImageUrls: _defaultProductImageUrls,
+                      // True until the real product request finishes — shows a
+                      // skeleton instead of the default images (no flash).
+                      loading: _productsLoading,
                     )),
 
                     // ══════ 6b. CITY INFLUENCERS (reuses screens/home/influencer_section.dart) ══════
@@ -5799,12 +5708,52 @@ class _DiscoverProductsSection extends StatelessWidget {
   final VoidCallback onViewAll;
   final String token;
   final List<String> defaultProductImageUrls;
+  final bool loading;
   const _DiscoverProductsSection({
     required this.products,
     required this.onViewAll,
     this.token = "",
     this.defaultProductImageUrls = const [],
+    this.loading = false,
   });
+
+  // Skeleton shown while the real products are still being fetched — same
+  // header + Bento footprint (1 large + 2 small), so nothing shifts when the
+  // real cards replace it.
+  Widget _loadingSkeleton() {
+    const double h = 270;
+    BorderRadius r() => BorderRadius.circular(18);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Discover Products",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
+        ),
+        SizedBox(
+          height: h,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              _shimmerBox(width: 190, height: h, borderRadius: r()),
+              const SizedBox(width: 10),
+              Column(children: [
+                _shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
+                const SizedBox(height: 10),
+                _shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
+              ]),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
 
   static num? _numVal(Map v, List<String> keys) {
     for (final k in keys) {
@@ -6225,6 +6174,8 @@ class _DiscoverProductsSection extends StatelessWidget {
 
   @override Widget build(BuildContext context) {
     if (products.isEmpty) {
+      // Real products still loading -> skeleton, never the default images.
+      if (loading) return _loadingSkeleton();
       return defaultProductImageUrls.isNotEmpty
           ? _defaultProductPlaceholder(context)
           : const SizedBox.shrink();
