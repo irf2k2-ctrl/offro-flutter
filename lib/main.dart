@@ -20,6 +20,7 @@ import 'firebase_options.dart';
 
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
+import 'core/utils/image_url.dart';
 import 'core/utils/geo.dart';
 import 'core/utils/navigation.dart';
 import 'core/widgets/shimmer_box.dart';
@@ -39,7 +40,6 @@ import 'core/widgets/brand_logo.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/merchant/merchant_screens.dart';
 import 'screens/favorites/favorites_page.dart';
-import 'screens/detail/detail_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
 import 'screens/home/influencer_section.dart';
@@ -785,33 +785,6 @@ class MyApp extends StatelessWidget {
 }
 
 
-// ─────────────────────── SCALE ON TAP WIDGET ───────────────────────
-class _ScaleOnTap extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-  const _ScaleOnTap({required this.child, this.onTap});
-  @override State<_ScaleOnTap> createState() => _ScaleOnTapState();
-}
-class _ScaleOnTapState extends State<_ScaleOnTap> with SingleTickerProviderStateMixin {
-  late AnimationController _ac;
-  late Animation<double> _scale;
-  @override void initState() {
-    super.initState();
-    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
-    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _ac, curve: Curves.easeInOut));
-  }
-  @override void dispose() { _ac.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _ac.forward(),
-      onTapUp: (_) { _ac.reverse(); widget.onTap?.call(); },
-      onTapCancel: () => _ac.reverse(),
-      child: ScaleTransition(scale: _scale, child: widget.child),
-    );
-  }
-}
-
 // ─────────────────────── NAV BTN (label on active only) ───────────────────────
 class _NavBtn extends StatelessWidget {
   final IconData icon; final String label; final bool active;
@@ -913,7 +886,7 @@ class _MasonrySearchGrid extends StatelessWidget {
       try { return Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
       catch(_) { }
     }
-    final imgUrl = img.startsWith("/") ? "$kBaseUrl$img" : img;
+    final imgUrl = resolveImageUrl(img);
     if (imgUrl.startsWith("http")) {
       return CachedNetworkImage(imageUrl:imgUrl,fit:BoxFit.cover,width:double.infinity,height:double.infinity,
         placeholder:(_,__)=>Container(color:kAccent,child:const Center(child:Icon(Icons.store,color:kPrimary,size:32))),
@@ -2117,7 +2090,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final sl=_sl;
     final nearbyStores=_nearbyStores;  // GPS-aware with fallback to top stores
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final topStores = _topStores;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -2136,7 +2109,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               _loading
               ? LayoutBuilder(builder: (ctx, bc) => SizedBox(
                   width: bc.maxWidth,
-                  height: bc.maxHeight.isFinite ? bc.maxHeight : MediaQuery.of(ctx).size.height,
+                  height: bc.maxHeight.isFinite ? bc.maxHeight : MediaQuery.sizeOf(ctx).height,
                   child: ColoredBox(
                     color: Colors.white,
                     child: _buildLoadingSkeleton(),
@@ -2975,7 +2948,7 @@ class _ViewAllPageState extends State<_ViewAllPage>{
 
   @override Widget build(BuildContext context){
     final filtered = _filtered;
-    final scrH = MediaQuery.of(context).size.height;
+    final scrH = MediaQuery.sizeOf(context).height;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -3421,7 +3394,7 @@ class _CategoryCard extends StatelessWidget {
     String _rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     // Resolve relative URLs to absolute
     if (_rawImg.isNotEmpty && _rawImg.startsWith("/")) {
-      _rawImg = "$kBaseUrl$_rawImg";
+      _rawImg = resolveImageUrl(_rawImg);
     }
     final bool _isBase64 = _rawImg.startsWith("data:image");
     final bool _isHttp   = _rawImg.startsWith("http://") || _rawImg.startsWith("https://");
@@ -4022,7 +3995,7 @@ class _PinCard extends StatelessWidget {
     // ── Image resolution ──
     String rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     if (rawImg.isNotEmpty && rawImg.startsWith("/")) {
-      rawImg = "$kBaseUrl$rawImg";
+      rawImg = resolveImageUrl(rawImg);
     }
     final bool isBase64 = rawImg.startsWith("data:image");
     final bool isHttp   = rawImg.startsWith("http://") || rawImg.startsWith("https://");
@@ -4148,452 +4121,6 @@ class _PinCard extends StatelessWidget {
   }
 }
 
-
-// ══════════════════════════════════════════════════════════════════
-class _SpecialFindsSection extends StatelessWidget {
-  final List<Map<String,dynamic>> stores;
-  final String token;
-  const _SpecialFindsSection({required this.stores, required this.token});
-
-  static const List<Map<String,dynamic>> _defs = [
-    {"label":"People Love",       "filter":"popular",   "fallback1":0xFFFF6B6B,"fallback2":0xFFFF8E53},
-    {"label":"Late Night Spots",  "filter":"latenight", "fallback1":0xFF1a2550,"fallback2":0xFF2C3E7A},
-    {"label":"Just Opened",       "filter":"new",       "fallback1":0xFF2E7D5E,"fallback2":0xFF1a5040},
-    {"label":"Popular This Week", "filter":"trending",  "fallback1":0xFFE67E22,"fallback2":0xFFD35400},
-  ];
-
-  List<Map<String,dynamic>> _ranked(String type) {
-    if (stores.isEmpty) return [];
-    final list = List<Map<String,dynamic>>.from(stores);
-    switch (type) {
-      case "popular":
-        list.sort((a, b) {
-          final pa = (a["is_popular"] == true) ? 3 : (a["favorite_count"] ?? 0) > 0 ? 2 : 1;
-          final pb = (b["is_popular"] == true) ? 3 : (b["favorite_count"] ?? 0) > 0 ? 2 : 1;
-          if (pa != pb) return pb.compareTo(pa);
-          final fc = ((b["favorite_count"] ?? 0) as num).compareTo((a["favorite_count"] ?? 0) as num);
-          if (fc != 0) return fc;
-          return ((b["rating"] ?? 0) as num).compareTo((a["rating"] ?? 0) as num);
-        });
-        return list.take(5).toList();
-      case "latenight":
-        final lateKeywords = ["late night","late","night","24","open late","night service"];
-        final late = list.where((s) {
-          if (s["late_night"] == true) return true;
-          final tags = ((s["tags"] ?? []) as List).map((t) => t.toString().toLowerCase());
-          return tags.any((t) => lateKeywords.any((k) => t.contains(k)));
-        }).toList();
-        if (late.isNotEmpty) {
-          late.sort((a,b) => ((b["rating"]??0) as num).compareTo((a["rating"]??0) as num));
-          return late.take(5).toList();
-        }
-        return [];
-      case "new":
-        final now = DateTime.now();
-        final newS = list.where((s) {
-          final tags = ((s["tags"] ?? []) as List).map((t) => t.toString().toLowerCase());
-          if (tags.any((t) => ["new","just opened","newly opened","grand opening"].any((k) => t.contains(k)))) return true;
-          final cs = s["created_at"]?.toString() ?? "";
-          if (cs.isNotEmpty) {
-            try { final dt = DateTime.tryParse(cs); if (dt != null && now.difference(dt).inDays <= 14) return true; } catch (_) { }
-          }
-          return false;
-        }).toList();
-        if (newS.isNotEmpty) {
-          newS.sort((a,b) => ((b["favorite_count"]??0) as num).compareTo((a["favorite_count"]??0) as num));
-          return newS.take(5).toList();
-        }
-        final withDate = list.where((s) => (s["created_at"]?.toString() ?? "").isNotEmpty).toList();
-        withDate.sort((a,b) => (b["created_at"]?.toString() ?? "").compareTo(a["created_at"]?.toString() ?? ""));
-        return withDate.isNotEmpty ? withDate.take(3).toList() : list.take(3).toList();
-      case "trending":
-        list.sort((a, b) {
-          final ta = (a["is_trending"] == true) ? 1 : 0;
-          final tb = (b["is_trending"] == true) ? 1 : 0;
-          if (ta != tb) return tb.compareTo(ta);
-          final vc = ((b["view_count"] ?? 0) as num).compareTo((a["view_count"] ?? 0) as num);
-          if (vc != 0) return vc;
-          final dc = ((b["deal_count"] ?? 0) as num).compareTo((a["deal_count"] ?? 0) as num);
-          if (dc != 0) return dc;
-          return ((b["rating"] ?? 0) as num).compareTo((a["rating"] ?? 0) as num);
-        });
-        return list.take(5).toList();
-      default:
-        return list.take(5).toList();
-    }
-  }
-
-  String? _storeImg(Map<String,dynamic> s) {
-    for (final k in ["image_url","image_thumb","image","image2"]) {
-      final v = s[k]?.toString() ?? "";
-      if (v.isNotEmpty && v.startsWith("http")) return v;
-    }
-    final imgs = s["images"];
-    if (imgs is List && imgs.isNotEmpty) {
-      final v = imgs.first.toString();
-      if (v.startsWith("http")) return v;
-    }
-    return null;
-  }
-
-  @override Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-            Text("Special Finds",
-              style: TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
-            SizedBox(height: 2),
-            Text("Handpicked just for you",
-              style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
-        ),
-        SizedBox(
-          height: 168,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: _defs.length,
-            itemBuilder: (_, i) {
-              final def          = _defs[i];
-              final ranked       = _ranked(def["filter"] as String);
-              final imgUrl       = ranked.isNotEmpty ? _storeImg(ranked[0]) : null;
-              final storeCount   = ranked.length;
-              final color1       = Color(def["fallback1"] as int);
-              final color2       = Color(def["fallback2"] as int);
-              final isComingSoon = def["filter"] == "latenight" && ranked.isEmpty;
-              final label        = def["label"] as String;
-
-              return GestureDetector(
-                onTap: () {
-                  if (ranked.isEmpty) return;
-                  Navigator.push(context, appRoute(_SpecialCategoryScreen(
-                    label: label,
-                    emoji: "",
-                    stores: ranked,
-                    token: token,
-                    color1: color1,
-                    color2: color2,
-                  )));
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: SizedBox(
-                    width: 160,
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft, end: Alignment.bottomRight,
-                          colors: [color1, color2]),
-                        boxShadow: [BoxShadow(
-                          color: Colors.black.withValues(alpha: .14),
-                          blurRadius: 14, offset: const Offset(0, 4))],
-                      ),
-                      child: Stack(fit: StackFit.expand, children: [
-                        // ── Background image (always shown, even for Coming Soon) ──
-                        if (imgUrl != null)
-                          Positioned.fill(child: CachedNetworkImage(
-                            imageUrl: imgUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: [color1, color2]))),
-                            errorWidget: (_, __, ___) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: [color1, color2]))),
-                          ))
-                        else
-                          // No image yet — gradient background
-                          Positioned.fill(child: Container(
-                            decoration: BoxDecoration(gradient: LinearGradient(
-                              begin: Alignment.topLeft, end: Alignment.bottomRight,
-                              colors: [color1, color2])),
-                          )),
-
-                        // ── Transparent ribbon at bottom ──
-                        Positioned(
-                          left: 0, right: 0, bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: .58),
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft:  Radius.circular(22),
-                                bottomRight: Radius.circular(22),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.2,
-                                  )),
-                                const SizedBox(height: 3),
-                                Text(
-                                  isComingSoon
-                                    ? "Coming Soon"
-                                    : "$storeCount Store${storeCount == 1 ? "" : "s"}",
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: .80),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _PopularAreasSection extends StatelessWidget {
-  final List<Map<String,dynamic>> stores;
-  final String token;
-  const _PopularAreasSection({required this.stores, required this.token});
-
-  // ── Build area list from store.area field ─────────────────────────
-  // All keys where a store image might live
-  static const _imgKeys = [
-    "image_url","image_thumb","image","image2","logo_url","logo","img","photo",
-    "_thumb","banner","cover","thumbnail","store_image","store_image2",
-  ];
-
-  String? _pickImg(Map<String,dynamic> store) {
-    bool _validImg(String v) =>
-        v.isNotEmpty && (v.startsWith("http") || v.startsWith("data:image"));
-    for (final k in _imgKeys) {
-      final v = store[k]?.toString() ?? "";
-      if (_validImg(v)) return v;
-    }
-    // Try images array
-    final imgs = store["images"];
-    if (imgs is List) {
-      for (final img in imgs) {
-        final v = img?.toString() ?? "";
-        if (_validImg(v)) return v;
-      }
-    }
-    return null;
-  }
-
-  List<Map<String,dynamic>> _buildAreas() {
-    final Map<String, List<Map<String,dynamic>>> grouped = {};
-    for (final s in stores) {
-      final area = (s["area"] ?? "").toString().trim();
-      if (area.isEmpty || area == "null") continue;
-      grouped.putIfAbsent(area, () => []).add(s);
-    }
-    if (grouped.isEmpty) return [];
-
-    return grouped.entries.map((e) {
-      final areaStores = e.value;
-      // Priority: most favorited → highest rated → most viewed → any with image
-      String? imgUrl;
-
-      // Sort by favorites first, then rating, then views
-      final sorted = List<Map<String,dynamic>>.from(areaStores)
-        ..sort((a, b) {
-          final fa = (a["favorite_count"] ?? 0) as num;
-          final fb = (b["favorite_count"] ?? 0) as num;
-          if (fb != fa) return fb.compareTo(fa);
-          final ra = (a["rating"] ?? a["admin_rating"] ?? 0) as num;
-          final rb = (b["rating"] ?? b["admin_rating"] ?? 0) as num;
-          if (rb != ra) return rb.compareTo(ra);
-          final va = (a["view_count"] ?? 0) as num;
-          final vb = (b["view_count"] ?? 0) as num;
-          return vb.compareTo(va);
-        });
-
-      // Try priority-sorted stores first
-      for (final s in sorted) {
-        imgUrl = _pickImg(s);
-        if (imgUrl != null) break;
-      }
-      // Last resort: iterate ALL stores in area
-      if (imgUrl == null) {
-        for (final s in areaStores) {
-          imgUrl = _pickImg(s);
-          if (imgUrl != null) break;
-        }
-      }
-
-      return {
-        "name":      e.key,
-        "count":     e.value.length,
-        "image_url": imgUrl ?? "",
-        "stores":    areaStores,
-        "subtitle":  "",
-      };
-    }).toList()
-      ..sort((a,b) => (b["count"] as int).compareTo(a["count"] as int));
-  }
-
-  @override Widget build(BuildContext context) {
-    final areas = _buildAreas();
-    if (areas.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header with "See all areas →"
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-                Text("Popular Areas",
-                  style: TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
-                SizedBox(height: 2),
-                Text("Discover local neighbourhoods",
-                  style: TextStyle(color: kMuted, fontSize: 12)),
-              ]),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => Navigator.push(context, appRoute(_AllAreasScreen(
-                  stores: stores, token: token))),
-                child: const Text("See all areas →",
-                  style: TextStyle(
-                    color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ),
-        // Horizontal scroll — identical structure to Special Finds
-        SizedBox(
-          height: 168,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: areas.length > 8 ? 8 : areas.length,
-            itemBuilder: (_, i) {
-              final area = areas[i];
-              final _areaImg = area["image_url"] as String;
-              final _areaGrad = _AreaBg._fallbackGrads[
-                (area["name"] as String).isEmpty ? 0
-                : (area["name"] as String).codeUnitAt(0) % _AreaBg._fallbackGrads.length
-              ];
-              return GestureDetector(
-                onTap: () => Navigator.push(context, appRoute(_AreaDetailScreen(
-                  areaName:  area["name"] as String,
-                  stores:    List<Map<String,dynamic>>.from(area["stores"] as List),
-                  token:     token,
-                ))),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: SizedBox(
-                    width: 160,
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft, end: Alignment.bottomRight,
-                          colors: _areaGrad),
-                        boxShadow: [BoxShadow(
-                          color: Colors.black.withValues(alpha: .14),
-                          blurRadius: 14, offset: const Offset(0, 4))],
-                      ),
-                      child: Stack(fit: StackFit.expand, children: [
-                        // ── Full-bleed background image (same as SF) ──
-                        if (_areaImg.isNotEmpty)
-                          Positioned.fill(child: CachedNetworkImage(
-                            imageUrl: _areaImg,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: _areaGrad))),
-                            errorWidget: (_, __, ___) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: _areaGrad))),
-                          ))
-                        else
-                          Positioned.fill(child: Container(
-                            decoration: BoxDecoration(gradient: LinearGradient(
-                              begin: Alignment.topLeft, end: Alignment.bottomRight,
-                              colors: _areaGrad)),
-                            child: Center(child: Text(
-                              (area["name"] as String).trim().split(" ").take(2)
-                                .map((w) => w.isEmpty ? "" : w[0].toUpperCase()).join(),
-                              style: const TextStyle(color: Colors.white38, fontSize: 42, fontWeight: FontWeight.w900),
-                            )),
-                          )),
-
-                        // ── Ribbon — exact SF style ──
-                        Positioned(
-                          left: 0, right: 0, bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: .58),
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft:  Radius.circular(22),
-                                bottomRight: Radius.circular(22),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(area["name"] as String,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.2,
-                                  )),
-                                const SizedBox(height: 3),
-                                Text(
-                                  "${area["count"]} Store${(area["count"] as int) == 1 ? "" : "s"}",
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: .80),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ]),
-    );
-  }
-}
 
 // Background image widget for area card
 class _AreaBg extends StatelessWidget {
@@ -5571,76 +5098,6 @@ class _CategoryChipsRow extends StatelessWidget {
         ),
       ]),
     );
-  }
-}
-
-
-// ─── 3. Sponsored Banner + Featured Stores (combined gradient card) ──
-// ═══════════════════════════════════════════════════════
-// 4. Banner Section — clean image, downward gradient
-// ═══════════════════════════════════════════════════════
-class _BannerSection extends StatelessWidget {
-  final List<Map<String,dynamic>> sliders;
-  final PageController sliderPc;
-  final ValueNotifier<int> sliderPageNotifier;
-  final String token;
-  final ValueChanged<int> onSliderPageChanged;
-  const _BannerSection({
-    required this.sliders, required this.sliderPc, required this.sliderPageNotifier,
-    required this.token, required this.onSliderPageChanged,
-  });
-
-  @override Widget build(BuildContext context) {
-    if (sliders.isEmpty) {
-      return const SizedBox(height: 170,
-        child: Center(child: CircularProgressIndicator(color: Color(0xFFA9CDBA), strokeWidth: 2)));
-    }
-    return Column(children: [
-      const SizedBox(height: 16),
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final bannerWidth  = constraints.maxWidth - 20; // 10px padding each side
-          final bannerHeight = (bannerWidth / 2.35).clamp(140.0, 220.0);
-          return SizedBox(
-            height: bannerHeight,
-            child: PageView.builder(
-              controller: sliderPc,
-              clipBehavior: Clip.hardEdge,
-              itemCount: sliders.length > 1 ? 99999 : sliders.length,
-              onPageChanged: onSliderPageChanged,
-              itemBuilder: (_, i) {
-                final s = sliders[i % sliders.length];
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-                  child: PromoSliderCard(
-                    slider: Map<String,dynamic>.from(s as Map),
-                    token: token,
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      ),
-      if (sliders.length > 1) ...[
-        const SizedBox(height: 8),
-        ValueListenableBuilder<int>(
-          valueListenable: sliderPageNotifier,
-          builder: (_, page, __) => Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            ...List.generate(sliders.length > 5 ? 5 : sliders.length, (i) => AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: (i == page % (sliders.length > 5 ? 5 : sliders.length)) ? 20 : 6,
-              height: 6, margin: const EdgeInsets.only(right: 4),
-              decoration: BoxDecoration(
-                color: (i == page % (sliders.length > 5 ? 5 : sliders.length))
-                  ? const Color(0xFF3E5F55) : const Color(0xFFd4e8de),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            )),
-          ]),
-        ),
-      ],
-    ]);
   }
 }
 
@@ -6631,24 +6088,6 @@ class _ExploreAreasSection extends StatelessWidget {
 }
 
 
-// ─── 6. All Stores Screen ───────────────────────────────────────
-class _AllStoresScreen extends StatelessWidget {
-  final String token;
-  const _AllStoresScreen({required this.token});
-  @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.white,
-    appBar: AppBar(
-      backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF2c3e35),
-      elevation: 0,
-      title: const Text("All Stores", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-      surfaceTintColor: Colors.white,
-    ),
-    body: const Center(child: Text("Coming soon", style: TextStyle(color: Color(0xFF6b8c7e)))),
-  );
-}
-
-
 // ─── 7. Browse All Categories Screen ─────────────────────────────
 class _BrowseAllCategoriesScreen extends StatefulWidget {
   final String token;
@@ -7167,7 +6606,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // measured with the same styles/widths the card uses) instead of a
   // worst-case constant.
   double _storeCardW(BuildContext ctx) =>
-      (MediaQuery.of(ctx).size.width * 0.72).clamp(240.0, 290.0);
+      (MediaQuery.sizeOf(ctx).width * 0.72).clamp(240.0, 290.0);
 
   _StoreCardLayout _storeLayout(BuildContext ctx, Map<String,dynamic> s) {
     final scaler = MediaQuery.textScalerOf(ctx);
@@ -8231,146 +7670,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   }
 }
 
-class _PremiumProductCard extends StatelessWidget {
-  final Map<String,dynamic> product;
-  final int colorIdx;
-  const _PremiumProductCard({required this.product, this.colorIdx = 0});
-
-  static const _fallbackColors = [
-    [Color(0xFF3E5F55), Color(0xFF2c4a3e)],
-    [Color(0xFF5D4037), Color(0xFF3E2723)],
-    [Color(0xFF1565C0), Color(0xFF0D47A1)],
-    [Color(0xFF6A1B9A), Color(0xFF4A148C)],
-    [Color(0xFFC62828), Color(0xFFB71C1C)],
-    [Color(0xFF00695C), Color(0xFF004D40)],
-  ];
-
-  Widget _buildImage() {
-    final storeObj = product["store"];
-    if (storeObj is Map) {
-      for (final k in ["image2", "image", "photo"]) {
-        final si = storeObj[k]?.toString() ?? "";
-        if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
-        }
-        final url = si.startsWith("/") ? kBaseUrl + si : si;
-        if (url.startsWith("http")) {
-          return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-            placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-            errorWidget: (_, __, ___) => _fallback());
-        }
-      }
-    }
-    for (final k in ["logo_url","logo_thumb","image_url","image_thumb","image2","image","logo"]) {
-      final img = product[k]?.toString() ?? "";
-      if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
-      }
-      final url = img.startsWith("/") ? kBaseUrl + img : img;
-      if (url.startsWith("http")) {
-        return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-          placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-          errorWidget: (_, __, ___) => _fallback());
-      }
-    }
-    return _fallback();
-  }
-
-  Widget _fallback() {
-    final pal = _fallbackColors[colorIdx % _fallbackColors.length];
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: pal, begin: Alignment.topLeft, end: Alignment.bottomRight),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final title     = product["title"]?.toString() ?? "";
-    final offerText = product["offer"]?.toString() ?? product["text"]?.toString() ?? "";
-    final storeName = (product["store"] is Map ? product["store"]["store_name"] : null)?.toString()
-        ?? product["store_name"]?.toString() ?? "";
-    final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
-    final discLabel = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
-
-    return Container(
-      width: 185,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 18, offset: const Offset(0, 5)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(fit: StackFit.expand, children: [
-          // Full-bleed image
-          _buildImage(),
-          // Bottom gradient
-          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.transparent,
-                Colors.black.withValues(alpha: .55),
-                Colors.black.withValues(alpha: .88),
-              ],
-              stops: const [0.0, 0.38, 0.70, 1.0],
-            ),
-          ))),
-          // Discount badge top-left
-          if (discLabel.isNotEmpty)
-            Positioned(top: 10, left: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe74c3c),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.25), blurRadius: 6)],
-                ),
-                child: Text(discLabel,
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
-              ),
-            ),
-          // Bottom content
-          Positioned(bottom: 12, left: 10, right: 10,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              if (storeName.isNotEmpty)
-                Text(storeName,
-                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (title.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(title,
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, height: 1.2,
-                    shadows: [Shadow(blurRadius: 8, color: Colors.black87)]),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              ],
-              if (offerText.isNotEmpty && offerText != title) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: .25)),
-                  ),
-                  child: Text(offerText,
-                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-              ],
-            ]),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
 
 // ─────────────────────── VOUCHER VIEW ALL PAGE ───────────────────────
 class ProductViewAllPage extends StatefulWidget {
@@ -8584,7 +7883,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
         if (si.startsWith("data:image")) {
           try { return Image.memory(base64Decode(si.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
         }
-        final siUrl = si.startsWith("/") ? "$kBaseUrl$si" : si;
+        final siUrl = resolveImageUrl(si);
         if (siUrl.startsWith("http")) {
           return CachedNetworkImage(imageUrl:siUrl, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
             placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
@@ -8597,7 +7896,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       if (img.startsWith("data:image")) {
         try { return Image.memory(base64Decode(img.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
       }
-      final imgUrl2 = img.startsWith("/") ? "$kBaseUrl$img" : img;
+      final imgUrl2 = resolveImageUrl(img);
       if (imgUrl2.startsWith("http")) {
         return CachedNetworkImage(imageUrl:imgUrl2, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
           placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),

@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/image_url.dart';
 import '../../../core/utils/store_hours.dart';
 
 class StoreHeader extends StatelessWidget {
@@ -425,7 +426,7 @@ class StoreHeader extends StatelessWidget {
   Widget _buildLogoImage(String url) {
     if (url.isEmpty) return const SizedBox.shrink();
     // Relative path — prepend base URL
-    final resolved = url.startsWith('/') ? '$kBaseUrl$url' : url;
+    final resolved = resolveImageUrl(url);
     if (resolved.startsWith('http')) {
       return CachedNetworkImage(
         imageUrl: resolved,

@@ -4993,7 +4993,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
     RefreshIndicator(
       color:kPrimary,onRefresh:_load,
       child:_invoices.isEmpty
-        ? ListView(children:[SizedBox(height:MediaQuery.of(context).size.height*0.4,
+        ? ListView(children:[SizedBox(height:MediaQuery.sizeOf(context).height*0.4,
             child:const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
               Icon(Icons.receipt_long_outlined,size:56,color:kAccent),
               SizedBox(height:12),

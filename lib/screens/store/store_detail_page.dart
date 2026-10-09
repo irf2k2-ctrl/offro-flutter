@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/image_url.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/fav_state.dart';
 import 'widgets/store_header.dart';
@@ -181,8 +182,7 @@ class _StoreDetailPageState extends State<StoreDetailPage>
         : _store['image_thumb']?.toString() ??
           _store['image']?.toString() ?? '';
     final img2 = _store['image2']?.toString() ?? '';
-    final resolve =
-        (String u) => u.startsWith('/') ? '$kBaseUrl$u' : u;
+    final resolve = (String u) => resolveImageUrl(u);
     final all = [
       if (main.isNotEmpty) resolve(main),
       if (img2.isNotEmpty) resolve(img2),

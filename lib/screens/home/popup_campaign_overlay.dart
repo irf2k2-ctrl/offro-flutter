@@ -189,7 +189,7 @@ class _PopupCampaignOverlayState extends State<PopupCampaignOverlay>
                     constraints: BoxConstraints(
                       maxWidth: 360,
                       maxHeight:
-                          MediaQuery.of(context).size.height * 0.75,
+                          MediaQuery.sizeOf(context).height * 0.75,
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
