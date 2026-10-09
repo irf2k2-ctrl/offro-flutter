@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 
-const kPrimary = Color(0xFF3E5F55);
 const _prefKeyPrefix = 'popup_shown_';
 
 // ─── Top-level helpers (shared by widget + orchestrator) ─────────────────────

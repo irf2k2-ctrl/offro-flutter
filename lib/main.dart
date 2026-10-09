@@ -13,9 +13,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-// Round 12 (Task 6): shimmer placeholder for the hero/admin-banner images —
-// already a declared dependency (pubspec.yaml), just not used anywhere yet.
-import 'package:shimmer/shimmer.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -23,6 +20,12 @@ import 'firebase_options.dart';
 
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
+import 'core/utils/geo.dart';
+import 'core/utils/navigation.dart';
+import 'core/widgets/shimmer_box.dart';
+import 'core/widgets/base64_image.dart';
+import 'screens/home/widgets/home_background.dart';
+import 'screens/legal/privacy_policy_page.dart';
 import 'core/services/api_service.dart';
 import 'core/services/error_mapper.dart';
 import 'core/services/fav_state.dart';
@@ -50,26 +53,6 @@ import 'core/widgets/store_cards.dart';
 // here for the Home "Hot Deals" list.
 import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 
-PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
-
-// Round 12 (Task 6): shared shimmer placeholder for the hero city image and
-// the admin banner — both reserve their final box size/aspect ratio up
-// front regardless of load state (see _CityHeroSection's LayoutBuilder and
-// _BannerStoresBlock's fixed bannerH below), so swapping a flat gradient
-// box for this shimmer is a pure visual change, not a layout change.
-Widget _shimmerBox({double? width, double? height, BorderRadius? borderRadius}) {
-  return Shimmer.fromColors(
-    baseColor: const Color(0xFFE3E9E6),
-    highlightColor: const Color(0xFFF3F6F4),
-    child: Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(color: const Color(0xFFE3E9E6), borderRadius: borderRadius),
-    ),
-  );
-}
-
-
 // ─────────────────────── CONFIG ───────────────────────
 const kBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
@@ -77,15 +60,8 @@ const kBaseUrl = String.fromEnvironment(
 );
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
-// ─────────────────────── COLORS ───────────────────────
-const kPrimary  = Color(0xFF3E5F55);
-const kLight    = Color(0xFFCDEBD6);
-const kAccent   = Color(0xFFA9CDBA);
-const kBeige    = Color(0xFFE7D7C8);
-const kBg       = Color(0xFFFDFBF6);
-const kText     = Color(0xFF2c3e35);
-const kMuted    = Color(0xFF6b8c7e);
-const kBorder   = Color(0xFFd4e8de);
+// Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, kText, kMuted, kBorder)
+// now live only in core/constants/app_constants.dart.
 
 
 
@@ -133,13 +109,6 @@ Future<void> _syncIOSBadgeCount(int n) async {
 // ─────────────────────── PREFS ───────────────────────
 
 // ─────────────────────── LOCATION ───────────────────────
-// Haversine distance in km between two lat/lng points
-double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
-  const r = 6371.0;
-  final dLat = (lat2-lat1)*pi/180; final dLon = (lon2-lon1)*pi/180;
-  final a = sin(dLat/2)*sin(dLat/2)+cos(lat1*pi/180)*cos(lat2*pi/180)*sin(dLon/2)*sin(dLon/2);
-  return r*2*atan2(sqrt(a),sqrt(1-a));
-}
 
 /// Detect city from a pre-fetched GPS position.
 /// Tries: (1) Haversine match against /cities if they have lat/lng,
@@ -168,7 +137,7 @@ Future<String> detectCityFromPosition(Position pos) async {
       final lng  = (c["lng"] as num?)?.toDouble();
       final name = c["name"]?.toString() ?? "";
       if (lat == null || lng == null || name.isEmpty) continue;
-      final dist = _gpsHaversineKm(pos.latitude, pos.longitude, lat, lng);
+      final dist = haversineKm(pos.latitude, pos.longitude, lat, lng);
       if (dist < bestDist) { bestDist = dist; haversineMatch = name; }
     }
     if (haversineMatch != null && bestDist < 80) {
@@ -225,15 +194,6 @@ Future<String> detectCity() async {
   } catch (_) { return ""; }
 }
 
-/// Haversine distance in km between two lat/lng points (uses dart:math)
-double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
-  const r = 6371.0;
-  final dLat = (lat2 - lat1) * pi / 180;
-  final dLng = (lng2 - lng1) * pi / 180;
-  final a = pow(sin(dLat / 2), 2) +
-      cos(lat1 * pi / 180) * cos(lat2 * pi / 180) * pow(sin(dLng / 2), 2);
-  return 2 * r * asin(sqrt(a.clamp(0.0, 1.0)));
-}
 
 
 // ─────────────────────── NOTIFICATION NAVIGATION ───────────────────────
@@ -465,15 +425,6 @@ IconData _categoryIcon(String cat) {
 }
 
 
-// Helper: safely decode a base64 image string, return fallback on error
-Widget _b64Img(String src, Widget fallback) {
-  try {
-    return Image.memory(base64Decode(src.split(",").last), fit: BoxFit.cover);
-  } catch (_) {
-    return fallback;
-  }
-}
-
 /// Synthesises a minimal deals list from store list data so StoreDetailPage
 /// can render the Offers section immediately before the full API call returns.
 Map<String,dynamic> _enrichStoreForDetail(Map<String,dynamic> s) {
@@ -520,7 +471,7 @@ class MyApp extends StatelessWidget {
     if (token.isNotEmpty) Prefs.saveMode('user');
     // Route through LocationLoadingScreen so home opens fully loaded
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(LocationLoadingScreen(
+      appRoute(LocationLoadingScreen(
         token: token, name: name, phone: phone, userId: userId,
         // Pass saved city so it loads instantly without GPS wait — ignored
         // entirely when requireFreshGps is true.
@@ -570,11 +521,11 @@ class MyApp extends StatelessWidget {
 
   static void goLogin() {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(LoginScreen(
+      appRoute(LoginScreen(
         onGuest: () {
           Prefs.saveGuest(true);
           navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(LocationLoadingScreen(
+            appRoute(LocationLoadingScreen(
               token: '', name: 'Guest', phone: '', userId: '',
               onReady: ({required String city, required List<Map<String,dynamic>> stores,
                          required double? lat, required double? lng}) =>
@@ -603,7 +554,7 @@ class MyApp extends StatelessWidget {
           // only the authenticated token. Never a client-supplied
           // influencer_id/account_id.
           navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(InfluencerModuleScreen(
+            appRoute(InfluencerModuleScreen(
               token: tok, phone: ph, currentMode: 'influencer',
               onSwitchMode: (newRole) => goSwitchMode(tok, nm, ph, uid, newRole),
             )),
@@ -627,7 +578,7 @@ class MyApp extends StatelessWidget {
           // Continue tap. Never falls back to a default/guessed city
           // (LocationLoadingScreen's own Ballari fallback was removed too).
           navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(LocationLoadingScreen(
+            appRoute(LocationLoadingScreen(
               token: tok, name: nm, phone: ph, userId: uid,
               requireFreshGps: true,
               onReady: ({required String city, required List<Map<String,dynamic>> stores,
@@ -662,7 +613,7 @@ class MyApp extends StatelessWidget {
 
   static void _goInfluencerViaUnified({required String token, required String name, required String phone, required String userId}) {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(InfluencerModuleScreen(
+      appRoute(InfluencerModuleScreen(
         token: token, phone: phone, currentMode: 'influencer',
         onSwitchMode: (newRole) => goSwitchMode(token, name, phone, userId, newRole),
       )),
@@ -748,12 +699,12 @@ class MyApp extends StatelessWidget {
       }
 
       navigatorKey.currentState?.pushAndRemoveUntil(
-        _route(MerchantLoadingScreen(
+        appRoute(MerchantLoadingScreen(
           token: token,
           merchant: merchantData,
           onReady: (tok, merch) {
             navigatorKey.currentState?.pushAndRemoveUntil(
-              _route(MerchantHome(token: tok, merchant: merch)),
+              appRoute(MerchantHome(token: tok, merchant: merch)),
               (r) => false,
             );
           },
@@ -774,7 +725,7 @@ class MyApp extends StatelessWidget {
   }) {
     final isGuest = token.isEmpty;
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(HomeScreen(
+      appRoute(HomeScreen(
         token: token, name: name, phone: phone,
         savedCity: city, userId: userId,
         preloadedStores: stores,
@@ -787,14 +738,14 @@ class MyApp extends StatelessWidget {
 
   static void goOnboarding() {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(OnboardingScreen(onComplete: goLogin)),
+      appRoute(OnboardingScreen(onComplete: goLogin)),
       (r) => false,
     );
   }
 
   static void goMerchant({required String token, required Map merchant}) {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(MerchantHome(token: token, merchant: merchant)),
+      appRoute(MerchantHome(token: token, merchant: merchant)),
       (r) => false,
     );
   }
@@ -988,7 +939,7 @@ class _MasonrySearchGrid extends StatelessWidget {
       final dist = s["distance_km"] != null ? (s["distance_km"] as num).toDouble() : null;
       final rating=(s["rating"] as num?)?.toDouble()??0;
       return GestureDetector(
-        onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(s), token:token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+        onTap:()=>Navigator.push(context,appRoute(StoreDetailPage(store:Map<String,dynamic>.from(s), token:token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
         child:Container(
           height:heights[idx],
           margin:const EdgeInsets.only(bottom:10),
@@ -1134,7 +1085,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       final lat = double.tryParse(s["latitude"]?.toString() ?? "");
       final lng = double.tryParse(s["longitude"]?.toString() ?? "");
       if (lat != null && lng != null) {
-        s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
+        s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
       }
     }
   }
@@ -1175,7 +1126,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
       final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
       if (lat != null && lng != null) {
-        s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
+        s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
         withCoords.add(s);
       } else {
         noCoords.add(s);
@@ -1294,7 +1245,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _unreadNotifier.value = 0;
     await _clearIOSBadge();
     if (mounted) setState(() => _unreadCount = 0);
-    await Navigator.push(ctx, _route(NotificationsPage()));
+    await Navigator.push(ctx, appRoute(NotificationsPage()));
   }
 
   Future<void> _usePreloadedData() async {
@@ -1309,7 +1260,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         final lat2 = double.tryParse(s["latitude"]?.toString() ?? "");
         final lng2 = double.tryParse(s["longitude"]?.toString() ?? "");
         if (lat2 != null && lng2 != null) {
-          s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat2, lng2);
+          s["distance_km"] = haversineKm(_userLat!, _userLng!, lat2, lng2);
         }
       }
       sl.sort((a, b) =>
@@ -1700,7 +1651,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       for(final s in sl){
         final lat = double.tryParse(s["latitude"]?.toString()??"");
         final lng = double.tryParse(s["longitude"]?.toString()??"");
-        if(lat!=null && lng!=null) s["distance_km"] = _haversineKm(_userLat!,_userLng!,lat,lng);
+        if(lat!=null && lng!=null) s["distance_km"] = haversineKm(_userLat!,_userLng!,lat,lng);
       }
       sl.sort((a,b){
         final da=(a["distance_km"] as double?)??9999.0;
@@ -1987,7 +1938,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
           final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
           if (lat != null && lng != null) {
-            s["distance_km"] = _haversineKm(pos.latitude, pos.longitude, lat, lng);
+            s["distance_km"] = haversineKm(pos.latitude, pos.longitude, lat, lng);
           }
         }
       });
@@ -2119,7 +2070,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           final lat = double.tryParse(s["latitude"]?.toString() ?? "");
           final lng = double.tryParse(s["longitude"]?.toString() ?? "");
           if (lat != null && lng != null) {
-            s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
+            s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
           }
         }
         _recomputeDistances();
@@ -2184,7 +2135,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           ? _locationDeniedState()
           : Stack(children: [
               // ── Premium abstract gradient background ──────────────────
-              Positioned.fill(child: CustomPaint(painter: _OffroHomeBgPainter())),
+              Positioned.fill(child: CustomPaint(painter: OffroHomeBgPainter())),
               _loading
               ? LayoutBuilder(builder: (ctx, bc) => SizedBox(
                   width: bc.maxWidth,
@@ -2225,7 +2176,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         userLat: _userLat,
                         userLng: _userLng,
                         selectedCity: city,
-                        onMoreTap: () => Navigator.push(context, _route(_BrowseAllCategoriesScreen(
+                        onMoreTap: () => Navigator.push(context, appRoute(_BrowseAllCategoriesScreen(
                           token: widget.token,
                           userLat: _userLat, userLng: _userLng,
                           selectedCity: city))),
@@ -2287,8 +2238,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         await Prefs.saveRadius(km);
                       },
                       onViewAll: () => _viewAll(context, "Nearby Stores", nearbyStores),
-                      onStoreTap: (s) => Navigator.push(context, _route(
-                        StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
+                      onStoreTap: (s) => Navigator.push(context, appRoute(
+                        StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
                     )),
 
                     // ══════ EXPLORE AREAS ══════
@@ -2366,7 +2317,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                           setState(() => _navIdx = 1);
                           // Pass city only when detection is complete (not "Detecting...")
                           final _dealsCity = (city == "Detecting..." || city.isEmpty) ? "" : city;
-                          Navigator.push(context, _route(_AllDealsScreen(token: widget.token, city: _dealsCity)));
+                          Navigator.push(context, appRoute(_AllDealsScreen(token: widget.token, city: _dealsCity)));
                         },
                         child: _NavBtn(icon: Icons.local_offer_rounded, label: "Deals", active: _navIdx == 1),
                       )),
@@ -2374,7 +2325,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       GestureDetector(
                         onTap: () {
                           if (!_requireLogin(context, 'QR Scan & Rewards')) return;
-                          Navigator.push(context, _route(QRPage(token: widget.token, onDone: () {})));
+                          Navigator.push(context, appRoute(QRPage(token: widget.token, onDone: () {})));
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2523,7 +2474,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _emptyState() {
     void _goRoleSelect() {
       Navigator.of(context).pushAndRemoveUntil(
-        _route(ContinueAsScreen(
+        appRoute(ContinueAsScreen(
           phone: widget.phone,
           onRoleSelected: (role, remember) async => MyApp.goSwitchMode(
             widget.token, widget.name, widget.phone, widget.userId, role),
@@ -2715,7 +2666,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _searchStores(BuildContext ctx) {
-    Navigator.push(ctx, _route(_SearchPage(token:widget.token, city:city)));
+    Navigator.push(ctx, appRoute(_SearchPage(token:widget.token, city:city)));
   }
 
   // Profile sheet (replaces _more) — all options inside
@@ -2737,14 +2688,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           const Divider(height:1),
           Expanded(child:ListView(controller:sc,children:[
             _pItem(ctx,Icons.search_rounded,"Search Stores",()=>_searchStores(ctx)),
-            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",(){if(_requireLogin(ctx,"My Rewards"))Navigator.push(ctx,_route(WalletPage(token:widget.token)));}),
-            _pItem(ctx,Icons.history_rounded,"Scan History",(){if(_requireLogin(ctx,"Scan History"))Navigator.push(ctx,_route(HistoryPage(token:widget.token)));}),
-            _pItem(ctx,Icons.favorite_rounded,"My Favourites",(){if(_requireLogin(ctx,"My Favourites"))Navigator.push(ctx,_route(FavoritesPage(token:widget.token)));}),
-            _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,_route(NotificationsPage()))),
+            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",(){if(_requireLogin(ctx,"My Rewards"))Navigator.push(ctx,appRoute(WalletPage(token:widget.token)));}),
+            _pItem(ctx,Icons.history_rounded,"Scan History",(){if(_requireLogin(ctx,"Scan History"))Navigator.push(ctx,appRoute(HistoryPage(token:widget.token)));}),
+            _pItem(ctx,Icons.favorite_rounded,"My Favourites",(){if(_requireLogin(ctx,"My Favourites"))Navigator.push(ctx,appRoute(FavoritesPage(token:widget.token)));}),
+            _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,appRoute(NotificationsPage()))),
             const Divider(height:1),
             _pItem(ctx,Icons.info_outline_rounded,"About Us",()async{final c=await Api.getAboutUs();if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"About Us",body:c.isEmpty?"Offro connects local stores with customers through deals and loyalty points.":c));}),
             _pItem(ctx,Icons.description_rounded,"Terms & Conditions",()async{final c=await Api.fetchTerms("user");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Terms & Conditions",body:c));}),
-            _pItem(ctx,Icons.privacy_tip_rounded,"Privacy Policy",()=>Navigator.push(ctx,_route(PrivacyPolicyPage(token:widget.token)))),
+            _pItem(ctx,Icons.privacy_tip_rounded,"Privacy Policy",()=>Navigator.push(ctx,appRoute(PrivacyPolicyPage(token:widget.token)))),
             _pItem(ctx,Icons.receipt_rounded,"Refund Policy",()async{final c=await Api.fetchPolicy("refund");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Refund Policy",body:c));}),
             const Divider(height:1),
             // ── Switch Mode ──
@@ -2873,13 +2824,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // View All page
   // Cast _products to proper type for ProductViewAllPage
   void _viewAllProducts(BuildContext ctx) =>
-    Navigator.push(ctx, _route(ProductViewAllPage(
+    Navigator.push(ctx, appRoute(ProductViewAllPage(
       products: _products.map((v)=>Map<String,dynamic>.from(v as Map)).toList(),
       token: widget.token,
       city: city)));
 
   void _viewAll(BuildContext ctx, String title, List<Map<String,dynamic>> stores, {bool bigCards=false}) =>
-    Navigator.push(ctx, _route(_ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
+    Navigator.push(ctx, appRoute(_ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
 }
 
 // ─────────────────────── VIEW ALL PAGE ───────────────────────
@@ -2957,7 +2908,7 @@ class _SearchPageState extends State<_SearchPage> {
                   final s=_results[i];
                   String img=s["image_url"]?.toString()??''; if(img.isEmpty)img=s["image_thumb"]?.toString()??''; if(img.isEmpty)img=s["image"]?.toString()??''; if(img.isEmpty)img=s["image2"]?.toString()??'';
                   return GestureDetector(
-                    onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(s), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+                    onTap:()=>Navigator.push(context,appRoute(StoreDetailPage(store:Map<String,dynamic>.from(s), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
                     child:Container(padding:const EdgeInsets.all(12),
                       decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
                         boxShadow:[BoxShadow(color:Colors.black.withValues(alpha: .05),blurRadius:8,offset:const Offset(0,2))]),
@@ -3069,7 +3020,7 @@ class _ViewAllPageState extends State<_ViewAllPage>{
             itemBuilder:(_,i)=>Padding(
               padding:const EdgeInsets.only(bottom:10),
               child:GestureDetector(
-                onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(filtered[i]), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+                onTap:()=>Navigator.push(context,appRoute(StoreDetailPage(store:Map<String,dynamic>.from(filtered[i]), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
                 child:TopStoreCard(store:filtered[i]),
               ),
             )),
@@ -3424,7 +3375,7 @@ class _BrowseByCategoriesSection extends StatelessWidget {
                   merged.add(fb);
                 }
               }
-              Navigator.push(context, _route(_CategoryListScreen(cats: merged, token: token, userLat: userLat, userLng: userLng, selectedCity: selectedCity)));
+              Navigator.push(context, appRoute(_CategoryListScreen(cats: merged, token: token, userLat: userLat, userLng: userLng, selectedCity: selectedCity)));
             },
             child: Container(
               height: 110,
@@ -3453,7 +3404,7 @@ class _BrowseByCategoriesSection extends StatelessWidget {
 
   void _openCategory(BuildContext context, Map<String,dynamic> cat) {
     final catName = cat["name"].toString();
-    Navigator.push(context, _route(_CategoryStoresScreen(
+    Navigator.push(context, appRoute(_CategoryStoresScreen(
       key: ValueKey(catName),
       categoryName: catName, token: token,
       userLat: userLat, userLng: userLng,
@@ -3474,7 +3425,7 @@ class _CategoryCard extends StatelessWidget {
     String _rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     // Resolve relative URLs to absolute
     if (_rawImg.isNotEmpty && _rawImg.startsWith("/")) {
-      _rawImg = "https://offro-backend-production.up.railway.app$_rawImg";
+      _rawImg = "$kBaseUrl$_rawImg";
     }
     final bool _isBase64 = _rawImg.startsWith("data:image");
     final bool _isHttp   = _rawImg.startsWith("http://") || _rawImg.startsWith("https://");
@@ -3800,7 +3751,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                         store: Map<String,dynamic>.from(_filtered[i]),
                         token: widget.token,
                         userName: "",
-                        onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))),
+                        onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))),
                       ))),
                     child: TopStoreCard(store: _filtered[i]),
                   ),
@@ -3898,7 +3849,7 @@ class _PinterestCategoryGrid extends StatelessWidget {
 
   void _open(BuildContext ctx, Map<String,dynamic> cat) {
     final name = cat["name"].toString();
-    Navigator.push(ctx, _route(_CategoryStoresScreen(
+    Navigator.push(ctx, appRoute(_CategoryStoresScreen(
       key: ValueKey(name), categoryName: name, token: token,
       userLat: userLat, userLng: userLng,
       selectedCity: selectedCity)));
@@ -4075,7 +4026,7 @@ class _PinCard extends StatelessWidget {
     // ── Image resolution ──
     String rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     if (rawImg.isNotEmpty && rawImg.startsWith("/")) {
-      rawImg = "https://offro-backend-production.up.railway.app$rawImg";
+      rawImg = "$kBaseUrl$rawImg";
     }
     final bool isBase64 = rawImg.startsWith("data:image");
     final bool isHttp   = rawImg.startsWith("http://") || rawImg.startsWith("https://");
@@ -4323,7 +4274,7 @@ class _SpecialFindsSection extends StatelessWidget {
               return GestureDetector(
                 onTap: () {
                   if (ranked.isEmpty) return;
-                  Navigator.push(context, _route(_SpecialCategoryScreen(
+                  Navigator.push(context, appRoute(_SpecialCategoryScreen(
                     label: label,
                     emoji: "",
                     stores: ranked,
@@ -4526,7 +4477,7 @@ class _PopularAreasSection extends StatelessWidget {
               ]),
               const Spacer(),
               GestureDetector(
-                onTap: () => Navigator.push(context, _route(_AllAreasScreen(
+                onTap: () => Navigator.push(context, appRoute(_AllAreasScreen(
                   stores: stores, token: token))),
                 child: const Text("See all areas →",
                   style: TextStyle(
@@ -4551,7 +4502,7 @@ class _PopularAreasSection extends StatelessWidget {
                 : (area["name"] as String).codeUnitAt(0) % _AreaBg._fallbackGrads.length
               ];
               return GestureDetector(
-                onTap: () => Navigator.push(context, _route(_AreaDetailScreen(
+                onTap: () => Navigator.push(context, appRoute(_AreaDetailScreen(
                   areaName:  area["name"] as String,
                   stores:    List<Map<String,dynamic>>.from(area["stores"] as List),
                   token:     token,
@@ -4912,8 +4863,8 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                           "image_url":  imgUrl,
                           "category":   (d["category"] ?? "").toString(),
                         };
-                        Navigator.push(ctx, _route(
-                          StoreDetailPage(store: store, token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))))));
+                        Navigator.push(ctx, appRoute(
+                          StoreDetailPage(store: store, token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
                       },
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -5128,7 +5079,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
               final count  = area["count"] as int;
               final name   = area["name"] as String;
               return GestureDetector(
-                onTap: () => Navigator.push(context, _route(_AreaDetailScreen(
+                onTap: () => Navigator.push(context, appRoute(_AreaDetailScreen(
                   areaName: name,
                   stores: List<Map<String,dynamic>>.from(area["stores"] as List),
                   token: widget.token,
@@ -5284,7 +5235,7 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: GestureDetector(
                     onTap: () => Navigator.push(context,
-                      _route(StoreDetailPage(store: Map<String,dynamic>.from(filtered[i]), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+                      appRoute(StoreDetailPage(store: Map<String,dynamic>.from(filtered[i]), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
                     child: TopStoreCard(store: filtered[i]),
                   ),
                 ),
@@ -5334,7 +5285,7 @@ class _SpecialCategoryScreen extends StatelessWidget {
                 (_, i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: GestureDetector(
-                    onTap: () => Navigator.push(context, _route(StoreDetailPage(store: Map<String,dynamic>.from(stores[i]), token: token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+                    onTap: () => Navigator.push(context, appRoute(StoreDetailPage(store: Map<String,dynamic>.from(stores[i]), token: token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
                     child: TopStoreCard(store: stores[i]),
                   ),
                 ),
@@ -5406,7 +5357,7 @@ class _CityHeroSection extends StatelessWidget {
               // fills that box during the brief loading window, not the
               // box itself. A genuine failure still falls back to the
               // original plain gradient below (errorWidget, unchanged).
-              placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
+              placeholder: (_, __) => shimmerBox(width: double.infinity, height: double.infinity),
               errorWidget: (_, __, ___) => Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -5425,7 +5376,7 @@ class _CityHeroSection extends StatelessWidget {
           // before its own data has actually arrived. Once imageLoading is
           // false, this falls through to the exact original fallback.
           : imageLoading
-            ? _shimmerBox(width: double.infinity, height: double.infinity)
+            ? shimmerBox(width: double.infinity, height: double.infinity)
             : Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -5741,12 +5692,12 @@ class _DiscoverProductsSection extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
-              _shimmerBox(width: 190, height: h, borderRadius: r()),
+              shimmerBox(width: 190, height: h, borderRadius: r()),
               const SizedBox(width: 10),
               Column(children: [
-                _shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
+                shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
                 const SizedBox(height: 10),
-                _shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
+                shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
               ]),
             ],
           ),
@@ -6430,7 +6381,7 @@ class _NearbyStoresSection extends StatelessWidget {
                                   color: grad[1]),
                                 errorWidget: (_, __, ___) => _fallback(name))
                             : imgSrc.startsWith("data:image")
-                              ? _b64Img(imgSrc, _fallback(name))
+                              ? base64Image(imgSrc, _fallback(name))
                               : Container(
                                   width: 140, height: 100,
                                   decoration: BoxDecoration(
@@ -6899,7 +6850,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         // ROUND 12 FIX (Task 6): shimmer while this specific banner image
         // downloads, instead of a flat solid box. errorWidget (a genuine
         // load failure) keeps the original gradient fallback, unchanged.
-        placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
+        placeholder: (_, __) => shimmerBox(width: double.infinity, height: double.infinity),
         errorWidget: (_, __, ___) => _gradBox());
     }
     return _gradBox();
@@ -6946,14 +6897,14 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
       if (!hasStores) {
         return Padding(
           padding: const EdgeInsets.only(top: topPad),
-          child: SizedBox(height: bannerH, child: _shimmerBox(width: double.infinity, height: bannerH)));
+          child: SizedBox(height: bannerH, child: shimmerBox(width: double.infinity, height: bannerH)));
       }
       final totalH = topPad + bannerH + cardH - overlapPx;
       return SizedBox(
         height: totalH,
         child: Stack(clipBehavior: Clip.none, children: [
           Positioned(top: topPad, left: 0, right: 0, height: bannerH,
-            child: _shimmerBox(width: double.infinity, height: bannerH)),
+            child: shimmerBox(width: double.infinity, height: bannerH)),
           Positioned(
             top: topPad + bannerH - overlapPx,
             left: 0, right: 0,
@@ -7361,7 +7312,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         builder: (_) => StoreDetailPage(
           store: _enrichStoreForDetail(Map<String,dynamic>.from(s)),
           token: widget.token, userName: "",
-          onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))).then((_) => widget.onFavChanged()),
+          onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => widget.onFavChanged()),
       child: Container(
         width: _cardW,
         margin: const EdgeInsets.only(right: 12, top: 8, bottom: 6),
@@ -8177,7 +8128,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         store: fullStore,
                         token: widget.token,
                         userName: "",
-                        onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))))));
+                        onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
                   }
                 : null,
               child: Container(
@@ -9077,405 +9028,5 @@ class _VapSearchBarState extends State<_VapSearchBar> {
         ),
       ),
     );
-  }
-}
-// ═══════════════════════════════════════════════════════════════
-// OFFRO HOME BACKGROUND — premium abstract green gradient
-// Light, modern, elegant: soft circles + flowing curved wave lines
-// ═══════════════════════════════════════════════════════════════
-class _OffroHomeBgPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // ── Base gradient fill ──────────────────────────────────────
-    // QA round: flat #E9F1ED mint (approved reference) instead of a
-    // multi-stop gradient; the soft circles/waves below stay as before.
-    final bgPaint = Paint()..color = const Color(0xFFE9F1ED);
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
-
-    // ── Large soft circle — top left ──────────────────────────
-    final c1 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x28A9CDBA), Color(0x00A9CDBA)],
-        center: Alignment.topLeft,
-        radius: 1.0,
-      ).createShader(Rect.fromLTWH(-w * 0.1, -h * 0.05, w * 0.75, w * 0.75));
-    canvas.drawCircle(Offset(w * 0.05, h * 0.08), w * 0.38, c1);
-
-    // ── Medium circle — top right ────────────────────────────
-    final c2 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x223E5F55), Color(0x003E5F55)],
-        center: Alignment.topRight,
-        radius: 1.0,
-      ).createShader(Rect.fromLTWH(w * 0.55, -h * 0.02, w * 0.55, w * 0.55));
-    canvas.drawCircle(Offset(w * 0.85, h * 0.06), w * 0.28, c2);
-
-    // ── Small accent circle — mid left ──────────────────────
-    final c3 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x1ACDEBD6), Color(0x00CDEBD6)],
-      ).createShader(Rect.fromLTWH(0, h * 0.28, w * 0.4, w * 0.4));
-    canvas.drawCircle(Offset(w * 0.08, h * 0.38), w * 0.22, c3);
-
-    // ── Small circle — lower right ───────────────────────────
-    final c4 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x18A9CDBA), Color(0x00A9CDBA)],
-      ).createShader(Rect.fromLTWH(w * 0.6, h * 0.55, w * 0.5, w * 0.5));
-    canvas.drawCircle(Offset(w * 0.9, h * 0.68), w * 0.26, c4);
-
-    // ── Dot grid (top right area) ────────────────────────────
-    final dotPaint = Paint()..color = const Color(0x223E5F55);
-    for (int row = 0; row < 5; row++) {
-      for (int col = 0; col < 4; col++) {
-        canvas.drawCircle(
-          Offset(w * 0.68 + col * 14.0, h * 0.04 + row * 14.0),
-          2.0, dotPaint);
-      }
-    }
-
-    // ── Wave 1 — large sweeping curve (bottom third) ─────────
-    final wave1 = Paint()
-      ..shader = LinearGradient(
-        colors: const [Color(0x1A3E5F55), Color(0x0A3E5F55)],
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-      ).createShader(Rect.fromLTWH(0, h * 0.5, w, h * 0.5))
-      ..style = PaintingStyle.fill;
-    final wPath1 = Path();
-    wPath1.moveTo(0, h * 0.72);
-    wPath1.cubicTo(w * 0.25, h * 0.60, w * 0.55, h * 0.84, w, h * 0.68);
-    wPath1.lineTo(w, h);
-    wPath1.lineTo(0, h);
-    wPath1.close();
-    canvas.drawPath(wPath1, wave1);
-
-    // ── Wave 2 — lighter higher curve ───────────────────────
-    final wave2 = Paint()
-      ..color = const Color(0x0F3E5F55)
-      ..style = PaintingStyle.fill;
-    final wPath2 = Path();
-    wPath2.moveTo(0, h * 0.62);
-    wPath2.cubicTo(w * 0.30, h * 0.54, w * 0.65, h * 0.74, w, h * 0.58);
-    wPath2.lineTo(w, h * 0.68);
-    wPath2.cubicTo(w * 0.55, h * 0.84, w * 0.25, h * 0.60, 0, h * 0.72);
-    wPath2.close();
-    canvas.drawPath(wPath2, wave2);
-
-    // ── Thin curved accent line ──────────────────────────────
-    final linePaint = Paint()
-      ..color = const Color(0x1A3E5F55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    final linePath = Path();
-    linePath.moveTo(0, h * 0.45);
-    linePath.cubicTo(w * 0.2, h * 0.38, w * 0.75, h * 0.52, w, h * 0.42);
-    canvas.drawPath(linePath, linePaint);
-  }
-
-  @override bool shouldRepaint(_OffroHomeBgPainter old) => false;
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// PRIVACY POLICY PAGE — with Read More + Delete Account flow
-// ══════════════════════════════════════════════════════════════════════════════
-class PrivacyPolicyPage extends StatefulWidget {
-  final String token;
-  const PrivacyPolicyPage({required this.token, super.key});
-  @override State<PrivacyPolicyPage> createState() => _PrivacyPolicyPageState();
-}
-
-class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
-  String _content = "";
-  bool _loading = true;
-  bool _expanded = false;
-
-  @override void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final c = await Api.fetchPolicy("privacy");
-    if (mounted) setState(() { _content = c; _loading = false; });
-  }
-
-  @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF6),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: const Text("Privacy Policy", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
-        ),
-      ),
-      body: _loading
-        ? const Center(child: CircularProgressIndicator(color: kPrimary))
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Policy text
-              if (_content.isEmpty)
-                const Text("Privacy policy content is being updated. Please check back later.",
-                  style: TextStyle(color: kMuted, fontSize: 14))
-              else ...[
-                Text(
-                  _expanded ? _content : (_content.length > 280 ? _content.substring(0, 280) + "..." : _content),
-                  style: const TextStyle(fontSize: 14, color: kText, height: 1.6),
-                ),
-                if (_content.length > 280) ...[
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => setState(() => _expanded = !_expanded),
-                    child: Text(
-                      _expanded ? "Read Less" : "Read More",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14),
-                    ),
-                  ),
-                ],
-              ],
-              const SizedBox(height: 32),
-              // Delete account section
-              const Divider(height: 1, color: kBorder),
-              const SizedBox(height: 16),
-              // "Request to delete my account" tile
-              GestureDetector(
-                onTap: () => Navigator.push(context,
-                  _route(DeleteAccountReasonPage(token: widget.token))),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 38, height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Request to delete my account",
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.red)),
-                        const SizedBox(height: 2),
-                        Text("All your data will be permanently removed",
-                          style: TextStyle(fontSize: 12, color: Colors.red.shade700)),
-                      ],
-                    )),
-                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 28),
-            ]),
-          ),
-    );
-  }
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// DELETE ACCOUNT — Reason selection page (Customer app)
-// ══════════════════════════════════════════════════════════════════════════════
-class DeleteAccountReasonPage extends StatefulWidget {
-  final String token;
-  const DeleteAccountReasonPage({required this.token, super.key});
-  @override State<DeleteAccountReasonPage> createState() => _DeleteAccountReasonPageState();
-}
-
-class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
-  String? _selectedReason;
-  final _reasons = [
-    "I no longer use the app",
-    "I have privacy concerns",
-    "I have a duplicate account",
-    "Too many notifications or irrelevant content",
-    "Other",
-  ];
-
-  @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF6),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: const Text("Delete Account", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
-        ),
-      ),
-      body: Column(children: [
-        Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange.shade200),
-          ),
-          child: Row(children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
-            const SizedBox(width: 12),
-            Expanded(child: Text(
-              "Once your account is deleted, your data cannot be retrieved. Signing up again will create a new account.",
-              style: TextStyle(fontSize: 13, color: Colors.orange.shade900, height: 1.4),
-            )),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Select a reason for deleting your account",
-              style: TextStyle(fontSize: 13, color: kMuted, fontWeight: FontWeight.w500)),
-          ),
-        ),
-        Expanded(child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _reasons.length,
-          itemBuilder: (ctx, i) {
-            final r = _reasons[i];
-            final selected = _selectedReason == r;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedReason = r),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  color: selected ? kPrimary.withOpacity(0.08) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: selected ? kPrimary : kBorder),
-                ),
-                child: Row(children: [
-                  Icon(
-                    selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                    color: selected ? kPrimary : kMuted, size: 22,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(r,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                      color: selected ? kPrimary : kText,
-                    )),
-                  ),
-                ]),
-              ),
-            );
-          },
-        )),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _selectedReason == null ? null : () => _showConfirmDialog(),
-              icon: const Icon(Icons.delete_forever_rounded, size: 20),
-              label: const Text("Submit Delete Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.red.withOpacity(0.3),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  void _showConfirmDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Delete Account?", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
-        content: const Text(
-          "Your account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your data cannot be retrieved. Are you absolutely sure?",
-          style: TextStyle(fontSize: 14, color: kText, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _submitDeletion();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text("Yes, Delete", style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _submitDeletion() async {
-    try {
-      await Api.requestDeleteAccount(widget.token, _selectedReason!);
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Deletion Requested", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
-          content: const Text(
-            "Your account deletion request has been submitted. You have been logged out.",
-            style: TextStyle(fontSize: 14, color: kText),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () async {
-                await Prefs.clear();
-                FcmService.reset();
-                Api.clearCache();
-                MyApp.goOnboarding();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      debugPrint('[OffrO] delete account request error: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
-          backgroundColor: Colors.red),
-      );
-    }
   }
 }

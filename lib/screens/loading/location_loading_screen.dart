@@ -2,13 +2,13 @@
 // OFFRO — Premium Location Loading Screen
 
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/geo.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
@@ -152,17 +152,6 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
       _waitingForLocationServicesFix = false;
       _retryAfterLocationSettingsFix();
     }
-  }
-
-  double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
-    const r = 6371.0;
-    final dLat = (lat2 - lat1) * math.pi / 180;
-    final dLon = (lon2 - lon1) * math.pi / 180;
-    final a = math.pow(math.sin(dLat / 2), 2) +
-        math.cos(lat1 * math.pi / 180) *
-        math.cos(lat2 * math.pi / 180) *
-        math.pow(math.sin(dLon / 2), 2);
-    return r * 2 * math.atan2(math.sqrt(a.toDouble()), math.sqrt(1 - a.toDouble()));
   }
 
   Future<void> _doLoad() async {
@@ -427,7 +416,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
         final slat = double.tryParse(s["latitude"]?.toString() ?? "");
         final slng = double.tryParse(s["longitude"]?.toString() ?? "");
         if (slat != null && slng != null) {
-          s["distance_km"] = _haversineKm(lat, lng, slat, slng);
+          s["distance_km"] = haversineKm(lat, lng, slat, slng);
         }
       }
       stores.sort((a, b) =>
@@ -454,7 +443,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
               final slat = double.tryParse(s["latitude"]?.toString() ?? "");
               final slng = double.tryParse(s["longitude"]?.toString() ?? "");
               if (slat != null && slng != null) {
-                s["distance_km"] = _haversineKm(lat!, lng!, slat, slng);
+                s["distance_km"] = haversineKm(lat!, lng!, slat, slng);
               }
             }
             stores.sort((a, b) =>
