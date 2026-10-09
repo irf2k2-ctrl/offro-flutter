@@ -120,12 +120,12 @@ class _StoreDetailPageState extends State<StoreDetailPage>
       final hasToken = widget.token.isNotEmpty;
       final results = await Future.wait([
         Api.fetchStoreDetail(id),
-        hasToken ? Api.isFavorite(widget.token, id) : Future.value(false),
+        hasToken ? Api.checkFavorite(widget.token, id) : Future.value(null),
         hasToken ? Api.getWallet(widget.token) : Future.value(<String,dynamic>{}),
       ]);
 
       final full   = results[0] as Map<String, dynamic>;
-      final isFav  = results[1] as bool;
+      final isFav  = results[1] as bool?; // null = the check failed; never treated as "not a favourite"
       final wallet = results[2] as Map<String, dynamic>;
 
       final savedDist      = _store['distance_km'];
@@ -159,7 +159,11 @@ class _StoreDetailPageState extends State<StoreDetailPage>
           // (A no-op if Home Screen already seeded it correctly, which is
           // the common case — this is a safety net for deep-links / cold
           // opens where FavState hasn't been populated yet.)
-          FavState.instance.setStore(id, isFav);
+          // Only a confirmed server value is applied, and never while a tap on
+          // this store is still in flight (it would overwrite the optimistic state).
+          if (isFav != null && !FavState.instance.isStorePending(id)) {
+            FavState.instance.setStore(id, isFav);
+          }
           _walletPts = (wallet['points'] as num?)?.toInt() ?? 0;
           _loading  = false;
         });
@@ -194,16 +198,19 @@ class _StoreDetailPageState extends State<StoreDetailPage>
   Future<void> _toggleFav() async {
     final id = _storeId;
     if (id.isEmpty || widget.token.isEmpty) return;
+    // One in-flight request per store (shared with the Home store card).
+    if (!FavState.instance.tryLockStore(id)) return;
     final prev = _isFav; // read from FavState — the real current state
-    // Use setStore (explicit set) rather than toggleStore (blind flip) for
-    // both the optimistic update and the revert-on-failure below, so this
-    // can never double-flip even if something else changes FavState
-    // concurrently — avoids the duplicate/incorrect-toggle bug from QA.
+    // Explicit set (never a blind flip) for the optimistic update, then the
+    // server-confirmed value; restore the previous state if the request fails.
     FavState.instance.setStore(id, !prev);
     try {
-      await Api.toggleFavorite(widget.token, id);
+      final confirmed = await Api.toggleFavorite(widget.token, id);
+      FavState.instance.setStore(id, confirmed);
     } catch (_) {
       FavState.instance.setStore(id, prev);
+    } finally {
+      FavState.instance.unlockStore(id);
     }
   }
 

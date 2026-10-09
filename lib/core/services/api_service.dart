@@ -813,11 +813,20 @@ class Api {
   }
 
   // ── Favorites ──
-  static Future<void> toggleFavorite(String token, String storeId) async {
-    try { await _post("/user/favorites/$storeId", {}, token: token); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+  /// Toggles the store favourite on the server and returns the server-confirmed
+  /// state (`is_favorite`). Errors are NOT swallowed: on failure this throws so
+  /// the caller can restore the previous state.
+  static Future<bool> toggleFavorite(String token, String storeId) async {
+    final d = await _post("/user/favorites/$storeId", {}, token: token);
+    return d["is_favorite"] == true;
   }
   static Future<List> getFavorites(String token) async {
     try { return await _get("/user/favorites", token: token); } catch(_) { return []; }
+  }
+  /// Like [isFavorite] but returns null when the check itself failed, so callers
+  /// never treat a failed request as "not a favourite".
+  static Future<bool?> checkFavorite(String token, String storeId) async {
+    try { final d = await _get("/user/favorites/$storeId/check", token: token); return d["is_favorite"]==true; } catch(_) { return null; }
   }
   static Future<bool> isFavorite(String token, String storeId) async {
     try { final d = await _get("/user/favorites/$storeId/check", token: token); return d["is_favorite"]==true; } catch(_) { return false; }

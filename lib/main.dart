@@ -1148,7 +1148,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadFavStores(); // load fav store ids for home screen hearts
     // Sync badge with real-time notifier (updates from FCM foreground messages)
     _unreadNotifier.addListener(_onUnreadChanged);
-    FavState.instance.addListener(_onFavChanged);
+    FavState.instance.productRevision.addListener(_onFavChanged);
     // FIX 1: scroll listener for FAB visibility
     // Item 3: the "hide bottom nav on scroll down" behavior (previously
     // toggling _navVisible here) has been removed — the existing bottom
@@ -2094,7 +2094,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   void _onFavChanged() { if (mounted) setState(() {}); }
 
   @override void dispose() {
-    FavState.instance.removeListener(_onFavChanged);
+    FavState.instance.productRevision.removeListener(_onFavChanged);
     _unreadNotifier.removeListener(_onUnreadChanged);
     WidgetsBinding.instance.removeObserver(this);
     _catTimer?.cancel(); _sliderTimer?.cancel(); _heroRotateTimer?.cancel(); _sliderPc.dispose();
@@ -6350,7 +6350,9 @@ class _NearbyStoresSection extends StatelessWidget {
               ];
               final grad = _cardGrads[i % _cardGrads.length];
 
+              final nId = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
               return GestureDetector(
+                key: nId.isEmpty ? null : ValueKey("nearby_store_$nId"),
                 onTap: () => onStoreTap(s),
                 child: Container(
                   width: 140,
@@ -6796,6 +6798,7 @@ class _BannerStoresBlock extends StatefulWidget {
 }
 
 class _BannerStoresBlockState extends State<_BannerStoresBlock> {
+  final Map<String, Uint8List> _dataImgCache = {};
   final PageController _pc = PageController(initialPage: 49999);
   final ValueNotifier<int> _page = ValueNotifier<int>(0);
   Timer? _timer;
@@ -6953,7 +6956,13 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
         itemBuilder: (ctx, i) {
           final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
-          if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
+          if (i < storeCount) {
+            final st = widget.stores[i];
+            final stId = st["_id"]?.toString() ?? st["id"]?.toString() ?? "";
+            return KeyedSubtree(
+              key: stId.isEmpty ? null : ValueKey("main_store_$stId"),
+              child: _storeCard(ctx, st));
+          }
           // Last card: "See All" — matches floating store card dimensions
           return GestureDetector(
             onTap: widget.onViewAll,
@@ -7291,7 +7300,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         errorWidget: (_, __, ___) => _storeFallback(name));
     } else if (logoSrc.startsWith("data:image")) {
       try {
-        storeImageWidget = Image.memory(base64Decode(logoSrc.split(",").last),
+        // Decode once per distinct image: a stable byte buffer keeps the same
+        // MemoryImage key across rebuilds, so the image is not re-decoded/flashed.
+        final bytes = _dataImgCache.putIfAbsent(logoSrc, () => base64Decode(logoSrc.split(",").last));
+        storeImageWidget = Image.memory(bytes,
           fit: BoxFit.cover, width: double.infinity, height: _cardImgH);
       } catch (_) { storeImageWidget = _storeFallback(name); }
     } else {
@@ -7356,12 +7368,24 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                     onTap: () async {
                       final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
                       if (id.isEmpty || widget.token.isEmpty) return;
-                      FavState.instance.toggleStore(id);
+                      // One in-flight request per store; ignore taps until it settles.
+                      if (!FavState.instance.tryLockStore(id)) return;
+                      final prev = FavState.instance.hasStore(id);
+                      FavState.instance.setStore(id, !prev); // optimistic
                       try {
-                        await Api.toggleFavorite(widget.token, id);
-                        widget.onFavChanged();
-                      } catch (_) {
-                        FavState.instance.toggleStore(id);
+                        final confirmed = await Api.toggleFavorite(widget.token, id);
+                        FavState.instance.setStore(id, confirmed); // server-confirmed
+                      } catch (e) {
+                        FavState.instance.setStore(id, prev); // restore
+                        if (mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                            content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+                            backgroundColor: Colors.red.shade700,
+                            duration: const Duration(seconds: 12),
+                            showCloseIcon: true));
+                        }
+                      } finally {
+                        FavState.instance.unlockStore(id);
                       }
                     },
                     child: Container(
@@ -7371,14 +7395,17 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                         shape: BoxShape.circle,
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .15), blurRadius: 5)],
                       ),
-                      child: Icon(
-                        FavState.instance.hasStore(_sid)
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: FavState.instance.hasStore(_sid)
-                            ? const Color(0xFFe74c3c)
-                            : const Color(0xFF9e9e9e),
-                        size: 19),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: FavState.instance.storeListenable(_sid),
+                        builder: (_, isFav, __) => Icon(
+                          isFav
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: isFav
+                              ? const Color(0xFFe74c3c)
+                              : const Color(0xFF9e9e9e),
+                          size: 19),
+                      ),
                     ),
                   ),
                 ),
