@@ -23,6 +23,7 @@ import 'core/constants/app_constants.dart';
 import 'core/utils/image_url.dart';
 import 'core/utils/geo.dart';
 import 'core/utils/navigation.dart';
+import 'core/utils/store_hours.dart';
 import 'core/widgets/shimmer_box.dart';
 import 'core/widgets/base64_image.dart';
 import 'screens/home/widgets/home_background.dart';
@@ -55,10 +56,6 @@ import 'core/widgets/store_cards.dart';
 import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 
 // ─────────────────────── CONFIG ───────────────────────
-const kBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'https://offro-backend-production.up.railway.app',
-);
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
 // Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, kText, kMuted, kBorder)
@@ -408,20 +405,6 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-IconData _categoryIcon(String cat) {
-  switch(cat.toLowerCase()) {
-    case "all": return Icons.apps_rounded;
-    case "grocery": return Icons.shopping_basket_rounded;
-    case "restaurant": return Icons.restaurant_rounded;
-    case "pharmacy": return Icons.local_pharmacy_rounded;
-    case "electronics": return Icons.devices_rounded;
-    case "clothing": return Icons.checkroom_rounded;
-    case "bakery": return Icons.cake_rounded;
-    case "salon": return Icons.content_cut_rounded;
-    case "pet store": return Icons.pets_rounded;
-    default: return Icons.store_rounded;
-  }
-}
 
 
 /// Synthesises a minimal deals list from store list data so StoreDetailPage
@@ -1034,10 +1017,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<String> _cityImageUrls = []; // all city images for rotation
   int    _heroImgIndex = 0;          // current hero image index
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
-  String _defaultCityImageUrl = "";    // fallback from /admin/default-images
   List<String> _defaultProductImageUrls = []; // default product images from /admin/default-images (all configured)
   List<Map<String,dynamic>> _mbFallbackSliders = []; // default merchant banners (may be multiple, images OR videos)
-  int _sliderPage=0;
   final PageController _sliderPc = PageController(initialPage: 49999); // FIX 5: start at midpoint for infinite scroll
   Timer? _sliderTimer;
   // FIX 2: ValueNotifier for slider page — avoids full-tree rebuild on swipe
@@ -1205,11 +1186,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (_) { }
   }
 
-  void _incrementUnread() async {
-    await Prefs.incrementUnread();
-    final n = await Prefs.getUnreadCount();
-    if (mounted) setState(() => _unreadCount = n);
-  }
 
   Future<void> _openNotifications(BuildContext ctx) async {
     await Prefs.clearUnread();
@@ -2060,9 +2036,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // _startSlide removed — _pc was orphaned, not connected to any PageView in build
 
 
-  void _showCatMenu() { _catTimer?.cancel();
-    _catTimer=Timer(const Duration(seconds:5),(){});
-  }
 
   void _onFavChanged() { if (mounted) setState(() {}); }
 
@@ -2337,23 +2310,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
 
-  Widget _buildCardContent(Map s){
-    String imgStr = s["image_url"]?.toString() ?? "";
-    if (imgStr.isEmpty) imgStr = s["image_thumb"]?.toString() ?? "";
-    if (imgStr.isEmpty) imgStr = s["image"]?.toString() ?? "";
-    if (imgStr.isEmpty) imgStr = s["image2"]?.toString() ?? "";
-    if (imgStr.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(imgStr.split(",").last), fit:BoxFit.cover, gaplessPlayback:true); }
-      catch(_) { }
-    }
-    if (imgStr.startsWith("http")) {
-      return CachedNetworkImage(imageUrl: imgStr, fit: BoxFit.cover,
-        width: double.infinity, height: double.infinity,
-        placeholder: (_, __) => _placeholder(s),
-        errorWidget: (_, __, ___) => _placeholder(s));
-    }
-    return _placeholder(s);
-  }
 
   Widget _placeholder(Map s)=>Container(
     decoration:BoxDecoration(
@@ -2570,69 +2526,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
 
-  // ── Filter sheet: radius + open now ──
-  void _showFilterSheet(BuildContext ctx) {
-    showModalBottomSheet(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(builder: (ctx2, setSt) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const SizedBox(height: 12),
-            Container(width:40,height:4,
-              decoration:BoxDecoration(color:Colors.grey.shade300,borderRadius:BorderRadius.circular(2))),
-            const SizedBox(height:20),
-            const Text("Filter Stores", style: TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:kText)),
-            const SizedBox(height:20),
-            Align(alignment:Alignment.centerLeft,
-              child:const Text("Distance",style:TextStyle(fontSize:13,fontWeight:FontWeight.w700,color:kText))),
-            const SizedBox(height:10),
-            Row(children:[
-              for(final km in [5.0, 10.0, 0.0])
-                Expanded(child:Padding(
-                  padding:const EdgeInsets.only(right:8),
-                  child:GestureDetector(
-                    onTap:() async {
-                      setState(()=>_radiusKm=km);
-                      await Prefs.saveRadius(km);
-                      setSt((){});
-                    },
-                    child:AnimatedContainer(
-                      duration:const Duration(milliseconds:200),
-                      padding:const EdgeInsets.symmetric(vertical:10),
-                      decoration:BoxDecoration(
-                        color:_radiusKm==km?kPrimary:Colors.white,
-                        border:Border.all(color:_radiusKm==km?kPrimary:kBorder,width:1.5),
-                        borderRadius:BorderRadius.circular(12),
-                      ),
-                      child:Center(child:Text(
-                        km==0?"All Distance":km==5?"5 km":"10 km",
-                        style:TextStyle(color:_radiusKm==km?Colors.white:kMuted,fontSize:12,fontWeight:FontWeight.w700))),
-                    ),
-                  ),
-                )),
-            ]),
-            const SizedBox(height:24),
-            SizedBox(width:double.infinity,child:ElevatedButton(
-              style:ElevatedButton.styleFrom(
-                backgroundColor:kPrimary,foregroundColor:Colors.white,
-                padding:const EdgeInsets.symmetric(vertical:14),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-              ),
-              onPressed:()=>Navigator.pop(ctx),
-              child:const Text("Apply Filters",style:TextStyle(fontSize:15,fontWeight:FontWeight.w800)),
-            )),
-          ]),
-        );
-      }),
-    );
-  }
 
   void _searchStores(BuildContext ctx) {
     Navigator.push(ctx, appRoute(_SearchPage(token:widget.token, city:city)));
@@ -4251,15 +4144,6 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     return null;
   }
 
-  String _fmtDate(String s) {
-    // Guard: reject raw Dart template strings stored accidentally in DB
-    if (s.contains('dt.day') || s.contains('months[') || s.contains(r'\$') || (s.contains('{') && s.contains('}'))) return "";
-    final dt = _parseDate(s);
-    if (dt == null) return "";
-    final months = ["Jan","Feb","Mar","Apr","May","Jun",
-                    "Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "${dt.day} ${months[dt.month-1]} ${dt.year}";
-  }
 
   bool _isExpired(String s) {
     final dt = _parseDate(s);
@@ -5913,10 +5797,6 @@ class _ExploreAreasSection extends StatelessWidget {
   final String token;
   const _ExploreAreasSection({required this.stores, required this.token});
 
-  static const _areaColors = [
-    Color(0xFFA9CDBA), Color(0xFFB8A9CD), Color(0xFF3E5F55),
-    Color(0xFFE7D7C8), Color(0xFFCDEBD6), Color(0xFF6b8c7e),
-  ];
 
   @override Widget build(BuildContext context) {
     // Build area map from stores
@@ -6295,15 +6175,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     gradient: LinearGradient(colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
       begin: Alignment.topLeft, end: Alignment.bottomRight)));
 
-  String _resolveStoreImg(Map s) {
-    for (final k in ["image_url","image_thumb","_thumb","image"]) {
-      final v = s[k]?.toString() ?? "";
-      if (v.isNotEmpty) return v;
-    }
-    final imgs = s["images"];
-    if (imgs is List && imgs.isNotEmpty) return imgs.first.toString();
-    return "";
-  }
 
   @override Widget build(BuildContext context) {
     final hasBanners = widget.banners.isNotEmpty;
@@ -6560,44 +6431,13 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // calculation below can know whether the status row will be shown. Returns
   // [statusLabel, closingInfo].
   List<String> _storeStatus(Map<String,dynamic> s) {
-  final openTime  = s["open_time"]?.toString()  ?? "";
-  final closeTime = s["close_time"]?.toString() ?? "";
-  final now       = TimeOfDay.now();
-
-  // Open/close status
-  String statusLabel = "";
-  String closingInfo = "";
-  // ITEM4: treat "00:00" as "not configured" to avoid showing "Opens 12 AM • Closes 12 AM"
-  final bool _timesConfigured = !(openTime == "00:00" && closeTime == "00:00")
-      && !(openTime.isEmpty && closeTime == "00:00");
-  if (closeTime.isNotEmpty && _timesConfigured) {
-    try {
-      final cParts    = closeTime.split(":");
-      final closeH    = int.parse(cParts[0]);
-      final closeM    = cParts.length > 1 ? int.parse(cParts[1]) : 0;
-      final nowMins   = now.hour * 60 + now.minute;
-      final closeMins = closeH * 60 + closeM;
-      final cSuffix   = closeH >= 12 ? "PM" : "AM";
-      final cH12      = closeH > 12 ? closeH - 12 : (closeH == 0 ? 12 : closeH);
-      final cMinStr   = closeM > 0 ? ":${closeM.toString().padLeft(2,'0')}" : "";
-      if (nowMins < closeMins) {
-        statusLabel = "Open";
-        closingInfo = "Closes $cH12$cMinStr $cSuffix";
-      } else {
-        statusLabel = "Closed";
-        if (openTime.isNotEmpty) {
-          final oParts  = openTime.split(":");
-          final oH      = int.parse(oParts[0]);
-          final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
-          final oSuffix = oH >= 12 ? "PM" : "AM";
-          final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
-          final oMinStr = oM > 0 ? ":${oM.toString().padLeft(2,'0')}" : "";
-          closingInfo = "Opens $oH12$oMinStr $oSuffix";
-        }
-      }
-    } catch (_) { }
-  }
-    return [statusLabel, closingInfo];
+    // Uses the shared computeStoreOpenStatus() — same logic as Store Detail.
+    final st = computeStoreOpenStatus(
+      s["open_time"]?.toString() ?? "",
+      s["close_time"]?.toString() ?? "",
+    );
+    if (st == null) return ["", ""];
+    return [st.isOpen ? "Open" : "Closed", st.subLabel];
   }
 
   // Card geometry shared by _storeCard and the carousel row height. The card

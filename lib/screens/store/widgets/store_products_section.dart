@@ -246,14 +246,6 @@ class _ProductCard extends StatefulWidget {
 }
 
 class _ProductCardState extends State<_ProductCard> {
-  static const List<List<Color>> _palettes = [
-    [Color(0xFFCDEBD6), Color(0xFFA9CDBA)],
-    [Color(0xFFE7D7C8), Color(0xFFD4B896)],
-    [Color(0xFFD6EAF8), Color(0xFFAED6F1)],
-    [Color(0xFFFDE8E8), Color(0xFFF1ABAB)],
-    [Color(0xFFFFF3CD), Color(0xFFFFD966)],
-    [Color(0xFFEDE7F6), Color(0xFFCE93D8)],
-  ];
 
   // FIX Issue-5: favorite state
   bool _isFav = false;

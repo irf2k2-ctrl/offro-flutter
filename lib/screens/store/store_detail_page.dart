@@ -375,23 +375,6 @@ class _StoreDetailPageState extends State<StoreDetailPage>
         ),
       );
 
-  Widget _skelSection() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-          Container(
-            width: 120,
-            height: 18,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD1E0DA),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _skelBox(double.infinity, 72, r: 16),
-        ]),
-      );
 }
 
 // ─── Tab Content Widget ───────────────────────────────────────

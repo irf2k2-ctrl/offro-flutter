@@ -679,28 +679,6 @@ class _RenewProductPageState extends State<RenewProductPage> {
     return "${dt.day.toString().padLeft(2,'0')} ${m[dt.month-1]} ${dt.year}";
   }
 
-  // keep for back-compat (unused now but referenced by old summary path)
-  Future<bool?> _showSummary(Map order, {required bool free}) =>
-    showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text("Renew Premium Listing", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
-      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _SummaryRow("Extend by",  "$_days days"),
-        _SummaryRow("New End Date", order["new_end_date"]?.toString() ?? ""),
-        if (!free) ...[
-          const Divider(),
-          _SummaryRow("Base Price",   "₹${order['base_price']}"),
-          _SummaryRow("GST (${order['gst_percent']}%)", "₹${order['gst_amount']}"),
-          _SummaryRow("Total",        "₹${order['total']}", bold: true),
-        ],
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(free ? "Renew Now" : "Pay ₹${order['total']}", style: const TextStyle(color: Colors.white))),
-      ],
-    ));
 
   void _onPaySuccess(PaymentSuccessResponse res) async {
     if (_pendingOrder == null || !mounted) return;

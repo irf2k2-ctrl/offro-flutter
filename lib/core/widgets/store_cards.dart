@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/image_url.dart';
+import '../../core/utils/store_hours.dart';
 import '../../core/services/api_service.dart';
 import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
@@ -16,45 +17,13 @@ import 'package:offro_user/core/utils/navigation.dart';
 
 // ── Open/close status helper ──────────────────────────────────────────────────
 ({bool? isOpen, String label, String sub}) _getStoreStatus(Map store) {
-  final openTime  = store['open_time']?.toString()  ?? '';
-  final closeTime = store['close_time']?.toString() ?? '';
-  if (closeTime.isEmpty ||
-      (openTime == '00:00' && closeTime == '00:00') ||
-      (openTime.isEmpty  && closeTime == '00:00') ||
-      (closeTime == '00:00:00')) {
-    return (isOpen: null, label: '', sub: '');
-  }
-  try {
-    // Strip seconds if stored as HH:MM:SS
-    final ct       = closeTime.length > 5 ? closeTime.substring(0, 5) : closeTime;
-    final ot       = openTime.length  > 5 ? openTime.substring(0, 5)  : openTime;
-    final now      = TimeOfDay.now();
-    final nowMins  = now.hour * 60 + now.minute;
-    final cParts   = ct.split(':');
-    final cH       = int.parse(cParts[0]);
-    final cM       = cParts.length > 1 ? int.parse(cParts[1]) : 0;
-    final closeMins = cH * 60 + cM;
-    final cSuffix   = cH >= 12 ? 'PM' : 'AM';
-    final cH12      = cH > 12 ? cH - 12 : (cH == 0 ? 12 : cH);
-    final cMinStr   = cM > 0 ? ':${cM.toString().padLeft(2, '0')}' : '';
-    if (nowMins < closeMins) {
-      return (isOpen: true,  label: 'Open',   sub: 'Closes $cH12$cMinStr $cSuffix');
-    } else {
-      String sub = '';
-      if (ot.isNotEmpty) {
-        final oParts  = ot.split(':');
-        final oH      = int.parse(oParts[0]);
-        final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
-        final oSuffix = oH >= 12 ? 'PM' : 'AM';
-        final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
-        final oMinStr = oM > 0 ? ':${oM.toString().padLeft(2, '0')}' : '';
-        sub = 'Opens $oH12$oMinStr $oSuffix';
-      }
-      return (isOpen: false, label: 'Closed', sub: sub);
-    }
-  } catch (_) {
-    return (isOpen: null, label: '', sub: '');
-  }
+  // Uses the shared computeStoreOpenStatus() — same logic as Store Detail.
+  final st = computeStoreOpenStatus(
+    store['open_time']?.toString() ?? '',
+    store['close_time']?.toString() ?? '',
+  );
+  if (st == null) return (isOpen: null, label: '', sub: '');
+  return (isOpen: st.isOpen, label: st.isOpen ? 'Open' : 'Closed', sub: st.subLabel);
 }
 
 // PromoSliderCard, NitHorizontalCard, ProductViewAllPage

@@ -77,42 +77,6 @@ Widget _socialIcons(Map social, {double size = 16}) {
   return Row(mainAxisSize: MainAxisSize.min, children: icons);
 }
 
-/// Polished social row for the profile screen — icon + platform name +
-/// chevron, tappable, using the same _openSocial launcher as the compact
-/// icon row above.
-Widget _socialRow(Map social) {
-  final rows = <Widget>[];
-  void addIfPresent(String key, String label, IconData icon, Color color) {
-    final url = social[key]?.toString() ?? "";
-    if (url.isEmpty) return;
-    rows.add(InkWell(
-      onTap: () => _openSocial(url),
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(children: [
-          Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(color: color.withValues(alpha: .12), shape: BoxShape.circle),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(width: 12),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText)),
-          const Spacer(),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: kMuted),
-        ]),
-      ),
-    ));
-  }
-  addIfPresent("instagram", "Instagram", Icons.camera_alt_rounded, const Color(0xFFD4537E));
-  addIfPresent("youtube", "YouTube", Icons.play_circle_fill_rounded, const Color(0xFFE24B4A));
-  addIfPresent("facebook", "Facebook", Icons.facebook_rounded, const Color(0xFF378ADD));
-  if (rows.isEmpty) {
-    return const Text("No social links added yet", style: TextStyle(fontSize: 12, color: kMuted));
-  }
-  return Column(children: rows);
-}
 
 /// Redesigned Social card for the public/user-facing profile — ONLY the 3
 /// platform icons (YouTube, Instagram, Facebook), no "Social" heading, no
