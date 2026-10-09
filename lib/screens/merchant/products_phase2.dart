@@ -1314,25 +1314,3 @@ class _Benefit extends StatelessWidget {
     padding: const EdgeInsets.only(top: 4),
     child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)));
 }
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-  @override Widget build(BuildContext context) =>
-    Text(text, style: const TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 15));
-}
-
-class _SummaryRow extends StatelessWidget {
-  final String label, value;
-  final bool bold;
-  const _SummaryRow(this.label, this.value, {this.bold = false});
-  @override Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: const TextStyle(color: kMuted, fontSize: 13)),
-      Text(value, style: TextStyle(
-        color: kText, fontSize: 13,
-        fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
-    ]),
-  );
-}

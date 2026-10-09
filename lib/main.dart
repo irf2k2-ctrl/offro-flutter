@@ -2311,16 +2311,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
 
 
-  Widget _placeholder(Map s)=>Container(
-    decoration:BoxDecoration(
-      gradient:LinearGradient(colors:[kPrimary,const Color(0xFF3E5F55)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
-    child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-      const Icon(Icons.store_mall_directory_outlined,size:80,color:kLight),const SizedBox(height:14),
-      Text(s["store_name"]??"",style:const TextStyle(color:Colors.white,fontSize:20,fontWeight:FontWeight.bold),textAlign:TextAlign.center),
-      const SizedBox(height:4),
-      Text(s["city"]??"",style:const TextStyle(color:kAccent,fontSize:13)),
-    ])));
-
   Widget _locationDeniedState() => Container(
     color: kPrimary,
     child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -3476,10 +3466,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
           final lat = _safeDouble(m["latitude"]) ?? _safeDouble(m["lat"]);
           final lng = _safeDouble(m["longitude"]) ?? _safeDouble(m["lng"]);
           if (lat != null && lng != null) {
-            final dlat = (widget.userLat! - lat) * 0.01745329251;
-            final dlng = (widget.userLng! - lng) * 0.01745329251;
-            final a = (dlat/2)*(dlat/2) + (dlng/2)*(dlng/2) * 0.99664719 * 0.99664719;
-            final dist = 6371.0 * 2 * 0.0174533 * (a < 1 ? a : 1);
+            final dist = haversineKm(widget.userLat!, widget.userLng!, lat, lng);
             m["distance_km"] = double.parse(dist.toStringAsFixed(1));
           }
         }
@@ -4010,46 +3997,6 @@ class _PinCard extends StatelessWidget {
           ]),
         ),
       ),
-    );
-  }
-}
-
-
-// Background image widget for area card
-class _AreaBg extends StatelessWidget {
-  final String imgUrl;
-  final String areaName;
-  const _AreaBg({required this.imgUrl, this.areaName = ""});
-
-  static const List<List<Color>> _fallbackGrads = [
-    [Color(0xFF1a3329), Color(0xFF3E5F55)],
-    [Color(0xFF1a2535), Color(0xFF2C4A7A)],
-    [Color(0xFF3b2a1a), Color(0xFF7a5533)],
-    [Color(0xFF2a1a35), Color(0xFF6A3FA0)],
-    [Color(0xFF1a3340), Color(0xFF2C7A8C)],
-    [Color(0xFF3E2020), Color(0xFF8C3F3F)],
-  ];
-
-  @override Widget build(BuildContext context) {
-    if (imgUrl.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imgUrl, fit: BoxFit.cover,
-        width: double.infinity, height: double.infinity,
-        errorWidget: (_, __, ___) => _fallback(),
-      );
-    }
-    return _fallback();
-  }
-
-  Widget _fallback() {
-    final grad = _fallbackGrads[(areaName.isEmpty ? 0 : areaName.codeUnitAt(0)) % _fallbackGrads.length];
-    final initials = areaName.trim().isEmpty ? "?"
-        : areaName.trim().split(" ").take(2).map((w) => w.isEmpty ? "" : w[0].toUpperCase()).join();
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: grad)),
-      child: Center(child: Text(initials,
-        style: const TextStyle(color: Colors.white38, fontSize: 42, fontWeight: FontWeight.w900))),
     );
   }
 }
@@ -4648,56 +4595,6 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
                 childCount: filtered.length,
               )),
             ),
-      ]),
-    );
-  }
-}
-
-class _SpecialCategoryScreen extends StatelessWidget {
-  final String label, emoji, token;
-  final List<Map<String,dynamic>> stores;
-  final Color color1, color2;
-  const _SpecialCategoryScreen({
-    required this.label, required this.emoji, required this.token,
-    required this.stores, required this.color1, required this.color2,
-  });
-
-  @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: CustomScrollView(slivers: [
-        SliverAppBar(
-          pinned: true,
-          backgroundColor: Colors.white,
-          foregroundColor: kText,
-          elevation: 0,
-          expandedHeight: 0,
-          toolbarHeight: 52,
-          title: Text(label,
-            style: const TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
-          centerTitle: false,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Divider(height: 1, color: kBorder),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 80),
-          sliver: stores.isEmpty
-            ? const SliverToBoxAdapter(child: Center(child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Text("No stores found", style: TextStyle(color: kMuted)))))
-            : SliverList(delegate: SliverChildBuilderDelegate(
-                (_, i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: GestureDetector(
-                    onTap: () => Navigator.push(context, appRoute(StoreDetailPage(store: Map<String,dynamic>.from(stores[i]), token: token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
-                    child: TopStoreCard(store: stores[i]),
-                  ),
-                ),
-                childCount: stores.length,
-              )),
-        ),
       ]),
     );
   }

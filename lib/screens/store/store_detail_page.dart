@@ -364,17 +364,6 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     );
   }
 
-  Widget _skelBox(double w, double h, {double r = 12}) =>
-      Container(
-        width: w,
-        height: h,
-        margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-        decoration: BoxDecoration(
-          color: const Color(0xFFD1E0DA),
-          borderRadius: BorderRadius.circular(r),
-        ),
-      );
-
 }
 
 // ─── Tab Content Widget ───────────────────────────────────────

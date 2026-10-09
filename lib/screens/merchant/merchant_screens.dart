@@ -661,84 +661,6 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
   );
 }
 
-// ── Banner placement preview widget ──
-class _BannerPlacementPreview extends StatelessWidget {
-  const _BannerPlacementPreview();
-  @override Widget build(BuildContext context) => Container(
-    margin:const EdgeInsets.fromLTRB(14,14,14,0),
-    padding:const EdgeInsets.all(12),
-    decoration:BoxDecoration(
-      color:Colors.white,
-      borderRadius:BorderRadius.circular(14),
-      border:Border.all(color:const Color(0xFF3E5F55), width:1.5),
-    ),
-    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[
-        const Icon(Icons.info_outline,size:15,color:kPrimary),
-        const SizedBox(width:6),
-        const Text("Where your banner appears",style:TextStyle(fontWeight:FontWeight.w700,color:kPrimary,fontSize:13)),
-      ]),
-      const SizedBox(height:10),
-      // FIX 13: Real OFFRO app mockup image
-      ClipRRect(
-        borderRadius:BorderRadius.circular(10),
-        child:Image.network(
-          "https://media.base44.com/images/public/69dc008cb5876dcb8680be38/a09b33237_generated_image.png",
-          width:double.infinity,
-          height:160,
-          fit:BoxFit.cover,
-          errorBuilder:(_,__,___) => Container(
-            height:160, color:kLight,
-            child:const Center(child:Text("Banner preview unavailable",style:TextStyle(color:kMuted,fontSize:12))),
-          ),
-        ),
-      ),
-      // Simulated phone UI preview — HIDDEN, replaced by mockup above
-      if(false) Container(
-        decoration:BoxDecoration(
-          border:Border.all(color:kBorder),
-          borderRadius:BorderRadius.circular(10),
-        ),
-        child:Column(children:[
-          // Fake app header
-          Container(height:28,decoration:const BoxDecoration(
-            color:Color(0xFF3E5F55),
-            borderRadius:BorderRadius.vertical(top:Radius.circular(9)),
-          ),alignment:Alignment.center,child:const Text("OFFRO",style:TextStyle(color:Colors.white,fontSize:11,fontWeight:FontWeight.w800))),
-          // Banner slot — highlighted
-          Container(
-            height:50,
-            margin:const EdgeInsets.symmetric(horizontal:6,vertical:5),
-            decoration:BoxDecoration(
-              gradient:const LinearGradient(colors:[Color(0xFF3E5F55),Color(0xFFA9CDBA)]),
-              borderRadius:BorderRadius.circular(8),
-              border:Border.all(color:const Color(0xFFe67e22),width:2),
-            ),
-            alignment:Alignment.center,
-            child:const Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Icon(Icons.arrow_upward,size:12,color:Colors.white),
-              SizedBox(width:4),
-              Text(">> YOUR BANNER HERE",style:TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.w800)),
-            ]),
-          ),
-          // Fake content rows
-          ...List.generate(2,(_)=>Container(height:14,margin:const EdgeInsets.fromLTRB(6,0,6,4),
-            decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(4)))),
-          const SizedBox(height:4),
-        ]),
-      ),
-      const SizedBox(height:8),
-      Row(children:[
-        _InfoChip("📐 1200×400px"),
-        const SizedBox(width:6),
-        _InfoChip("📦 Max 2MB"),
-        const SizedBox(width:6),
-        _InfoChip("🖼️ JPG/PNG"),
-      ]),
-    ]),
-  );
-}
-
 class _InfoChip extends StatelessWidget {
   final String text;
   const _InfoChip(this.text);
@@ -2019,29 +1941,6 @@ class _StatusBadge extends StatelessWidget {
   );
 }
 
-// ── Compact action button ──────────────────────────────────────────────────
-class _ActionBtn extends StatelessWidget {
-  final String label; final IconData icon; final Color color; final VoidCallback onTap;
-  const _ActionBtn({required this.label, required this.icon, required this.color, required this.onTap});
-  @override Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: .35)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-      ]),
-    ),
-  );
-}
-
-
 // ── Product type choice dialog + navigation ──────────────────────────────────
 void _showProductTypeDialog(BuildContext context, String token, VoidCallback onRefresh) {
   showModalBottomSheet(
@@ -2164,81 +2063,6 @@ class _ProductThumb extends StatelessWidget {
         image:DecorationImage(image:NetworkImage(logoUrl),fit:BoxFit.cover),
       ));
   }
-}
-
-// ── Product placement preview widget ──
-class _ProductPlacementPreview extends StatelessWidget {
-  const _ProductPlacementPreview();
-  @override Widget build(BuildContext context) => Container(
-    margin:const EdgeInsets.fromLTRB(14,14,14,0),
-    padding:const EdgeInsets.all(12),
-    decoration:BoxDecoration(
-      color:Colors.white,
-      borderRadius:BorderRadius.circular(14),
-      border:Border.all(color:const Color(0xFF856404),width:1.5),
-    ),
-    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[
-        const Icon(Icons.info_outline,size:15,color:Color(0xFF856404)),
-        const SizedBox(width:6),
-        const Text("Where your product appears",style:TextStyle(fontWeight:FontWeight.w700,color:Color(0xFF856404),fontSize:13)),
-      ]),
-      const SizedBox(height:10),
-      // FIX 13: Real OFFRO app mockup image
-      ClipRRect(
-        borderRadius:BorderRadius.circular(10),
-        child:Image.network(
-          "https://media.base44.com/images/public/69dc008cb5876dcb8680be38/0d2c11ece_generated_image.png",
-          width:double.infinity, height:160, fit:BoxFit.cover,
-          errorBuilder:(_,__,___) => Container(
-            height:160,color:kLight,
-            child:const Center(child:Text("Product preview unavailable",style:TextStyle(color:kMuted,fontSize:12)))),
-        ),
-      ),
-      // Simulated Product Zone preview — hidden
-      if(false) Container(
-        decoration:BoxDecoration(border:Border.all(color:kBorder),borderRadius:BorderRadius.circular(10)),
-        child:Column(children:[
-          Container(height:22,decoration:const BoxDecoration(
-            color:Color(0xFF3E5F55),
-            borderRadius:BorderRadius.vertical(top:Radius.circular(9)),
-          ),alignment:Alignment.centerLeft,padding:const EdgeInsets.only(left:8),
-          child:const Text("🎟️ Discover Products",style:TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.w800))),
-          Container(height:56,padding:const EdgeInsets.symmetric(vertical:4,horizontal:6),
-            child:Row(children:[
-              // Fake product cards
-              ...List.generate(2,(_)=>Container(
-                width:52,margin:const EdgeInsets.only(right:6),
-                decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
-              )),
-              // Highlighted slot
-              Container(
-                width:52,
-                decoration:BoxDecoration(
-                  color:const Color(0xFFfff3cd),
-                  borderRadius:BorderRadius.circular(8),
-                  border:Border.all(color:const Color(0xFF856404),width:2),
-                ),
-                child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  const Icon(Icons.location_on,size:10,color:Color(0xFF856404)),
-                  const Text("YOURS",textAlign:TextAlign.center,
-                    style:TextStyle(fontSize:7,fontWeight:FontWeight.w800,color:Color(0xFF856404))),
-                ]),
-              ),
-            ])),
-          const SizedBox(height:4),
-        ]),
-      ),
-      const SizedBox(height:8),
-      Row(children:[
-        _InfoChip("📐 400×400px"),
-        const SizedBox(width:6),
-        _InfoChip("📦 Max 1MB"),
-        const SizedBox(width:6),
-        _InfoChip("🖼️ PNG/JPG"),
-      ]),
-    ]),
-  );
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3646,22 +3470,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose(); super.dispose(); }
 
   Future<void> _loadCategories() async { _categories = await Api.fetchCategories(token: widget.token); if (mounted) setState((){}); }
-
-
-  // Helper: numbered step row for maps instructions
-  static Widget _mapsStep(String num, String text) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Container(
-        width: 20, height: 20,
-        decoration: const BoxDecoration(color: Color(0xFF1a73e8), shape: BoxShape.circle),
-        child: Center(child: Text(num,
-          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800))),
-      ),
-      const SizedBox(width: 8),
-      Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF333333), height: 1.4))),
-    ],
-  );
 
 
   Future<void> _loadAreas(String city) async {
