@@ -8,8 +8,7 @@ import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../store/store_detail_page.dart';
 import '../../core/widgets/store_cards.dart';
-
-PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
+import '../../core/utils/navigation.dart';
 
 
 class FavoritesPage extends StatefulWidget {
@@ -93,7 +92,7 @@ class _FavoritesState extends State<FavoritesPage>{
             sliver: SliverGrid(
               delegate: SliverChildBuilderDelegate(
                 (_, i) => GestureDetector(
-                  onTap: () => Navigator.push(ctx, _offroRoute(
+                  onTap: () => Navigator.push(ctx, appRoute(
                     StoreDetailPage(store: Map<String,dynamic>.from(_favs[i] as Map), token: widget.token))),
                   child: GridStoreCard(store: Map<String,dynamic>.from(_favs[i] as Map)),
                 ),

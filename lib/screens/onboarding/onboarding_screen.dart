@@ -7,8 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../auth/login_screen.dart';
-
-PageRoute _onbRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
+import '../../core/utils/navigation.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback? onComplete;
@@ -70,7 +69,7 @@ class _OnboardingState extends State<OnboardingScreen> {
     if (widget.onComplete != null) {
       widget.onComplete!();
     } else {
-      Navigator.pushReplacement(context, _onbRoute(const LoginScreen()));
+      Navigator.pushReplacement(context, appRoute(const LoginScreen()));
     }
   }
 

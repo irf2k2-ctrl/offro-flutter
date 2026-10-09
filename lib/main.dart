@@ -25,6 +25,7 @@ import 'core/utils/navigation.dart';
 import 'core/widgets/shimmer_box.dart';
 import 'core/widgets/base64_image.dart';
 import 'screens/home/widgets/home_background.dart';
+import 'screens/home/widgets/promo_slider_section.dart';
 import 'screens/legal/privacy_policy_page.dart';
 import 'core/services/api_service.dart';
 import 'core/services/error_mapper.dart';
@@ -62,7 +63,6 @@ const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
 // Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, kText, kMuted, kBorder)
 // now live only in core/constants/app_constants.dart.
-
 
 
 // ─────────────────────── FCM (see core/services/fcm_service.dart) ───────────────────────
@@ -193,7 +193,6 @@ Future<String> detectCity() async {
     return detectCityFromPosition(pos);
   } catch (_) { return ""; }
 }
-
 
 
 // ─────────────────────── NOTIFICATION NAVIGATION ───────────────────────
@@ -898,7 +897,6 @@ class _ProfileNavBtn extends StatelessWidget {
     );
   }
 }
-
 
 
 // ─────────────────────── MASONRY SEARCH GRID ───────────────────────
@@ -2089,7 +2087,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // _startSlide removed — _pc was orphaned, not connected to any PageView in build
 
 
-
   void _showCatMenu() { _catTimer?.cancel();
     _catTimer=Timer(const Duration(seconds:5),(){});
   }
@@ -2218,7 +2215,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    SliverToBoxAdapter(child: _PromoSliderSection(
+                    SliverToBoxAdapter(child: PromoSliderSection(
                       sliders: _sliders,
                       sliderPc: _sliderPc,
                       sliderPageNotifier: _sliderPageNotifier,
@@ -2598,7 +2595,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       ]),
     );
   }
-
 
 
   // ── Filter sheet: radius + open now ──
@@ -4639,7 +4635,6 @@ class _AreaBg extends StatelessWidget {
 }
 
 
-
 // ─────────────────────── ALL DEALS SCREEN ───────────────────────
 class _AllDealsScreen extends StatefulWidget {
   final String token;
@@ -5648,7 +5643,6 @@ class _BannerSection extends StatelessWidget {
     ]);
   }
 }
-
 
 
 // ═══════════════════════════════════════════════════════
@@ -7520,97 +7514,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   );
 }
 
-
-// ═══════════════════════════════════════════════════════════════
-// 3. PROMO SLIDER SECTION — merchant banners, compact (160px)
-// ═══════════════════════════════════════════════════════════════
-class _PromoSliderSection extends StatelessWidget {
-  final List<Map<String,dynamic>> sliders;
-  final PageController sliderPc;
-  final ValueNotifier<int> sliderPageNotifier;
-  final String token;
-  final ValueChanged<int> onSliderPageChanged;
-  const _PromoSliderSection({
-    required this.sliders, required this.sliderPc,
-    required this.sliderPageNotifier, required this.token,
-    required this.onSliderPageChanged,
-  });
-
-  @override Widget build(BuildContext context) {
-    if (sliders.isEmpty) return const SizedBox.shrink();
-    return Container(
-      color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(0, 16, 0, 14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Featured Banners",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Latest offers from our stores", style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            // Banner aspect ratio 2.35:1 — matches typical promotional banner dimensions
-            // This ensures the full image is shown without top/bottom letterboxing or cropping
-            final bannerWidth  = constraints.maxWidth - 32; // 16px padding each side
-            final bannerHeight = (bannerWidth / 2.35).clamp(140.0, 220.0);
-            return SizedBox(
-              height: bannerHeight,
-              child: PageView.builder(
-                controller: sliderPc,
-                clipBehavior: Clip.none,
-                itemCount: sliders.isNotEmpty ? 99999 : 0, // always loop
-                onPageChanged: onSliderPageChanged,
-                itemBuilder: (_, i) {
-                  final s = sliders[i % sliders.length];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: PromoSliderCard(
-                      slider: Map<String,dynamic>.from(s as Map),
-                      token: token,
-                      squareCorners: false,
-                      hideText: false,
-                      onVideoComplete: () {
-                        if (sliderPc.hasClients) {
-                          sliderPc.nextPage(
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeInOut);
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        ),
-        // Dots
-        const SizedBox(height: 10),
-        ValueListenableBuilder<int>(
-          valueListenable: sliderPageNotifier,
-          builder: (_, pg, __) {
-            final count = sliders.length;
-            return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              for (int i = 0; i < count; i++)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: pg == i ? 20 : 6, height: 6,
-                  decoration: BoxDecoration(
-                    color: pg == i ? const Color(0xFFD4A017) : const Color(0xFFe8d9a0),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-            ]);
-          },
-        ),
-        const SizedBox(height: 6),
-      ]),
-    );
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════
 // PREMIUM PRODUCT CARD — full-bleed image, cinematic style

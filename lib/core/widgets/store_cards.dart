@@ -16,8 +16,7 @@ import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import 'package:offro_user/screens/detail/detail_page.dart';
 import 'package:offro_user/screens/store/store_detail_page.dart';
-
-PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
+import 'package:offro_user/core/utils/navigation.dart';
 
 // ── Open/close status helper ──────────────────────────────────────────────────
 ({bool? isOpen, String label, String sub}) _getStoreStatus(Map store) {
@@ -234,7 +233,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         try {
           final store = await Api.fetchStoreDetail(storeId);
           if (context.mounted) {
-            Navigator.push(context, _offroRoute(
+            Navigator.push(context, appRoute(
               StoreDetailPage(store: Map<String,dynamic>.from(store as Map), token: widget.token, userName: "")));
           }
         } catch(_) { if (kDebugMode) debugPrint("[Offro] suppressed error"); }

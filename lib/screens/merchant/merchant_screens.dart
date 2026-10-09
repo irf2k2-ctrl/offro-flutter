@@ -34,8 +34,7 @@ import 'products_phase2.dart';
 // Round 7 Item 2: reuse the existing full-screen image viewer for the Merchant
 // Deals list thumbnail tap-to-view — no duplicate viewer implementation.
 import '../store/widgets/store_header.dart' show FullScreenImageViewer;
-
-PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
+import '../../core/utils/navigation.dart';
 
 /// PERMANENT HEADER REDESIGN: small circular filled "+" action button used
 /// in place of the old large outlined "New X" buttons across merchant list
@@ -176,7 +175,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                 subtitle: _stores.isEmpty
                   ? "No stores yet — tap to add your first"
                   : "${_stores.length} Store${_stores.length>1?'s':''} • ${_stores.where((s)=>s['status']=='active').length} Active",
-                onTap: ()=>Navigator.push(context,_offroRoute(MerchantStoresPage(token:widget.token))).then((_)=>_load()),
+                onTap: ()=>Navigator.push(context,appRoute(MerchantStoresPage(token:widget.token))).then((_)=>_load()),
               ),
               const SizedBox(height:12),
 
@@ -198,7 +197,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         return "${_banners.length} Banner${_banners.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
                       })(),
                 onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,_offroRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
+                  ? ()=>Navigator.push(context,appRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content:Text("Subscribe your store to create banners."),
                       backgroundColor:Colors.orange)),
@@ -230,7 +229,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         return parts.join('  ·  ');
                       })(),
                 onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,_offroRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
+                  ? ()=>Navigator.push(context,appRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content:Text("Subscribe your store to add products."),
                       backgroundColor:Colors.orange)),
@@ -363,7 +362,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
           child:offroHeaderAddButton(
             icon:Icons.add,
             tooltip:"New Banner",
-            onPressed:()=>Navigator.push(context,_offroRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
+            onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
           ),
         ),
       ],
@@ -1552,14 +1551,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   child: Icon(Icons.bar_chart_rounded, color: Color(0xFF856404), size: 18)),
                 title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
-                  Navigator.push(context, _offroRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
+                  Navigator.push(context, appRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
             if (pid.isNotEmpty && !isStd)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFF0F0F0),
                   child: Icon(Icons.history_rounded, color: kMuted, size: 18)),
                 title: const Text("Activity History", style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
-                  Navigator.push(context, _offroRoute(ProductHistoryPage(token: widget.token, product: v))); }),
+                  Navigator.push(context, appRoute(ProductHistoryPage(token: widget.token, product: v))); }),
             ListTile(
               leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFEBEB),
                 child: Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18)),
@@ -1873,7 +1872,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 icon: const Icon(Icons.upgrade_rounded, size: 16),
                 label: const Text("Upgrade Now", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 onPressed: () => Navigator.push(context,
-                  _offroRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
+                  appRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
           if (!isStd && (isApproved || isExpired))
             SizedBox(width: double.infinity,
@@ -1892,7 +1891,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                     : "Renew Now",
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 onPressed: () => Navigator.push(context,
-                  _offroRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
+                  appRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
         ]),
       ),
@@ -2064,7 +2063,7 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
           InkWell(
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, _offroRoute(StandardProductPage(token: token))).then((_) => onRefresh());
+              Navigator.push(context, appRoute(StandardProductPage(token: token))).then((_) => onRefresh());
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -2092,7 +2091,7 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
           InkWell(
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, _offroRoute(AddProductPage(token: token))).then((_) => onRefresh());
+              Navigator.push(context, appRoute(AddProductPage(token: token))).then((_) => onRefresh());
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -3167,7 +3166,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
             child:offroHeaderAddButton(
               icon:Icons.add_business,
               tooltip:"New Store",
-              onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
+              onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
             ),
           ),
         ]),
@@ -3232,12 +3231,12 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:ElevatedButton.icon(
                 icon:const Icon(Icons.payment,size:15), label:const Text("Subscribe",style:TextStyle(fontSize:12)),
                 style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           } else if (status=="waiting_approval") {
             _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:Color(0xFF856404),fontSize:11,fontWeight:FontWeight.w600))));
@@ -3246,12 +3245,12 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.add_shopping_cart,size:15,color:kPrimary),label:const Text("Deals",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
+                onPressed:()=>Navigator.push(context,appRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
                 icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kPrimary),
@@ -3273,7 +3272,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           }
 
@@ -5552,7 +5551,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                     content: Text("You need an active store to add deals."), backgroundColor: Colors.orange));
                   return;
                 }
-                Navigator.push(context, _offroRoute(AddDealPage(
+                Navigator.push(context, appRoute(AddDealPage(
                   token: widget.token,
                   storeId: activeStores[0]["_id"] ?? "",
                   storeName: activeStores[0]["store_name"] ?? "",
@@ -5646,7 +5645,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                   icon: const Icon(Icons.edit_outlined, color: kPrimary),
                   tooltip: "Edit Deal",
                   onPressed: () {
-                    Navigator.push(context, _offroRoute(AddDealPage(
+                    Navigator.push(context, appRoute(AddDealPage(
                       token: widget.token,
                       storeId: d["store_id"]?.toString() ?? "",
                       storeName: d["store_name"]?.toString() ?? "",

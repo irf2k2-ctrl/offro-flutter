@@ -12,6 +12,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/services/fav_state.dart';
+import '../../core/utils/navigation.dart';
 
 // ══════════════════════════════════════════════════════════
 // INFLUENCER MODULE — connected to the real backend (Phase 2/3).
@@ -46,10 +47,6 @@ Color _avatarColor(String seed) {
   final idx = seed.isNotEmpty ? seed.codeUnitAt(0) % palette.length : 0;
   return palette[idx];
 }
-
-// Local route helper — main.dart/home_screen.dart's own `_route` is
-// file-private and not visible here, so this mirrors it for this file.
-PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
 
 Future<void> _openSocial(String? url) async {
   if (url == null || url.isEmpty) return;
@@ -302,7 +299,7 @@ class _InfluencerCard extends StatelessWidget {
     final name = influencer["name"]?.toString() ?? "";
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: influencer, token: token))),
+      onTap: () => Navigator.push(context, appRoute(InfluencerProfileScreen(influencer: influencer, token: token))),
       child: Container(
         // QA round (Oct 2026): widened from 155 to let the influencer image
         // grow substantially. Left/right padding was tightened from 10 to 8
@@ -505,7 +502,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
                 // trailing See All card (see _DiscoverProductsSection in
                 // main.dart) — only the destination differs.
                 return GestureDetector(
-                  onTap: () => Navigator.push(context, _route(InfluencerListingScreen(city: widget.city, token: widget.token))),
+                  onTap: () => Navigator.push(context, appRoute(InfluencerListingScreen(city: widget.city, token: widget.token))),
                   child: Center(
                     child: Container(
                       width: 52, height: 120,
@@ -600,7 +597,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                     final inf = influencers[i];
                     final social = (inf["social"] is Map) ? inf["social"] as Map : {};
                     return GestureDetector(
-                      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: inf, token: widget.token))),
+                      onTap: () => Navigator.push(context, appRoute(InfluencerProfileScreen(influencer: inf, token: widget.token))),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
@@ -978,7 +975,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
             const Spacer(),
             if (_reviews.length > 2)
               GestureDetector(
-                onTap: () => Navigator.push(context, _route(_InfluencerReviewsScreen(name: name, reviews: _reviews))),
+                onTap: () => Navigator.push(context, appRoute(_InfluencerReviewsScreen(name: name, reviews: _reviews))),
                 child: Text("See all (${_reviews.length})",
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kPrimary)),
               ),

@@ -17,8 +17,7 @@ import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../loading/location_loading_screen.dart';
-
-PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
+import '../../core/utils/navigation.dart';
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
 const _kWidgetId  = '36656f6a786e313430373338';
@@ -1296,7 +1295,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       setState(() => _loading = false);
 
       // Show OTP screen
-      Navigator.push(context, _offroRoute(OtpScreen(
+      Navigator.push(context, appRoute(OtpScreen(
         phone: phone,
         reqId: reqId,
         onVerified: () async {
@@ -1305,13 +1304,13 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
           // See _AccountBootstrapScreen for the single account-login call
           // this entire journey reuses.
           if (!mounted) return;
-          await Navigator.push(context, _offroRoute(_AccountBootstrapScreen(
+          await Navigator.push(context, appRoute(_AccountBootstrapScreen(
             phone: phone,
             onReady: (accountData) {
               if (!mounted) return;
               // Replace the bootstrap screen so back-navigation from
               // Continue As doesn't return to a stale loading screen.
-              Navigator.pushReplacement(context, _offroRoute(ContinueAsScreen(
+              Navigator.pushReplacement(context, appRoute(ContinueAsScreen(
                 phone: phone,
                 onRoleSelected: (role, remember) async {
                   await _handleRoleSelected(accountData, phone, role, remember);
