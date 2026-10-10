@@ -19,6 +19,9 @@ typedef OnReadyCallback = void Function({
   required List<Map<String, dynamic>> stores,
   required double? lat,
   required double? lng,
+  // true when the store request FAILED (so `stores` is empty because nothing
+  // could be loaded, not because the city genuinely has no stores).
+  bool fetchFailed,
 });
 
 class LocationLoadingScreen extends StatefulWidget {
@@ -217,6 +220,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
         stores: const [],
         lat: _lat,
         lng: _lng,
+        fetchFailed: true, // nothing was loaded — not a genuinely empty city
       );
     }
   }
@@ -390,6 +394,11 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
     setState(() => _statusText = "Finding deals in $city...");
 
     List<Map<String, dynamic>> stores = [];
+    // Stays false unless a store request actually succeeded. A successful
+    // response with zero stores sets it true (genuinely empty city); three
+    // failed attempts leave it false so Home can show an error + Retry
+    // instead of "no stores".
+    bool fetchOk = false;
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         if (attempt > 1) {
@@ -398,6 +407,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
         }
         final raw = await Api.fetchStores(city: city);
         stores = List<Map<String, dynamic>>.from(raw);
+        fetchOk = true;
         debugPrint("[LoadingScreen] Loaded ${stores.length} stores for $city (attempt $attempt)");
         break;
       } on SocketException {
@@ -461,7 +471,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
     _stepTimer?.cancel();
     await Future.delayed(const Duration(milliseconds: 300));
     if (!mounted) return;
-    widget.onReady(city: city, stores: stores, lat: lat, lng: lng);
+    widget.onReady(city: city, stores: stores, lat: lat, lng: lng, fetchFailed: !fetchOk);
     } catch (e) {
       debugPrint("[LocationLoading] _fetchAndGo error: $e");
       if (mounted) {
@@ -470,6 +480,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
           stores: const [],
           lat: lat,
           lng: lng,
+          fetchFailed: true, // stores were not delivered — not a genuinely empty city
         );
       }
     }

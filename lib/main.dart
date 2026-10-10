@@ -463,9 +463,11 @@ class MyApp extends StatelessWidget {
         forcedCity: city.isNotEmpty ? city : null,
         requireFreshGps: requireFreshGps,
         onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                   required double? lat, required double? lng}) =>
+                   required double? lat, required double? lng,
+                   bool fetchFailed = false}) =>
             goHomeWithData(token: token, name: name, phone: phone, userId: userId,
-                city: city, stores: stores, lat: lat, lng: lng),
+                city: city, stores: stores, lat: lat, lng: lng,
+                fetchFailed: fetchFailed),
       )),
       (r) => false,
     );
@@ -513,9 +515,11 @@ class MyApp extends StatelessWidget {
             appRoute(LocationLoadingScreen(
               token: '', name: 'Guest', phone: '', userId: '',
               onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                         required double? lat, required double? lng}) =>
+                         required double? lat, required double? lng,
+                         bool fetchFailed = false}) =>
                   goHomeWithData(token: '', name: 'Guest', phone: '', userId: '',
-                      city: city, stores: stores, lat: lat, lng: lng),
+                      city: city, stores: stores, lat: lat, lng: lng,
+                      fetchFailed: fetchFailed),
             )),
             (r) => false,
           );
@@ -567,9 +571,11 @@ class MyApp extends StatelessWidget {
               token: tok, name: nm, phone: ph, userId: uid,
               requireFreshGps: true,
               onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                         required double? lat, required double? lng}) =>
+                         required double? lat, required double? lng,
+                         bool fetchFailed = false}) =>
                   goHomeWithData(token: tok, name: nm, phone: ph, userId: uid,
-                      city: city, stores: stores, lat: lat, lng: lng),
+                      city: city, stores: stores, lat: lat, lng: lng,
+                      fetchFailed: fetchFailed),
             )),
             (r) => false,
           );
@@ -707,6 +713,7 @@ class MyApp extends StatelessWidget {
     required String userId,  required String city,
     required List<Map<String,dynamic>> stores,
     required double? lat,    required double? lng,
+    bool fetchFailed = false,
   }) {
     final isGuest = token.isEmpty;
     navigatorKey.currentState?.pushAndRemoveUntil(
@@ -714,6 +721,7 @@ class MyApp extends StatelessWidget {
         token: token, name: name, phone: phone,
         savedCity: city, userId: userId,
         preloadedStores: stores,
+        preloadFailed: fetchFailed,
         preloadedLat: lat, preloadedLng: lng,
         isGuest: isGuest,
       )),
@@ -949,6 +957,9 @@ class _MasonrySearchGrid extends StatelessWidget {
 class HomeScreen extends StatefulWidget {
   final String token, name, phone, savedCity, userId;
   final List<Map<String, dynamic>> preloadedStores;
+  /// True when the pre-Home store request FAILED (preloadedStores is empty
+  /// because nothing loaded, not because the city has no stores).
+  final bool preloadFailed;
   final double? preloadedLat, preloadedLng;
   final bool isGuest;
   const HomeScreen({
@@ -959,6 +970,7 @@ class HomeScreen extends StatefulWidget {
     required this.savedCity,
     this.userId = "",
     this.preloadedStores = const [],
+    this.preloadFailed = false,
     this.preloadedLat,
     this.preloadedLng,
     this.isGuest = false,
@@ -1234,27 +1246,36 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // populate independently — they simply show empty/skeleton for the
     // brief moment before _loadSupplementary's own setState (below) fills
     // them in, exactly like a normal incremental page load.
+    // The loading screen reports a FAILED store request separately from a
+    // genuinely empty city. Failed → show the error + Try Again state (no
+    // stores were loaded, so never claim the city has none).
+    final bool preloadFailed = widget.preloadFailed && sl.isEmpty;
     setState(() {
       city     = cityStr;
       _stores  = sl;
       _loading = false;
+      if (preloadFailed) { _netError = false; _fetchFailed = true; }
     });
     if (cityStr.isNotEmpty) {
       Prefs.saveCity(cityStr);
       Api.updateCity(widget.token, cityStr);
     }
 
-    // Populate static cache with preloaded data
-    _cachedCity   = cityStr;
-    _cachedStores = List<Map<String,dynamic>>.from(sl);
-    _cachedLat    = widget.preloadedLat;
-    _cachedLng    = widget.preloadedLng;
-    _cacheTime    = DateTime.now();
+    if (!preloadFailed) {
+      // Populate static cache with preloaded data
+      _cachedCity   = cityStr;
+      _cachedStores = List<Map<String,dynamic>>.from(sl);
+      _cachedLat    = widget.preloadedLat;
+      _cachedLng    = widget.preloadedLng;
+      _cacheTime    = DateTime.now();
 
-    // Fire-and-forget: secondary/supplementary content loads in the
-    // background and fills in via its own setState once ready — Home's
-    // main store content is already visible by this point (see above).
-    unawaited(_loadSupplementary(cityStr));
+      // Fire-and-forget: secondary/supplementary content loads in the
+      // background and fills in via its own setState once ready — Home's
+      // main store content is already visible by this point (see above).
+      unawaited(_loadSupplementary(cityStr));
+    }
+    // (On a failed preload, "Try Again" runs _fetchStores → _loadAll, which
+    // loads the stores AND the supplementary content together.)
     FcmService.init(
       city: cityStr,
       token: widget.token,
@@ -2638,14 +2659,35 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             const Text("Couldn't load stores", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             const Text("Please try again", style: TextStyle(color: Colors.white60, fontSize: 13)),
-          ] else ...[
-            Builder(builder: (_) {
-              final displayCity = (city.isNotEmpty && city != 'Detecting...') ? city : 'your area';
-              if (_noServiceMsg.isNotEmpty) {
-                return Text(_noServiceMsg, style: const TextStyle(color: kLight, fontSize: 15), textAlign: TextAlign.center);
-              }
-              return Text('No stores in $displayCity yet', style: const TextStyle(color: kLight, fontSize: 16));
-            }),
+          ] else if (_noServiceMsg.isNotEmpty)
+            // Successful load with zero stores → the Admin Dashboard "No
+            // Store" message (same _noServiceMsg as before; no hard-coded
+            // "No stores in <city> yet" text any more).
+            Text(_noServiceMsg, style: const TextStyle(color: kLight, fontSize: 15), textAlign: TextAlign.center)
+          else if (_heroImageLoading)
+            // Admin No Store content (/default-images) is still loading —
+            // wait quietly instead of flashing placeholder text first.
+            const SizedBox(
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white54)),
+          // Failure states (and only those) get a Try Again action.
+          if (_netError || _isTimeout || _fetchFailed) ...[
+            const SizedBox(height: 22),
+            ElevatedButton(
+              onPressed: () => _fetchStores(city),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: kPrimary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                Icon(Icons.refresh_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('Try Again', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ]),
+            ),
           ],
         ]))),
         footer,
