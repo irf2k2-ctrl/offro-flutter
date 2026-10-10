@@ -6220,7 +6220,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     const double overlapPx = 100.0; // ~31% of bannerH — cards peek but don't obscure banner
     // QA round (Oct 2026): computed from the tallest store card actually in
     // the list (see _storeLayout) instead of a fixed worst-case constant.
-    final double cardH     = _storeRowHeight(context);
+    // Each store's layout is measured ONCE per build and reused for both the
+    // row height and the individual cards (stackRating).
+    final List<_StoreCardLayout> layouts = _storeLayouts(context);
+    final double cardH     = _storeRowHeight(layouts);
     const double headerH   = 0.0;
     const double topPad    = 14.0;
 
@@ -6249,14 +6252,14 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
           Positioned(
             top: topPad + bannerH - overlapPx,
             left: 0, right: 0,
-            child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
+            child: _storeCardsList(cardH, layouts, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
           ),
         ]),
       );
     }
 
     // Stores-only (no banner, and we now know there genuinely isn't one)
-    if (!hasBanners) return _storesOnly(cardH, headerH);
+    if (!hasBanners) return _storesOnly(cardH, headerH, layouts);
 
     // Banner-only (no stores)
     if (!hasStores) {
@@ -6279,7 +6282,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         Positioned(
           top: topPad + bannerH - overlapPx,
           left: 0, right: 0,
-          child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
+          child: _storeCardsList(cardH, layouts, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
         ),
       ]),
     );
@@ -6288,7 +6291,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // ── Shared store-cards row (Round 12: extracted so the real "Both"
   // layout and the new loading-shimmer layout above don't each maintain
   // their own copy of this ListView.builder + "See All" card) ──────────
-  Widget _storeCardsList(double cardH, EdgeInsets padding) {
+  Widget _storeCardsList(double cardH, List<_StoreCardLayout> layouts, EdgeInsets padding) {
     return SizedBox(
       height: cardH,
       child: ListView.builder(
@@ -6305,7 +6308,11 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
             final stId = st["_id"]?.toString() ?? st["id"]?.toString() ?? "";
             return KeyedSubtree(
               key: stId.isEmpty ? null : ValueKey("main_store_$stId"),
-              child: _storeCard(ctx, st));
+              child: _storeCard(
+                ctx, st,
+                // Reuse the layout measured in build(); fall back to measuring
+                // only if the index is somehow outside the precomputed list.
+                (i < layouts.length ? layouts[i] : _storeLayout(ctx, st)).stackRating));
           }
           // Last card: "See All" — matches floating store card dimensions
           return GestureDetector(
@@ -6389,10 +6396,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // ── Stores-only fallback (no banner) — no heading, See All as last card ──
   // Round 12: now just calls the shared _storeCardsList helper above
   // instead of keeping its own copy of the same ListView.builder.
-  Widget _storesOnly(double cardH, double headerH) {
+  Widget _storesOnly(double cardH, double headerH, List<_StoreCardLayout> layouts) {
     return Padding(
       padding: const EdgeInsets.only(top: 14),
-      child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 16, 0)),
+      child: _storeCardsList(cardH, layouts, const EdgeInsets.fromLTRB(16, 0, 16, 0)),
     );
   }
 
@@ -6486,15 +6493,23 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     final scaler = MediaQuery.textScalerOf(ctx);
     double mh(String t, TextStyle st, double w, [int lines = 1]) {
       final tp = TextPainter(text: TextSpan(text: t, style: st),
-        textDirection: TextDirection.ltr, maxLines: lines, textScaler: scaler)
-        ..layout(maxWidth: w);
-      return tp.height;
+        textDirection: TextDirection.ltr, maxLines: lines, textScaler: scaler);
+      try {
+        tp.layout(maxWidth: w);
+        return tp.height; // read before dispose (finally runs after the value is computed)
+      } finally {
+        tp.dispose();
+      }
     }
     double mw(String t, TextStyle st) {
       final tp = TextPainter(text: TextSpan(text: t, style: st),
-        textDirection: TextDirection.ltr, maxLines: 1, textScaler: scaler)
-        ..layout();
-      return tp.width;
+        textDirection: TextDirection.ltr, maxLines: 1, textScaler: scaler);
+      try {
+        tp.layout();
+        return tp.width; // read before dispose
+      } finally {
+        tp.dispose();
+      }
     }
     const nameSt  = TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.2);
     const ratSt   = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800);
@@ -6542,11 +6557,17 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     return _StoreCardLayout(total.ceilToDouble(), stack);
   }
 
-  double _storeRowHeight(BuildContext ctx) {
+  // Layout of each of the (max 8) stores the carousel shows, measured once.
+  // Index i matches widget.stores[i], same cap as _storeCardsList.
+  List<_StoreCardLayout> _storeLayouts(BuildContext ctx) {
     final n = widget.stores.length > 8 ? 8 : widget.stores.length;
+    return [for (int i = 0; i < n; i++) _storeLayout(ctx, widget.stores[i])];
+  }
+
+  double _storeRowHeight(List<_StoreCardLayout> layouts) {
     double m = 0;
-    for (int i = 0; i < n; i++) {
-      m = max(m, _storeLayout(ctx, widget.stores[i]).height);
+    for (final l in layouts) {
+      m = max(m, l.height);
     }
     return m > 0 ? m : 260.0;
   }
@@ -6561,7 +6582,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11.5)),
     ]);
 
-  Widget _storeCard(BuildContext ctx, Map<String,dynamic> s) {
+  Widget _storeCard(BuildContext ctx, Map<String,dynamic> s, bool stackRating) {
     final name      = s["store_name"]?.toString() ?? "";
     final cat       = s["category"]?.toString() ?? "";
     final rating    = (s["rating"] as num?)?.toDouble() ?? 0.0;
@@ -6601,7 +6622,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     // content (Align below) so no blank area is left at the bottom. All data,
     // favorite toggle, distance, status logic and navigation are unchanged.
     final double _cardW = _storeCardW(ctx);
-    final bool _stack = _storeLayout(ctx, s).stackRating;
+    final bool _stack = stackRating;
     final double _cardImgH = (_cardW * 0.57).roundToDouble();
     Widget storeImageWidget;
     if (logoSrc.startsWith("http")) {
