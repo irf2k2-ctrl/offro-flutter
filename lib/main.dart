@@ -191,6 +191,9 @@ Future<String> detectCity() async {
   } catch (_) { return ""; }
 }
 
+/// Outcome of resolving device-location access (permission + Location Services).
+enum _LocAccess { granted, denied, deniedForever, serviceOff }
+
 
 // ─────────────────────── NOTIFICATION NAVIGATION ───────────────────────
 /// Handle navigation when a notification is tapped. Routes to the appropriate
@@ -1507,6 +1510,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     bool storeFetchFailed = false;
     bool isNetworkError = false;
     bool isTimeoutError = false;
+    Object? storeFetchError; // last failure, used to word the refresh message
 
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -1518,6 +1522,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         storeFetchFailed = false;
         break; // success
       } on SocketException catch(e) {
+        storeFetchError = e;
         isNetworkError = true;
         storeFetchFailed = true;
         if (attempt == 3 && mounted) {
@@ -1526,11 +1531,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
       } on TimeoutException catch(e) {
+        storeFetchError = e;
         isTimeoutError = true;
         storeFetchFailed = true;
         // On timeout: clear cache and retry
         Api.clearCache();
       } catch(e) {
+        storeFetchError = e;
         storeFetchFailed = true;
       }
     }
@@ -1539,18 +1546,40 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (storeFetchFailed && storeList.isEmpty) {
       if (mounted) {
         _loadAllRunning = false;
+        // A refresh (or city change) that fails while stores are already on
+        // screen must NOT blank Home or claim "no stores": keep the content
+        // and say what happened. The full-screen error state below is only
+        // for the case where there is nothing to show.
+        final bool hadContent = _stores.isNotEmpty;
         setState((){
           _loading=false;
-          _netError = isNetworkError;
-          _fetchFailed = true;
+          if (!hadContent) {
+            _netError = isNetworkError;
+            _fetchFailed = true;
+          }
           _productsLoading = false;
         });
+        if (hadContent) {
+          final raw = (storeFetchError ?? "").toString();
+          final bool offline = storeFetchError is SocketException ||
+              storeFetchError is TimeoutException ||
+              ["SocketException", "Failed host lookup", "Network is unreachable",
+               "ClientException", "Connection", "Handshake", "TimeoutException", "timed out"]
+                  .any(raw.contains);
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(SnackBar(
+            content: Text(offline
+                ? "Unable to connect. Please check your internet connection and try again."
+                : "Couldn't refresh stores. Please try again."),
+          ));
+        }
       }
       return;
     }
 
     // Fetch everything else in parallel (non-critical — fail silently)
-    List cats = ["All"]; List<Map<String,dynamic>> richCats3 = []; List slides = []; List voucs = []; Map<String,dynamic> wallet = {};
+    List cats = ["All"]; List<Map<String,dynamic>> richCats3 = []; List slides = []; List voucs = [];
     try {
       // FIX 5: guard each future individually
       await Future.wait([
@@ -1560,17 +1589,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           cats = ["All", ...richCats3.map((e) => e["name"].toString())];
         }).catchError((_) {}),
         Api.getSliders().then((v) => slides = v as List).catchError((_) {}),
+        // ONE products request. fetchPublicProducts hits the same
+        // /gift-vouchers-public URL, so it is no longer fired in parallel;
+        // the wallet is fetched by _loadSupplementary() (its only consumer).
         Api.getPublicProducts(city: c).then((v) => voucs = v as List).catchError((_) {}),
-        Api.fetchPublicProducts(city: c).then((v) {
-          // Merge public products into products list (avoid duplicates by title)
-          final existing = Set<String>.from(
-              voucs.map((x) => (x["title"] ?? x["name"] ?? "").toString().toLowerCase()));
-          for (final p in v) {
-            final t = (p["title"] ?? p["name"] ?? "").toString().toLowerCase();
-            if (!existing.contains(t)) { voucs.add(p); existing.add(t); }
-          }
-        }).catchError((_) {}),
-        Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
       ]);
     } catch(e) {
     }
@@ -1614,8 +1636,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       } catch(e) {
       }
     }
-    // Also merge public products on the secondary path (FIX 4c)
-    if (voucs.length < 8) {
+    // Last-resort retry (FIX 4c) — only when nothing was returned. With 1-7
+    // products the first request already succeeded, and this would just
+    // re-request the same endpoint.
+    if (voucs.isEmpty) {
       try {
         final pubProds = await Api.fetchPublicProducts(city: c);
         final existingTitles = Set<String>.from(
@@ -1720,7 +1744,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // _startProductSlide — removed (not needed)
 
   // ── City Picker ──────────────────────────────────────
-  Future<void> _showCityPicker(BuildContext context) async {
+  Future<void> _showCityPicker(BuildContext context,
+      {String? notice, String? noticeActionLabel, VoidCallback? noticeAction}) async {
     // Use cities map from merchant_screens (imported library — re-declare locally)
     const _cityMap = {
       "Andhra Pradesh":["Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Rajahmundry","Tirupati"],
@@ -1781,27 +1806,21 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   tooltip:"Use GPS",
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true; _adminBannersLoading=true;});
-                    final det = await detectCity();
-                    try {
-                      final pos = await Geolocator.getCurrentPosition(desiredAccuracy:LocationAccuracy.medium)
-                          .timeout(const Duration(seconds:10));
-                      if(mounted) setState((){
-                        _userLat=pos.latitude; _userLng=pos.longitude;
-                        _cityManual=false; // Explicitly restore GPS mode
-                      });
-                      _recomputeDistances(); // Recompute distances after GPS restored
-                    } catch(_){ }
-                    if(!mounted) return;
-                    _gpsDetectedCity = det; // restore GPS city reference
-                    setState((){city=det; _locationDenied=false; _cityManual=false;});
-                    await Prefs.saveCity(det);
-                    await Api.updateCity(widget.token, det);
-                    await _fetchStores(det);
+                    await _useCurrentLocation();
                   },
                 ),
               ]),
               const Divider(height:1),
+              if (notice != null) ...[
+                const SizedBox(height:10),
+                Text(notice, style: const TextStyle(fontSize:12.5, color:kMuted, height:1.35)),
+                if (noticeAction != null && noticeActionLabel != null)
+                  Align(alignment: Alignment.centerLeft, child: TextButton(
+                    onPressed: noticeAction,
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0,32), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    child: Text(noticeActionLabel, style: const TextStyle(color:kPrimary, fontWeight: FontWeight.w700)),
+                  )),
+              ],
               const SizedBox(height:14),
               // State dropdown
               const Text("State", style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:kMuted)),
@@ -1862,6 +1881,119 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         );
       }),
     );
+  }
+
+  // ── Location permission / current-location flow (shared) ───────────────
+  // Used by BOTH the picker's GPS icon and the top-left city-name tap so the
+  // two entry points can never behave differently. Geolocator only — no new
+  // permission package.
+
+  /// Checks (and, only when still undecided, requests) location permission,
+  /// then verifies the device's Location Services switch. Never re-prompts
+  /// after a permanent denial.
+  Future<_LocAccess> _resolveLocationAccess() async {
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+    }
+    if (perm == LocationPermission.deniedForever) return _LocAccess.deniedForever;
+    if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) {
+      return _LocAccess.denied;
+    }
+    if (!await Geolocator.isLocationServiceEnabled()) return _LocAccess.serviceOff;
+    return _LocAccess.granted;
+  }
+
+  /// Opens the manual picker with a short explanation of why GPS isn't being
+  /// used (and the matching Settings shortcut where one exists).
+  Future<void> _showManualPickerAfterLocationIssue(_LocAccess access, {String? message}) async {
+    if (!mounted) return;
+    String notice;
+    String? actionLabel;
+    VoidCallback? action;
+    switch (access) {
+      case _LocAccess.deniedForever:
+        notice = "Location permission is turned off for OffrO. Choose your city below, or enable it in Settings.";
+        actionLabel = "Open Settings";
+        action = () { Geolocator.openAppSettings(); };
+        break;
+      case _LocAccess.serviceOff:
+        notice = "Location Services are off. Choose your city below, or turn them on and tap the GPS icon.";
+        actionLabel = "Open Location Settings";
+        action = () { Geolocator.openLocationSettings(); };
+        break;
+      default:
+        notice = message ?? "Location permission wasn't allowed. Please choose your city.";
+    }
+    await _showCityPicker(context,
+        notice: notice, noticeActionLabel: actionLabel, noticeAction: action);
+  }
+
+  /// Detects the CURRENT location and loads stores for it. Falls back to the
+  /// manual picker (previous city untouched) whenever it can't. Never leaves
+  /// the screen on "Detecting..." and never sends an empty city to the API.
+  Future<void> _useCurrentLocation() async {
+    final access = await _resolveLocationAccess();
+    if (!mounted) return;
+    if (access != _LocAccess.granted) {
+      await _showManualPickerAfterLocationIssue(access);
+      return;
+    }
+
+    // Remember exactly what we change so a failure can restore it.
+    final prevCity     = city;
+    final prevManual   = _cityManual;
+    final prevLoading  = _loading;
+    final prevProducts = _productsLoading;
+    final prevBanners  = _adminBannersLoading;
+    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true; _adminBannersLoading=true;});
+
+    String det = "";
+    try {
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
+          .timeout(const Duration(seconds: 10));
+      if (mounted) setState((){
+        _userLat = pos.latitude; _userLng = pos.longitude;
+        _cityManual = false; // Explicitly restore GPS mode
+      });
+      _recomputeDistances(); // Recompute distances after GPS restored
+      det = await detectCityFromPosition(pos);
+    } catch (_) { det = ""; }
+    if (!mounted) return;
+
+    if (det.trim().isEmpty) {
+      // Couldn't resolve a city (GPS timeout / geocoder failure): put the
+      // previous state back instead of committing an empty city.
+      setState((){
+        city = prevCity; _cityManual = prevManual;
+        _loading = prevLoading; _productsLoading = prevProducts; _adminBannersLoading = prevBanners;
+        if (prevCity.isEmpty || prevCity == "Detecting...") _locationDenied = true;
+      });
+      await _showManualPickerAfterLocationIssue(_LocAccess.denied,
+          message: "Couldn't detect your current location. Please choose your city.");
+      return;
+    }
+
+    _gpsDetectedCity = det; // restore GPS city reference
+    setState((){city=det; _locationDenied=false; _cityManual=false;});
+    await Prefs.saveCity(det);
+    await Api.updateCity(widget.token, det);
+    await _fetchStores(det);
+  }
+
+  /// Top-left city-name tap. If location permission is still undecided, ask
+  /// first and (if allowed) go straight to current-location detection. In
+  /// every other state the manual picker opens as before, so people who
+  /// deliberately choose a city are unaffected and a permanent denial is
+  /// never re-prompted.
+  Future<void> _onCityNameTap() async {
+    final perm = await Geolocator.checkPermission();
+    if (!mounted) return;
+    if (perm == LocationPermission.denied) {
+      await _useCurrentLocation(); // prompts; falls back to the picker if not granted
+      return;
+    }
+    await _showCityPicker(context);
   }
 
   Future<void> _fetchLiveGpsAndRecomputeDistances() async {
@@ -2028,6 +2160,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // Called ONLY when the city changes — category changes are client-side only
   Future<void> _fetchStores(String c) async {
     _loadAllRunning = false; // reset guard so city change always goes through
+    // Also drop Home's own 5-minute store cache (same reset _initLoc does) —
+    // otherwise _loadAll() would "refresh" from memory and never hit the
+    // network, which made pull-to-refresh a silent no-op.
+    _cachedCity   = "";
+    _cachedStores = [];
+    _cacheTime    = null;
     Api.clearCache();
     await _loadAll(c);
   }
@@ -2106,7 +2244,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       // the same height) instead of jumping straight to the
                       // "no image" flat-gradient fallback.
                       imageLoading: _heroImageLoading,
-                      onCityTap: () => _showCityPicker(context),
+                      onCityTap: _onCityNameTap,
                       onBellTap: () => _openNotifications(context),
                     )),
 
