@@ -1,8 +1,8 @@
 // lib/screens/store/widgets/store_offers_section.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import 'store_header.dart' show FullScreenImageViewer;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,7 +247,7 @@ class StoreOffersSection extends StatelessWidget {
                                 ? Builder(builder: (_) {
                                     try {
                                       return Image.memory(
-                                          base64Decode(imageUrl.split(',').last),
+                                          decodeBase64ImageCached(imageUrl),
                                           fit: BoxFit.cover);
                                     } catch (_) {
                                       return Container(color: kLight);

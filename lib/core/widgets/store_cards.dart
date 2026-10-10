@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/image_url.dart';
+import 'base64_image.dart' show decodeBase64ImageCached;
 import '../../core/utils/store_hours.dart';
 import '../../core/services/api_service.dart';
 import 'package:video_player/video_player.dart';
@@ -168,7 +169,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
 
     // base64 image
     if (url.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(url.split(",").last),
+      try { return Image.memory(decodeBase64ImageCached(url),
         fit: BoxFit.cover, width: double.infinity, height: double.infinity, gaplessPlayback: true); }
       catch (_) { if (kDebugMode) debugPrint("[Offro] suppressed error"); }
     }
@@ -234,7 +235,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
 
   Widget _imgAt(String img, String name) {
     if (img.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
+      try { return Image.memory(decodeBase64ImageCached(img),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
       catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
     }
     if (img.startsWith("http")) {
@@ -407,7 +408,7 @@ class TopStoreCard extends StatelessWidget {
   Widget _buildImage(String imgSrc, String name) {
     if (imgSrc.isEmpty) return _fallback(name);
     if (imgSrc.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(imgSrc.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity, gaplessPlayback: true); }
+      try { return Image.memory(decodeBase64ImageCached(imgSrc), fit: BoxFit.cover, width: double.infinity, height: double.infinity, gaplessPlayback: true); }
       catch (_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
     }
     final url = resolveImageUrl(imgSrc);

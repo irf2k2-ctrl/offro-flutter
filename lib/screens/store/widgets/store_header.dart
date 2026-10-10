@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/image_url.dart';
+import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import '../../../core/utils/store_hours.dart';
 
 class StoreHeader extends StatelessWidget {
@@ -396,7 +397,7 @@ class StoreHeader extends StatelessWidget {
     if (im.startsWith('data:image')) {
       try {
         return Image.memory(
-          base64Decode(im.split(',').last),
+          decodeBase64ImageCached(im),
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -451,7 +452,7 @@ class StoreHeader extends StatelessWidget {
     if (url.startsWith('data:image')) {
       try {
         return Image.memory(
-          base64Decode(url.split(',').last),
+          decodeBase64ImageCached(url),
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -462,7 +463,7 @@ class StoreHeader extends StatelessWidget {
     if (url.length > 100 && !url.contains('/') && !url.contains('.')) {
       try {
         return Image.memory(
-          base64Decode(url),
+          decodeBase64ImageCached(url),
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,

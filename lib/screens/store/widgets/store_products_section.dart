@@ -1,8 +1,8 @@
 // lib/screens/store/widgets/store_products_section.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
 import 'store_header.dart' show FullScreenImageViewer;
@@ -300,7 +300,7 @@ class _ProductCardState extends State<_ProductCard> {
     final url = widget.product['logo_url']?.toString() ?? '';
     if (url.startsWith('data:image')) {
       try {
-        return Image.memory(base64Decode(url.split(',').last),
+        return Image.memory(decodeBase64ImageCached(url),
             fit: BoxFit.cover,
             width: double.infinity,
             height: double.infinity);

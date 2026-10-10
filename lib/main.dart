@@ -830,7 +830,7 @@ class _ProfileNavBtn extends StatelessWidget {
               radius: 11,
               backgroundColor: kAccent,
               backgroundImage: (profilePhoto != null && profilePhoto!.startsWith("data:image"))
-                ? MemoryImage(base64Decode(profilePhoto!.split(",").last)) as ImageProvider
+                ? MemoryImage(decodeBase64ImageCached(profilePhoto!)) as ImageProvider
                 : (profilePhoto != null && profilePhoto!.startsWith("http"))
                   ? NetworkImage(profilePhoto!) as ImageProvider
                   : null,
@@ -866,7 +866,7 @@ class _MasonrySearchGrid extends StatelessWidget {
     if (img.isEmpty) img = s["image"]?.toString() ?? "";
     if (img.isEmpty) img = s["image2"]?.toString() ?? "";
     if (img.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
+      try { return Image.memory(decodeBase64ImageCached(img),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
       catch(_) { }
     }
     final imgUrl = resolveImageUrl(img);
@@ -2767,7 +2767,7 @@ class _SearchPageState extends State<_SearchPage> {
                       child:Row(children:[
                         ClipRRect(borderRadius:BorderRadius.circular(10),child:SizedBox(width:62,height:62,
                           child:img.isNotEmpty&&img.startsWith("data:image")
-                            ? Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover)
+                            ? Image.memory(decodeBase64ImageCached(img),fit:BoxFit.cover)
                             : Container(color:kAccent,child:const Icon(Icons.store,color:kPrimary,size:28)))),
                         const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -3054,7 +3054,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   child: ConstrainedBox(
                                     constraints: const BoxConstraints(maxHeight: 240),
                                     child: imgUrl.startsWith("data:image")
-                                      ? Image.memory(base64Decode(imgUrl.split(",").last), width: double.infinity, fit: BoxFit.contain, gaplessPlayback: true)
+                                      ? Image.memory(decodeBase64ImageCached(imgUrl), width: double.infinity, fit: BoxFit.contain, gaplessPlayback: true)
                                       : CachedNetworkImage(imageUrl: imgUrl, width: double.infinity, fit: BoxFit.contain,
                                           placeholder: (_, __) => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: kPrimary))),
                                           errorWidget: (_, __, ___) => const SizedBox(height: 80, child: Icon(Icons.broken_image_outlined, color: kMuted, size: 40))),
@@ -3093,7 +3093,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             width: 52, height: 52,
                             child: imgUrl.isNotEmpty
                                 ? (imgUrl.startsWith("data:image")
-                                    ? Image.memory(base64Decode(imgUrl.split(",").last), fit: BoxFit.cover, gaplessPlayback: true)
+                                    ? Image.memory(decodeBase64ImageCached(imgUrl), fit: BoxFit.cover, gaplessPlayback: true)
                                     : CachedNetworkImage(imageUrl: imgUrl, fit: BoxFit.cover,
                                         placeholder: (_, __) => Container(color: kLight),
                                         errorWidget: (_, __, ___) => Container(color: kLight,
@@ -3288,7 +3288,7 @@ class _CategoryCard extends StatelessWidget {
       try {
         final commaIdx = _rawImg.indexOf(",");
         if (commaIdx >= 0) {
-          _imgBytes = base64Decode(_rawImg.substring(commaIdx + 1));
+          _imgBytes = decodeBase64ImageCached(_rawImg);
         }
       } catch (_) { _imgBytes = null; }
     }
@@ -3883,7 +3883,7 @@ class _PinCard extends StatelessWidget {
     if (isBase64) {
       try {
         final ci = rawImg.indexOf(",");
-        if (ci >= 0) imgBytes = base64Decode(rawImg.substring(ci + 1));
+        if (ci >= 0) imgBytes = decodeBase64ImageCached(rawImg);
       } catch (_) { }
     }
 
@@ -4993,7 +4993,7 @@ class _DiscoverProductsSection extends StatelessWidget {
   Widget _defaultProductImage(String imgUrl) {
     if (imgUrl.startsWith("data:image")) {
       try {
-        return Image.memory(base64Decode(imgUrl.split(",").last),
+        return Image.memory(decodeBase64ImageCached(imgUrl),
           fit: BoxFit.cover, width: double.infinity, gaplessPlayback: true);
       } catch (_) { return Container(color: const Color(0xFFe8f5f0)); }
     } else if (imgUrl.startsWith("http")) {
@@ -5128,7 +5128,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                         color: grad[1],
                         child: Builder(builder: (_) {
                           try {
-                            return Image.memory(base64Decode(imgSrc.split(",").last),
+                            return Image.memory(decodeBase64ImageCached(imgSrc),
                               fit: BoxFit.cover, width: width, height: imgHeight,
                               errorBuilder: (_, __, ___) => _fallback(title, [grad[0], grad[1]]));
                           } catch (_) {
@@ -6014,7 +6014,6 @@ class _BannerStoresBlock extends StatefulWidget {
 }
 
 class _BannerStoresBlockState extends State<_BannerStoresBlock> {
-  final Map<String, Uint8List> _dataImgCache = {};
   final PageController _pc = PageController(initialPage: 49999);
   final ValueNotifier<int> _page = ValueNotifier<int>(0);
   Timer? _timer;
@@ -6051,7 +6050,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   Widget _bannerImg(String imgUrl) {
     if (imgUrl.startsWith("data:image")) {
       try {
-        return Image.memory(base64Decode(imgUrl.split(",").last),
+        return Image.memory(decodeBase64ImageCached(imgUrl),
           fit: BoxFit.fitWidth, alignment: Alignment.topCenter,
           width: double.infinity, gaplessPlayback: true);
       } catch (_) { }
@@ -6478,7 +6477,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
       try {
         // Decode once per distinct image: a stable byte buffer keeps the same
         // MemoryImage key across rebuilds, so the image is not re-decoded/flashed.
-        final bytes = _dataImgCache.putIfAbsent(logoSrc, () => base64Decode(logoSrc.split(",").last));
+        final bytes = decodeBase64ImageCached(logoSrc);
         storeImageWidget = Image.memory(bytes,
           fit: BoxFit.cover, width: double.infinity, height: _cardImgH);
       } catch (_) { storeImageWidget = _storeFallback(name); }
@@ -6803,7 +6802,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
           errorWidget: (_, __, ___) => _fallbackImg());
         if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
+          try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
         }
       }
     }
@@ -6813,7 +6812,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
         errorWidget: (_, __, ___) => _fallbackImg());
       if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
+        try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
       }
     }
     return _fallbackImg();
@@ -6830,7 +6829,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           placeholder: (_, __) => const SizedBox.shrink(),
           errorWidget: (_, __, ___) => _fallbackImg());
         if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { }
+          try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.contain); } catch (_) { }
         }
       }
     }
@@ -6840,7 +6839,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         placeholder: (_, __) => const SizedBox.shrink(),
         errorWidget: (_, __, ___) => _fallbackImg());
       if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { }
+        try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.contain); } catch (_) { }
       }
     }
     return _fallbackImg();
@@ -7618,7 +7617,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       for (final k in ["image2","image","img","photo"]) {
         final si = storeObj[k]?.toString() ?? "";
         if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
+          try { return Image.memory(decodeBase64ImageCached(si), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
         }
         final siUrl = resolveImageUrl(si);
         if (siUrl.startsWith("http")) {
@@ -7631,7 +7630,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
     for (final key in ["logo_url","logo_thumb","logo","image_url","image_thumb","image2","store_image2","image","photo","img"]) {
       final img = product[key]?.toString() ?? "";
       if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
+        try { return Image.memory(decodeBase64ImageCached(img), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
       }
       final imgUrl2 = resolveImageUrl(img);
       if (imgUrl2.startsWith("http")) {
