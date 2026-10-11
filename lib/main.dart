@@ -10,7 +10,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -34,6 +33,11 @@ import 'core/services/error_mapper.dart';
 import 'core/services/fav_state.dart';
 import 'core/services/prefs_service.dart';
 import 'core/services/fcm_service.dart';
+import 'core/models/offro_location.dart';
+import 'core/services/location_service.dart';
+import 'core/services/location_store.dart';
+import 'screens/location/location_screen.dart';
+import 'screens/location/location_access_gate.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/loading/location_loading_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -105,94 +109,9 @@ Future<void> _syncIOSBadgeCount(int n) async {
 
 // ─────────────────────── PREFS ───────────────────────
 
-// ─────────────────────── LOCATION ───────────────────────
-
-/// Detect city from a pre-fetched GPS position.
-/// Tries: (1) Haversine match against /cities if they have lat/lng,
-///        (2) geocoder locality matched against city name list,
-///        (3) raw geocoder locality/sub-admin area.
-/// Returns "" (never a hardcoded default city) when none of the above
-/// resolve anything — callers must treat an empty result as "location
-/// unavailable", not silently substitute a guessed city.
-Future<String> detectCityFromPosition(Position pos) async {
-  try {
-    List cityList = [];
-    try { cityList = await Api.getCities().timeout(const Duration(seconds: 6)); } catch (_) { }
-
-    // Build a quick lookup set of supported city names (lowercase)
-    final cityNames = cityList
-        .cast<Map>()
-        .map((c) => c["name"]?.toString() ?? "")
-        .where((n) => n.isNotEmpty)
-        .toList();
-
-    // ── Step 1: Haversine match (only if cities have lat/lng fields) ──
-    String? haversineMatch;
-    double bestDist = double.infinity;
-    for (final c in cityList.cast<Map>()) {
-      final lat  = (c["lat"] as num?)?.toDouble();
-      final lng  = (c["lng"] as num?)?.toDouble();
-      final name = c["name"]?.toString() ?? "";
-      if (lat == null || lng == null || name.isEmpty) continue;
-      final dist = haversineKm(pos.latitude, pos.longitude, lat, lng);
-      if (dist < bestDist) { bestDist = dist; haversineMatch = name; }
-    }
-    if (haversineMatch != null && bestDist < 80) {
-      return haversineMatch;
-    }
-
-    // ── Step 2: Geocoder + normalize against known city names ──
-    final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude)
-        .timeout(const Duration(seconds: 8));
-    final rawLocality = marks.first.locality?.trim() ?? "";
-    final rawSubAdmin = marks.first.subAdministrativeArea?.trim() ?? "";
-    final rawAdmin    = marks.first.administrativeArea?.trim() ?? "";
-    // Try to match geocoder result against supported city names (case-insensitive)
-    for (final candidate in [rawLocality, rawSubAdmin, rawAdmin]) {
-      if (candidate.isEmpty) continue;
-      // Exact match
-      final exact = cityNames.firstWhere(
-        (n) => n.toLowerCase() == candidate.toLowerCase(),
-        orElse: () => "",
-      );
-      if (exact.isNotEmpty) {
-        return exact;
-      }
-      // Partial match (geocoder sometimes returns sub-district names)
-      final partial = cityNames.firstWhere(
-        (n) => candidate.toLowerCase().contains(n.toLowerCase()) ||
-               n.toLowerCase().contains(candidate.toLowerCase()),
-        orElse: () => "",
-      );
-      if (partial.isNotEmpty) {
-        return partial;
-      }
-    }
-
-    // ── Step 3: Return raw geocoder result if no city list match ──
-    // No further fallback — "" means location could not be resolved to a
-    // city, which callers must handle explicitly (never a guessed city).
-    final fallback = rawLocality.isNotEmpty ? rawLocality :
-                     rawSubAdmin.isNotEmpty ? rawSubAdmin : "";
-    return fallback;
-  } catch (e) {
-    return "";
-  }
-}
-
-// Legacy wrapper (kept for any other call sites)
-Future<String> detectCity() async {
-  try {
-    final perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return "";
-    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
-        .timeout(const Duration(seconds: 10));
-    return detectCityFromPosition(pos);
-  } catch (_) { return ""; }
-}
-
-/// Outcome of resolving device-location access (permission + Location Services).
-enum _LocAccess { granted, denied, deniedForever, serviceOff }
+// Location selection / permission / GPS now live in ONE place:
+// core/services/location_service.dart, core/services/location_store.dart and
+// screens/location/ (LocationScreen, LocationAccessGate).
 
 
 // ─────────────────────── NOTIFICATION NAVIGATION ───────────────────────
@@ -441,27 +360,62 @@ class MyApp extends StatelessWidget {
 
   // Central navigation helpers — called from SplashScreen / Login / Onboarding callbacks.
   //
-  // [requireFreshGps]: when true, LocationLoadingScreen ignores [city]
-  // entirely and always re-establishes the CURRENT device location fresh
-  // (permission → Location Services → GPS → reverse-geocode, falling back
-  // to manual State + City only if that fails) instead of reusing a
-  // previously saved/browsing city. Used for "Role Selection → User →
-  // Continue" (see _goUserViaUnified below) — NOT for splash auto-restore,
-  // which still opens instantly with the last-known city as before.
+  // Enters the customer Home.
+  //
+  // Uses the SAVED location (structured, persisted by LocationStore) — no
+  // fresh GPS is forced. [city] is only a legacy fallback (older builds
+  // persisted just a city string) and is migrated into the saved location.
+  // If there is no saved location at all, the customer must choose one on
+  // the Location screen before Home opens.
   static void goHome({required String token, required String name,
-      required String phone, required String userId, required String city,
-      bool requireFreshGps = false}) {
+      required String phone, required String userId, required String city}) {
     // TASK 2 FIX: clear stale cache + save mode so all sections reload correctly
     Api.clearCache();
     if (token.isNotEmpty) Prefs.saveMode('user');
-    // Route through LocationLoadingScreen so home opens fully loaded
+    unawaited(_enterHome(token: token, name: name, phone: phone, userId: userId, legacyCity: city));
+  }
+
+  static Future<void> _enterHome({
+    required String token, required String name,
+    required String phone, required String userId,
+    String legacyCity = '',
+  }) async {
+    OffroLocation? saved = await LocationStore.load(LocationMode.customer);
+    if (saved == null && legacyCity.trim().isNotEmpty) {
+      saved = OffroLocation(
+        city: legacyCity.trim(),
+        state: LocationService.stateForCity(legacyCity),
+        source: LocationSource.manual,
+        updatedAt: DateTime.now(),
+      );
+      await LocationStore.save(LocationMode.customer, saved);
+    }
+    if (saved != null && saved.hasCity) {
+      _pushLoader(token: token, name: name, phone: phone, userId: userId, city: saved.city);
+      return;
+    }
+
+    // No saved location → the customer must choose one before Home.
+    Future<void> onPicked(OffroLocation loc) async {
+      await LocationStore.save(LocationMode.customer, loc);
+      if (token.isNotEmpty) unawaited(Api.updateCity(token, loc.city, state: loc.state));
+      _pushLoader(token: token, name: name, phone: phone, userId: userId, city: loc.city);
+    }
+    final access = await LocationService.status();
+    final Widget first = access == LocationAccess.permissionDenied
+        ? LocationAccessGate(mode: LocationMode.customer, onSelected: onPicked)
+        : LocationScreen(mode: LocationMode.customer, mandatory: true, onSelected: onPicked);
+    navigatorKey.currentState?.pushAndRemoveUntil(appRoute(first), (r) => false);
+  }
+
+  /// Fetches stores for [city] (pure loader — no location logic) then opens Home.
+  static void _pushLoader({
+    required String token, required String name,
+    required String phone, required String userId, required String city,
+  }) {
     navigatorKey.currentState?.pushAndRemoveUntil(
       appRoute(LocationLoadingScreen(
-        token: token, name: name, phone: phone, userId: userId,
-        // Pass saved city so it loads instantly without GPS wait — ignored
-        // entirely when requireFreshGps is true.
-        forcedCity: city.isNotEmpty ? city : null,
-        requireFreshGps: requireFreshGps,
+        token: token, name: name, phone: phone, userId: userId, city: city,
         onReady: ({required String city, required List<Map<String,dynamic>> stores,
                    required double? lat, required double? lng,
                    bool fetchFailed = false}) =>
@@ -473,11 +427,10 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  /// Check/request device location permission without blocking the caller.
-  ///
-  /// Merchant mode does not require location to open, so a denial returns
-  /// false and the caller continues normally.  The Add Store GPS action uses
-  /// this same helper and can show its own retry/settings message.
+  /// Check/request the app location permission for the merchant Add Store
+  /// "Current Location" button ONLY (store-address capture, a separate
+  /// concern from the account/browsing location). It runs from an explicit
+  /// tap on that button and is not used by login, Home or Merchant Home.
   static Future<bool> ensureLocationPermission() async {
     try {
       var permission = await Geolocator.checkPermission();
@@ -491,50 +444,22 @@ class MyApp extends StatelessWidget {
     }
   }
 
-  static Future<void> _goMerchantAfterLocation({
-    String? merchantToken,
-    required String phone,
-    required String name,
-  }) async {
-    // Request/check permission before entering Merchant.  A denial must not
-    // prevent access to the merchant dashboard.
-    await ensureLocationPermission();
-    await _goMerchantViaUnified(
-      merchantToken: merchantToken,
-      phone: phone,
-      name: name,
-    );
-  }
-
   static void goLogin() {
     navigatorKey.currentState?.pushAndRemoveUntil(
       appRoute(LoginScreen(
         onGuest: () {
           Prefs.saveGuest(true);
-          navigatorKey.currentState?.pushAndRemoveUntil(
-            appRoute(LocationLoadingScreen(
-              token: '', name: 'Guest', phone: '', userId: '',
-              onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                         required double? lat, required double? lng,
-                         bool fetchFailed = false}) =>
-                  goHomeWithData(token: '', name: 'Guest', phone: '', userId: '',
-                      city: city, stores: stores, lat: lat, lng: lng,
-                      fetchFailed: fetchFailed),
-            )),
-            (r) => false,
-          );
+          Api.clearCache();
+          unawaited(_enterHome(token: '', name: 'Guest', phone: '', userId: ''));
         },
         onSuccess: (tok, nm, ph, uid, role, city) async {
         if (role == 'merchant') {
-          // Merchant role selected → request/check location, then continue
-          // to the merchant loader even if permission was denied.
-          // Awaited so the Continue button's loading state (in
-          // _ContinueAsState._proceed) stays true until this entire chain
-          // — including the location permission prompt — actually finishes.
-          // NOTE: this is the MERCHANT ACCOUNT's own location gate — it is
-          // completely independent of store location, which is captured
-          // separately (and is mandatory) in AddEditStorePage.
-          await _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
+          // Merchant role selected → straight to the merchant loader. The
+          // MERCHANT ACCOUNT's location (mandatory, device-only) is enforced
+          // inside MerchantHome itself, so every entry point (login, Switch
+          // Mode, splash restore) is covered. It is independent of store
+          // location, which is captured separately in AddEditStorePage.
+          await _goMerchantViaUnified(merchantToken: tok, phone: ph, name: nm);
         } else if (role == 'influencer') {
           // C3: Influencer role selected. No new auth system, no location
           // gate — the existing C1/C2 flow already handles both "has a
@@ -550,35 +475,10 @@ class MyApp extends StatelessWidget {
             (r) => false,
           );
         } else {
-          // User role selected + Continue tapped.
-          //
-          // Round 8 — Final User Location Flow: "Every time the user
-          // selects User → Continue, the app must start a fresh location
-          // decision" — this applies even to the very first Continue tap
-          // right after OTP verification, not just later re-entries via
-          // Switch Mode / "Back to Home" (see _goUserViaUnified below,
-          // which already does this). So this no longer passes the
-          // bootstrap-resolved accountData city through as forcedCity —
-          // that would skip straight to fetching deals for a city that may
-          // now be stale, exactly the bug already fixed for the
-          // Switch-Mode path. requireFreshGps: true runs the same
-          // permission → Location Services → GPS → reverse-geocode →
-          // manual-State+City-fallback flow uniformly for every User
-          // Continue tap. Never falls back to a default/guessed city
-          // (LocationLoadingScreen's own Ballari fallback was removed too).
-          navigatorKey.currentState?.pushAndRemoveUntil(
-            appRoute(LocationLoadingScreen(
-              token: tok, name: nm, phone: ph, userId: uid,
-              requireFreshGps: true,
-              onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                         required double? lat, required double? lng,
-                         bool fetchFailed = false}) =>
-                  goHomeWithData(token: tok, name: nm, phone: ph, userId: uid,
-                      city: city, stores: stores, lat: lat, lng: lng,
-                      fetchFailed: fetchFailed),
-            )),
-            (r) => false,
-          );
+          // User role selected + Continue tapped → use the saved location
+          // (no forced GPS). If none is saved, the Location screen is shown.
+          Api.clearCache();
+          unawaited(_enterHome(token: tok, name: nm, phone: ph, userId: uid));
         }
       })),
       (r) => false,
@@ -614,19 +514,9 @@ class MyApp extends StatelessWidget {
 
   /// Switch to user mode — issues a fresh user session token, then routes home.
   ///
-  /// This is the "Role Selection → User → Continue" entry point (reached
-  /// both from SwitchModeSheet and from the "Back to Home"/Role Selection
-  /// button shown on the "No Service" empty state). Per the finalized
-  /// requirement, tapping Continue as User must NOT silently reuse
-  /// whatever city was last browsed (e.g. a prior "No Service" city) — it
-  /// must re-establish the CURRENT device location fresh each time, only
-  /// falling back to manual State + City if that's genuinely unavailable.
-  /// So city is always passed as '' here AND requireFreshGps: true, so
-  /// LocationLoadingScreen runs its full permission → Location Services →
-  /// GPS → reverse-geocode → manual-fallback flow instead of its normal
-  /// cached-city fast path. The account's own saved city/state (set during
-  /// OTP bootstrap or its own manual fallback) is untouched by this —  see
-  /// LocationLoadingScreen.requireFreshGps's doc comment.
+  /// Home opens with the customer's SAVED location (no forced GPS); if none
+  /// is saved the Location screen is shown first. The customer can change it
+  /// any time from the Home location header.
   static void _goUserViaUnified({required String phone, required String name, required String userId}) async {
     try {
       Api.clearCache();
@@ -638,15 +528,15 @@ class MyApp extends StatelessWidget {
       if (freshToken.isNotEmpty) {
         await Prefs.save(freshToken, freshName, phone, 'user', userId: freshId);
         await Prefs.saveMode('user');
-        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '', requireFreshGps: true);
+        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '');
       } else {
         // Fallback — use existing token (may cause wallet 401 but banners still load)
         await Prefs.saveMode('user');
-        goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
+        goHome(token: '', name: name, phone: phone, userId: userId, city: '');
       }
     } catch (e) {
       await Prefs.saveMode('user');
-      goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
+      goHome(token: '', name: name, phone: phone, userId: userId, city: '');
     }
   }
 
@@ -978,7 +868,7 @@ class HomeScreen extends StatefulWidget {
   @override State<HomeScreen> createState() => _HomeState();
 }
 class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
-  String city="Detecting..."; bool cityDone=false; bool _locationDenied=false; int _navIdx=0; String? _profilePhoto;
+  String city=""; bool cityDone=false; int _navIdx=0; String? _profilePhoto;
   String _noServiceImg=""; String _noServiceTitle=""; String _noServiceMsg="";
   bool _netError=false; bool _fetchFailed=false;
   bool _loadAllRunning=false; // FIX 4: prevent parallel _loadAll calls
@@ -999,7 +889,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     DateTime.now().difference(_cacheTime!) < _cacheTtl;
   double? _userLat; double? _userLng;
   bool _cityManual = false;
-  String _gpsDetectedCity = ''; // tracks the last GPS-detected city (not manual overrides)
+  OffroLocation? _loc; // structured saved location (display + persistence)
   Timer? _catTimer;
   String _cat="All"; bool _loading=true;
   double _radiusKm = 0.0; // Nearby radius filter (0=All, 1, 3, 5, 10)
@@ -1130,6 +1020,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // FAB: show when scrolled down > 120px
       _fabVisible.value = offset > 120;
     });
+    unawaited(_loadSavedLocation());
     if (widget.preloadedStores.isNotEmpty) {
       _usePreloadedData(); // async — clears _loading when done
       // Always fetch live GPS even when preloaded — ensures distance_km is computed
@@ -1155,10 +1046,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // exactly the unwanted "second location request" this fix removes).
       _usePreloadedData(); // async — clears _loading when done; _stores stays []
     } else {
-      // No city known at all — never resolved via GPS, never manually
-      // selected. This is the genuine "location unavailable" case, and the
-      // only one where full GPS/permission detection should run.
-      _initLoc();
+      // No city known at all (normally impossible — the entry flow requires a
+      // location first). Ask for one on the Location screen; never read GPS.
+      _requireLocation();
     }
   }
 
@@ -1258,7 +1148,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     });
     if (cityStr.isNotEmpty) {
       Prefs.saveCity(cityStr);
-      Api.updateCity(widget.token, cityStr);
     }
 
     if (!preloadFailed) {
@@ -1490,7 +1379,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _checkAndShowPopup() async {
     if (_popupShown || !mounted) return;
     _popupShown = true;
-    final c = city.isNotEmpty && city != "Detecting..." ? city : widget.savedCity;
+    final c = city.isNotEmpty ? city : widget.savedCity;
     await showPopupCampaignIfNeeded(context: context, city: c, token: widget.token);
   }
 
@@ -1764,273 +1653,86 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
   // _startProductSlide — removed (not needed)
 
-  // ── City Picker ──────────────────────────────────────
-  Future<void> _showCityPicker(BuildContext context,
-      {String? notice, String? noticeActionLabel, VoidCallback? noticeAction}) async {
-    // Use cities map from merchant_screens (imported library — re-declare locally)
-    const _cityMap = {
-      "Andhra Pradesh":["Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Rajahmundry","Tirupati"],
-      "Karnataka":["Bengaluru","Mysuru","Hubli","Mangaluru","Ballari","Belagavi","Davangere","Shivamogga"],
-      "Telangana":["Hyderabad","Warangal","Karimnagar","Nizamabad","Khammam","Mahbubnagar"],
-      "Maharashtra":["Mumbai","Pune","Nagpur","Nashik","Aurangabad","Solapur","Kolhapur"],
-      "Tamil Nadu":["Chennai","Coimbatore","Madurai","Tiruchirappalli","Salem","Tirunelveli"],
-      "Delhi":["New Delhi","Dwarka","Rohini","Saket","Lajpat Nagar","Connaught Place"],
-      "Gujarat":["Ahmedabad","Surat","Vadodara","Rajkot","Bhavnagar","Jamnagar"],
-      "Rajasthan":["Jaipur","Jodhpur","Udaipur","Kota","Ajmer","Bikaner"],
-      "Uttar Pradesh":["Lucknow","Kanpur","Agra","Varanasi","Meerut","Allahabad","Ghaziabad","Noida"],
-      "West Bengal":["Kolkata","Howrah","Durgapur","Asansol","Siliguri"],
-      "Punjab":["Chandigarh","Ludhiana","Amritsar","Jalandhar","Patiala"],
-      "Haryana":["Gurugram","Faridabad","Hisar","Rohtak","Panipat"],
-      "Kerala":["Thiruvananthapuram","Kochi","Kozhikode","Thrissur","Kollam"],
-      "Madhya Pradesh":["Bhopal","Indore","Gwalior","Jabalpur","Ujjain"],
-      "Bihar":["Patna","Gaya","Bhagalpur","Muzaffarpur"],
-      "Odisha":["Bhubaneswar","Cuttack","Rourkela","Sambalpur"],
-      "Jharkhand":["Ranchi","Jamshedpur","Dhanbad","Bokaro"],
-      "Chhattisgarh":["Raipur","Bilaspur","Durg","Bhilai"],
-      "Assam":["Guwahati","Dibrugarh","Silchar","Jorhat"],
-      "Himachal Pradesh":["Shimla","Manali","Dharamshala","Solan"],
-      "Uttarakhand":["Dehradun","Haridwar","Roorkee","Haldwani"],
-      "Jammu and Kashmir":["Srinagar","Jammu","Leh"],
-      "Goa":["Panaji","Margao","Vasco da Gama"],
-      "Puducherry":["Puducherry","Karaikal"],
-    };
-    final states = _cityMap.keys.toList()..sort();
-    String selState = "";
-    String selCity  = "";
-    // Pre-fill current city's state if possible
-    for(final st in states){
-      if(_cityMap[st]!.contains(city)){selState=st; selCity=city; break;}
-    }
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(builder: (ctx, setS) {
-        final cities = selState.isNotEmpty?(_cityMap[selState]!.toList()..sort()):<String>[];
-        return Container(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom+20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20,16,20,8),
-            child: Column(mainAxisSize:MainAxisSize.min, crossAxisAlignment:CrossAxisAlignment.start, children:[
-              Row(children:[
-                const Icon(Icons.location_on, color:kPrimary, size:20),
-                const SizedBox(width:8),
-                const Text("Select Your City", style:TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:kText)),
-                const Spacer(),
-                // GPS button — refresh to live location
-                IconButton(
-                  icon: const Icon(Icons.gps_fixed, color:kPrimary),
-                  tooltip:"Use GPS",
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    await _useCurrentLocation();
-                  },
-                ),
-              ]),
-              const Divider(height:1),
-              if (notice != null) ...[
-                const SizedBox(height:10),
-                Text(notice, style: const TextStyle(fontSize:12.5, color:kMuted, height:1.35)),
-                if (noticeAction != null && noticeActionLabel != null)
-                  Align(alignment: Alignment.centerLeft, child: TextButton(
-                    onPressed: noticeAction,
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0,32), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                    child: Text(noticeActionLabel, style: const TextStyle(color:kPrimary, fontWeight: FontWeight.w700)),
-                  )),
-              ],
-              const SizedBox(height:14),
-              // State dropdown
-              const Text("State", style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:kMuted)),
-              const SizedBox(height:6),
-              DropdownButtonFormField<String>(
-                value: selState.isNotEmpty?selState:null,
-                hint: const Text("Select State"),
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal:14,vertical:10),
-                ),
-                items: states.map((s)=>DropdownMenuItem(value:s,child:Text(s))).toList(),
-                onChanged:(v){ setS((){selState=v??''; selCity='';});},
-              ),
-              const SizedBox(height:14),
-              // City dropdown
-              const Text("City", style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:kMuted)),
-              const SizedBox(height:6),
-              DropdownButtonFormField<String>(
-                value: selCity.isNotEmpty?selCity:null,
-                hint: const Text("Select City"),
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal:14,vertical:10),
-                ),
-                items: cities.map((c)=>DropdownMenuItem(value:c,child:Text(c))).toList(),
-                onChanged:(v){ setS((){selCity=v??'';});},
-              ),
-              const SizedBox(height:20),
-              SizedBox(width:double.infinity, child:ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:kPrimary, foregroundColor:Colors.white,
-                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
-                  padding:const EdgeInsets.symmetric(vertical:14),
-                ),
-                onPressed: selCity.isEmpty?null:() async {
-                  Navigator.pop(ctx);
-                  final oldCity = city;
-                  // If user picks the same city GPS detected → restore GPS mode (show KM chips)
-                  // Compare against _gpsDetectedCity (in-memory), NOT Prefs.getCity()
-                  // because Prefs.getCity() returns the LAST saved city (could be manual)
-                  final isGpsCity = _gpsDetectedCity.isNotEmpty &&
-                      _gpsDetectedCity.trim().toLowerCase() == selCity.trim().toLowerCase();
-                  setState((){city=selCity; _cityManual=!isGpsCity;});
-                  await Prefs.saveCity(selCity);
-                  await Api.updateCity(widget.token, selCity);
-                  if (widget.token.isNotEmpty) FcmService.updateCityTopic(selCity, oldCity: oldCity);
-                  await _fetchStores(selCity);
-                },
-                child: const Text("Apply", style:TextStyle(fontSize:15,fontWeight:FontWeight.w700)),
-              )),
-            ]),
-          ),
-        );
-      }),
+  // ── Location (single system: LocationScreen + LocationStore) ───────────
+  // Display/selection only — store filtering stays CITY-based (`city`).
+
+  OffroLocation get _effectiveLoc =>
+      (_loc != null && _loc!.sameCity(city))
+          ? _loc!
+          : OffroLocation(city: city, state: LocationService.stateForCity(city));
+  String get _locTitle => city.isEmpty ? "Select location" : _effectiveLoc.title;
+  String get _locSubtitle => city.isEmpty ? "" : _effectiveLoc.subtitle;
+
+  /// Loads the saved structured location for the header (never changes `city`).
+  Future<void> _loadSavedLocation() async {
+    final saved = await LocationStore.load(LocationMode.customer);
+    if (!mounted || saved == null) return;
+    setState(() {
+      _loc = saved;
+      _cityManual = saved.source == LocationSource.manual;
+    });
+  }
+
+  /// Home location header tap → the shared Location screen.
+  Future<void> _openLocationScreen() async {
+    final picked = await Navigator.push<OffroLocation>(
+      context,
+      MaterialPageRoute<OffroLocation>(
+        builder: (_) => LocationScreen(mode: LocationMode.customer, current: _effectiveLoc),
+      ),
     );
+    if (picked == null || !mounted) return;
+    await _applyLocation(picked);
   }
 
-  // ── Location permission / current-location flow (shared) ───────────────
-  // Used by BOTH the picker's GPS icon and the top-left city-name tap so the
-  // two entry points can never behave differently. Geolocator only — no new
-  // permission package.
-
-  /// Checks (and, only when still undecided, requests) location permission,
-  /// then verifies the device's Location Services switch. Never re-prompts
-  /// after a permanent denial.
-  Future<_LocAccess> _resolveLocationAccess() async {
-    var perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
+  /// Persists [loc], updates the header and reloads Home when the city changed.
+  Future<void> _applyLocation(OffroLocation loc) async {
+    final oldCity = city;
+    final cityChanged = !loc.sameCity(oldCity);
+    await LocationStore.save(LocationMode.customer, loc);
+    if (!mounted) return;
+    final gps = loc.source == LocationSource.gps && loc.lat != null && loc.lng != null;
+    setState(() {
+      _loc = loc;
+      city = loc.city;
+      _cityManual = loc.source == LocationSource.manual;
+      if (gps) { _userLat = loc.lat; _userLng = loc.lng; }
+    });
+    if (gps) _recomputeDistances();
+    if (widget.token.isNotEmpty) {
+      unawaited(Api.updateCity(widget.token, loc.city, state: loc.state));
+      FcmService.updateCityTopic(loc.city, oldCity: oldCity);
     }
-    if (perm == LocationPermission.deniedForever) return _LocAccess.deniedForever;
-    if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) {
-      return _LocAccess.denied;
-    }
-    if (!await Geolocator.isLocationServiceEnabled()) return _LocAccess.serviceOff;
-    return _LocAccess.granted;
+    if (cityChanged) await _fetchStores(loc.city);
   }
 
-  /// Opens the manual picker with a short explanation of why GPS isn't being
-  /// used (and the matching Settings shortcut where one exists).
-  Future<void> _showManualPickerAfterLocationIssue(_LocAccess access, {String? message}) async {
-    if (!mounted) return;
-    String notice;
-    String? actionLabel;
-    VoidCallback? action;
-    switch (access) {
-      case _LocAccess.deniedForever:
-        notice = "Location permission is turned off for OffrO. Choose your city below, or enable it in Settings.";
-        actionLabel = "Open Settings";
-        action = () { Geolocator.openAppSettings(); };
-        break;
-      case _LocAccess.serviceOff:
-        notice = "Location Services are off. Choose your city below, or turn them on and tap the GPS icon.";
-        actionLabel = "Open Location Settings";
-        action = () { Geolocator.openLocationSettings(); };
-        break;
-      default:
-        notice = message ?? "Location permission wasn't allowed. Please choose your city.";
-    }
-    await _showCityPicker(context,
-        notice: notice, noticeActionLabel: actionLabel, noticeAction: action);
-  }
-
-  /// Detects the CURRENT location and loads stores for it. Falls back to the
-  /// manual picker (previous city untouched) whenever it can't. Never leaves
-  /// the screen on "Detecting..." and never sends an empty city to the API.
-  Future<void> _useCurrentLocation() async {
-    final access = await _resolveLocationAccess();
-    if (!mounted) return;
-    if (access != _LocAccess.granted) {
-      await _showManualPickerAfterLocationIssue(access);
-      return;
-    }
-
-    // Remember exactly what we change so a failure can restore it.
-    final prevCity     = city;
-    final prevManual   = _cityManual;
-    final prevLoading  = _loading;
-    final prevProducts = _productsLoading;
-    final prevBanners  = _adminBannersLoading;
-    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true; _adminBannersLoading=true;});
-
-    String det = "";
-    try {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
-          .timeout(const Duration(seconds: 10));
-      if (mounted) setState((){
-        _userLat = pos.latitude; _userLng = pos.longitude;
-        _cityManual = false; // Explicitly restore GPS mode
-      });
-      _recomputeDistances(); // Recompute distances after GPS restored
-      det = await detectCityFromPosition(pos);
-    } catch (_) { det = ""; }
-    if (!mounted) return;
-
-    if (det.trim().isEmpty) {
-      // Couldn't resolve a city (GPS timeout / geocoder failure): put the
-      // previous state back instead of committing an empty city.
-      setState((){
-        city = prevCity; _cityManual = prevManual;
-        _loading = prevLoading; _productsLoading = prevProducts; _adminBannersLoading = prevBanners;
-        if (prevCity.isEmpty || prevCity == "Detecting...") _locationDenied = true;
-      });
-      await _showManualPickerAfterLocationIssue(_LocAccess.denied,
-          message: "Couldn't detect your current location. Please choose your city.");
-      return;
-    }
-
-    _gpsDetectedCity = det; // restore GPS city reference
-    setState((){city=det; _locationDenied=false; _cityManual=false;});
-    await Prefs.saveCity(det);
-    await Api.updateCity(widget.token, det);
-    await _fetchStores(det);
-  }
-
-  /// Top-left city-name tap. If location permission is still undecided, ask
-  /// first and (if allowed) go straight to current-location detection. In
-  /// every other state the manual picker opens as before, so people who
-  /// deliberately choose a city are unaffected and a permanent denial is
-  /// never re-prompted.
-  Future<void> _onCityNameTap() async {
-    final perm = await Geolocator.checkPermission();
-    if (!mounted) return;
-    if (perm == LocationPermission.denied) {
-      await _useCurrentLocation(); // prompts; falls back to the picker if not granted
-      return;
-    }
-    await _showCityPicker(context);
+  /// Only reached when Home is created with no city (normally impossible).
+  void _requireLocation() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final picked = await Navigator.push<OffroLocation>(
+        context,
+        MaterialPageRoute<OffroLocation>(
+          builder: (_) => const LocationScreen(mode: LocationMode.customer, mandatory: true),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      await _applyLocation(picked);
+    });
   }
 
   Future<void> _fetchLiveGpsAndRecomputeDistances() async {
-    // Called when preloaded data is used — fetches live GPS and recomputes distances
-    // This ensures banner store cards always show real distance, not "0.0 km"
+    // Called when preloaded data is used — refreshes distance_km from live GPS.
+    // SILENT: reads GPS only when device Location Services are on AND the app
+    // permission is already granted. It never shows a permission dialog and
+    // never changes the saved/selected city.
     try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.deniedForever) return;
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      ).timeout(const Duration(seconds: 12));
-      if (!mounted) return;
-      if (mounted) setState(() {
+      final pos = await LocationService.silentPosition(
+        timeout: const Duration(seconds: 12),
+        accuracy: LocationAccuracy.high,
+      );
+      if (pos == null || !mounted) return;
+      setState(() {
         _userLat = pos.latitude;
         _userLng = pos.longitude;
         // Recompute distance_km on all store maps in-place
@@ -2048,140 +1750,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _initLoc() async {
-    // ── Permission-first location flow ──
-    // Step 0: Request location permission if needed BEFORE calling GPS.
-    // This shows the native OS dialog on first launch.
-    // Only show the Settings screen on permanent denial.
-
-    // FIX 1: Always invalidate static cache at the start of every _initLoc call.
-    // This ensures that if the user physically moved to a different city since
-    // last session, the stale sameCity cache never blocks a fresh fetch.
-    _cachedCity   = "";
-    _cachedStores = [];
-    _cacheTime    = null;
-    Api.clearCache();
-
-    String? firstLoadCity;
-
-    // Step 1: Show savedCity immediately while we wait for GPS
-    if (widget.savedCity.isNotEmpty) {
-      firstLoadCity = widget.savedCity;
-      setState(() { city = widget.savedCity; _locationDenied = false; });
-    } else {
-      if (mounted) setState(() { _loading = true; });
-    }
-
-    // Step 2: Check and request permission (shows native dialog if needed)
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      // Show native OS permission dialog
-      perm = await Geolocator.requestPermission();
-    }
-
-    if (!mounted) return;
-
-    if (perm == LocationPermission.deniedForever) {
-      // Truly permanently denied — only NOW show the Settings screen
-      setState(() { city = ""; _loading = false; _locationDenied = true; });
-      // Still load all stores without city filter
-      if (firstLoadCity != null) {
-        await _loadAll(firstLoadCity);
-      } else {
-        await _loadAll("");
-      }
-      return;
-    }
-
-    // Step 3: Try GPS — first use cached GPS for instant render, then refresh in background
-    String det = widget.savedCity;
-
-    // 3a: Try to restore last known GPS from Prefs (instant, no network)
-    final savedLoc = await Prefs.getSavedLocation();
-    if (savedLoc != null) {
-      _userLat = savedLoc["lat"];
-      _userLng = savedLoc["lng"];
-    }
-
-    // 3b: Live GPS — single fetch, then resolve city name
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      ).timeout(const Duration(seconds: 12));
-      _userLat = pos.latitude;
-      _userLng = pos.longitude;
-      if (mounted) {
-        setState(() { _userLat = pos.latitude; _userLng = pos.longitude; });
-        _recomputeDistances();
-        if (mounted) setState(() {}); // trigger rebuild with updated distances
-      };
-      // Pass position directly — avoids a second GPS fetch inside detectCity()
-      det = await detectCityFromPosition(pos).timeout(const Duration(seconds: 10));
-    } catch (e) {
-      // Use cached coords city if available, else savedCity. NEVER a
-      // hardcoded default city (no "Ballari") — the account's city was
-      // already resolved (via GPS or mandatory manual State+City entry) or
-      // intentionally left empty before Role Selection (see
-      // login_screen.dart's _AccountBootstrapScreen/_handleRoleSelected);
-      // this live-GPS refresh (for distance sorting) must never silently
-      // override that with a guessed city when it fails.
-      if (_userLat != null && _userLng != null) {
-        try {
-          final cachedPos = Position(
-            latitude: _userLat!, longitude: _userLng!,
-            timestamp: DateTime.now(), accuracy: 0, altitude: 0,
-            altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0,
-          );
-          det = await detectCityFromPosition(cachedPos).timeout(const Duration(seconds: 8));
-        } catch (_) {
-          det = widget.savedCity;
-        }
-      } else {
-        det = widget.savedCity;
-      }
-    }
-
-    if (!mounted) return;
-
-    // Step 4: Commit city and load stores
-    _gpsDetectedCity = det; // remember GPS city for chip logic
-    setState(() { city = det; _locationDenied = false; });
-    Prefs.saveCity(det);
-    // Persist GPS coords so next restart skips GPS detection
-    if (_userLat != null && _userLng != null) {
-      Prefs.saveLocation(_userLat!, _userLng!);
-    }
-    if (widget.token.isNotEmpty) Api.updateCity(widget.token, det);
-
-    // FIX 1: If GPS city differs from cached city, wipe stale static cache
-    // so _loadAll always fetches fresh stores for the new location.
-    if (det.toLowerCase().trim() != _cachedCity.toLowerCase().trim()) {
-      _cachedCity   = "";
-      _cachedStores = [];
-      _cacheTime    = null;
-      Api.clearCache();
-    }
-    await _loadAll(det);
-
-    // Step 5: Recalculate distances if GPS available
-    if (_userLat != null && _userLng != null && mounted) {
-      setState(() {
-        for (final s in _stores) {
-          final lat = double.tryParse(s["latitude"]?.toString() ?? "");
-          final lng = double.tryParse(s["longitude"]?.toString() ?? "");
-          if (lat != null && lng != null) {
-            s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
-          }
-        }
-        _recomputeDistances();
-      });
-    }
-  }
-
   // Called ONLY when the city changes — category changes are client-side only
   Future<void> _fetchStores(String c) async {
     _loadAllRunning = false; // reset guard so city change always goes through
-    // Also drop Home's own 5-minute store cache (same reset _initLoc does) —
+    // Also drop Home's own 5-minute store cache (same reset a city change does) —
     // otherwise _loadAll() would "refresh" from memory and never hit the
     // network, which made pull-to-refresh a silent no-op.
     _cachedCity   = "";
@@ -2233,9 +1805,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Scaffold(
         extendBodyBehindAppBar: true,
         backgroundColor: const Color(0xFFE9F1ED),
-        body: _locationDenied
-          ? _locationDeniedState()
-          : Stack(children: [
+        body: Stack(children: [
               // ── Premium abstract gradient background ──────────────────
               Positioned.fill(child: CustomPaint(painter: OffroHomeBgPainter())),
               _loading
@@ -2265,7 +1835,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       // the same height) instead of jumping straight to the
                       // "no image" flat-gradient fallback.
                       imageLoading: _heroImageLoading,
-                      onCityTap: _onCityNameTap,
+                      locationTitle: _locTitle,
+                      locationSubtitle: _locSubtitle,
+                      onCityTap: _openLocationScreen,
                       onBellTap: () => _openNotifications(context),
                     )),
 
@@ -2417,8 +1989,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       Expanded(child: GestureDetector(
                         onTap: () {
                           setState(() => _navIdx = 1);
-                          // Pass city only when detection is complete (not "Detecting...")
-                          final _dealsCity = (city == "Detecting..." || city.isEmpty) ? "" : city;
+                          final _dealsCity = city;
                           Navigator.push(context, appRoute(_AllDealsScreen(token: widget.token, city: _dealsCity)));
                         },
                         child: _NavBtn(icon: Icons.local_offer_rounded, label: "Deals", active: _navIdx == 1),
@@ -2469,39 +2040,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
 
-
-  Widget _locationDeniedState() => Container(
-    color: kPrimary,
-    child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.location_off, color: kLight, size: 64),
-      const SizedBox(height: 20),
-      const Text("Location Access Required", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      const Padding(padding: EdgeInsets.symmetric(horizontal: 40),
-        child: Text("Please allow location access to find stores near you.", style: TextStyle(color: kAccent, fontSize: 14), textAlign: TextAlign.center)),
-      const SizedBox(height: 28),
-      ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(backgroundColor: kLight, foregroundColor: kPrimary, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-        icon: const Icon(Icons.settings),
-        label: const Text("Open Settings", style: TextStyle(fontWeight: FontWeight.bold)),
-        onPressed: () => Geolocator.openAppSettings(),
-      ),
-      const SizedBox(height: 12),
-      TextButton(
-        onPressed: () async { setState(()=>_locationDenied=false); await _initLoc(); },
-        child: const Text("Try Again", style: TextStyle(color: Colors.white70)),
-      ),
-      const SizedBox(height: 8),
-      TextButton.icon(
-        onPressed: () {
-          setState(() => _locationDenied = false);
-          _showCityPicker(context);
-        },
-        icon: const Icon(Icons.edit_location_alt, color: kLight, size: 20),
-        label: const Text("Select Location Manually", style: TextStyle(color: kLight, fontWeight: FontWeight.w600)),
-      ),
-    ])),
-  );
 
   // Skeleton extracted to: core/widgets/shimmer/home_skeleton.dart
   Widget _buildLoadingSkeleton() {
@@ -4798,12 +4336,15 @@ class _CityHeroSection extends StatelessWidget {
   // purely additive change. Mirrors _adminBannersLoading's role for
   // _BannerStoresBlock.
   final bool imageLoading;
+  final String locationTitle;    // locality, else area, else city
+  final String locationSubtitle; // e.g. "Cowl Bazaar, Ballari, Karnataka"
   final VoidCallback onCityTap;
   final VoidCallback onBellTap;
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     required this.cityManual, required this.unreadCount,
     this.imageLoading = false,
+    this.locationTitle = '', this.locationSubtitle = '',
     required this.onCityTap, required this.onBellTap,
   });
 
@@ -4816,7 +4357,7 @@ class _CityHeroSection extends StatelessWidget {
   }
 
   @override Widget build(BuildContext context) {
-    final displayCity = (city.isNotEmpty && city != "Detecting...") ? city : "Your City";
+    final displayCity = city.isNotEmpty ? city : "Your City";
     final topPad = MediaQuery.of(context).padding.top;
 
     return LayoutBuilder(builder: (ctx, constraints) {
@@ -4890,22 +4431,35 @@ class _CityHeroSection extends StatelessWidget {
         // ── TOP ROW: city picker + bell ──
         Positioned(top: topPad + 10, left: 16, right: 16,
           child: Row(children: [
-            GestureDetector(
+            Expanded(child: Align(alignment: Alignment.centerLeft, child: GestureDetector(
               onTap: onCityTap,
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(
                   cityManual ? Icons.edit_location_alt_rounded : Icons.location_on_rounded,
                   color: Colors.white, size: 20),
                 const SizedBox(width: 4),
-                Text(
-                  city.isNotEmpty ? city : "Detecting...",
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800,
-                    shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
+                Flexible(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      locationTitle.isNotEmpty ? locationTitle : (city.isNotEmpty ? city : "Select location"),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800,
+                        shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
+                    if (locationSubtitle.isNotEmpty)
+                      Text(
+                        locationSubtitle,
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600,
+                          shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
+                  ],
+                )),
                 const SizedBox(width: 2),
                 const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
               ]),
-            ),
-            const Spacer(),
+            ))),
+            const SizedBox(width: 12),
             GestureDetector(
               onTap: onBellTap,
               child: Stack(clipBehavior: Clip.none, children: [

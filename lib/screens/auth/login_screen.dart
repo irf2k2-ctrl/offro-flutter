@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
-import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
@@ -16,7 +15,6 @@ import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
-import '../loading/location_loading_screen.dart';
 import '../../core/utils/navigation.dart';
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
@@ -287,8 +285,11 @@ class _OtpScreenState extends State<OtpScreen> {
 // ACCOUNT BOOTSTRAP  — runs right after OTP verification, before Role
 // Selection. New flow (per the finalized location requirements):
 //
-//   OTP VERIFIED → ACCOUNT LOGIN/LOAD ACCOUNT → CHECK ACCOUNT LOCATION
-//   → LOCATION HANDLING IF REQUIRED → ROLE SELECTION
+//   OTP VERIFIED → ACCOUNT LOGIN/LOAD ACCOUNT → ROLE SELECTION
+//
+// Location is NOT handled here any more: customers choose/restore their
+// location in the shared Location screen (see main.dart `_enterHome`), and a
+// merchant's account location is enforced inside MerchantHome.
 //
 // This calls /user/account-login exactly ONCE for the whole OTP → Role
 // Selection journey — the resulting account data (token/roles/city/etc.) is
@@ -296,9 +297,7 @@ class _OtpScreenState extends State<OtpScreen> {
 // must NOT call account-login again (avoids the duplicate-call regression
 // called out in the requirements).
 //
-// Account location and store location are completely independent — this
-// screen only ever reads/writes accounts.city (via PUT /user/city), never
-// touches a merchant's store city/lat/lng.
+// This screen never reads or writes any location (account or store).
 // ══════════════════════════════════════════════════════════════════════════════
 class _AccountBootstrapScreen extends StatefulWidget {
   final String phone;
@@ -307,51 +306,20 @@ class _AccountBootstrapScreen extends StatefulWidget {
   @override State<_AccountBootstrapScreen> createState() => _AccountBootstrapScreenState();
 }
 
-class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> with WidgetsBindingObserver {
+class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
   String _status = 'Setting up your account...';
   String _err = '';
-
-  // Set only when device Location Services (the master OS switch — distinct
-  // from the app's own location PERMISSION, which may already be granted)
-  // are OFF and we've sent the person to the system Location Settings
-  // screen. While true, this screen stays on its loading state — it does
-  // NOT proceed to Role Selection yet. didChangeAppLifecycleState below
-  // re-checks Location Services as soon as the app resumes and either
-  // retries GPS automatically or, if still off, continues with an empty
-  // city (handled later at Role Selection — never a default/guessed city).
-  bool _waitingForLocationServices = false;
-  Map<String, dynamic>? _pendingAccountData;
-  String? _pendingToken;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _run();
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Reuses the same WidgetsBindingObserver/didChangeAppLifecycleState
-    // pattern already used elsewhere in the app (see _HomeState in
-    // main.dart) rather than introducing a new lifecycle mechanism.
-    if (state == AppLifecycleState.resumed && _waitingForLocationServices) {
-      _waitingForLocationServices = false;
-      _retryAfterLocationSettings();
-    }
   }
 
   Future<void> _run() async {
     if (mounted) setState(() {
       _err = '';
       _status = 'Setting up your account...';
-      _waitingForLocationServices = false;
     });
 
     Map<String, dynamic> d;
@@ -364,147 +332,8 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> with W
       return;
     }
 
-    final token = d['token']?.toString() ?? '';
-    String city = d['city']?.toString() ?? '';
-
-    // CHECK ACCOUNT LOCATION → LOCATION HANDLING IF REQUIRED.
-    // Already has a city → never ask again, go straight to Role Selection.
-    // Missing → attempt to resolve it silently (permission may be granted
-    // or denied, device Location Services may be off, GPS may or may not
-    // be available). NEVER assign a default/guessed city (no "Ballari")
-    // here — a still-empty city is handled later, only if/when the User
-    // role is actually selected.
-    if (token.isNotEmpty && city.isEmpty) {
-      if (mounted) setState(() => _status = 'Getting your location...');
-      final resolvedCity = await _attemptAccountLocation(token);
-
-      if (_waitingForLocationServices) {
-        // We just sent the person to system Location Settings — hold this
-        // screen (and the fetched account data) until the app resumes; see
-        // didChangeAppLifecycleState/_retryAfterLocationSettings. Do NOT
-        // proceed to Role Selection yet, and do NOT show manual State+City
-        // yet either — the person hasn't had a chance to enable Location
-        // Services and come back.
-        _pendingAccountData = d;
-        _pendingToken = token;
-        return;
-      }
-
-      if (resolvedCity != null && resolvedCity.isNotEmpty) city = resolvedCity;
-    }
-
-    d['city'] = city;
     if (!mounted) return;
     widget.onReady(d);
-  }
-
-  /// Called when the app resumes after we sent the person to system
-  /// Location Settings. Re-checks Location Services (never assumes turning
-  /// it on happened just because they came back), and if it's now on,
-  /// retries GPS + reverse-geocode automatically — the person never has to
-  /// select User first, and manual State+City is never shown immediately
-  /// on return. If Location Services are still off, this simply continues
-  /// the bootstrap with an empty city (handled at Role Selection).
-  Future<void> _retryAfterLocationSettings() async {
-    final token = _pendingToken;
-    final d = _pendingAccountData;
-    _pendingToken = null;
-    _pendingAccountData = null;
-    if (token == null || d == null || !mounted) return;
-
-    String city = '';
-    final stillOff = !(await Geolocator.isLocationServiceEnabled());
-    if (!stillOff) {
-      if (mounted) setState(() => _status = 'Getting your location...');
-      city = await _acquireAndSaveLocation(token) ?? '';
-    }
-    // stillOff (or acquisition failed anyway) → city stays '' — no
-    // Ballari/default/guessed city, ever.
-
-    d['city'] = city;
-    if (!mounted) return;
-    widget.onReady(d);
-  }
-
-  /// Resolve the ACCOUNT's city from device GPS, reusing the same
-  /// permission-request pattern (MyApp.ensureLocationPermission) and the
-  /// same backend reverse-geocode endpoint (Api.reverseGeocode →
-  /// GET /reverse-geocode) already used by the merchant Add Store "Current
-  /// Location" flow, instead of building a second location system.
-  ///
-  /// This is strictly an ACCOUNT-level lookup: it only ever saves to
-  /// accounts.city/accounts.state via Api.updateCity(). It is never used to
-  /// determine or overwrite a merchant store's location — store location is
-  /// captured independently in AddEditStorePage (merchant_screens.dart).
-  ///
-  /// Returns null (never a default/guessed city) whenever permission is
-  /// denied, location services are off (in which case this also sends the
-  /// person to system Location Settings and sets
-  /// _waitingForLocationServices — see _run()), or the position/reverse-
-  /// geocode lookup fails for any reason.
-  Future<String?> _attemptAccountLocation(String token) async {
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) {
-        // App-level permission denied — unrelated to the device's Location
-        // Services switch. Nothing to open; handled at Role Selection.
-        return null;
-      }
-
-      // Accepting the app's location PERMISSION dialog does NOT mean the
-      // device's master Location Services switch is on — check that
-      // separately, exactly as the finalized requirements specify.
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        await _guideToLocationSettings();
-        return null;
-      }
-
-      return await _acquireAndSaveLocation(token);
-    } catch (e) {
-      debugPrint('[OFFRO] account-level location attempt failed: $e');
-      return null;
-    }
-  }
-
-  /// Opens the device's system Location Settings screen so the person can
-  /// turn Location Services on — the geolocator package's Location-Services
-  /// counterpart to Geolocator.openAppSettings() (already used elsewhere in
-  /// this app for the app-permission/deniedForever case). No new location
-  /// package is introduced.
-  Future<void> _guideToLocationSettings() async {
-    if (mounted) setState(() {
-      _status = 'Location Services are off. Please turn them on to continue...';
-      _waitingForLocationServices = true;
-    });
-    await Geolocator.openLocationSettings();
-    // Nothing else to do here — the person may spend any amount of time in
-    // system Settings; didChangeAppLifecycleState picks up the resume.
-  }
-
-  /// Shared GPS-acquire + reverse-geocode + save step, used both on the
-  /// first attempt and on the automatic retry after returning from system
-  /// Location Settings.
-  Future<String?> _acquireAndSaveLocation(String token) async {
-    try {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.medium)
-          .timeout(const Duration(seconds: 8));
-
-      final geo = await Api.reverseGeocode(pos.latitude, pos.longitude);
-      final city  = (geo['city']  ?? '').toString().trim();
-      final state = (geo['state'] ?? '').toString().trim();
-      if (city.isEmpty) return null;
-
-      await Prefs.saveLocation(pos.latitude, pos.longitude);
-      await Prefs.saveCity(city);
-      await Api.updateCity(token, city, state: state);
-      return city;
-    } catch (e) {
-      debugPrint('[OFFRO] account-level location acquisition failed: $e');
-      return null;
-    }
   }
 
   @override
@@ -1348,21 +1177,10 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         ? (accountData['merchant_id']?.toString() ?? accountData['account_id']?.toString() ?? '')
         : (accountData['user_id']?.toString()     ?? accountData['account_id']?.toString() ?? '');
 
-    // NOTE (Round 8 — Final User Location Flow): account-level city from
-    // bootstrap is still passed through in accountData/city below, but for
-    // role == 'user' it is NO LONGER used to skip location detection here.
-    // "Every time the user selects User → Continue, the app must start a
-    // fresh location decision" — permission → device Location Services →
-    // GPS → reverse-geocode → current city, falling back to manual
-    // State + City only if that fails. That entire decision tree (and its
-    // own manual-entry fallback — never Ballari/default/guessed) now lives
-    // in LocationLoadingScreen (requireFreshGps: true, set in main.dart's
-    // onSuccess for role == 'user'), so it runs identically whether this is
-    // the very first Continue tap right after OTP verification or a later
-    // one reached via Switch Mode / "Back to Home". Pre-resolving/requiring
-    // it here as well would just mean asking twice. Merchant/Influencer
-    // are unaffected — their account location may stay empty and is never
-    // required to enter those modes.
+    // Location is not decided here. The account's `city` is passed through
+    // unchanged for compatibility; the customer's location comes from the
+    // saved location (or the Location screen), and a merchant's account
+    // location is enforced inside MerchantHome. Neither reads this value.
     final city = accountData['city']?.toString() ?? '';
 
     await Prefs.save(token, name, phone, role, userId: userId);
@@ -1378,11 +1196,6 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       await widget.onSuccess!(token, name, phone, userId, role, city);
     }
   }
-
-  // Mandatory State + City picker moved to the shared, dependency-neutral
-  // core/widgets/manual_location_sheet.dart (requireManualCityState) so
-  // location_loading_screen.dart can also call it — see that file's doc
-  // comment for why (avoids a circular import).
 
   @override
   Widget build(BuildContext context) {

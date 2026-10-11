@@ -1,18 +1,22 @@
 // lib/screens/loading/location_loading_screen.dart
-// OFFRO — Premium Location Loading Screen
+// OFFRO — Premium store-loading screen.
+//
+// PURE LOADER: it receives an already-chosen [city] (from the saved location
+// or the Location screen), fetches that city's stores with retry, then calls
+// [onReady]. It does NO location selection, permission handling or GPS city
+// detection — that lives in LocationScreen / LocationService. Live GPS is
+// read only SILENTLY (when the permission is already granted) to improve
+// distance sorting, and never changes the city.
 
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/geo.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/location_service.dart';
 import '../../core/services/prefs_service.dart';
-import '../../core/widgets/brand_logo.dart';
-import '../../core/widgets/manual_location_sheet.dart';
 
 typedef OnReadyCallback = void Function({
   required String city,
@@ -26,21 +30,8 @@ typedef OnReadyCallback = void Function({
 
 class LocationLoadingScreen extends StatefulWidget {
   final String token, name, phone, userId;
+  final String city;
   final OnReadyCallback onReady;
-  final String? forcedCity;
-
-  /// When true, this screen ALWAYS re-establishes the CURRENT device
-  /// location fresh (permission → device Location Services → GPS →
-  /// reverse-geocode, with the same Settings-redirect + app-resume retry
-  /// used for account-level location in login_screen.dart) instead of
-  /// using [forcedCity] or any cached/previously-saved city. Only falls
-  /// back to the mandatory manual State + City picker if the current
-  /// location genuinely cannot be obtained. Used specifically for the
-  /// "Role Selection → User → Continue" entry point, where the browsing
-  /// city must be determined again each time rather than silently reusing
-  /// whatever city was last shown (e.g. after a "No Service" city).
-  /// [forcedCity] is ignored when this is true.
-  final bool requireFreshGps;
 
   const LocationLoadingScreen({
     super.key,
@@ -48,9 +39,8 @@ class LocationLoadingScreen extends StatefulWidget {
     required this.name,
     required this.phone,
     required this.userId,
+    required this.city,
     required this.onReady,
-    this.forcedCity,
-    this.requireFreshGps = false,
   });
 
   @override
@@ -58,16 +48,7 @@ class LocationLoadingScreen extends StatefulWidget {
 }
 
 class _LocationLoadingScreenState extends State<LocationLoadingScreen>
-    with TickerProviderStateMixin, WidgetsBindingObserver {
-
-  // Set only when device Location Services (the master OS switch — distinct
-  // from the app's own location PERMISSION) are OFF during a
-  // requireFreshGps resolution and we've sent the person to the system
-  // Location Settings screen. While true, this screen stays on its loading
-  // state; didChangeAppLifecycleState below re-checks Location Services as
-  // soon as the app resumes and either retries GPS automatically or, if
-  // still off, falls through to the manual State + City picker.
-  bool _waitingForLocationServicesFix = false;
+    with TickerProviderStateMixin {
 
   int _step = 0;
   final List<String> _stepLabels = [
@@ -93,14 +74,12 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
   late Animation<double> _screenFade;
 
   String _statusText = "Locating your position...";
-  bool _showManual = false;
   bool _done = false;
   double? _lat, _lng;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _screenFade = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _fadeCtrl.forward();
@@ -119,10 +98,6 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
 
     _startStepTimer();
     _doLoad();
-
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted && !_done) setState(() => _showManual = true);
-    });
   }
 
   void _startStepTimer() {
@@ -137,7 +112,6 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _dotCtrl.dispose();
     _pinPulse.dispose();
     _fadeCtrl.dispose();
@@ -145,78 +119,24 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Reuses the same WidgetsBindingObserver/didChangeAppLifecycleState
-    // pattern already established for account-level location in
-    // login_screen.dart's _AccountBootstrapScreenState (and _HomeState in
-    // main.dart) rather than introducing a new lifecycle mechanism.
-    if (state == AppLifecycleState.resumed && _waitingForLocationServicesFix) {
-      _waitingForLocationServicesFix = false;
-      _retryAfterLocationSettingsFix();
-    }
-  }
-
   Future<void> _doLoad() async {
     try {
-    // "Role Selection → User → Continue" re-detection: always establish
-    // the CURRENT device location fresh — ignores forcedCity/cached city
-    // entirely, so a stale previously-browsed city (e.g. from a prior "No
-    // Service" city) is never silently reused. See
-    // _resolveFreshCurrentLocation() for the full flow.
-    if (widget.requireFreshGps) {
-      await _resolveFreshCurrentLocation();
-      return;
-    }
-
-    // If forced city (manual selection or passed from splash), skip GPS
-    if (widget.forcedCity != null && widget.forcedCity!.isNotEmpty) {
-      await _fetchAndGo(widget.forcedCity!, null, null);
-      return;
-    }
-
-    // ── Step 0: Request location permission upfront (shows OS dialog on first launch) ──
-    // Do this BEFORE using cached data so the prompt appears immediately.
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    // Note: deniedForever is handled in _refreshGpsBackground gracefully.
-
-    // ── Blinkit-style instant load ──
-    // 1. Read cached GPS + city from prefs (instant, no I/O wait)
-    final savedLoc = await Prefs.getSavedLocation();
-    final savedPrefs = await Prefs.get();
-    final cachedCity = savedPrefs["city"] ?? "";
-
-    if (savedLoc != null) {
-      _lat = savedLoc["lat"];
-      _lng = savedLoc["lng"];
-    }
-
-    // 2. Use cached city immediately to start fetching stores in parallel
-    //    while live GPS refreshes in background.
-    // NOTE: no default/guessed city fallback here (e.g. "Ballari") — the
-    // account-level location step (see login_screen.dart, run right after
-    // OTP verification and before Role Selection) is responsible for
-    // resolving or explicitly collecting the account's city. By the time
-    // this screen runs for a signed-in User, the city is expected to
-    // already be known (passed in as forcedCity) or intentionally empty.
-    final cityToUse = cachedCity;
-
-    // 3. Fire live GPS as a background Future (don't await it)
-    final gpsFuture = _refreshGpsBackground();
-
-    // 4. Fetch stores using cached city immediately — don't wait for GPS
-    await _fetchAndGo(cityToUse, _lat, _lng, backgroundGps: gpsFuture);
+      // Last known physical coordinates → instant distance sorting.
+      final savedLoc = await Prefs.getSavedLocation();
+      if (savedLoc != null) {
+        _lat = savedLoc["lat"];
+        _lng = savedLoc["lng"];
+      }
+      // Live GPS runs in the background ONLY if permission is already granted
+      // (never prompts) and only refreshes coordinates — never the city.
+      final gpsFuture = _silentGps();
+      await _fetchAndGo(widget.city, _lat, _lng, backgroundGps: gpsFuture);
     } catch (e) {
       debugPrint("[LocationLoading] _doLoad fatal error: $e");
-      // Fallback: open home with whatever we have so user is never stuck
-      // No default/guessed city fallback (e.g. "Ballari") — see note above.
-      final fallbackCity = widget.forcedCity ?? await Prefs.getCity();
+      // Open Home with the chosen city so the person is never stuck.
       if (!mounted) return;
       widget.onReady(
-        city: fallbackCity,
+        city: widget.city,
         stores: const [],
         lat: _lat,
         lng: _lng,
@@ -225,167 +145,13 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
     }
   }
 
-  Future<Map<String, dynamic>?> _refreshGpsBackground() async {
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.deniedForever || perm == LocationPermission.denied) {
-        return null;
-      }
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      ).timeout(const Duration(seconds: 6));
-      _lat = pos.latitude;
-      _lng = pos.longitude;
-      await Prefs.saveLocation(_lat!, _lng!);
-      final placemarks = await placemarkFromCoordinates(_lat!, _lng!)
-          .timeout(const Duration(seconds: 5));
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final city = p.locality ?? p.subAdministrativeArea ?? p.administrativeArea ?? "";
-        if (city.isNotEmpty) {
-          await Prefs.saveCity(city);
-          return {"city": city, "lat": _lat, "lng": _lng};
-        }
-      }
-    } catch (e) {
-      debugPrint("[LoadingScreen] Background GPS failed: $e");
-    }
-    return null;
-  }
-
-  // ── requireFreshGps flow ("Role Selection → User → Continue") ──────────
-  //
-  // Account city/state (accounts.city/state) is a completely separate
-  // concept from the CURRENT BROWSING city resolved here — this flow never
-  // reads or writes account-level location, it only determines what city
-  // Home fetches stores for in THIS session. See login_screen.dart's
-  // _AccountBootstrapScreenState for the account-level equivalent, whose
-  // permission → Location Services → GPS → Settings-redirect → resume-retry
-  // pattern this intentionally mirrors.
-
-  /// Always establishes the CURRENT device location fresh. Only falls back
-  /// to the mandatory manual State + City picker if the current location
-  /// genuinely cannot be obtained. Never a default/guessed city (no
-  /// "Ballari").
-  Future<void> _resolveFreshCurrentLocation() async {
-    try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm != LocationPermission.whileInUse && perm != LocationPermission.always) {
-        // App-level permission denied (or denied forever) — cannot get
-        // current GPS. Unrelated to the device's Location Services switch.
-        await _fallbackToManualCity();
-        return;
-      }
-
-      // Accepting the app's location PERMISSION dialog does NOT mean the
-      // device's master Location Services switch is on — checked
-      // separately, exactly as established for account-level location.
-      if (!await Geolocator.isLocationServiceEnabled()) {
-        await _guideToLocationSettingsForFreshGps();
-        return; // holds here; didChangeAppLifecycleState resumes on return
-      }
-
-      final resolved = await _acquireCurrentCityViaGps();
-      if (resolved != null) {
-        await _fetchAndGo(resolved['city'] as String, resolved['lat'] as double?, resolved['lng'] as double?);
-      } else {
-        await _fallbackToManualCity();
-      }
-    } catch (e) {
-      debugPrint("[LocationLoading] fresh current-location resolution failed: $e");
-      await _fallbackToManualCity();
-    }
-  }
-
-  /// Opens the device's system Location Settings screen — the same
-  /// geolocator API (Geolocator.openLocationSettings()) already used for
-  /// account-level location. No new location package is introduced.
-  Future<void> _guideToLocationSettingsForFreshGps() async {
-    if (mounted) setState(() {
-      _statusText = "Location Services are off. Please turn them on to continue...";
-      _waitingForLocationServicesFix = true;
-    });
-    await Geolocator.openLocationSettings();
-    // Nothing else to do here — didChangeAppLifecycleState (above) picks
-    // up the resume whenever the person comes back, however long that takes.
-  }
-
-  /// Called on app resume after sending the person to system Location
-  /// Settings during a requireFreshGps resolution. Re-checks Location
-  /// Services (never assumes turning it on happened just because they came
-  /// back); if now on, retries GPS + reverse-geocode automatically — the
-  /// person is never sent back to Role Selection or asked to tap Continue
-  /// again. If Location Services are still off, or the GPS/geocode attempt
-  /// fails anyway, falls through to the manual State + City picker — the
-  /// ONLY point after which manual entry is shown, per the required flow.
-  Future<void> _retryAfterLocationSettingsFix() async {
-    if (!mounted) return;
-    final stillOff = !(await Geolocator.isLocationServiceEnabled());
-    if (!stillOff) {
-      if (mounted) setState(() => _statusText = "Finding your location...");
-      final resolved = await _acquireCurrentCityViaGps();
-      if (resolved != null) {
-        await _fetchAndGo(resolved['city'] as String, resolved['lat'] as double?, resolved['lng'] as double?);
-        return;
-      }
-    }
-    await _fallbackToManualCity();
-  }
-
-  /// GPS → reverse-geocode, reusing the exact same device-side approach
-  /// this screen already uses in _refreshGpsBackground() (the geocoding
-  /// package's placemarkFromCoordinates) rather than a second lookup
-  /// method. Returns null (never a default/guessed city) on any failure.
-  Future<Map<String, dynamic>?> _acquireCurrentCityViaGps() async {
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.medium,
-      ).timeout(const Duration(seconds: 8));
-      final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude)
-          .timeout(const Duration(seconds: 5));
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final city = p.locality ?? p.subAdministrativeArea ?? p.administrativeArea ?? "";
-        if (city.isNotEmpty) {
-          await Prefs.saveLocation(pos.latitude, pos.longitude);
-          await Prefs.saveCity(city);
-          return {"city": city, "lat": pos.latitude, "lng": pos.longitude};
-        }
-      }
-    } catch (e) {
-      debugPrint("[LocationLoading] fresh GPS acquisition failed: $e");
-    }
-    return null;
-  }
-
-  /// Current GPS location could not be established after the full flow
-  /// above — require mandatory State + City, exactly like the existing
-  /// "no account city" fallback (same shared sheet). The picked city
-  /// becomes the CURRENT BROWSING city for this session only; it never
-  /// touches the separately-stored account city/state. Never a
-  /// default/guessed city (no "Ballari").
-  Future<void> _fallbackToManualCity() async {
-    if (!mounted) return;
-    final manual = await requireManualCityState(context);
-    if (manual == null || !mounted) {
-      // Person dismissed the sheet without picking both — keep this
-      // screen's own existing "Enter City Manually" affordance available
-      // rather than getting stuck on a blank loading state.
-      if (mounted) setState(() {
-        _showManual = true;
-        _done = false;
-        _statusText = "Select your city to continue";
-      });
-      return;
-    }
-    final city = manual['city']!;
-    await _fetchAndGo(city, null, null);
+  Future<Map<String, dynamic>?> _silentGps() async {
+    final pos = await LocationService.silentPosition(timeout: const Duration(seconds: 6));
+    if (pos == null) return null;
+    _lat = pos.latitude;
+    _lng = pos.longitude;
+    await Prefs.saveLocation(_lat!, _lng!);
+    return {"lat": _lat, "lng": _lng};
   }
 
   Future<void> _fetchAndGo(String city, double? lat, double? lng, {Future<Map<String,dynamic>?>? backgroundGps}) async {
@@ -434,9 +200,6 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
           .compareTo((b["distance_km"] as double?) ?? 9999.0));
     }
 
-    await Prefs.saveCity(city);
-    if (widget.token.isNotEmpty) { try { await Api.updateCity(widget.token, city); } catch (_) {} }
-
     // ── Wait for live GPS (up to 8s) before calling onReady ──
     // This ensures distance_km is computed with real GPS, not cached/null coords
     if (backgroundGps != null) {
@@ -483,63 +246,6 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
           fetchFailed: true, // stores were not delivered — not a genuinely empty city
         );
       }
-    }
-  }
-
-  void _chooseManually() async {
-    final cityController = TextEditingController();
-    final result = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24, right: 24, top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 32,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Enter Your City",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kPrimary)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: cityController,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: "e.g. Bangalore, Mumbai...",
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: kPrimary, width: 2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, cityController.text.trim()),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text("Confirm", style: TextStyle(color: Colors.white, fontSize: 16)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (result != null && result.isNotEmpty && mounted) {
-      setState(() { _showManual = false; _statusText = "Loading $result..."; });
-      await _fetchAndGo(result, null, null);
     }
   }
 
@@ -636,27 +342,6 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
               ),
             ),
             const Spacer(flex: 2),
-            if (_showManual) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(children: [
-                  Text("Taking too long?",
-                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 13)),
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: _chooseManually,
-                    icon: const Icon(Icons.edit_location_alt_outlined, size: 16),
-                    label: const Text("Enter City Manually"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: kPrimary,
-                      side: const BorderSide(color: kPrimary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 24),
-            ],
           ]),
         ),
       ),

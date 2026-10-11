@@ -562,7 +562,7 @@ class Api {
   /// Fetch default fallback images — tries /admin/default-images then /default-images
   /// Returns a map with keys: city_image_url, store_image_url, product_image_url, etc.
   static Future<Map<String,dynamic>> getDefaultImages() async {
-    for (final path in ["/default-images", "/admin/default-images", "/admin/default-images"]) {
+    for (final path in ["/default-images"]) {
       try {
         final raw = await _get(path).timeout(const Duration(seconds: 8));
         if (raw is Map && raw.isNotEmpty) {

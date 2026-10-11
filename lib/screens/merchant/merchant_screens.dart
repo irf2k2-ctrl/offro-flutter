@@ -25,8 +25,11 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
+import '../../core/models/offro_location.dart';
+import '../../core/services/location_store.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
+import '../location/location_screen.dart';
 import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../payment/payment_success_screen.dart';
@@ -67,7 +70,17 @@ Widget offroHeaderAddButton({
 
 class MerchantHomePage extends StatefulWidget {
   final String token;
-  const MerchantHomePage({super.key, required this.token});
+  // Merchant ACCOUNT location header (device-only; never the store address).
+  final String locationTitle;
+  final String locationSubtitle;
+  final VoidCallback? onLocationTap;
+  const MerchantHomePage({
+    super.key,
+    required this.token,
+    this.locationTitle = '',
+    this.locationSubtitle = '',
+    this.onLocationTap,
+  });
   @override State<MerchantHomePage> createState() => _MerchantHomePageState();
 }
 class _MerchantHomePageState extends State<MerchantHomePage> {
@@ -131,6 +144,14 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       ]),
       backgroundColor: Colors.white, foregroundColor: kText,
       automaticallyImplyLeading:false,
+      bottom: widget.onLocationTap == null ? null : PreferredSize(
+        preferredSize: const Size.fromHeight(52),
+        child: _MerchantLocationBar(
+          title: widget.locationTitle,
+          subtitle: widget.locationSubtitle,
+          onTap: widget.onLocationTap!,
+        ),
+      ),
     ),
     body: _loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
@@ -2920,38 +2941,121 @@ class MerchantHome extends StatefulWidget {
 }
 class _MerchantHomeState extends State<MerchantHome> {
   int _idx = 0;
-  late List<Widget> _pages;
+  // The merchant ACCOUNT location (device-only, shared Location screen).
+  // Pages are not built — and no merchant API calls start — until a valid
+  // location exists. This never reads or writes the registered store address.
+  OffroLocation? _loc;
+
   @override void initState() {
     super.initState();
-    _pages = [
-      MerchantHomePage(token: widget.token),
-      MerchantDealsPage(token: widget.token),
-      MerchantInvoicesPage(token: widget.token),
-      MerchantTxnPage(token: widget.token),
-      MerchantProfilePage(token: widget.token, merchant: widget.merchant),
-    ];
+    _ensureLocation();
   }
-  @override Widget build(BuildContext context) => PopScope(
-    canPop: false,
-    child: Scaffold(
-    body: _pages[_idx],
-    bottomNavigationBar: BottomNavigationBar(
-      currentIndex: _idx,
-      onTap: (i) => setState(()=>_idx=i),
-      selectedItemColor: kPrimary, unselectedItemColor: kMuted,
-      type: BottomNavigationBarType.fixed,
-      items: const [
-        BottomNavigationBarItem(icon:Icon(Icons.home_rounded),label:"Home"),
-        BottomNavigationBarItem(icon:Icon(Icons.local_offer),label:"Deals"),
-        BottomNavigationBarItem(icon:Icon(Icons.receipt_long),label:"Invoices"),
-        BottomNavigationBarItem(icon:Icon(Icons.history),label:"Activity"),
-        BottomNavigationBarItem(icon:Icon(Icons.person),label:"Profile"),
-      ],
+
+  Future<void> _ensureLocation() async {
+    final saved = await LocationStore.load(LocationMode.merchant);
+    if (!mounted) return;
+    if (saved != null && saved.hasCity) {
+      setState(() => _loc = saved);
+      return;
+    }
+    await _chooseLocation(mandatory: true);
+  }
+
+  Future<void> _chooseLocation({required bool mandatory}) async {
+    final picked = await Navigator.push<OffroLocation>(
+      context,
+      MaterialPageRoute<OffroLocation>(
+        builder: (_) => LocationScreen(mode: LocationMode.merchant, mandatory: mandatory, current: _loc),
+      ),
+    );
+    if (!mounted) return;
+    if (picked != null) {
+      await LocationStore.save(LocationMode.merchant, picked);
+      if (!mounted) return;
+      setState(() => _loc = picked);
+    } else if (mandatory) {
+      await _chooseLocation(mandatory: true); // never proceed without a location
+    }
+  }
+
+  List<Widget> get _pages => [
+    MerchantHomePage(
+      token: widget.token,
+      locationTitle: _loc?.title ?? '',
+      locationSubtitle: _loc?.subtitle ?? '',
+      onLocationTap: () => _chooseLocation(mandatory: false),
     ),
-  ));
+    MerchantDealsPage(token: widget.token),
+    MerchantInvoicesPage(token: widget.token),
+    MerchantTxnPage(token: widget.token),
+    MerchantProfilePage(token: widget.token, merchant: widget.merchant),
+  ];
+
+  @override Widget build(BuildContext context) {
+    if (_loc == null) {
+      return const PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: kBg,
+          body: Center(child: CircularProgressIndicator(color: kPrimary)),
+        ),
+      );
+    }
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: _pages[_idx],
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _idx,
+          onTap: (i) => setState(()=>_idx=i),
+          selectedItemColor: kPrimary, unselectedItemColor: kMuted,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon:Icon(Icons.home_rounded),label:"Home"),
+            BottomNavigationBarItem(icon:Icon(Icons.local_offer),label:"Deals"),
+            BottomNavigationBarItem(icon:Icon(Icons.receipt_long),label:"Invoices"),
+            BottomNavigationBarItem(icon:Icon(Icons.history),label:"Activity"),
+            BottomNavigationBarItem(icon:Icon(Icons.person),label:"Profile"),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-// ─────────── Merchant Stores Page ───────────
+/// Tappable location header on Merchant Home (opens the shared Location screen).
+class _MerchantLocationBar extends StatelessWidget {
+  final String title, subtitle; final VoidCallback onTap;
+  const _MerchantLocationBar({required this.title, required this.subtitle, required this.onTap});
+  @override Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: kBorder), bottom: BorderSide(color: kBorder)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.location_on_rounded, color: kPrimary, size: 22),
+        const SizedBox(width: 8),
+        Expanded(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title.isEmpty ? 'Select location' : title,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
+            if (subtitle.isNotEmpty)
+              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, color: kMuted)),
+          ],
+        )),
+        const Icon(Icons.keyboard_arrow_down_rounded, color: kMuted),
+      ]),
+    ),
+  );
+}
 class MerchantStoresPage extends StatefulWidget {
   final String token;
   const MerchantStoresPage({super.key, required this.token});
