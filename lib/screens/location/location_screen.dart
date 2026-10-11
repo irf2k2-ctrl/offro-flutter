@@ -60,6 +60,8 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
   String _note = '';
   int _accessGen = 0;
   int _detectGen = 0;
+  bool _autoSelect = false; // user tapped "Use current location": apply as soon as detection succeeds
+  DateTime? _detectedAt;
   bool _busy = false;
 
   String _query = '';
@@ -99,9 +101,9 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     if (!mounted) return;
     setState(() {
       _supported = list;
-      // Customers can choose ANY Indian city (OffrO stores or not — the Home
-      // No-Store state handles empty cities). Merchants: supported only.
-      _cities = widget.mode == LocationMode.customer ? LocationService.allIndiaCities(list) : list;
+      // ONE shared list for Customer AND Merchant: every Indian city (with
+      // its state). OffrO stores or not — Home's No-Store state handles empty cities.
+      _cities = LocationService.allIndiaCities(list);
       _citiesLoading = false;
     });
   }
@@ -128,6 +130,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       _access = a;
       if (a != LocationAccess.ready) {
         _detectGen++; // invalidate any in-flight detection
+        _autoSelect = false;
         _detected = null; _detecting = false; _detectError = ''; _fix = null;
       } else {
         _note = '';
@@ -136,15 +139,17 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     if (a == LocationAccess.ready && _detected == null && !_detecting) _detect();
   }
 
-  Future<void> _detect() async {
+  Future<void> _detect({bool fresh = false}) async {
     final g = ++_detectGen;
+    if (fresh) { _fix = null; _fixAt = null; _detected = null; _detectedAt = null; }
     setState(() { _detecting = true; _detectError = ''; });
-    // 1. Fresh, accurate GPS fix (re-use the last one if only geocoding failed).
+    // 1. Fresh, accurate GPS fix (re-use the last one only if just geocoding failed).
     var fix = _fix;
     if (fix == null || _fixAt == null || DateTime.now().difference(_fixAt!) > const Duration(minutes: 2)) {
       fix = await LocationService.acquireFix();
       if (!mounted || g != _detectGen) return;
       if (fix == null) {
+        _autoSelect = false;
         setState(() {
           _detecting = false;
           _detectError = "Couldn't get a precise GPS fix. Move to an open area or check your signal.";
@@ -156,13 +161,19 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     }
     // 2. Reverse-geocode only the accepted fix.
     await _citiesFuture;
-    final loc = await LocationService.resolveFix(fix!, _supported);
+    final loc = await LocationService.resolveFix(fix, _supported);
     if (!mounted || g != _detectGen) return;
     setState(() {
       _detecting = false;
       _detected = loc;
+      _detectedAt = loc == null ? null : DateTime.now();
       _detectError = loc == null ? "Got your position but couldn't identify the city." : '';
     });
+    // 3. The user asked for the current location → apply it right now.
+    if (loc != null && _autoSelect) {
+      _autoSelect = false;
+      await _select(loc);
+    }
   }
 
   Future<void> _onAccessTap() async {
@@ -174,10 +185,18 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
 
     switch (a) {
       case LocationAccess.ready:
-        if (_detected != null) {
-          await _select(_detected!);
-        } else if (!_detecting) {
-          _detect();
+        // Tap = "use my CURRENT location". Re-use a result only if it was
+        // detected moments ago on this screen; otherwise detect again, and
+        // apply the result automatically as soon as it succeeds.
+        final d = _detected;
+        final at = _detectedAt;
+        if (d != null && at != null && DateTime.now().difference(at) < const Duration(seconds: 45)) {
+          await _select(d);
+        } else if (_detecting) {
+          _autoSelect = true; // detection already running → apply when done
+        } else {
+          _autoSelect = true;
+          _detect(fresh: true);
         }
         return;
       case LocationAccess.serviceOff:
@@ -198,7 +217,8 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         if (!mounted) return;
         setState(() { _access = res; _note = ''; });
         if (res == LocationAccess.ready) {
-          _detect();
+          _autoSelect = true; // user just allowed location → use it
+          _detect(fresh: true);
         } else if (res == LocationAccess.permissionDeniedForever) {
           await _settingsDialog(
             message: "Location permission is turned off for OffrO. Please allow it in app settings.",
@@ -236,12 +256,14 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
   Future<void> _select(OffroLocation loc) async {
     if (_busy) return;
     // Merchant location is valid only for a supported OffrO city.
-    if (widget.mode == LocationMode.merchant && !LocationService.isSupported(loc.city, _supported)) {
+    if (widget.mode == LocationMode.merchant &&
+        loc.source == LocationSource.gps &&
+        !LocationService.isSupported(loc.city, _supported)) {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('City not supported yet'),
-          content: Text("OffrO isn't available in ${loc.city} yet. Please choose one of the supported cities."),
+          content: Text("OffrO isn't available in ${loc.city} yet. Please choose another city from the list."),
           actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
         ),
       );
@@ -401,13 +423,11 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       final match = _cities.where((x) => x.name.toLowerCase() == c.name.toLowerCase());
       out.add(match.isNotEmpty ? match.first : c);
     }
-    if (widget.mode == LocationMode.customer) {
-      for (final m in _metros) {
-        if (out.length >= 6) break;
-        if (has(m)) continue;
-        final match = _cities.where((x) => x.name == m);
-        if (match.isNotEmpty) out.add(match.first);
-      }
+    for (final m in _metros) {
+      if (out.length >= 6) break;
+      if (has(m)) continue;
+      final match = _cities.where((x) => x.name == m);
+      if (match.isNotEmpty) out.add(match.first);
     }
     return out;
   }
@@ -432,7 +452,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         ]);
       }),
       const SizedBox(height: 24),
-      Text(widget.mode == LocationMode.customer ? 'All cities' : 'Supported cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kText)),
+      const Text('All cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kText)),
       const SizedBox(height: 4),
       for (final c in all) _CityRow(
         title: c.name,

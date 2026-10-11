@@ -279,14 +279,14 @@ class LocationService {
       if (marks.isNotEmpty) pm = marks.first;
     } catch (_) {}
 
-    final pmCity = _canon(s(pm?.locality).isNotEmpty ? s(pm?.locality) : s(pm?.subAdministrativeArea));
-    final pmArea = s(pm?.subLocality);
+    final pmLocality = _canon(s(pm?.locality));
+    final pmSubAdmin = _canon(s(pm?.subAdministrativeArea));
+    final pmArea0 = s(pm?.subLocality);
     final pmThorough = s(pm?.thoroughfare);
     final pmState = s(pm?.administrativeArea);
 
-    // If the device geocoder produced a recognised city we do not need to wait
-    // long for the backend; otherwise wait for it.
-    final pmKnownEarly = pmCity.isNotEmpty && _isKnownCity(pmCity, supported);
+    final pmKnownEarly = (pmLocality.isNotEmpty && _isKnownCity(pmLocality, supported)) ||
+        (pmSubAdmin.isNotEmpty && _isKnownCity(pmSubAdmin, supported));
     final backend = await backendFuture.timeout(
       Duration(seconds: pmKnownEarly ? 2 : 8),
       onTimeout: () => <String, dynamic>{},
@@ -295,27 +295,37 @@ class LocationService {
     final bArea = s(backend['area']);
     final bState = s(backend['state']);
 
+    // City: first RECOGNISED Indian city among locality → district → backend.
+    // Android's "locality" is sometimes a ward/town inside the city, so a
+    // known district/backend city beats an unrecognised locality. If nothing
+    // is recognised, keep the raw geocoded name (never a nearby supported one).
+    final ordered = <String>[pmLocality, pmSubAdmin, bCity].where((e) => e.isNotEmpty).toList();
     String city = '';
-    if (pmCity.isNotEmpty && bCity.isNotEmpty && pmCity.toLowerCase() != bCity.toLowerCase()) {
-      // Sources disagree → keep the one that is a recognised Indian city;
-      // if both or neither are, trust the device geocoder.
-      final pmKnown = _isKnownCity(pmCity, supported);
-      final bKnown = _isKnownCity(bCity, supported);
-      city = (!pmKnown && bKnown) ? bCity : pmCity;
-    } else {
-      city = pmCity.isNotEmpty ? pmCity : bCity;
+    for (final c in ordered) {
+      if (_isKnownCity(c, supported)) { city = c; break; }
     }
+    if (city.isEmpty && ordered.isNotEmpty) city = ordered.first;
     if (city.isEmpty) return null;
 
-    final agrees = bCity.toLowerCase() == city.toLowerCase();
-    final pmAgrees = pmCity.toLowerCase() == city.toLowerCase();
-    final area = pmAgrees && pmArea.isNotEmpty ? pmArea : (agrees ? bArea : '');
+    final lc = city.toLowerCase();
+    final pmCity = pmLocality.toLowerCase() == lc ? pmLocality
+        : (pmSubAdmin.toLowerCase() == lc ? pmSubAdmin : '');
+    // If the locality was NOT the city (e.g. a ward), it is the best "area".
+    final pmArea = pmArea0.isNotEmpty
+        ? pmArea0
+        : (pmLocality.isNotEmpty && pmLocality.toLowerCase() != lc ? pmLocality : '');
+
+    final agrees = bCity.toLowerCase() == lc;
+    final pmAgrees = pmCity.isNotEmpty || pmSubAdmin.toLowerCase() == lc || pmLocality.toLowerCase() == lc;
+    String area = pmAgrees && pmArea.isNotEmpty ? pmArea : (agrees ? bArea : '');
+    if (area.toLowerCase() == lc) area = '';
     String locality = '';
     if (pmAgrees && pmThorough.isNotEmpty && pmThorough.toLowerCase() != area.toLowerCase()) {
       locality = pmThorough;
     }
 
-    var state = agrees && bState.isNotEmpty ? bState : (pmAgrees ? pmState : '');
+    // State: geocoder's state when it describes THIS city; else the bundled data.
+    var state = (agrees && bState.isNotEmpty) ? bState : (pmAgrees ? pmState : '');
     if (state.isEmpty) state = stateForCity(city);
 
     return OffroLocation(

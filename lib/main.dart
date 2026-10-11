@@ -872,6 +872,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   String _noServiceImg=""; String _noServiceTitle=""; String _noServiceMsg="";
   bool _netError=false; bool _fetchFailed=false;
   bool _loadAllRunning=false; // FIX 4: prevent parallel _loadAll calls
+  int _loadAllGen=0; // newest _loadAll wins: an older city's late response must not overwrite a newer city
+  // /default-images is requested ONCE, early and independently of stores, so the
+  // Admin No-Store image/message is ready the moment a city turns out empty.
+  Future<Map<String,dynamic>>? _defaultsFuture;
+  bool _noStoreReady=false;  // default-images succeeded OR its single retry was exhausted
+  bool _noStoreFailed=false; // both attempts failed (≠ "Admin configured nothing")
   bool _isTimeout=false; // FIX 10: distinguish timeout from other errors
   bool _popupShown=false;
 
@@ -1021,6 +1027,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       _fabVisible.value = offset > 120;
     });
     unawaited(_loadSavedLocation());
+    unawaited(_loadNoStoreContent());
     if (widget.preloadedStores.isNotEmpty) {
       _usePreloadedData(); // async — clears _loading when done
       // Always fetch live GPS even when preloaded — ensures distance_km is computed
@@ -1175,6 +1182,67 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Single shared /default-images request with ONE automatic retry.
+  /// `Api.getDefaultImages()` returns `{}` only on failure (a reachable
+  /// server always sends a non-empty map, even when nothing is configured),
+  /// so an empty result means FAILED. A successful result is cached for the
+  /// session; a double failure is not cached, so a later user-triggered load
+  /// can try again (never an endless loop).
+  Future<Map<String,dynamic>> _defaults() {
+    return _defaultsFuture ??= (() async {
+      Map<String,dynamic> d = {};
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        try {
+          d = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
+        } catch (_) { d = {}; }
+        if (d.isNotEmpty) break;
+        if (attempt == 1) await Future.delayed(const Duration(seconds: 2));
+      }
+      if (d.isEmpty) _defaultsFuture = null; // exhausted → allow a later retry
+      return d;
+    })();
+  }
+
+  /// Loads ONLY the Admin No-Store image/title/message — independent of the
+  /// store, product, slider and banner requests.
+  Future<void> _loadNoStoreContent() async {
+    final defaults = await _defaults();
+    if (!mounted) return;
+    if (defaults.isEmpty) {
+      // Request FAILED (twice). Not the same as "no image configured".
+      setState(() { _noStoreReady = true; _noStoreFailed = true; });
+      return;
+    }
+    final nsImgs = defaults["no_service_url"];
+    String nsUrl = "";
+    if (nsImgs is List && nsImgs.isNotEmpty) {
+      nsUrl = nsImgs.last.toString().trim();
+    } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
+      nsUrl = nsImgs.trim();
+    }
+    final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
+    final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
+    setState(() {
+      _noStoreReady = true;
+      _noStoreFailed = false;
+      if (nsUrl.startsWith("http") || nsUrl.startsWith("data:image")) _noServiceImg = nsUrl;
+      if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
+      if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
+    });
+  }
+
+  static bool _sameStrings(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) { if (a[i] != b[i]) return false; }
+    return true;
+  }
+
+  /// Manual retry from the No-Store state after a failed content load.
+  void _retryNoStoreContent() {
+    setState(() { _noStoreReady = false; _noStoreFailed = false; });
+    unawaited(_loadNoStoreContent());
+  }
+
   // ── Home secondary data (categories, sliders, products, wallet, admin
   // banners, hero/default images) ─────────────────────────────────────────
   // QA round (Oct 2026) — rewritten so Home fills in ONE coordinated step:
@@ -1193,8 +1261,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadSupplementary(String c, {bool coreLoaded = false}) async {
     // Stale-request protection (Round 12): only the newest call may write state.
     final myGen = ++_supplementaryGen;
-    if (mounted && (!_productsLoading || !_adminBannersLoading || !_heroImageLoading)) {
-      setState(() { _productsLoading = true; _adminBannersLoading = true; _heroImageLoading = true; });
+    if (mounted && (!_productsLoading || !_adminBannersLoading || (!_heroImageLoading && _cityImageUrl.isEmpty))) {
+      setState(() {
+        _productsLoading = true; _adminBannersLoading = true;
+        // Hero shimmer only while there is NO hero URL yet — never flash it back on
+        // a reload when the same hero image is already shown.
+        if (_cityImageUrl.isEmpty) _heroImageLoading = true;
+      });
     }
     try {
       List<String> cats2 = List<String>.from(_cats);
@@ -1212,23 +1285,21 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // feeds the hero photo, fallback banners and the default-product
       // fallback. Applied in its own single setState as soon as it resolves.
       final Future<void> defaultsApplied = (() async {
-        Map<String,dynamic> defaults = {};
-        try {
-          defaults = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
-        } catch (_) { defaults = {}; }
+        final Map<String,dynamic> defaults = await _defaults();
         if (!mounted || myGen != _supplementaryGen) return;
 
         List<String> cityImgs = [];
         final cityVal = defaults["city"];
+        bool okHero(String v) => v.startsWith("http") || v.startsWith("data:image");
         if (cityVal is List) {
-          cityImgs = cityVal.map((v) => v.toString().trim()).where((v) => v.startsWith("http")).toList();
-        } else if (cityVal is String && cityVal.startsWith("http")) {
-          cityImgs = [cityVal];
+          cityImgs = cityVal.map((v) => v.toString().trim()).where(okHero).toList();
+        } else if (cityVal is String && okHero(cityVal.trim())) {
+          cityImgs = [cityVal.trim()];
         }
         if (cityImgs.isEmpty) {
           for (final key in ["city_image_url", "city_image", "hero_image_url", "image_url"]) {
             final v = (defaults[key] ?? "").toString().trim();
-            if (v.startsWith("http")) { cityImgs = [v]; break; }
+            if (okHero(v)) { cityImgs = [v]; break; }
           }
         }
         final nsImgs = defaults["no_service_url"];
@@ -1264,7 +1335,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         }
         setState(() {
           _heroImageLoading = false;
-          if (cityImgs.isNotEmpty) { _cityImageUrls = cityImgs; _cityImageUrl = cityImgs[0]; }
+          // Only replace when the list actually changed (keeps the shown hero + rotation stable).
+          if (cityImgs.isNotEmpty && !_sameStrings(_cityImageUrls, cityImgs)) {
+            _cityImageUrls = cityImgs; _cityImageUrl = cityImgs[0]; _heroImgIndex = 0;
+          }
           if ((nsUrl.startsWith("http") || nsUrl.startsWith("data:image"))) _noServiceImg = nsUrl;
           if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
           if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
@@ -1413,6 +1487,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     _loadAllRunning = true;
+    final int myLoad = ++_loadAllGen;
+    unawaited(_loadNoStoreContent()); // no-op if already loaded
 
     if(mounted) setState((){_loading=true; _netError=false; _fetchFailed=false;});
     // FIX 6: Retry up to 3 times with 2s backoff
@@ -1452,6 +1528,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
 
+    // A newer city selection started while this request was in flight → drop it.
+    if (myLoad != _loadAllGen) return;
+
     // If all 3 attempts failed
     if (storeFetchFailed && storeList.isEmpty) {
       if (mounted) {
@@ -1486,6 +1565,18 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         }
       }
       return;
+    }
+
+    // SUCCESSFUL response with zero stores → show the Admin No-Store state NOW.
+    // (Do not wait for categories / sliders / products / retries below.)
+    if (storeList.isEmpty && mounted) {
+      setState(() {
+        _stores = [];
+        _loading = false;
+        _netError = false;
+        _fetchFailed = false;
+        _isTimeout = false;
+      });
     }
 
     // Fetch everything else in parallel (non-critical — fail silently)
@@ -1524,6 +1615,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
 
     if(!mounted) { _loadAllRunning = false; return; }
+    if (myLoad != _loadAllGen) return; // superseded by a newer city
 
     final sl = List<Map<String,dynamic>>.from(storeList);
     if(_userLat != null && _userLng != null) {
@@ -1674,13 +1766,21 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   /// Home location header tap → the shared Location screen.
+  bool _locScreenOpen = false;
   Future<void> _openLocationScreen() async {
-    final picked = await Navigator.push<OffroLocation>(
-      context,
-      MaterialPageRoute<OffroLocation>(
-        builder: (_) => LocationScreen(mode: LocationMode.customer, current: _effectiveLoc),
-      ),
-    );
+    if (_locScreenOpen) return; // no double-open / loops
+    _locScreenOpen = true;
+    final OffroLocation? picked;
+    try {
+      picked = await Navigator.push<OffroLocation>(
+        context,
+        MaterialPageRoute<OffroLocation>(
+          builder: (_) => LocationScreen(mode: LocationMode.customer, current: _effectiveLoc),
+        ),
+      );
+    } finally {
+      _locScreenOpen = false;
+    }
     if (picked == null || !mounted) return;
     await _applyLocation(picked);
   }
@@ -2118,7 +2218,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           width: double.infinity,
           height: 54,
           child: ElevatedButton(
-            onPressed: _goRoleSelect,
+            // No-Store (successful load, zero stores) → the Location screen so
+            // the customer can pick another city / current location. Error
+            // states keep the previous behaviour.
+            onPressed: (!_netError && !_isTimeout && !_fetchFailed)
+                ? () { _openLocationScreen(); }
+                : _goRoleSelect,
             style: ElevatedButton.styleFrom(
               backgroundColor: kPrimary,
               foregroundColor: Colors.white,
@@ -2159,17 +2264,47 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // ── No-service with image: image fills top, footer below ──
     if (!_netError && !_isTimeout && !_fetchFailed && _noServiceImg.isNotEmpty) {
+      // Shown if the image itself can't be loaded: the Admin message (if any)
+      // on the brand colour — never a blank box without explanation.
+      Widget nsFallback() => Container(
+            color: kPrimary,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: _noServiceMsg.isEmpty
+                ? null
+                : Text(_noServiceMsg,
+                    style: const TextStyle(color: kLight, fontSize: 15),
+                    textAlign: TextAlign.center),
+          );
       Widget nsImgWidget;
       if (_noServiceImg.startsWith("data:image")) {
+        // Shared base64 helper: same Uint8List per source → decoded once, and
+        // Flutter's image cache hits on every rebuild.
         try {
           nsImgWidget = Image.memory(
-            base64Decode(_noServiceImg.split(",").last),
-            fit: BoxFit.cover, width: double.infinity, gaplessPlayback: true);
-        } catch (_) { nsImgWidget = Container(color: kPrimary); }
+            decodeBase64ImageCached(_noServiceImg),
+            fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => nsFallback());
+        } catch (_) { nsImgWidget = nsFallback(); }
       } else {
-        nsImgWidget = Image.network(
-          _noServiceImg, fit: BoxFit.cover, width: double.infinity,
-          errorBuilder: (_, __, ___) => Container(color: kPrimary));
+        // Same cached loader as the Hero: disk + memory cache, no re-download
+        // on rebuilds.
+        nsImgWidget = CachedNetworkImage(
+          imageUrl: _noServiceImg,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          memCacheWidth: 1080,
+          fadeInDuration: const Duration(milliseconds: 150),
+          placeholder: (_, __) => const ColoredBox(
+            color: kPrimary,
+            child: Center(child: SizedBox(
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white54))),
+          ),
+          errorWidget: (_, __, ___) => nsFallback(),
+        );
       }
       return Column(children: [Expanded(child: nsImgWidget), footer]);
     }
@@ -2202,7 +2337,20 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             // Store" message (same _noServiceMsg as before; no hard-coded
             // "No stores in <city> yet" text any more).
             Text(_noServiceMsg, style: const TextStyle(color: kLight, fontSize: 15), textAlign: TextAlign.center)
-          else if (_heroImageLoading)
+          else if (_noStoreFailed) ...[
+            // default-images could not be loaded (after one retry). Say so —
+            // do NOT imply the Admin has no image configured.
+            const Icon(Icons.cloud_off_rounded, color: Colors.white54, size: 40),
+            const SizedBox(height: 10),
+            const Text("Couldn't load this page", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            OutlinedButton(
+              onPressed: _retryNoStoreContent,
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
+              child: const Text('Retry'),
+            ),
+          ]
+          else if (!_noStoreReady)
             // Admin No Store content (/default-images) is still loading —
             // wait quietly instead of flashing placeholder text first.
             const SizedBox(
@@ -4362,13 +4510,32 @@ class _CityHeroSection extends StatelessWidget {
 
     return LayoutBuilder(builder: (ctx, constraints) {
       final heroH = constraints.maxWidth * (2.0 / 3.0) + topPad;
+      Widget gradientBox() => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+          ),
+        ),
+      );
+      Widget memoryHero() {
+        try {
+          return Image.memory(
+            decodeBase64ImageCached(cityImageUrl),
+            fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+            cacheWidth: 900, gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => gradientBox());
+        } catch (_) { return gradientBox(); }
+      }
     return SizedBox(
       height: heroH,
       width: double.infinity,
       child: Stack(fit: StackFit.expand, children: [
 
         // ── Background: network image OR brand gradient ──
-        cityImageUrl.isNotEmpty
+        cityImageUrl.startsWith("data:image")
+          ? memoryHero()
+          : cityImageUrl.isNotEmpty
           ? CachedNetworkImage(
               imageUrl: cityImageUrl,
               fit: BoxFit.cover,
@@ -6001,6 +6168,8 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
 
   // ── Individual store card ────────────────────────────────────
   // ── Badge metadata for glass ribbon ──
+  // Height of the badge ribbon area, reserved on every Home carousel store card.
+  static const double _kBadgeRibbonH = 30;
   static const Map<String, Map<String,String>> _badgeRibbonMeta = {
     "new_store":     {"label": "🆕 NEW STORE"},
     "just_opened":   {"label": "🎉 JUST OPENED"},
@@ -6119,7 +6288,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     final rating   = (s["rating"] as num?)?.toDouble() ?? 0.0;
     final revCount = (s["rating_count"] ?? s["review_count"] as num?)?.toInt() ?? 0;
     final st       = _storeStatus(s);
-    final hasBadge = _resolveStoreBadge(s) != null;
 
     final cardW  = _storeCardW(ctx);
     final imgH   = (cardW * 0.57).roundToDouble();
@@ -6149,7 +6317,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     }
     final infoH = 22 + max(nameH, rating > 0 && !stack ? 17.0 : 0) +
         (row2 > 0 ? 2 + row2 : 0) + statusH;
-    final total = 8 + 6 + 2 + imgH + (hasBadge ? 30 : 0) + infoH + 2; // margins + border + safety
+    final total = 8 + 6 + 2 + imgH + _kBadgeRibbonH + infoH + 2; // margins + border + safety
     return _StoreCardLayout(total.ceilToDouble(), stack);
   }
 
@@ -6343,10 +6511,14 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
             ),
 
             // ── Ribbon band — full card width, directly below the image ──
-            if (badgeKey != null)
+            // The ribbon area is ALWAYS _kBadgeRibbonH tall so every card in the
+            // carousel has the same height; with no badge it is just empty space.
+            if (badgeKey == null)
+              const SizedBox(width: double.infinity, height: _kBadgeRibbonH)
+            else
               Container(
                 width: double.infinity,
-                height: 30,
+                height: _kBadgeRibbonH,
                 color: const Color(0xFF3a3a35),
                 alignment: Alignment.center,
                 child: Text(
