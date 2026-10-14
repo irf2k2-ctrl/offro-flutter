@@ -876,14 +876,32 @@ class ProductAnalyticsPage extends StatefulWidget {
 class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
   Map<String,dynamic> _data = {};
   bool _loading = true;
+  bool _failed = false; // request failed — show retry, never fake zeros
 
   String get _pid => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
 
+  // Backend sends plural keys (views/shares/opens) and, for older responses,
+  // singular ones (view/share/open).
+  int _count(String plural, String singular) {
+    final v = _data[plural] ?? _data[singular];
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? "") ?? 0;
+  }
+
+  String get _lastSeen {
+    final raw = (_data['last_viewed'] ?? _data['last_seen'] ?? "").toString();
+    return raw.length >= 10 ? raw.substring(0, 10) : "—";
+  }
+
   @override void initState() { super.initState(); _load(); }
   Future<void> _load() async {
-    setState(() => _loading = true);
-    _data = await Api.getProductAnalytics(widget.token, _pid);
-    if (mounted) setState(() => _loading = false);
+    setState(() { _loading = true; _failed = false; });
+    final d = await Api.getProductAnalytics(widget.token, _pid);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (d == null) { _failed = true; } else { _data = d; }
+    });
   }
 
   @override Widget build(BuildContext context) => Scaffold(
@@ -897,6 +915,22 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
     ),
     body: _loading
       ? const Center(child: CircularProgressIndicator(color: kPrimary))
+      : _failed
+      ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off_rounded, color: kMuted, size: 44),
+          const SizedBox(height: 12),
+          const Text("Couldn't load analytics", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 16)),
+          const SizedBox(height: 6),
+          const Text("Please check your connection and try again.", textAlign: TextAlign.center,
+              style: TextStyle(color: kMuted, fontSize: 13)),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text("Retry"),
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
+          ),
+        ])))
       : SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(children: [
           // Product info card
           Card(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -909,18 +943,15 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
             )),
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: _AnalyticsStat("👁️ Views",  "${_data['views'] ?? 0}", kPrimary)),
+            Expanded(child: _AnalyticsStat("👁️ Views",  "${_count('views', 'view')}", kPrimary)),
             const SizedBox(width: 12),
-            Expanded(child: _AnalyticsStat("🔗 Shares", "${_data['shares'] ?? 0}", const Color(0xFF2563EB))),
+            Expanded(child: _AnalyticsStat("🔗 Shares", "${_count('shares', 'share')}", const Color(0xFF2563EB))),
           ]),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: _AnalyticsStat("🛒 Opens", "${_data['opens'] ?? 0}", const Color(0xFF059669))),
+            Expanded(child: _AnalyticsStat("🛒 Opens", "${_count('opens', 'open')}", const Color(0xFF059669))),
             const SizedBox(width: 12),
-            Expanded(child: _AnalyticsStat("📅 Last Seen",
-              _data['last_viewed']?.toString().isNotEmpty == true
-                ? _data['last_viewed'].toString().substring(0, 10) : "—",
-              const Color(0xFF7C3AED))),
+            Expanded(child: _AnalyticsStat("📅 Last Seen", _lastSeen, const Color(0xFF7C3AED))),
           ]),
           const SizedBox(height: 20),
           _ConversionBar(_data),
@@ -951,8 +982,8 @@ class _ConversionBar extends StatelessWidget {
   final Map<String,dynamic> data;
   const _ConversionBar(this.data);
   @override Widget build(BuildContext context) {
-    final views  = (data['views']  as num?)?.toDouble() ?? 0;
-    final opens  = (data['opens']  as num?)?.toDouble() ?? 0;
+    final views  = ((data['views'] ?? data['view']) as num?)?.toDouble() ?? 0;
+    final opens  = ((data['opens'] ?? data['open']) as num?)?.toDouble() ?? 0;
     final pct = views > 0 ? (opens / views * 100).clamp(0, 100).toStringAsFixed(1) : "0";
     return Container(
       padding: const EdgeInsets.all(16),

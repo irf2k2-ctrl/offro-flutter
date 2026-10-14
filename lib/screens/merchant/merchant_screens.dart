@@ -5171,7 +5171,12 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                   Builder(builder: (_) {
                     final endStr = d["end_date"]?.toString() ?? "";
                     final endDt = _parseDealDate(endStr);
-                    final isExpired = endDt != null && endDt.isBefore(DateTime.now());
+                    // Valid THROUGH the end date (same rule as backend/Store Detail):
+                    // expired only after 23:59:59 IST of that day. IST = UTC+05:30,
+                    // computed from UTC so the phone's timezone setting is irrelevant.
+                    final istNow = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+                    final isExpired = endDt != null &&
+                        istNow.isAfter(DateTime.utc(endDt.year, endDt.month, endDt.day, 23, 59, 59));
                     return Row(mainAxisSize: MainAxisSize.min, children: [
                       if (endStr.isNotEmpty) ...[
                         const Icon(Icons.calendar_today_rounded, size: 11, color: kMuted),

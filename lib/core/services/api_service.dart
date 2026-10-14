@@ -1001,12 +1001,17 @@ class Api {
     } catch (_) { return {"items": []}; }
   }
 
-  static Future<Map<String,dynamic>> getProductAnalytics(
+  /// Product analytics for the merchant. Returns `null` when the request FAILED
+  /// (network/server/auth error or an unexpected response) so the UI can show a
+  /// retry state instead of misleading zeros. A real "no events yet" result is
+  /// a map with zero counts.
+  static Future<Map<String,dynamic>?> getProductAnalytics(
       String token, String pid) async {
     try {
-      final d = await _get("/merchant/products/$pid/analytics", token: token);
-      return d is Map ? Map<String,dynamic>.from(d) : {};
-    } catch (_) { return {}; }
+      final d = await _get("/merchant/products/$pid/analytics", token: token)
+          .timeout(const Duration(seconds: 20));
+      return d is Map ? Map<String,dynamic>.from(d) : null;
+    } catch (_) { return null; }
   }
 
   static Future<List<Map<String,dynamic>>> getProductHistory(
