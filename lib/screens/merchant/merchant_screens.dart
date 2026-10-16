@@ -26,6 +26,7 @@ import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/models/offro_location.dart';
+import '../../core/services/location_service.dart';
 import '../../core/services/location_store.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
@@ -2939,7 +2940,7 @@ class MerchantHome extends StatefulWidget {
   const MerchantHome({super.key, required this.token, required this.merchant});
   @override State<MerchantHome> createState() => _MerchantHomeState();
 }
-class _MerchantHomeState extends State<MerchantHome> {
+class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver {
   int _idx = 0;
   // The merchant ACCOUNT location (device-only, shared Location screen).
   // Pages are not built — and no merchant API calls start — until a valid
@@ -2948,7 +2949,57 @@ class _MerchantHomeState extends State<MerchantHome> {
 
   @override void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _ensureLocation();
+    // Silent GPS check AFTER the first frame, so it can never delay Home.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_autoRefreshLocation());
+    });
+  }
+
+  @override void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Silent GPS check on return to the app (throttled inside the service).
+    if (state == AppLifecycleState.resumed) unawaited(_autoRefreshLocation());
+  }
+
+  // Silent GPS refresh of the shared device location (app open / resume).
+  // Only replaces a saved GPS location after the person really moved; a manual
+  // pick is never touched, nothing is prompted, failures keep the saved value.
+  // Saves ONLY to the shared LocationStore: no Api.updateCity, and the
+  // merchant's registered store address / lat / lng are never read or written.
+  bool _autoLocBusy = false;
+  bool _picking = false; // Location screen currently open
+  Future<void> _autoRefreshLocation() async {
+    if (_autoLocBusy) return;
+    _autoLocBusy = true;
+    try {
+      if (!mounted || _picking) return;
+      final saved = await LocationStore.load(LocationMode.merchant);
+      final fresh = await LocationService.autoRefreshIfMoved(saved);
+      if (fresh == null || !mounted || _picking) return;
+      final oldCity = _loc?.city ?? saved?.city ?? '';
+      await LocationStore.save(LocationMode.merchant, fresh);
+      if (!mounted) return;
+      setState(() => _loc = fresh);
+      if (!fresh.sameCity(oldCity)) {
+        ScaffoldMessenger.maybeOf(context)
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            content: Text("Location updated to ${fresh.city}"),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ));
+      }
+    } catch (_) {
+      // keep the saved location
+    } finally {
+      _autoLocBusy = false;
+    }
   }
 
   Future<void> _ensureLocation() async {
@@ -2962,12 +3013,18 @@ class _MerchantHomeState extends State<MerchantHome> {
   }
 
   Future<void> _chooseLocation({required bool mandatory}) async {
-    final picked = await Navigator.push<OffroLocation>(
-      context,
-      MaterialPageRoute<OffroLocation>(
-        builder: (_) => LocationScreen(mode: LocationMode.merchant, mandatory: mandatory, current: _loc),
-      ),
-    );
+    _picking = true;
+    final OffroLocation? picked;
+    try {
+      picked = await Navigator.push<OffroLocation>(
+        context,
+        MaterialPageRoute<OffroLocation>(
+          builder: (_) => LocationScreen(mode: LocationMode.merchant, mandatory: mandatory, current: _loc),
+        ),
+      );
+    } finally {
+      _picking = false;
+    }
     if (!mounted) return;
     if (picked != null) {
       await LocationStore.save(LocationMode.merchant, picked);

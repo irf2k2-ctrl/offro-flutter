@@ -14,6 +14,7 @@ import 'package:geolocator/geolocator.dart';
 import '../constants/india_locations.dart';
 import '../models/offro_location.dart';
 import 'api_service.dart';
+import 'location_store.dart';
 
 enum LocationAccess {
   /// Device Location Services (master switch) are OFF.
@@ -156,6 +157,74 @@ class LocationService {
     }
     out.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return out;
+  }
+
+  // ── Silent background refresh (app open / resume) ──────────────────────
+  // Used by Home and Merchant Home to notice that the person has physically
+  // moved. It is deliberately conservative: it only ever REPLACES a saved
+  // location that itself came from GPS, never a manual pick, never prompts,
+  // and every failure just keeps the saved location.
+
+  /// Movement below this (km) is treated as "same place" — nothing happens.
+  static const double autoRefreshMinMoveKm = 1.5;
+  /// Minimum gap between two automatic checks (startup + resume share it).
+  static const Duration autoRefreshInterval = Duration(minutes: 2);
+  static DateTime? _lastAutoCheck;
+  static bool _autoBusy = false;
+
+  /// Returns the NEW location to apply, or null when nothing should change.
+  ///
+  /// Runs only when ALL of these hold: a saved location exists and its source
+  /// is GPS with coordinates; the last automatic check was at least
+  /// [autoRefreshInterval] ago; device Location Services are on and the app
+  /// permission is already granted. Uses one lightweight position read (not
+  /// [acquireFix]). The result is returned only if the person moved at least
+  /// [autoRefreshMinMoveKm], the new place resolves to a valid city, and the
+  /// saved location is STILL the same GPS location afterwards (so a manual
+  /// pick made while this was running is never overwritten).
+  ///
+  /// It does not save anything and does not touch any server data.
+  static Future<OffroLocation?> autoRefreshIfMoved(OffroLocation? saved) async {
+    try {
+      if (saved == null || saved.source != LocationSource.gps) return null;
+      final sLat = saved.lat, sLng = saved.lng;
+      if (sLat == null || sLng == null) return null;
+      if (_autoBusy) return null;
+      final now = DateTime.now();
+      final last = _lastAutoCheck;
+      if (last != null && now.difference(last) < autoRefreshInterval) return null;
+      _autoBusy = true;
+      _lastAutoCheck = now; // throttle failures too — no hammering on errors
+      try {
+        final pos = await silentPosition(
+          timeout: const Duration(seconds: 8),
+          accuracy: LocationAccuracy.medium,
+        );
+        if (pos == null) return null;
+        final movedKm =
+            Geolocator.distanceBetween(sLat, sLng, pos.latitude, pos.longitude) / 1000.0;
+        if (movedKm < autoRefreshMinMoveKm) return null;
+
+        final supported = await fetchSupportedCities();
+        final fresh = await resolveFix(pos, supported);
+        if (fresh == null || !fresh.hasCity) return null;
+
+        // The saved location must still be the exact GPS location we compared
+        // against (a manual pick / explicit GPS update may have happened).
+        final current = await LocationStore.load();
+        if (current == null ||
+            current.source != LocationSource.gps ||
+            current.lat != sLat ||
+            current.lng != sLng) {
+          return null;
+        }
+        return fresh;
+      } finally {
+        _autoBusy = false;
+      }
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── Fresh GPS fix ───────────────────────────────────────────────────────

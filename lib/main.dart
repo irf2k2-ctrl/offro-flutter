@@ -53,6 +53,7 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
+import 'core/widgets/product_share_card.dart';
 // Round 12 (Task 5): reuse the exact same full-screen deal-gallery opener
 // StoreOffersSection ("Today's Offers" inside Store Detail) already uses,
 // instead of duplicating that Navigator.push + FullScreenImageViewer logic
@@ -6681,6 +6682,31 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     if (_pidTrack.isNotEmpty) Api.trackProductEvent(_pidTrack, "view");
   }
 
+  // Branded share card (image + caption + product link); plain text if the
+  // card can't be built. Logic lives in core/widgets/product_share_card.dart.
+  bool _shareBusy = false;
+  Future<void> _shareProduct() async {
+    if (_shareBusy) return; // no double taps / duplicate analytics
+    setState(() => _shareBusy = true);
+    try {
+      await ProductShare.share(
+        context,
+        widget.product,
+        // Called once, right before the share sheet opens (same "share"
+        // analytics event as before — never twice, even if the text fallback runs).
+        onInitiated: () {
+          final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+          if (pid.isNotEmpty) Api.trackProductEvent(pid, "share");
+          if (mounted) setState(() => _shareBusy = false);
+        },
+      );
+    } catch (_) {
+      // ProductShare.share never throws; belt and braces.
+    } finally {
+      if (mounted && _shareBusy) setState(() => _shareBusy = false);
+    }
+  }
+
   Future<void> _loadMyReview() async {
     if (widget.token.isEmpty) return;
     final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
@@ -6947,30 +6973,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             ),
             // ── Share button ──
             GestureDetector(
-              onTap: () {
-                final _title   = widget.product["title"]?.toString() ?? widget.product["name"]?.toString() ?? "Product";
-                final _store   = (widget.product["store"] is Map
-                    ? widget.product["store"]["store_name"]
-                    : widget.product["store_name"])?.toString() ?? "";
-                final _saleP   = _numVal(["offer_price","sale_price","price","current_price"]);
-                final _offerTx = widget.product["offer"]?.toString() ?? "";
-                final parts    = <String>[
-                  "🛍️ $_title",
-                  if (_store.isNotEmpty) "📍 Store: $_store",
-                  if (_saleP != null && _saleP > 0) "💰 Offer Price: ₹${_saleP.toStringAsFixed(0)}",
-                  if (_offerTx.isNotEmpty) "🎁 $_offerTx",
-                  "\nDownload OFFRO app to explore more deals!",
-                ];
-                Share.share(parts.join("\n"), subject: "OFFRO – $_title");
-                // FIX: fire "share" analytics event
-                final _pidShare = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-                if (_pidShare.isNotEmpty) Api.trackProductEvent(_pidShare, "share");
-              },
+              onTap: _shareProduct,
               child: Container(
                 margin: const EdgeInsets.only(right: 4),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
-                child: const Icon(Icons.share_rounded, color: Colors.white, size: 20)),
+                child: _shareBusy
+                    ? const SizedBox(width: 20, height: 20,
+                        child: Padding(padding: EdgeInsets.all(2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
+                    : const Icon(Icons.share_rounded, color: Colors.white, size: 20)),
             ),
             const SizedBox(width: 4),
           ],
