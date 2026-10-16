@@ -888,9 +888,15 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
     return int.tryParse(v?.toString() ?? "") ?? 0;
   }
 
+  // "16 Oct 2026" in the device's local time (the server sends a UTC ISO
+  // timestamp). Falls back to the raw date, or "—" when there is none.
   String get _lastSeen {
     final raw = (_data['last_viewed'] ?? _data['last_seen'] ?? "").toString();
-    return raw.length >= 10 ? raw.substring(0, 10) : "—";
+    if (raw.isEmpty) return "—";
+    final dt = DateTime.tryParse(raw)?.toLocal();
+    if (dt == null) return raw.length >= 10 ? raw.substring(0, 10) : "—";
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${m[dt.month - 1]} ${dt.year}";
   }
 
   @override void initState() { super.initState(); _load(); }
@@ -949,11 +955,14 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
           ]),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: _AnalyticsStat("🛒 Opens", "${_count('opens', 'open')}", const Color(0xFF059669))),
+            Expanded(child: _AnalyticsStat("🛒 Store Visits", "${_count('opens', 'open')}", const Color(0xFF059669))),
             const SizedBox(width: 12),
-            Expanded(child: _AnalyticsStat("📅 Last Seen", _lastSeen, const Color(0xFF7C3AED))),
+            Expanded(child: _AnalyticsStat("📅 Last Seen", _lastSeen, const Color(0xFF7C3AED), valueSize: 17)),
           ]),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          const Text("Store Visits: customers who visited the store",
+            style: TextStyle(color: kMuted, fontSize: 11)),
+          const SizedBox(height: 14),
           _ConversionBar(_data),
         ])),
   );
@@ -962,7 +971,10 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
 class _AnalyticsStat extends StatelessWidget {
   final String label, value;
   final Color color;
-  const _AnalyticsStat(this.label, this.value, this.color);
+  /// Counts use the large size; a date value passes a smaller one so it stays
+  /// on one line and the cards in a row keep the same height.
+  final double valueSize;
+  const _AnalyticsStat(this.label, this.value, this.color, {this.valueSize = 26});
   @override Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
@@ -973,7 +985,19 @@ class _AnalyticsStat extends StatelessWidget {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
-      Text(value, style: TextStyle(color: color, fontSize: 26, fontWeight: FontWeight.w800)),
+      // Fixed-height value line so every stat card in a row matches.
+      SizedBox(
+        height: 34,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, maxLines: 1,
+              style: TextStyle(color: color, fontSize: valueSize, fontWeight: FontWeight.w800)),
+          ),
+        ),
+      ),
     ]),
   );
 }
@@ -991,7 +1015,7 @@ class _ConversionBar extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text("Conversion Rate", style: TextStyle(fontWeight: FontWeight.w700, color: kText)),
         const SizedBox(height: 4),
-        Text("$pct% of viewers tapped Open",
+        Text("$pct% of viewers visited the store (tapped Sold by)",
           style: const TextStyle(color: kMuted, fontSize: 12)),
         const SizedBox(height: 10),
         LinearProgressIndicator(
@@ -1004,78 +1028,6 @@ class _ConversionBar extends StatelessWidget {
       ]),
     );
   }
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// PRODUCT HISTORY PAGE
-// ══════════════════════════════════════════════════════════════════════
-class ProductHistoryPage extends StatefulWidget {
-  final String token;
-  final Map<String,dynamic> product;
-  const ProductHistoryPage({super.key, required this.token, required this.product});
-  @override State<ProductHistoryPage> createState() => _ProductHistoryPageState();
-}
-class _ProductHistoryPageState extends State<ProductHistoryPage> {
-  List<Map<String,dynamic>> _events = [];
-  bool _loading = true;
-
-  String get _pid => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
-
-  @override void initState() { super.initState(); _load(); }
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    _events = await Api.getProductHistory(widget.token, _pid);
-    if (mounted) setState(() => _loading = false);
-  }
-
-  IconData _icon(String ev) {
-    if (ev.contains("Create"))   return Icons.add_circle_rounded;
-    if (ev.contains("Activat"))  return Icons.toggle_on_rounded;
-    if (ev.contains("Deactiv"))  return Icons.toggle_off_rounded;
-    if (ev.contains("Upgrad"))   return Icons.arrow_upward_rounded;
-    if (ev.contains("Renew"))    return Icons.autorenew_rounded;
-    if (ev.contains("Extend"))   return Icons.calendar_month_rounded;
-    return Icons.history_rounded;
-  }
-
-  @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(
-      title: const Text("Activity History", style: TextStyle(fontWeight: FontWeight.w800)),
-      backgroundColor: Colors.white, foregroundColor: kText,
-    ),
-    body: _loading
-      ? const Center(child: CircularProgressIndicator(color: kPrimary))
-      : _events.isEmpty
-        ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.history_rounded, size: 64, color: kAccent),
-            SizedBox(height: 12),
-            Text("No activity yet", style: TextStyle(color: kMuted, fontSize: 16)),
-          ]))
-        : ListView.separated(
-            padding: const EdgeInsets.all(14),
-            itemCount: _events.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final e = _events[i];
-              final ts = e["created_at"]?.toString() ?? "";
-              return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: kPrimary.withValues(alpha: .12),
-                    child: Icon(_icon(e["event"]?.toString() ?? ""), color: kPrimary, size: 20)),
-                  title: Text(e["event"]?.toString() ?? "",
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 14)),
-                  subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if ((e["details"]?.toString() ?? "").isNotEmpty)
-                      Text(e["details"].toString(),
-                        style: const TextStyle(color: kMuted, fontSize: 12)),
-                    Text(ts.length >= 10 ? ts.substring(0, 10) : ts,
-                      style: const TextStyle(color: kAccent, fontSize: 11)),
-                  ]),
-                ));
-            }),
-  );
 }
 
 // ══════════════════════════════════════════════════════════════════════

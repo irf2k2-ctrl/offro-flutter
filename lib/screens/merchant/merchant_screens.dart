@@ -1488,7 +1488,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 child: Icon(Icons.edit_rounded, color: kPrimary, size: 18)),
               title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
-            // FIX3: Analytics & Activity only for Premium
+            // FIX3: Analytics only for Premium
             if (pid.isNotEmpty && !isStd)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFF3CD),
@@ -1496,13 +1496,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
                   Navigator.push(context, appRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
-            if (pid.isNotEmpty && !isStd)
-              ListTile(
-                leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFF0F0F0),
-                  child: Icon(Icons.history_rounded, color: kMuted, size: 18)),
-                title: const Text("Activity History", style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: () { Navigator.pop(context);
-                  Navigator.push(context, appRoute(ProductHistoryPage(token: widget.token, product: v))); }),
             ListTile(
               leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFEBEB),
                 child: Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18)),
@@ -4721,6 +4714,9 @@ class _TxnState extends State<MerchantTxnPage> {
   int _tab=0; // 0=All, 1=Banners, 2=Products, 3=Payments
   @override void initState() { super.initState(); _load(); }
 
+  // Amounts can arrive as num or numeric String — never let a String reach a `> 0` compare.
+  static num _amt(dynamic v) => v is num ? v : (num.tryParse(v?.toString() ?? "") ?? 0);
+
   Future<void> _load() async {
     if(mounted) setState(()=>_loading=true);
     final results = await Future.wait([
@@ -4745,7 +4741,7 @@ class _TxnState extends State<MerchantTxnPage> {
         "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??"Payment"),
         "subtitle":"₹${t['amount']??0}",
         "date":t["date"]??t["created_at"]??"",
-        "amount":t["amount"]??0,
+        "amount":_amt(t["amount"]),
       });
     }
     // Banner events
@@ -4762,7 +4758,7 @@ class _TxnState extends State<MerchantTxnPage> {
         "subtitle":st=="approved"?"✅ Approved — Live":st=="rejected"?"❌ Rejected":"⏳ Pending Approval",
         "subtitle_color":sc,"status_icon":si,
         "date":b["created_at"]??"",
-        "amount":b["amount"]??0,
+        "amount":_amt(b["amount"]),
         "from_date":b["from_date"]??"",
         "end_date":b["end_date"]??"",
       });
@@ -4781,7 +4777,7 @@ class _TxnState extends State<MerchantTxnPage> {
         "subtitle":st=="approved"?"✅ Approved — Live":st=="rejected"?"❌ Rejected":"⏳ Pending Approval",
         "subtitle_color":sc,"status_icon":si,
         "date":v["created_at"]??"",
-        "amount":v["amount"]??0,
+        "amount":_amt(v["amount"]),
         "from_date":v["from_date"]??"",
         "end_date":v["end_date"]??"",
       });
@@ -4800,7 +4796,9 @@ class _TxnState extends State<MerchantTxnPage> {
     return _allActivity.where((e)=>e["type"]=="payment").toList();
   }
 
-  @override Widget build(BuildContext context) => Scaffold(
+  @override Widget build(BuildContext context) {
+    final items = _filtered; // once per build (was recomputed, incl. a sort, for every row)
+    return Scaffold(
     backgroundColor:kBg,
     appBar:AppBar(
       title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Activity",style:TextStyle(fontWeight:FontWeight.w800))]),
@@ -4810,8 +4808,9 @@ class _TxnState extends State<MerchantTxnPage> {
     body:Column(children:[
       // Filter tabs
       Container(decoration:const BoxDecoration(color:kPrimary),padding:const EdgeInsets.fromLTRB(12,0,12,10),
-        child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
+        child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
           GestureDetector(
+            behavior:HitTestBehavior.opaque,
             onTap:()=>setState(()=>_tab=e.key),
             child:Container(
               margin:const EdgeInsets.only(right:8),
@@ -4823,14 +4822,14 @@ class _TxnState extends State<MerchantTxnPage> {
                 color:_tab==e.key?kPrimary:Colors.white,
                 fontSize:12,fontWeight:FontWeight.w700)),
             ),
-          )).toList()),
+          )).toList())),
       ),  // close filter-tabs Container
       // Content
       Expanded(child:_loading
         ? const Center(child:CircularProgressIndicator(color:kPrimary))
         : RefreshIndicator(
             color:kPrimary,onRefresh:_load,
-            child:_filtered.isEmpty
+            child:items.isEmpty
               ? ListView(children:[SizedBox(height:300,child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                   const Icon(Icons.history,size:48,color:kAccent),
                   const SizedBox(height:12),
@@ -4838,9 +4837,9 @@ class _TxnState extends State<MerchantTxnPage> {
                 ])))])
               : ListView.builder(
                   padding:const EdgeInsets.fromLTRB(14,12,14,24),
-                  itemCount:_filtered.length,
+                  itemCount:items.length,
                   itemBuilder:(_,i){
-                    final t = _filtered[i];
+                    final t = items[i];
                     final Color ic = t["color"] as Color? ?? kPrimary;
                     final Color sc = t["subtitle_color"] as Color? ?? kMuted;
                     return Container(
@@ -4867,7 +4866,8 @@ class _TxnState extends State<MerchantTxnPage> {
                   }),
           )),
     ]),
-  );
+    );
+  }
 }
 
 // ─────────── Merchant Profile Page ───────────

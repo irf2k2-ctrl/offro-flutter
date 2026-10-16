@@ -1014,14 +1014,6 @@ class Api {
     } catch (_) { return null; }
   }
 
-  static Future<List<Map<String,dynamic>>> getProductHistory(
-      String token, String pid) async {
-    try {
-      final d = await _get("/merchant/products/$pid/history", token: token);
-      return d is List ? List<Map<String,dynamic>>.from(d.map((e) => Map<String,dynamic>.from(e))) : [];
-    } catch (_) { return []; }
-  }
-
   static Future<void> trackProductEvent(String productId, String event) async {
     try {
       await _post("/products/$productId/track", {"event": event});
