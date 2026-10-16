@@ -174,21 +174,16 @@ class ProductShareData {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Card widget — a product-focused version of the Home Store Card
-// (_BannerStoresBlockState._storeCard in main.dart). Same design system:
+// Card widget — a simple promotional preview, like a brand message card:
 //   • white card, radius 22, 1px #e0ece6 border, soft shadow, clipped image
 //   • image 0.57 × card width, BoxFit.cover (fallback = #A9CDBA + initial)
 //   • #3E5F55 filled pill over the image (here: the OffrO logo)
-//   • #3a3a35 discount pill at the top of the white info section, white 11/w800
-//     with emoji — the discount; drawn only when there is one
-//   • name 16/w800 #1a2e27; secondary text #8a9a93 / #5f6f68 12.5/w500
-//   • rating chip: gold star + 13.5/w800 value
-//   • #CDEBD6 pill (#2f5a47, w800) | 1px divider | muted text
+//   • green offer section under the image, white "25% OFF" text — only when
+//     the product has a discount / offer
 //
-// Layout rule: the image area carries ONLY the photo and the OffrO pill.
-// Everything about the product lives in the white section below, grouped as:
-// discount → name → store block (store · rating · location) → price row →
-// offer note → divider → "Discover on OffrO" + link.
+// Layout rule: the card holds ONLY the photo, the OffrO logo and the offer
+// section. Product details (name, store, location, prices) and the clickable
+// OffrO link are sent as the share TEXT — see ProductShare.caption.
 // Rendered at fixed size on the cream app background (#FDFBF6). No QR code.
 // ─────────────────────────────────────────────────────────────────────────
 class ProductShareCard extends StatelessWidget {
@@ -199,13 +194,6 @@ class ProductShareCard extends StatelessWidget {
   static const double imageHeight = 182;
 
   static const Color _green = Color(0xFF3E5F55);
-  static const Color _greenDeep = Color(0xFF2F5A47);
-  static const Color _pale = Color(0xFFCDEBD6);
-  static const Color _ink = Color(0xFF1A2E27);
-  static const Color _muted = Color(0xFF8A9A93);
-  static const Color _muted2 = Color(0xFF5F6F68);
-  static const Color _icon = Color(0xFF6B7C75);
-  static const Color _line = Color(0xFFE6ECE9);
 
   final ProductShareData data;
 
@@ -234,24 +222,12 @@ class ProductShareCard extends StatelessWidget {
     return '₹$ip${parts.length > 1 ? '.${parts[1]}' : ''}';
   }
 
-  static String _norm(String v) => v.toLowerCase().replaceAll(RegExp(r'\s'), '');
-
-  /// Ribbon text — the discount ("🏷️ 25% OFF"). With no percentage but an
-  /// offer text, the offer text itself is the ribbon. Null → no band at all.
-  String? _ribbonLabel() {
-    if (data.discountBadge.isNotEmpty) return '🏷️ ${data.discountBadge}';
+  /// Offer-section text: the discount ("25% OFF"); with no percentage but an
+  /// offer text, that text. Null → no offer section.
+  String? _offerLabel() {
+    if (data.discountBadge.isNotEmpty) return data.discountBadge;
     final offer = data.offerText.trim();
-    if (offer.isNotEmpty) return '🏷️ ${offer.toUpperCase()}';
-    return null;
-  }
-
-  /// Offer note shown below the price — only when the ribbon does not already
-  /// say the same thing.
-  String? _offerNote() {
-    final offer = data.offerText.trim();
-    if (offer.isEmpty || data.discountBadge.isEmpty) return null;
-    if (_norm(offer) == _norm(data.discountBadge)) return null;
-    return offer;
+    return offer.isNotEmpty ? offer.toUpperCase() : null;
   }
 
   Widget _logo({double height = 18}) => Image.asset(
@@ -283,113 +259,9 @@ class ProductShareCard extends StatelessWidget {
     );
   }
 
-  Widget _ratingChip(double rating) => Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 16),
-        const SizedBox(width: 2),
-        Text(rating.toStringAsFixed(1),
-            style: const TextStyle(color: _ink, fontSize: 13.5, fontWeight: FontWeight.w800)),
-      ]);
-
-  /// Store · location · rating, grouped in one light-green block so the
-  /// information reads as one unit instead of loose lines.
-  Widget _storeBlock() {
-    final d = data;
-    final hasStore = d.storeName.isNotEmpty;
-    final hasLoc = d.locationLine.isNotEmpty;
-    final hasRating = d.storeRating > 0;
-    if (!hasStore && !hasLoc && !hasRating) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 9, 12, 9),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F8F5),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE3EEE8)),
-      ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        Container(
-          width: 30,
-          height: 30,
-          decoration: const BoxDecoration(color: _pale, shape: BoxShape.circle),
-          child: const Icon(Icons.storefront_rounded, size: 17, color: _green),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (hasStore)
-                Text(d.storeName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _ink, fontSize: 13.5, fontWeight: FontWeight.w700)),
-              if (hasLoc) ...[
-                if (hasStore) const SizedBox(height: 1),
-                Row(children: [
-                  const Icon(Icons.location_on_rounded, size: 13, color: _icon),
-                  const SizedBox(width: 2),
-                  Expanded(
-                    child: Text(d.locationLine,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: _muted2, fontSize: 12, fontWeight: FontWeight.w500)),
-                  ),
-                ]),
-              ],
-            ],
-          ),
-        ),
-        if (hasRating) ...[
-          const SizedBox(width: 8),
-          _ratingChip(d.storeRating),
-        ],
-      ]),
-    );
-  }
-
-  /// Offer price pill | divider | original price + "Save ₹X".
-  Widget _priceRow(num mainPrice) {
-    final d = data;
-    final save = d.showOrig ? (d.origPrice! - mainPrice) : 0;
-    return Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(color: _pale, borderRadius: BorderRadius.circular(20)),
-        child: Text(inr(mainPrice),
-            style: const TextStyle(color: _greenDeep, fontSize: 18, fontWeight: FontWeight.w900)),
-      ),
-      if (d.showOrig) ...[
-        Container(
-          width: 1,
-          height: 22,
-          margin: const EdgeInsets.symmetric(horizontal: 11),
-          color: const Color(0xFFD5DDD9),
-        ),
-        Flexible(
-          child: Text(inr(d.origPrice!),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  decoration: TextDecoration.lineThrough)),
-        ),
-        const Spacer(),
-        if (save > 0)
-          Text('Save ${inr(save)}',
-              maxLines: 1,
-              style: const TextStyle(color: _greenDeep, fontSize: 12.5, fontWeight: FontWeight.w800)),
-      ],
-    ]);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final d = data;
-    final mainPrice = d.salePrice ?? d.origPrice;
-    final ribbon = _ribbonLabel();
-    final note = _offerNote();
+    final offer = _offerLabel();
 
     return Material(
       color: const Color(0xFFFDFBF6), // app background (kBg)
@@ -433,94 +305,20 @@ class ProductShareCard extends StatelessWidget {
                   ]),
                 ),
 
-                // ── Information area (white) ──
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Discount lives in the text section, never on the image.
-                      if (ribbon != null) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF3A3A35),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(ribbon,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                        ),
-                        const SizedBox(height: 9),
-                      ],
-                      Text(d.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: _ink, fontSize: 17, fontWeight: FontWeight.w800, height: 1.2)),
-                      const SizedBox(height: 9),
-                      _storeBlock(),
-                      if (mainPrice != null) ...[
-                        const SizedBox(height: 11),
-                        _priceRow(mainPrice),
-                      ],
-                      if (note != null) ...[
-                        const SizedBox(height: 9),
-                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          const Padding(
-                            padding: EdgeInsets.only(top: 1),
-                            child: Icon(Icons.local_offer_rounded, size: 14, color: _greenDeep),
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(note,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: _greenDeep, fontSize: 12.5, height: 1.25, fontWeight: FontWeight.w600)),
-                          ),
-                        ]),
-                      ],
-
-                      // Divider + brand/CTA row (OffrO pill | divider | text)
-                      const SizedBox(height: 11),
-                      Container(height: 1, color: _line),
-                      const SizedBox(height: 10),
-                      Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(color: _green, borderRadius: BorderRadius.circular(20)),
-                          child: _logo(height: 15),
-                        ),
-                        Container(
-                          width: 1,
-                          height: 28,
-                          margin: const EdgeInsets.symmetric(horizontal: 11),
-                          color: const Color(0xFFD5DDD9),
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('Discover on OffrO',
-                                  style: TextStyle(color: _green, fontSize: 13, fontWeight: FontWeight.w800)),
-                              if (d.link.isNotEmpty)
-                                Text(ProductLink.display(d.link),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                        color: _muted, fontSize: 11, fontWeight: FontWeight.w500)),
-                            ],
-                          ),
-                        ),
-                      ]),
-                    ],
+                // ── Offer section (green) — only when there is a discount / offer ──
+                if (offer != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                    color: _green,
+                    alignment: Alignment.center,
+                    child: Text(offer,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, height: 1.1, letterSpacing: 0.6)),
                   ),
-                ),
               ],
             ),
           ),
@@ -536,17 +334,26 @@ class ProductShareCard extends StatelessWidget {
 class ProductShare {
   ProductShare._();
 
-  /// Text used as the caption of the card AND as the plain-text fallback
-  /// (same content the old text share had, plus the product link).
+  /// Share text (WhatsApp caption / plain-text fallback): the product details
+  /// as clean plain-text labels, no emojis, then the OffrO link. The link is a
+  /// full https:// URL on its own line so chat apps make it clickable.
   static String caption(ProductShareData d) {
+    final main = d.salePrice ?? d.origPrice;
+    final save = (d.showOrig && main != null) ? (d.origPrice! - main) : 0;
+    final details = <String>[
+      if (d.storeName.isNotEmpty) 'Store: ${d.storeName}',
+      if (d.locationLine.isNotEmpty) 'Location: ${d.locationLine}',
+      if (main != null && main > 0)
+        d.showOrig ? 'Offer Price: ${ProductShareCard.inr(main)}' : 'Price: ${ProductShareCard.inr(main)}',
+      if (d.showOrig) 'Original Price: ${ProductShareCard.inr(d.origPrice!)}',
+      if (save > 0) 'Save: ${ProductShareCard.inr(save)}',
+    ];
     return [
-      '🛍️ ${d.name}',
-      if (d.storeName.isNotEmpty) '📍 Store: ${d.storeName}',
-      if (d.salePrice != null && d.salePrice! > 0) '💰 Offer Price: ${ProductShareCard.inr(d.salePrice!)}',
-      if (d.offerText.isNotEmpty) '🎁 ${d.offerText}',
+      d.name,
+      if (details.isNotEmpty) '\n${details.join('\n')}',
       d.link.isNotEmpty
-          ? '\nDiscover on OffrO: ${d.link}'
-          : '\nDownload OFFRO app to explore more deals!',
+          ? '\nDiscover on OffrO\n${d.link}'
+          : '\nDiscover more deals on the OffrO app',
     ].join('\n');
   }
 
