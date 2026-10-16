@@ -175,7 +175,7 @@ class ProductShareData {
 
 // ─────────────────────────────────────────────────────────────────────────
 // Card widget — a simple promotional preview, like a brand message card:
-//   • white card, radius 22, 1px #e0ece6 border, soft shadow, clipped image
+//   • card radius 22, clipped image running edge to edge (no border/margin)
 //   • image 0.57 × card width, BoxFit.cover (fallback = #A9CDBA + initial)
 //   • #3E5F55 filled pill over the image (here: the OffrO logo)
 //   • green offer section under the image, white "25% OFF" text — only when
@@ -184,11 +184,17 @@ class ProductShareData {
 // Layout rule: the card holds ONLY the photo, the OffrO logo and the offer
 // section. Product details (name, store, location, prices) and the clickable
 // OffrO link are sent as the share TEXT — see ProductShare.caption.
-// Rendered at fixed size on the cream app background (#FDFBF6). No QR code.
+// Rendered at fixed size, edge to edge, on an opaque white background (the
+// corners outside the rounded card are white, never transparent). No QR code.
 // ─────────────────────────────────────────────────────────────────────────
 class ProductShareCard extends StatelessWidget {
   static const double cardWidth = 320;
-  static const double outerPad = 20; // room for the card shadow
+  static const double outerPad = 0; // none: the photo runs edge to edge of the image
+  /// Corner radius of the card. The pixels outside the rounded corners are
+  /// painted with [_cornerFill] — never left transparent, because WhatsApp
+  /// shows transparent PNG pixels as black.
+  static const double cornerRadius = 22;
+  static const Color _cornerFill = Colors.white;
   static const double outerWidth = cardWidth + outerPad * 2;
   /// Store Card ratio: cardW * 0.57 (rounded).
   static const double imageHeight = 182;
@@ -264,21 +270,17 @@ class ProductShareCard extends StatelessWidget {
     final offer = _offerLabel();
 
     return Material(
-      color: const Color(0xFFFDFBF6), // app background (kBg)
+      color: _cornerFill, // opaque: no transparent pixels anywhere in the PNG
       child: Padding(
         padding: const EdgeInsets.all(outerPad),
         child: Container(
           width: cardWidth,
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE0ECE6), width: 1.0),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: .09), blurRadius: 16, offset: const Offset(0, 5)),
-            ],
+            borderRadius: BorderRadius.circular(cornerRadius),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(cornerRadius),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,9 +336,19 @@ class ProductShareCard extends StatelessWidget {
 class ProductShare {
   ProductShare._();
 
+  /// WhatsApp (and Telegram-style) bold marker. share_plus sends plain text,
+  /// so this is the only way to get bold in a WhatsApp caption. Other apps
+  /// show the asterisks literally — kept to the two lines that matter.
+  static String _bold(String t) {
+    final clean = t.replaceAll('*', '').trim();
+    return clean.isEmpty ? '' : '*$clean*';
+  }
+
   /// Share text (WhatsApp caption / plain-text fallback): the product details
-  /// as clean plain-text labels, no emojis, then the OffrO link. The link is a
-  /// full https:// URL on its own line so chat apps make it clickable.
+  /// as clean plain-text labels, no emojis, then a "View on OffrO" call to
+  /// action and the full https:// link on its own line so chat apps make it
+  /// clickable. A custom-text hyperlink ("View on OffrO" being the link) is not
+  /// possible in a shared plain-text message — WhatsApp only auto-links URLs.
   static String caption(ProductShareData d) {
     final main = d.salePrice ?? d.origPrice;
     final save = (d.showOrig && main != null) ? (d.origPrice! - main) : 0;
@@ -348,12 +360,11 @@ class ProductShare {
       if (d.showOrig) 'Original Price: ${ProductShareCard.inr(d.origPrice!)}',
       if (save > 0) 'Save: ${ProductShareCard.inr(save)}',
     ];
+    final title = _bold(d.name);
     return [
-      d.name,
+      if (title.isNotEmpty) title,
       if (details.isNotEmpty) '\n${details.join('\n')}',
-      d.link.isNotEmpty
-          ? '\nDiscover on OffrO\n${d.link}'
-          : '\nDiscover more deals on the OffrO app',
+      if (d.link.isNotEmpty) '\n${_bold('View on OffrO')}\n${d.link}',
     ].join('\n');
   }
 
