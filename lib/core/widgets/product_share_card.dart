@@ -4,8 +4,7 @@
 // Turns "Share" on Product Details into a branded image + caption instead of
 // plain text. Everything lives here so main.dart only calls [ProductShare.share].
 //
-//   ProductLink          one place that builds the product link (placeholder
-//                        https://offro.app/p/<id> — change it HERE later)
+//   ProductLink          the one generic share link (https://offro.app/open)
 //   ProductShareData     the public fields shown on the card, read from the
 //                        product map Product Details already holds
 //   ProductShareCard     the card widget (no QR code)
@@ -14,7 +13,7 @@
 //
 // Privacy: only fields Product Details already shows are used (name, store
 // name, prices, offer text, store rating, store area/city, product/store
-// image). No phone numbers, ids other than the product id in the link, tokens
+// image). No phone numbers, ids in the link, tokens
 // or merchant/customer data.
 
 import 'dart:async';
@@ -31,19 +30,14 @@ import 'package:share_plus/share_plus.dart';
 import 'base64_image.dart';
 
 // ─────────────────────────────────────────────────────────────────────────
-// Link helper — the ONLY place the product link format is defined.
+// Link helper — the ONLY place the share link is defined. It is the same
+// generic link for products and stores: tapping it only opens OffrO (or the
+// Play Store / App Store); product and store details live in the caption.
 // ─────────────────────────────────────────────────────────────────────────
 class ProductLink {
   ProductLink._();
 
-  /// PLACEHOLDER. The final Smart Link domain/path will be changed here only.
-  static const String base = 'https://offro.app/p/';
-
-  /// Full link for [productId], or '' when there is no id.
-  static String forProduct(String productId) {
-    final id = productId.trim();
-    return id.isEmpty ? '' : '$base${Uri.encodeComponent(id)}';
-  }
+  static const String open = 'https://offro.app/open';
 
   /// Link without the scheme, for compact display on the card.
   static String display(String url) => url.replaceFirst(RegExp(r'^https?://'), '');
@@ -63,7 +57,7 @@ class ProductShareData {
   final String discountBadge; // "20% OFF" / ''
   final double storeRating; // 0 = not available
   final String imageSrc; // http(s) URL or data:image…; '' = none
-  final String link; // '' when no product id
+  final String link; // generic OffrO open link
 
   const ProductShareData({
     required this.productId,
@@ -153,7 +147,45 @@ class ProductShareData {
       discountBadge: badge,
       storeRating: rating,
       imageSrc: _pickImage(p, storeObj),
-      link: ProductLink.forProduct(id),
+      link: ProductLink.open,
+    );
+  }
+
+  /// A store, in the same shape the product card uses: [name] is the store
+  /// name, no prices / offer (so the card has no green offer band), and the
+  /// link is the generic OffrO link.
+  factory ProductShareData.fromStore(Map<String, dynamic> st) {
+    String s(Object? v) => (v ?? '').toString().trim();
+    final id = s(st['_id']).isNotEmpty ? s(st['_id']) : s(st['id']);
+    final name = s(st['store_name']).isNotEmpty ? s(st['store_name']) : s(st['name']);
+    final city = s(st['city']);
+    final area = s(st['area']);
+    final loc = <String>[
+      if (area.isNotEmpty) area,
+      if (city.isNotEmpty && city.toLowerCase() != area.toLowerCase()) city,
+    ].join(', ');
+    var image = _pickImage(st, const <String, dynamic>{});
+    if (image.isEmpty && st['images'] is List) {
+      for (final v in (st['images'] as List)) {
+        final t = s(v);
+        if (t.startsWith('http') || t.startsWith('data:image')) {
+          image = t;
+          break;
+        }
+      }
+    }
+    return ProductShareData(
+      productId: id,
+      name: name.isEmpty ? 'Store' : name,
+      storeName: '',
+      locationLine: loc,
+      salePrice: null,
+      origPrice: null,
+      offerText: '',
+      discountBadge: '',
+      storeRating: 0,
+      imageSrc: image,
+      link: ProductLink.open,
     );
   }
 
@@ -175,7 +207,8 @@ class ProductShareData {
 
 // ─────────────────────────────────────────────────────────────────────────
 // Card widget — a simple promotional preview, like a brand message card:
-//   • card radius 22, clipped image running edge to edge (no border/margin)
+//   • plain rectangle: NO rounded corners, no border, no margin, no shadow —
+//     the image / green band reach all four corners of the PNG
 //   • image 0.57 × card width, BoxFit.cover (fallback = #A9CDBA + initial)
 //   • #3E5F55 filled pill over the image (here: the OffrO logo)
 //   • green offer section under the image, white "25% OFF" text — only when
@@ -184,18 +217,15 @@ class ProductShareData {
 // Layout rule: the card holds ONLY the photo, the OffrO logo and the offer
 // section. Product details (name, store, location, prices) and the clickable
 // OffrO link are sent as the share TEXT — see ProductShare.caption.
-// Rendered at fixed size, edge to edge, on an opaque white background (the
-// corners outside the rounded card are white, never transparent). No QR code.
+// Rendered at fixed size. The exported PNG is flattened onto an opaque
+// backdrop (ProductShare._opaquePng), so no pixel is ever transparent. No QR code.
 // ─────────────────────────────────────────────────────────────────────────
 class ProductShareCard extends StatelessWidget {
   static const double cardWidth = 320;
-  static const double outerPad = 0; // none: the photo runs edge to edge of the image
-  /// Corner radius of the card. The pixels outside the rounded corners are
-  /// painted with [_cornerFill] — never left transparent, because WhatsApp
-  /// shows transparent PNG pixels as black.
-  static const double cornerRadius = 22;
-  static const Color _cornerFill = Colors.white;
-  static const double outerWidth = cardWidth + outerPad * 2;
+  static const double outerWidth = cardWidth; // no margin around the card
+  /// Only ever visible behind a photo that has transparent pixels (and as the
+  /// no-photo fallback tint) — never white, never transparent.
+  static const Color _backdrop = Color(0xFFA9CDBA);
   /// Store Card ratio: cardW * 0.57 (rounded).
   static const double imageHeight = 182;
 
@@ -257,7 +287,7 @@ class ProductShareCard extends StatelessWidget {
     // Same fallback as the Store Card's _storeFallback.
     final n = data.name.trim();
     return Container(
-      color: const Color(0xFFA9CDBA),
+      color: _backdrop,
       child: Center(
         child: Text(n.isNotEmpty ? n[0].toUpperCase() : 'P',
             style: const TextStyle(color: _green, fontSize: 28, fontWeight: FontWeight.w900)),
@@ -270,21 +300,14 @@ class ProductShareCard extends StatelessWidget {
     final offer = _offerLabel();
 
     return Material(
-      color: _cornerFill, // opaque: no transparent pixels anywhere in the PNG
-      child: Padding(
-        padding: const EdgeInsets.all(outerPad),
-        child: Container(
-          width: cardWidth,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(cornerRadius),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(cornerRadius),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+      color: _backdrop, // opaque: no transparent pixels anywhere in the PNG
+      child: SizedBox(
+        width: cardWidth,
+        child: ClipRect(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                 // ── Image area: photo + OffrO pill only ──
                 SizedBox(
                   width: double.infinity,
@@ -325,7 +348,6 @@ class ProductShareCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -387,7 +409,43 @@ class ProductShare {
     } catch (_) {
       return false;
     }
-    final text = caption(data);
+    return _shareData(context, data, caption(data), onInitiated);
+  }
+
+  /// Store equivalent of [share]: same image card (store photo + OffrO pill, no
+  /// offer band) and the same sharing pipeline, with the store caption and the
+  /// store Smart Link. Never throws.
+  static Future<bool> shareStore(
+    BuildContext context,
+    Map<String, dynamic> store, {
+    VoidCallback? onInitiated,
+  }) async {
+    ProductShareData data;
+    try {
+      data = ProductShareData.fromStore(store);
+    } catch (_) {
+      return false;
+    }
+    return _shareData(context, data, storeCaption(data), onInitiated);
+  }
+
+  /// Store share text: bold name, location, bold call to action + the real
+  /// https:// store link on its own line (clickable in chat apps).
+  static String storeCaption(ProductShareData d) {
+    final title = _bold(d.name);
+    return [
+      if (title.isNotEmpty) title,
+      if (d.locationLine.isNotEmpty) '\nLocation: ${d.locationLine}',
+      if (d.link.isNotEmpty) '\n${_bold('View Store on OffrO')}\n${d.link}',
+    ].join('\n');
+  }
+
+  static Future<bool> _shareData(
+    BuildContext context,
+    ProductShareData data,
+    String text,
+    VoidCallback? onInitiated,
+  ) async {
     final subject = 'OFFRO – ${data.name}';
     final origin = _origin(context);
 
@@ -493,6 +551,32 @@ class ProductShare {
 
   /// Builds the card in an off-screen overlay entry, waits for it to be
   /// painted and captures it. Returns null on any failure.
+  /// PNG of [img] painted over a solid backdrop, so every pixel has alpha 255.
+  /// Where the card is already opaque (always, in practice) the colours are
+  /// unchanged. Returns null if anything fails.
+  static Future<Uint8List?> _opaquePng(ui.Image img) async {
+    ui.Picture? pic;
+    ui.Image? flat;
+    try {
+      final rec = ui.PictureRecorder();
+      final canvas = ui.Canvas(rec);
+      canvas.drawRect(
+        ui.Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
+        ui.Paint()..color = ProductShareCard._backdrop,
+      );
+      canvas.drawImage(img, ui.Offset.zero, ui.Paint());
+      pic = rec.endRecording();
+      flat = await pic.toImage(img.width, img.height);
+      final bd = await flat.toByteData(format: ui.ImageByteFormat.png);
+      return bd?.buffer.asUint8List();
+    } catch (_) {
+      return null;
+    } finally {
+      flat?.dispose();
+      pic?.dispose();
+    }
+  }
+
   static Future<Uint8List?> _renderPng(BuildContext context, ProductShareData data) async {
     if (!context.mounted) return null;
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
@@ -562,6 +646,10 @@ class ProductShare {
           }
           final img = await boundary.toImage(pixelRatio: ratio);
           try {
+            // Flatten onto an opaque backdrop: the exported PNG never contains a
+            // transparent pixel (WhatsApp draws those black).
+            final flat = await _opaquePng(img);
+            if (flat != null) return flat;
             final bd = await img.toByteData(format: ui.ImageByteFormat.png);
             if (bd != null) return bd.buffer.asUint8List();
           } finally {

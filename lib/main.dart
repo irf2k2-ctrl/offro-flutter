@@ -5,7 +5,6 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:share_plus/share_plus.dart';
-import 'core/services/deep_link_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -327,7 +326,6 @@ Future<void> main() async {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light));
   } catch (e) { }
   runApp(const MyApp());
-  DeepLinkService.start(); // offro.app/p/<id> product links
 }
 
 
@@ -1010,7 +1008,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   @override void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    DeepLinkService.attach(_openLinkedProduct); // offro.app/p/<id> → Product Details
     _loadProfile();
     _loadRadius(); // Issue 1: load saved radius preference
     _loadUnreadCount(); // Issue 8: load notification badge
@@ -1874,14 +1871,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _onFavChanged() { if (mounted) setState(() {}); }
 
-  // Opens the product a shared offro.app/p/<id> link points to.
-  void _openLinkedProduct(Map<String, dynamic> product) {
-    if (!mounted) return;
-    Navigator.push(context, appRoute(ProductDetailsPage(product: product, token: widget.token)));
-  }
-
   @override void dispose() {
-    DeepLinkService.detach(_openLinkedProduct);
     FavState.instance.productRevision.removeListener(_onFavChanged);
     _unreadNotifier.removeListener(_onUnreadChanged);
     WidgetsBinding.instance.removeObserver(this);

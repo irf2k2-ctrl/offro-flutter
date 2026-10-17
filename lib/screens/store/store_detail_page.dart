@@ -8,7 +8,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../core/widgets/product_share_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/utils/image_url.dart';
@@ -214,21 +214,19 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     }
   }
 
+  bool _shareBusy = false;
+
+  // Image card (store photo + OffrO pill) + caption with the store Smart Link.
   Future<void> _share() async {
-    final name    = _store['store_name']?.toString() ?? '';
-    final area    = _store['area']?.toString() ?? '';
-    final city    = _store['city']?.toString() ?? '';
-    final id      = _store['_id']?.toString() ?? '';
-    final offer   = _store['offer']?.toString() ?? '';
-    final appLink = 'https://offro.app/store/$id';
-    final text    = [
-      '🏪 $name',
-      '📍 $area${city.isNotEmpty ? ", $city" : ""}',
-      if (offer.isNotEmpty) '🎁 $offer',
-      'Discover deals & earn reward points on OFFRO!',
-      appLink,
-    ].join('\n');
-    await Share.share(text, subject: 'Check out $name on OFFRO');
+    if (_shareBusy) return; // no double taps
+    _shareBusy = true;
+    try {
+      await ProductShare.shareStore(context, _store);
+    } catch (_) {
+      // ProductShare never throws; belt and braces.
+    } finally {
+      _shareBusy = false;
+    }
   }
 
   @override

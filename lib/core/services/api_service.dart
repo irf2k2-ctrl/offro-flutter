@@ -232,17 +232,6 @@ class Api {
       Map<String,dynamic>.from(await _post("/user/redeem", {"store_id": storeId, "user_token": token}));
 
   // ── Merchant ──
-  /// One visible product for opening Product Details from a shared
-  /// offro.app/p/<id> link. Null when the product is gone / expired / offline.
-  static Future<Map<String,dynamic>?> getPublicProduct(String productId) async {
-    try {
-      final d = await _get("/products/${Uri.encodeComponent(productId)}/public");
-      return d is Map ? Map<String,dynamic>.from(d) : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   static Future<Map<String,dynamic>?> getMerchantMe(String token) async {
     try {
       return await _get("/merchant/me", token: token);
