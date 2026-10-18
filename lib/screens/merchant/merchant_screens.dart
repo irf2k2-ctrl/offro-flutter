@@ -467,14 +467,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                     Widget _thumb;
                     if (imgUrl.isNotEmpty) {
                       if (_isVideo) {
-                        _thumb = Container(
-                          width: 80,
-                          height: 80,
-                          color: Colors.black87,
-                          child: const Center(
-                            child: Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
-                          ),
-                        );
+                        _thumb = _BannerThumbVideo(url: imgUrl, initial: initialStr);
                       } else if (imgUrl.startsWith("data:image")) {
                         _thumb = Image.memory(
                           base64Decode(imgUrl.split(",").last),
@@ -5768,6 +5761,79 @@ class _AddDealState extends State<AddDealPage> {
 
 }
 
+
+// ── My Banners video thumbnail: tap to play/pause in place (80x80, muted) ──
+class _BannerThumbVideo extends StatefulWidget {
+  final String url;
+  final String initial;
+  const _BannerThumbVideo({required this.url, required this.initial});
+  @override State<_BannerThumbVideo> createState() => _BannerThumbVideoState();
+}
+
+class _BannerThumbVideoState extends State<_BannerThumbVideo> {
+  VideoPlayerController? _c;
+  bool _loading = false;
+  bool _failed = false;
+
+  Future<void> _init() async {
+    setState(() => _loading = true);
+    try {
+      VideoPlayerController c;
+      if (widget.url.startsWith("data:video")) {
+        final bytes = base64Decode(widget.url.substring(widget.url.indexOf(",") + 1));
+        c = VideoPlayerController.contentUri(Uri.dataFromBytes(bytes, mimeType: "video/mp4"));
+      } else {
+        c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      }
+      _c = c;
+      await c.initialize();
+      await c.setVolume(0);
+      await c.setLooping(true);
+      await c.play();
+      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      debugPrint("[MyBanners] video thumb failed: $e");
+      try { await _c?.dispose(); } catch (_) {}
+      _c = null;
+      if (mounted) setState(() { _loading = false; _failed = true; });
+    }
+  }
+
+  void _onTap() {
+    final c = _c;
+    if (c == null || !c.value.isInitialized) {
+      if (!_loading) _init();
+      return;
+    }
+    setState(() { c.value.isPlaying ? c.pause() : c.play(); });
+  }
+
+  @override void dispose() { _c?.dispose(); super.dispose(); }
+
+  @override Widget build(BuildContext context) {
+    if (_failed) {
+      return Container(width: 80, height: 80, color: kAccent,
+        child: Center(child: Text(widget.initial, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22))));
+    }
+    final c = _c;
+    final ready = c != null && c.value.isInitialized;
+    final playing = ready && c!.value.isPlaying;
+    return GestureDetector(
+      onTap: _onTap,
+      child: SizedBox(width: 80, height: 80, child: Stack(alignment: Alignment.center, children: [
+        if (ready)
+          SizedBox(width: 80, height: 80, child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge,
+            child: SizedBox(width: c!.value.size.width, height: c.value.size.height, child: VideoPlayer(c))))
+        else
+          Container(width: 80, height: 80, color: Colors.black87),
+        if (_loading)
+          const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+        else if (!playing)
+          const Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
+      ])),
+    );
+  }
+}
 
 // ── Banner Video Tile (merchant banner list) ──────────────────────────────
 class _BannerVideoTile extends StatefulWidget {
