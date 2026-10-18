@@ -727,6 +727,14 @@ class _AddBannerState extends State<AddBannerPage> {
   final _daysC     = TextEditingController(text:"30");
   final _discountC = TextEditingController();
   String? _imgB64; bool _loading = false; String _msg = "";
+  // Banner media: "image" (default, unchanged) or "video" (max 15 s / 10 MB).
+  static const int _kVideoMaxBytes = 10 * 1024 * 1024;
+  static const Duration _kVideoMaxDuration = Duration(seconds: 15);
+  String _mediaType = "image";
+  String? _videoPath;                 // picked file (already validated)
+  String? _videoUrl;                  // CDN url after upload (done once, right before payment)
+  VideoPlayerController? _videoCtrl;  // muted preview
+  bool _videoBusy = false;
   DateTime _fromDate = DateTime.now();
   Map<String,dynamic>? _pricing;
   String? _selCity;
@@ -738,7 +746,7 @@ class _AddBannerState extends State<AddBannerPage> {
   String? _appliedCode; double _appliedDiscount = 0; String? _appliedDiscountType;
   String _discountMsg = ""; bool _discountOk = false; bool _applyingCode = false;
 
-  @override void dispose() { _titleC.dispose(); _daysC.dispose(); _discountC.dispose(); _razorpay.clear(); super.dispose(); }
+  @override void dispose() { _titleC.dispose(); _daysC.dispose(); _discountC.dispose(); _razorpay.clear(); _videoCtrl?.dispose(); super.dispose(); }
 
   Future<void> _loadPricing() async {
     try {
@@ -780,14 +788,150 @@ class _AddBannerState extends State<AddBannerPage> {
     setState(()=>_imgB64="data:image/jpeg;base64,${base64Encode(bytes)}");
   }
 
+  // What gets sent as the banner media: the CDN video url, or the image data URI.
+  String? get _mediaPayload => _mediaType == "video" ? _videoUrl : _imgB64;
+
+  void _videoError(String message) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red));
+  }
+
+  // Validates size (<= 10 MB) and duration (<= 15 s) BEFORE anything is uploaded.
+  Future<void> _pickVideo() async {
+    if (_videoBusy) return;
+    final XFile? picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (picked == null) return;
+    setState(() => _videoBusy = true);
+    VideoPlayerController? c;
+    try {
+      final file = File(picked.path);
+      if (await file.length() > _kVideoMaxBytes) {
+        _videoError("Video is too large. Please select a video up to 10 MB.");
+        return;
+      }
+      c = VideoPlayerController.file(file);
+      await c.initialize();
+      if (c.value.duration > _kVideoMaxDuration) {
+        await c.dispose();
+        c = null;
+        _videoError("Video is too long. Please select a video up to 15 seconds.");
+        return;
+      }
+      await c.setVolume(0);
+      await c.setLooping(true);
+      await c.play();
+      final old = _videoCtrl;
+      if (!mounted) return;
+      setState(() { _videoCtrl = c; _videoPath = picked.path; _videoUrl = null; _msg = ""; });
+      c = null; // now owned by the state
+      old?.dispose();
+    } catch (_) {
+      _videoError("Could not read this video. Please select another video.");
+    } finally {
+      c?.dispose();
+      if (mounted) setState(() => _videoBusy = false);
+    }
+  }
+
+  void _removeVideo() {
+    final old = _videoCtrl;
+    setState(() { _videoCtrl = null; _videoPath = null; _videoUrl = null; });
+    old?.dispose();
+  }
+
+  // Uploads the validated video once (before payment, so a failed upload never
+  // costs the merchant anything). Reused on retry. Returns false + sets _msg on failure.
+  Future<bool> _uploadVideoIfNeeded() async {
+    if (_videoUrl != null) return true;
+    final path = _videoPath;
+    if (path == null) return false;
+    try {
+      final bytes = await File(path).readAsBytes();
+      if (bytes.length > _kVideoMaxBytes) {
+        if (mounted) setState(() => _msg = "Video is too large. Please select a video up to 10 MB.");
+        return false;
+      }
+      final res = await Api.uploadBannerVideo(widget.token, "data:video/mp4;base64,${base64Encode(bytes)}");
+      final url = (res["url"] ?? "").toString();
+      if (url.isEmpty) throw Exception("empty video url");
+      _videoUrl = url;
+      return true;
+    } catch (e) {
+      if (mounted) setState(() => _msg = friendlyError(e, fallback: "Could not upload the video. Please try again."));
+      return false;
+    }
+  }
+
+  Widget _mediaTypeChip(String label, IconData icon, String value) {
+    final sel = _mediaType == value;
+    return Expanded(child: GestureDetector(
+      onTap: () => setState(() => _mediaType = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: sel ? kPrimary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: sel ? kPrimary : kBorder)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 18, color: sel ? Colors.white : kMuted),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(
+            color: sel ? Colors.white : kText, fontSize: 13, fontWeight: FontWeight.w700)),
+        ]))));
+  }
+
+  Widget _videoBox() {
+    final c = _videoCtrl;
+    final has = c != null && c.value.isInitialized;
+    return GestureDetector(
+      onTap: has ? null : _pickVideo,
+      child: Container(
+        height: 110,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: has ? kPrimary : kBorder, width: has ? 2 : 1)),
+        child: _videoBusy
+          ? const Center(child: SizedBox(width: 24, height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary)))
+          : has
+            ? Stack(children: [
+                ClipRRect(borderRadius: BorderRadius.circular(11),
+                  child: SizedBox(width: double.infinity, height: 110,
+                    child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge,
+                      child: SizedBox(width: c!.value.size.width, height: c.value.size.height,
+                        child: VideoPlayer(c))))),
+                Positioned(top: 6, right: 6, child: GestureDetector(
+                  onTap: _removeVideo,
+                  child: Container(padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+              ])
+            : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.video_library_outlined, size: 36, color: kAccent),
+                const SizedBox(height: 6),
+                const Text("Tap to select banner video", style: TextStyle(color: kMuted, fontSize: 13)),
+                const SizedBox(height: 3),
+                _InfoChip("Max 15 seconds · Max 10 MB"),
+              ]),
+      ));
+  }
+
   Future<void> _proceed() async {
     if (_titleC.text.trim().isEmpty) { setState(()=>_msg="Banner title required"); return; }
     if (_selectedBannerStore==null) { setState(()=>_msg="Please select a store"); return; }
     if (_selCity==null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city"); return; }
-    if (_imgB64==null) { setState(()=>_msg="Please upload a banner image"); return; }
+    if (_mediaType=="video") {
+      if (_videoPath==null) { setState(()=>_msg="Please select a banner video"); return; }
+    } else if (_imgB64==null) { setState(()=>_msg="Please upload a banner image"); return; }
     if (_days<1) { setState(()=>_msg="Enter number of days (minimum 1)"); return; }
     setState((){_loading=true; _msg="";});
     try {
+      // Video: upload once, before any order/payment is created.
+      if (_mediaType=="video" && !await _uploadVideoIfNeeded()) {
+        if (mounted) setState(()=>_loading=false);
+        return;
+      }
       final order = await Api.createBannerOrder(widget.token, {
         "days":       _days,
         "from_date":  _fromDateStr,
@@ -811,7 +955,8 @@ class _AddBannerState extends State<AddBannerPage> {
           final res = await Api.activateFreeBanner(widget.token, {
             "order_id":  order["order_id"],
             "title":     _titleC.text.trim(),
-            "image_url": _imgB64,
+            "image_url": _mediaPayload,
+            "media_type": _mediaType,
             "city":      _selCity??"",
             "store_id":  (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
             "store_name":(_selectedBannerStore?["store_name"] ?? "").toString(),
@@ -929,7 +1074,8 @@ class _AddBannerState extends State<AddBannerPage> {
       final result = await Api.verifyBannerPayment(widget.token, {
         "order_id":           captured!["order_id"],
         "title":              _titleC.text.trim(),
-        "image_url":          _imgB64,
+        "image_url":          _mediaPayload,
+        "media_type":         _mediaType,
         "city":               _selCity??"",
         "store_id":           (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
         "store_name":         (_selectedBannerStore?["store_name"] ?? "").toString(),
@@ -1059,8 +1205,16 @@ class _AddBannerState extends State<AddBannerPage> {
       ),
       const SizedBox(height: 12),
 
-      // Image upload
-      GestureDetector(
+      // Banner type: Image / Video
+      Row(children:[
+        _mediaTypeChip("Image", Icons.image_outlined, "image"),
+        const SizedBox(width:10),
+        _mediaTypeChip("Video", Icons.videocam_outlined, "video"),
+      ]),
+      const SizedBox(height:10),
+
+      // Upload (Image = existing behaviour, Video = new)
+      if (_mediaType=="image") GestureDetector(
         onTap:_pickImage,
         child:Container(
           height:110,
@@ -1089,7 +1243,8 @@ class _AddBannerState extends State<AddBannerPage> {
                   _InfoChip("📐 1200×400px"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
                 ]),
               ]),
-        )),
+        ))
+      else _videoBox(),
       const SizedBox(height:12),
 
       // Duration + From Date

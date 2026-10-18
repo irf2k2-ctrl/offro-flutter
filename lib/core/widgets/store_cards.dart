@@ -65,7 +65,10 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
   @override void initState() {
     super.initState();
     final url = _mediaUrl();
-    if (_isVideo(url)) _initVideo(url);
+    if (_isVideo(url)) {
+      try { _initVideo(url); }
+      catch (e) { if (kDebugMode) debugPrint("[Offro] banner video setup failed: $e"); } // keep the Home banner area intact
+    }
   }
 
   String _mediaUrl() =>

@@ -12,10 +12,10 @@ class Api {
     if (token != null) "Authorization": "Bearer $token",
   };
 
-  static Future<Map<String,dynamic>> _post(String path, Map body, {String? token}) async {
+  static Future<Map<String,dynamic>> _post(String path, Map body, {String? token, Duration timeout = const Duration(seconds: 20)}) async {
     http.Response r;
     try {
-      r = await http.post(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
+      r = await http.post(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(timeout);
     } catch (e) {
       // Round 9: normalize network/timeout/TLS failures (SocketException,
       // TimeoutException, HandshakeException, certificate errors) into a
@@ -850,6 +850,11 @@ class Api {
 
   static Future<Map<String,dynamic>> getBannerPricing(String token) async =>
     Map<String,dynamic>.from(await _get("/merchant/banners/pricing", token: token));
+
+  /// Uploads a banner video (data:video/mp4;base64,…) to the CDN before payment;
+  /// returns {url, media_type, thumb}. Longer timeout than other calls (up to 10 MB).
+  static Future<Map<String,dynamic>> uploadBannerVideo(String token, String dataUri) =>
+    _post("/merchant/banners/upload-video", {"video": dataUri}, token: token, timeout: const Duration(seconds: 150));
 
   static Future<Map<String,dynamic>> createBannerOrder(String token, Map body) =>
     _post("/merchant/banners/order", body, token: token);
