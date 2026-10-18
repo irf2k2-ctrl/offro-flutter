@@ -6173,7 +6173,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
 
   // ── Individual store card ────────────────────────────────────
   // ── Badge metadata for glass ribbon ──
-  // Height of the badge ribbon area, reserved on every Home carousel store card.
+  // Height of the badge ribbon, drawn as an overlay on the bottom of the store image.
   static const double _kBadgeRibbonH = 30;
   static const Map<String, Map<String,String>> _badgeRibbonMeta = {
     "new_store":     {"label": "🆕 NEW STORE"},
@@ -6322,7 +6322,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     }
     final infoH = 22 + max(nameH, rating > 0 && !stack ? 17.0 : 0) +
         (row2 > 0 ? 2 + row2 : 0) + statusH;
-    final total = 8 + 6 + 2 + imgH + _kBadgeRibbonH + infoH + 2; // margins + border + safety
+    final total = 8 + 6 + 2 + imgH + infoH + 2; // margins + border + safety (ribbon is an image overlay, adds no height)
     return _StoreCardLayout(total.ceilToDouble(), stack);
   }
 
@@ -6444,6 +6444,30 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
               child: Stack(children: [
                 Positioned.fill(child: storeImageWidget),
 
+                // Badge ribbon — overlaid on the bottom of the image (image keeps its full
+                // size; nothing is rendered or reserved when the store has no badge).
+                if (badgeKey != null)
+                  Positioned(
+                    left: 0, right: 0, bottom: 0,
+                    child: Container(
+                      width: double.infinity,
+                      height: _kBadgeRibbonH,
+                      color: const Color(0xFF3a3a35),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _badgeRibbonMeta[badgeKey]!["label"]!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+
                 // Distance badge — OffrO green filled pill, white content
                 if (distTxt != null)
                   Positioned(top: 10, left: 10,
@@ -6514,30 +6538,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                 ),
               ]),
             ),
-
-            // ── Ribbon band — full card width, directly below the image ──
-            // The ribbon area is ALWAYS _kBadgeRibbonH tall so every card in the
-            // carousel has the same height; with no badge it is just empty space.
-            if (badgeKey == null)
-              const SizedBox(width: double.infinity, height: _kBadgeRibbonH)
-            else
-              Container(
-                width: double.infinity,
-                height: _kBadgeRibbonH,
-                color: const Color(0xFF3a3a35),
-                alignment: Alignment.center,
-                child: Text(
-                  _badgeRibbonMeta[badgeKey]!["label"]!,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
 
             // ── Info block ──
             Padding(
