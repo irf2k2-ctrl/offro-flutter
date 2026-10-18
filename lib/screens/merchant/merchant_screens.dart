@@ -851,12 +851,14 @@ class _AddBannerState extends State<AddBannerPage> {
         if (mounted) setState(() => _msg = "Video is too large. Please select a video up to 10 MB.");
         return false;
       }
+      debugPrint("[BannerVideo] POST $kBaseUrl/merchant/banners/upload-video bytes=${bytes.length}");
       final res = await Api.uploadBannerVideo(widget.token, "data:video/mp4;base64,${base64Encode(bytes)}");
       final url = (res["url"] ?? "").toString();
       if (url.isEmpty) throw Exception("empty video url");
       _videoUrl = url;
       return true;
     } catch (e) {
+      debugPrint("[BannerVideo] upload failed: $e");
       if (mounted) setState(() => _msg = friendlyError(e, fallback: "Could not upload the video. Please try again."));
       return false;
     }
