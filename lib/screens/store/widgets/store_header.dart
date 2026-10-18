@@ -59,8 +59,10 @@ class StoreHeader extends StatelessWidget {
     final locationText =
         [area, city].where((x) => x.isNotEmpty).join(', ');
 
-    // Logo: logo_url → logo → store image (always show circle on wave)
-    final logoUrl = (store['logo_url']?.toString() ?? '').isNotEmpty
+    // Circle on the wave: uploaded Store Logo (merchant "Upload Logo" = image2)
+    // → existing store image chain below → letter fallback.
+    final uploadedLogo = _validImg(store['image2']);
+    final storeImageUrl = (store['logo_url']?.toString() ?? '').isNotEmpty
         ? store['logo_url'].toString()
         : (store['logo']?.toString() ?? '').isNotEmpty
             ? store['logo'].toString()
@@ -69,6 +71,7 @@ class StoreHeader extends StatelessWidget {
                 : (store['image']?.toString() ?? '').isNotEmpty
                     ? store['image'].toString()
                     : '';
+    final logoUrl = uploadedLogo.isNotEmpty ? uploadedLogo : storeImageUrl;
     // Always show logo circle on the wave divider
     const hasLogo = true;
 
@@ -180,7 +183,8 @@ class StoreHeader extends StatelessWidget {
                     ),
                     child: ClipOval(
                       child: logoUrl.isNotEmpty
-                          ? _buildLogoImage(logoUrl)
+                          ? _buildLogoImage(logoUrl,
+                              fallback: logoUrl == uploadedLogo ? storeImageUrl : '')
                           : Container(
                               color: const Color(0xFFe8f5f0),
                               child: Center(
@@ -424,7 +428,13 @@ class StoreHeader extends StatelessWidget {
     return Container(color: kLight);
   }
 
-  Widget _buildLogoImage(String url) {
+  /// Non-empty, non-"null" image string, else ''.
+  static String _validImg(dynamic v) {
+    final s = v?.toString().trim() ?? '';
+    return (s.isEmpty || s == 'null') ? '' : s;
+  }
+
+  Widget _buildLogoImage(String url, {String fallback = ''}) {
     if (url.isEmpty) return const SizedBox.shrink();
     // Relative path — prepend base URL
     final resolved = resolveImageUrl(url);
@@ -442,11 +452,14 @@ class StoreHeader extends StatelessWidget {
             ),
           ),
         ),
-        errorWidget: (_, __, ___) => Container(
-          color: kLight,
-          child: const Icon(Icons.store_rounded,
-              color: kPrimary, size: 24),
-        ),
+        // Logo failed to load → show the existing store image instead.
+        errorWidget: (_, __, ___) => fallback.isNotEmpty && fallback != url
+            ? _buildLogoImage(fallback)
+            : Container(
+                color: kLight,
+                child: const Icon(Icons.store_rounded,
+                    color: kPrimary, size: 24),
+              ),
       );
     }
     if (url.startsWith('data:image')) {
@@ -456,6 +469,12 @@ class StoreHeader extends StatelessWidget {
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
+          errorBuilder: (_, __, ___) => fallback.isNotEmpty && fallback != url
+              ? _buildLogoImage(fallback)
+              : Container(
+                  color: kLight,
+                  child: const Icon(Icons.store_rounded, color: kPrimary, size: 24),
+                ),
         );
       } catch (_) {}
     }
@@ -467,9 +486,16 @@ class StoreHeader extends StatelessWidget {
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
+          errorBuilder: (_, __, ___) => fallback.isNotEmpty && fallback != url
+              ? _buildLogoImage(fallback)
+              : Container(
+                  color: kLight,
+                  child: const Icon(Icons.store_rounded, color: kPrimary, size: 24),
+                ),
         );
       } catch (_) {}
     }
+    if (fallback.isNotEmpty && fallback != url) return _buildLogoImage(fallback);
     return Container(
       color: kLight,
       child: const Icon(Icons.store_rounded, color: kPrimary, size: 24),

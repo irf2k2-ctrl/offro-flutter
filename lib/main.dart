@@ -5173,13 +5173,17 @@ class _DiscoverProductsSection extends StatelessWidget {
                         child: Text("₹${saleP.toStringAsFixed(0)}",
                           style: TextStyle(color: const Color(0xFF2c3e35), fontSize: compact ? 12 : 15, fontWeight: FontWeight.w900)),
                       ),
-                      if (origP != null && !compact) ...[
-                        const SizedBox(width: 6),
-                        Text("₹${origP.toStringAsFixed(0)}",
-                          style: const TextStyle(
-                            color: Color(0xFF9e9e9e), fontSize: 12,
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: Color(0xFF9e9e9e))),
+                      if (origP != null) ...[
+                        SizedBox(width: compact ? 5 : 6),
+                        Flexible(
+                          child: Text("₹${origP.toStringAsFixed(0)}",
+                            maxLines: 1, softWrap: false, overflow: TextOverflow.fade,
+                            style: TextStyle(
+                              color: const Color(0xFF9e9e9e), fontSize: compact ? 11 : 12,
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: const Color(0xFF9e9e9e),
+                              decorationThickness: 1.6)),
+                        ),
                       ],
                     ]),
                   ),
@@ -6909,6 +6913,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final offerText  = p["text"]?.toString() ?? p["offer_text"]?.toString() ?? p["offer"]?.toString() ?? p["discount"]?.toString() ?? "";
     final discMatch  = RegExp(r'(\d+)%').firstMatch(offerText);
     final discBadge  = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
+    // Merchant "Offer Text", shown as plain text under the title. First NON-empty
+    // value (an empty "text" must not hide a filled "offer_text").
+    final offerDesc  = [p["offer_text"], p["text"], p["offer"]]
+        .map((e) => e?.toString().trim() ?? "")
+        .firstWhere((e) => e.isNotEmpty && e != "null", orElse: () => "");
 
     final saleP = _numVal(["offer_price","sale_price","price","current_price"]); // ITEM10
     final origP = _numVal(["original_price","mrp","was_price","compare_price"]);
@@ -7043,6 +7052,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             Text(title,
               style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 22, fontWeight: FontWeight.w900, height: 1.25)),
 
+            // ── Offer text: plain text directly under the title (nothing when empty) ──
+            if (offerDesc.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(offerDesc,
+                style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.45)),
+            ],
+
             const SizedBox(height: 10),
 
             // ── Price row ──
@@ -7082,11 +7098,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   if (saleP != null)
                     const Text("Selling Price",
                       style: TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w600)),
-                  if (showOrig) ...[
-                    const SizedBox(width: 12),
-                    Text("MRP ₹${origP!.toStringAsFixed(0)}",
-                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
-                  ],
                 ]),
               ]),
 
@@ -7117,26 +7128,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               const SizedBox(height: 6),
               Text(description,
                 style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.55)),
-              const SizedBox(height: 20),
-            ],
-
-            // ── Offer text ──
-            if (offerText.isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe8f5f0),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFA9CDBA)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.local_offer_rounded, color: Color(0xFF3E5F55), size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(offerText,
-                    style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 13, fontWeight: FontWeight.w600))),
-                ]),
-              ),
               const SizedBox(height: 20),
             ],
 
