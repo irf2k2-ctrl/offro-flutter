@@ -6,7 +6,7 @@
 	<string>production</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:offro.app</string>
+		<string>applinks:theoffro.com</string>
 	</array>
 </dict>
 </plist>

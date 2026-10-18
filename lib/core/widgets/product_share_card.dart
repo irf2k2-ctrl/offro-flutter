@@ -4,7 +4,7 @@
 // Turns "Share" on Product Details into a branded image + caption instead of
 // plain text. Everything lives here so main.dart only calls [ProductShare.share].
 //
-//   ProductLink          the one generic share link (https://offro.app/open)
+//   ProductLink          the one generic share link (https://theoffro.com/open)
 //   ProductShareData     the public fields shown on the card, read from the
 //                        product map Product Details already holds
 //   ProductShareCard     the card widget (no QR code)
@@ -37,7 +37,7 @@ import 'base64_image.dart';
 class ProductLink {
   ProductLink._();
 
-  static const String open = 'https://offro.app/open';
+  static const String open = 'https://theoffro.com/open';
 
   /// Link without the scheme, for compact display on the card.
   static String display(String url) => url.replaceFirst(RegExp(r'^https?://'), '');

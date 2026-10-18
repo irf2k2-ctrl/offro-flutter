@@ -18,7 +18,7 @@ void main() {
       expect(
         ProductShare.caption(product),
         '*test analytic*\n\nStore: store 2\nLocation: Ballari\nOffer Price: ₹299\n'
-        'Original Price: ₹400\nSave: ₹101\n\n*View on OffrO*\nhttps://offro.app/open',
+        'Original Price: ₹400\nSave: ₹101\n\n*View on OffrO*\nhttps://theoffro.com/open',
       );
     });
     test('store data + caption', () {
@@ -29,17 +29,17 @@ void main() {
         'city': 'Ballari',
         'image_url': 'https://x/s.jpg',
       });
-      expect(store.link, 'https://offro.app/open');
+      expect(store.link, 'https://theoffro.com/open');
       expect(store.imageSrc, 'https://x/s.jpg');
       expect(store.discountBadge, isEmpty); // no green offer band for stores
       expect(
         ProductShare.storeCaption(store),
-        '*Store 2*\n\nLocation: Ballari\n\n*View Store on OffrO*\nhttps://offro.app/open',
+        '*Store 2*\n\nLocation: Ballari\n\n*View Store on OffrO*\nhttps://theoffro.com/open',
       );
     });
     test('product and store use the same generic link', () {
       expect(product.link, ProductLink.open);
-      expect(ProductLink.open, 'https://offro.app/open');
+      expect(ProductLink.open, 'https://theoffro.com/open');
       expect(ProductShareData.fromStore({'_id': 'x', 'store_name': 'S'}).link, ProductLink.open);
       // a product without an id still gets the link
       expect(ProductShareData.fromProduct({'title': 'a'}).link, ProductLink.open);
