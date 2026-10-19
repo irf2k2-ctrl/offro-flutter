@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 
-const kPrimary = Color(0xFF3E5F55);
 const _prefKeyPrefix = 'popup_shown_';
 
 // ─── Top-level helpers (shared by widget + orchestrator) ─────────────────────
@@ -190,7 +189,7 @@ class _PopupCampaignOverlayState extends State<PopupCampaignOverlay>
                     constraints: BoxConstraints(
                       maxWidth: 360,
                       maxHeight:
-                          MediaQuery.of(context).size.height * 0.75,
+                          MediaQuery.sizeOf(context).height * 0.75,
                     ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),

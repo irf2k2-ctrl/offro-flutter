@@ -8,9 +8,10 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../core/widgets/product_share_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/image_url.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/fav_state.dart';
 import 'widgets/store_header.dart';
@@ -45,7 +46,6 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     with SingleTickerProviderStateMixin, RouteAware {
   Map<String, dynamic> _store = {};
   bool  _loading   = true;
-  bool  _isFav     = false;
   int   _imgPage   = 0;
   int   _walletPts = 0;
   final PageController _imgPc = PageController();
@@ -53,12 +53,33 @@ class _StoreDetailPageState extends State<StoreDetailPage>
   late TabController _tabCtrl;
   static const _tabs = ['About', 'Products', 'Reviews', 'Rewards'];
 
+  String get _storeId =>
+      (_store['_id'] ?? widget.store['_id'] ?? widget.store['id'] ?? '').toString();
+
+  // BUG FIX (QA): favorite state is now derived directly from the shared
+  // FavState singleton — the exact same source the Home Screen store card
+  // reads (lib/main.dart's _BannerStoresBlockState) — instead of a private
+  // `_isFav` field that defaulted to false and was only corrected after a
+  // separate, slower Api.isFavorite() network call resolved. That stale
+  // local copy is what caused the reported bug: Store Detail showed an
+  // empty heart for an already-favorited store, and tapping it (to
+  // "favorite" it) actually called the backend's blind toggle against the
+  // real (already-favorited) state and removed the favorite.
+  bool get _isFav => FavState.instance.hasStore(_storeId);
+
   @override
   void initState() {
     super.initState();
     _store = Map<String, dynamic>.from(widget.store);
     _tabCtrl = TabController(length: _tabs.length, vsync: this);
+    // Keep this page in sync if the favorite state changes elsewhere
+    // (Home Screen card, Favorites list) while this page is open.
+    FavState.instance.addListener(_onFavChanged);
     _fetchAll();
+  }
+
+  void _onFavChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -82,6 +103,7 @@ class _StoreDetailPageState extends State<StoreDetailPage>
 
   @override
   void dispose() {
+    FavState.instance.removeListener(_onFavChanged);
     routeObserver.unsubscribe(this);
     _imgPc.dispose();
     _tabCtrl.dispose();
@@ -99,12 +121,12 @@ class _StoreDetailPageState extends State<StoreDetailPage>
       final hasToken = widget.token.isNotEmpty;
       final results = await Future.wait([
         Api.fetchStoreDetail(id),
-        hasToken ? Api.isFavorite(widget.token, id) : Future.value(false),
+        hasToken ? Api.checkFavorite(widget.token, id) : Future.value(null),
         hasToken ? Api.getWallet(widget.token) : Future.value(<String,dynamic>{}),
       ]);
 
       final full   = results[0] as Map<String, dynamic>;
-      final isFav  = results[1] as bool;
+      final isFav  = results[1] as bool?; // null = the check failed; never treated as "not a favourite"
       final wallet = results[2] as Map<String, dynamic>;
 
       final savedDist      = _store['distance_km'];
@@ -133,8 +155,16 @@ class _StoreDetailPageState extends State<StoreDetailPage>
           if (full['created_at'] == null || full['created_at'].toString().isEmpty) {
             _store['created_at'] = savedCreatedAt ?? '';
           }
-          _isFav    = isFav;
-          FavState.instance.setStore(id, isFav);
+          // _isFav is now a getter derived from FavState — just correct the
+          // shared singleton with this fresher, confirmed server value.
+          // (A no-op if Home Screen already seeded it correctly, which is
+          // the common case — this is a safety net for deep-links / cold
+          // opens where FavState hasn't been populated yet.)
+          // Only a confirmed server value is applied, and never while a tap on
+          // this store is still in flight (it would overwrite the optimistic state).
+          if (isFav != null && !FavState.instance.isStorePending(id)) {
+            FavState.instance.setStore(id, isFav);
+          }
           _walletPts = (wallet['points'] as num?)?.toInt() ?? 0;
           _loading  = false;
         });
@@ -152,8 +182,7 @@ class _StoreDetailPageState extends State<StoreDetailPage>
         : _store['image_thumb']?.toString() ??
           _store['image']?.toString() ?? '';
     final img2 = _store['image2']?.toString() ?? '';
-    final resolve =
-        (String u) => u.startsWith('/') ? '$kBaseUrl$u' : u;
+    final resolve = (String u) => resolveImageUrl(u);
     final all = [
       if (main.isNotEmpty) resolve(main),
       if (img2.isNotEmpty) resolve(img2),
@@ -167,34 +196,37 @@ class _StoreDetailPageState extends State<StoreDetailPage>
 
 
   Future<void> _toggleFav() async {
-    final id = _store['_id']?.toString() ?? '';
+    final id = _storeId;
     if (id.isEmpty || widget.token.isEmpty) return;
-    final prev = _isFav;
-    setState(() => _isFav = !_isFav);
-    FavState.instance.toggleStore(id);
+    // One in-flight request per store (shared with the Home store card).
+    if (!FavState.instance.tryLockStore(id)) return;
+    final prev = _isFav; // read from FavState — the real current state
+    // Explicit set (never a blind flip) for the optimistic update, then the
+    // server-confirmed value; restore the previous state if the request fails.
+    FavState.instance.setStore(id, !prev);
     try {
-      await Api.toggleFavorite(widget.token, id);
+      final confirmed = await Api.toggleFavorite(widget.token, id);
+      FavState.instance.setStore(id, confirmed);
     } catch (_) {
-      if (mounted) setState(() => _isFav = prev);
-      FavState.instance.toggleStore(id);
+      FavState.instance.setStore(id, prev);
+    } finally {
+      FavState.instance.unlockStore(id);
     }
   }
 
+  bool _shareBusy = false;
+
+  // Image card (store photo + OffrO pill) + caption with the store Smart Link.
   Future<void> _share() async {
-    final name    = _store['store_name']?.toString() ?? '';
-    final area    = _store['area']?.toString() ?? '';
-    final city    = _store['city']?.toString() ?? '';
-    final id      = _store['_id']?.toString() ?? '';
-    final offer   = _store['offer']?.toString() ?? '';
-    final appLink = 'https://offro.app/store/$id';
-    final text    = [
-      '🏪 $name',
-      '📍 $area${city.isNotEmpty ? ", $city" : ""}',
-      if (offer.isNotEmpty) '🎁 $offer',
-      'Discover deals & earn reward points on OFFRO!',
-      appLink,
-    ].join('\n');
-    await Share.share(text, subject: 'Check out $name on OFFRO');
+    if (_shareBusy) return; // no double taps
+    _shareBusy = true;
+    try {
+      await ProductShare.shareStore(context, _store);
+    } catch (_) {
+      // ProductShare never throws; belt and braces.
+    } finally {
+      _shareBusy = false;
+    }
   }
 
   @override
@@ -330,34 +362,6 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     );
   }
 
-  Widget _skelBox(double w, double h, {double r = 12}) =>
-      Container(
-        width: w,
-        height: h,
-        margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-        decoration: BoxDecoration(
-          color: const Color(0xFFD1E0DA),
-          borderRadius: BorderRadius.circular(r),
-        ),
-      );
-
-  Widget _skelSection() => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-        child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-          Container(
-            width: 120,
-            height: 18,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD1E0DA),
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          const SizedBox(height: 10),
-          _skelBox(double.infinity, 72, r: 16),
-        ]),
-      );
 }
 
 // ─── Tab Content Widget ───────────────────────────────────────

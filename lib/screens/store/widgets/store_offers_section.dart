@@ -1,8 +1,8 @@
 // lib/screens/store/widgets/store_offers_section.dart
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import 'store_header.dart' show FullScreenImageViewer;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,8 +22,13 @@ import 'store_header.dart' show FullScreenImageViewer;
 /// resolved by object identity via `indexOf`, because deal payloads from
 /// the backend (both Store Detail's `get_store()` and the city-wide
 /// `/deals/all`) don't reliably carry an `_id` to match on instead.
+// [fallbackSellerName]: StoreOffersSection's deals don't carry a per-deal
+// store_name field (they all belong to the one store already shown on that
+// page), so its call site passes the page's own storeName as a fallback.
+// Home's "Hot Deals" list deals DO carry their own store_name per deal, so
+// that call site doesn't need to pass this.
 void openDealGallery(BuildContext context, List<Map<String, dynamic>> dealsWithImages,
-    Map<String, dynamic> tappedDeal) {
+    Map<String, dynamic> tappedDeal, {String fallbackSellerName = ''}) {
   final startIndex = dealsWithImages.indexOf(tappedDeal);
   Navigator.push(
     context,
@@ -34,13 +39,32 @@ void openDealGallery(BuildContext context, List<Map<String, dynamic>> dealsWithI
       pageBuilder: (_, __, ___) => FullScreenImageViewer(
         images: dealsWithImages.map((d) => d['image_url'].toString()).toList(),
         initialIndex: startIndex < 0 ? 0 : startIndex,
+        // QA fix: add a "Seller: <name>" line below the title — sourced from
+        // the actual deal/store/merchant data (never hard-coded), falling
+        // back to the page-level store name when the deal itself doesn't
+        // carry one, and omitted entirely when neither is available.
         bottomOverlays: dealsWithImages.map((d) {
-          final t = d['title']?.toString() ?? '';
-          return t.isEmpty
-              ? const SizedBox.shrink()
-              : Text(t,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800));
+          final t = d['title']?.toString().trim() ?? '';
+          final sellerRaw = (d['store_name'] ?? d['merchant_name'] ?? d['seller'] ?? '').toString().trim();
+          final seller = sellerRaw.isNotEmpty ? sellerRaw : fallbackSellerName.trim();
+          if (t.isEmpty && seller.isEmpty) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (t.isNotEmpty)
+                Text(t,
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+              if (seller.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text("Seller: $seller",
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                ),
+            ],
+          );
         }).toList(),
       ),
     ),
@@ -69,18 +93,6 @@ class StoreOffersSection extends StatelessWidget {
     this.loading = false,
   });
 
-  /// Format a date string (yyyy-MM-dd or dd MMM yyyy) as "d MMM yyyy"
-  static String _formatDate(String raw) {
-    if (raw.isEmpty) return '';
-    // Try yyyy-MM-dd
-    try {
-      final dt = DateTime.parse(raw.substring(0, 10));
-      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      return '${dt.day} ${m[dt.month - 1]} ${dt.year}';
-    } catch (_) {}
-    // Already in "dd MMM yyyy" format — return as-is
-    return raw;
-  }
 
   // Round 10: the deals that actually have an image — only these can be
   // opened in the full-screen gallery (a deal without an image renders the
@@ -210,7 +222,7 @@ class StoreOffersSection extends StatelessWidget {
                     // deal (for this store) that has an image, starting at
                     // the exact deal tapped — replaces the old single-image
                     // viewer.
-                    onTap: () => openDealGallery(ctx, _dealsWithImages, d),
+                    onTap: () => openDealGallery(ctx, _dealsWithImages, d, fallbackSellerName: storeName),
                     child: Container(
                       width: 210,
                       height: 210,
@@ -235,7 +247,7 @@ class StoreOffersSection extends StatelessWidget {
                                 ? Builder(builder: (_) {
                                     try {
                                       return Image.memory(
-                                          base64Decode(imageUrl.split(',').last),
+                                          decodeBase64ImageCached(imageUrl),
                                           fit: BoxFit.cover);
                                     } catch (_) {
                                       return Container(color: kLight);

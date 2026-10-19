@@ -679,28 +679,6 @@ class _RenewProductPageState extends State<RenewProductPage> {
     return "${dt.day.toString().padLeft(2,'0')} ${m[dt.month-1]} ${dt.year}";
   }
 
-  // keep for back-compat (unused now but referenced by old summary path)
-  Future<bool?> _showSummary(Map order, {required bool free}) =>
-    showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text("Renew Premium Listing", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
-      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _SummaryRow("Extend by",  "$_days days"),
-        _SummaryRow("New End Date", order["new_end_date"]?.toString() ?? ""),
-        if (!free) ...[
-          const Divider(),
-          _SummaryRow("Base Price",   "₹${order['base_price']}"),
-          _SummaryRow("GST (${order['gst_percent']}%)", "₹${order['gst_amount']}"),
-          _SummaryRow("Total",        "₹${order['total']}", bold: true),
-        ],
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(free ? "Renew Now" : "Pay ₹${order['total']}", style: const TextStyle(color: Colors.white))),
-      ],
-    ));
 
   void _onPaySuccess(PaymentSuccessResponse res) async {
     if (_pendingOrder == null || !mounted) return;
@@ -898,14 +876,38 @@ class ProductAnalyticsPage extends StatefulWidget {
 class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
   Map<String,dynamic> _data = {};
   bool _loading = true;
+  bool _failed = false; // request failed — show retry, never fake zeros
 
   String get _pid => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
 
+  // Backend sends plural keys (views/shares/opens) and, for older responses,
+  // singular ones (view/share/open).
+  int _count(String plural, String singular) {
+    final v = _data[plural] ?? _data[singular];
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? "") ?? 0;
+  }
+
+  // "16 Oct 2026" in the device's local time (the server sends a UTC ISO
+  // timestamp). Falls back to the raw date, or "—" when there is none.
+  String get _lastSeen {
+    final raw = (_data['last_viewed'] ?? _data['last_seen'] ?? "").toString();
+    if (raw.isEmpty) return "—";
+    final dt = DateTime.tryParse(raw)?.toLocal();
+    if (dt == null) return raw.length >= 10 ? raw.substring(0, 10) : "—";
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${m[dt.month - 1]} ${dt.year}";
+  }
+
   @override void initState() { super.initState(); _load(); }
   Future<void> _load() async {
-    setState(() => _loading = true);
-    _data = await Api.getProductAnalytics(widget.token, _pid);
-    if (mounted) setState(() => _loading = false);
+    setState(() { _loading = true; _failed = false; });
+    final d = await Api.getProductAnalytics(widget.token, _pid);
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      if (d == null) { _failed = true; } else { _data = d; }
+    });
   }
 
   @override Widget build(BuildContext context) => Scaffold(
@@ -919,6 +921,22 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
     ),
     body: _loading
       ? const Center(child: CircularProgressIndicator(color: kPrimary))
+      : _failed
+      ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.cloud_off_rounded, color: kMuted, size: 44),
+          const SizedBox(height: 12),
+          const Text("Couldn't load analytics", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 16)),
+          const SizedBox(height: 6),
+          const Text("Please check your connection and try again.", textAlign: TextAlign.center,
+              style: TextStyle(color: kMuted, fontSize: 13)),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text("Retry"),
+            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
+          ),
+        ])))
       : SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(children: [
           // Product info card
           Card(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -931,20 +949,20 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
             )),
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: _AnalyticsStat("👁️ Views",  "${_data['views'] ?? 0}", kPrimary)),
+            Expanded(child: _AnalyticsStat("👁️ Views",  "${_count('views', 'view')}", kPrimary)),
             const SizedBox(width: 12),
-            Expanded(child: _AnalyticsStat("🔗 Shares", "${_data['shares'] ?? 0}", const Color(0xFF2563EB))),
+            Expanded(child: _AnalyticsStat("🔗 Shares", "${_count('shares', 'share')}", const Color(0xFF2563EB))),
           ]),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: _AnalyticsStat("🛒 Opens", "${_data['opens'] ?? 0}", const Color(0xFF059669))),
+            Expanded(child: _AnalyticsStat("🛒 Store Visits", "${_count('opens', 'open')}", const Color(0xFF059669))),
             const SizedBox(width: 12),
-            Expanded(child: _AnalyticsStat("📅 Last Seen",
-              _data['last_viewed']?.toString().isNotEmpty == true
-                ? _data['last_viewed'].toString().substring(0, 10) : "—",
-              const Color(0xFF7C3AED))),
+            Expanded(child: _AnalyticsStat("📅 Last Seen", _lastSeen, const Color(0xFF7C3AED), valueSize: 17)),
           ]),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          const Text("Store Visits: customers who visited the store",
+            style: TextStyle(color: kMuted, fontSize: 11)),
+          const SizedBox(height: 14),
           _ConversionBar(_data),
         ])),
   );
@@ -953,7 +971,10 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
 class _AnalyticsStat extends StatelessWidget {
   final String label, value;
   final Color color;
-  const _AnalyticsStat(this.label, this.value, this.color);
+  /// Counts use the large size; a date value passes a smaller one so it stays
+  /// on one line and the cards in a row keep the same height.
+  final double valueSize;
+  const _AnalyticsStat(this.label, this.value, this.color, {this.valueSize = 26});
   @override Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
@@ -964,7 +985,19 @@ class _AnalyticsStat extends StatelessWidget {
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
-      Text(value, style: TextStyle(color: color, fontSize: 26, fontWeight: FontWeight.w800)),
+      // Fixed-height value line so every stat card in a row matches.
+      SizedBox(
+        height: 34,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, maxLines: 1,
+              style: TextStyle(color: color, fontSize: valueSize, fontWeight: FontWeight.w800)),
+          ),
+        ),
+      ),
     ]),
   );
 }
@@ -973,8 +1006,8 @@ class _ConversionBar extends StatelessWidget {
   final Map<String,dynamic> data;
   const _ConversionBar(this.data);
   @override Widget build(BuildContext context) {
-    final views  = (data['views']  as num?)?.toDouble() ?? 0;
-    final opens  = (data['opens']  as num?)?.toDouble() ?? 0;
+    final views  = ((data['views'] ?? data['view']) as num?)?.toDouble() ?? 0;
+    final opens  = ((data['opens'] ?? data['open']) as num?)?.toDouble() ?? 0;
     final pct = views > 0 ? (opens / views * 100).clamp(0, 100).toStringAsFixed(1) : "0";
     return Container(
       padding: const EdgeInsets.all(16),
@@ -982,7 +1015,7 @@ class _ConversionBar extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text("Conversion Rate", style: TextStyle(fontWeight: FontWeight.w700, color: kText)),
         const SizedBox(height: 4),
-        Text("$pct% of viewers tapped Open",
+        Text("$pct% of viewers visited the store (tapped Sold by)",
           style: const TextStyle(color: kMuted, fontSize: 12)),
         const SizedBox(height: 10),
         LinearProgressIndicator(
@@ -995,78 +1028,6 @@ class _ConversionBar extends StatelessWidget {
       ]),
     );
   }
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// PRODUCT HISTORY PAGE
-// ══════════════════════════════════════════════════════════════════════
-class ProductHistoryPage extends StatefulWidget {
-  final String token;
-  final Map<String,dynamic> product;
-  const ProductHistoryPage({super.key, required this.token, required this.product});
-  @override State<ProductHistoryPage> createState() => _ProductHistoryPageState();
-}
-class _ProductHistoryPageState extends State<ProductHistoryPage> {
-  List<Map<String,dynamic>> _events = [];
-  bool _loading = true;
-
-  String get _pid => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
-
-  @override void initState() { super.initState(); _load(); }
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    _events = await Api.getProductHistory(widget.token, _pid);
-    if (mounted) setState(() => _loading = false);
-  }
-
-  IconData _icon(String ev) {
-    if (ev.contains("Create"))   return Icons.add_circle_rounded;
-    if (ev.contains("Activat"))  return Icons.toggle_on_rounded;
-    if (ev.contains("Deactiv"))  return Icons.toggle_off_rounded;
-    if (ev.contains("Upgrad"))   return Icons.arrow_upward_rounded;
-    if (ev.contains("Renew"))    return Icons.autorenew_rounded;
-    if (ev.contains("Extend"))   return Icons.calendar_month_rounded;
-    return Icons.history_rounded;
-  }
-
-  @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(
-      title: const Text("Activity History", style: TextStyle(fontWeight: FontWeight.w800)),
-      backgroundColor: Colors.white, foregroundColor: kText,
-    ),
-    body: _loading
-      ? const Center(child: CircularProgressIndicator(color: kPrimary))
-      : _events.isEmpty
-        ? const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(Icons.history_rounded, size: 64, color: kAccent),
-            SizedBox(height: 12),
-            Text("No activity yet", style: TextStyle(color: kMuted, fontSize: 16)),
-          ]))
-        : ListView.separated(
-            padding: const EdgeInsets.all(14),
-            itemCount: _events.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) {
-              final e = _events[i];
-              final ts = e["created_at"]?.toString() ?? "";
-              return Card(elevation: 1, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: kPrimary.withValues(alpha: .12),
-                    child: Icon(_icon(e["event"]?.toString() ?? ""), color: kPrimary, size: 20)),
-                  title: Text(e["event"]?.toString() ?? "",
-                    style: const TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 14)),
-                  subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if ((e["details"]?.toString() ?? "").isNotEmpty)
-                      Text(e["details"].toString(),
-                        style: const TextStyle(color: kMuted, fontSize: 12)),
-                    Text(ts.length >= 10 ? ts.substring(0, 10) : ts,
-                      style: const TextStyle(color: kAccent, fontSize: 11)),
-                  ]),
-                ));
-            }),
-  );
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -1335,26 +1296,4 @@ class _Benefit extends StatelessWidget {
   @override Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 4),
     child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)));
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-  @override Widget build(BuildContext context) =>
-    Text(text, style: const TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 15));
-}
-
-class _SummaryRow extends StatelessWidget {
-  final String label, value;
-  final bool bold;
-  const _SummaryRow(this.label, this.value, {this.bold = false});
-  @override Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-      Text(label, style: const TextStyle(color: kMuted, fontSize: 13)),
-      Text(value, style: TextStyle(
-        color: kText, fontSize: 13,
-        fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
-    ]),
-  );
 }

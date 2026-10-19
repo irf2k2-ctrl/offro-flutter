@@ -1,11 +1,7 @@
 // lib/screens/payment/payment_success_screen.dart
 import 'package:flutter/material.dart';
 
-// ─── Inline colour constants (mirrors app_constants.dart) ───────────────
-const Color _kPrimary = Color(0xFF3E5F55);
-const Color _kBg      = Color(0xFFFDFBF6);
-const Color _kLight   = Color(0xFFCDEBD6);
-const Color _kMuted   = Color(0xFF6b8c7e);
+import '../../core/constants/app_constants.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   final String storeName;
@@ -22,7 +18,7 @@ class PaymentSuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: kBg,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -46,7 +42,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: _kPrimary,
+                    color: kPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -56,7 +52,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                       ? 'Your "$storeName" purchase is now pending admin approval.'
                       : 'Your purchase is now pending admin approval.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: _kMuted, fontSize: 15),
+                  style: const TextStyle(color: kMuted, fontSize: 15),
                 ),
 
                 // ── Invoice badge ─────────────────────────────────────
@@ -65,18 +61,18 @@ class PaymentSuccessScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                     decoration: BoxDecoration(
-                      color: _kLight.withOpacity(.5),
+                      color: kLight.withOpacity(.5),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.receipt_long, color: _kPrimary, size: 16),
+                        const Icon(Icons.receipt_long, color: kPrimary, size: 16),
                         const SizedBox(width: 6),
                         Text(
                           "Invoice: $invoiceNo",
                           style: const TextStyle(
-                            color: _kPrimary,
+                            color: kPrimary,
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                           ),
@@ -116,7 +112,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _kPrimary,
+                      backgroundColor: kPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),

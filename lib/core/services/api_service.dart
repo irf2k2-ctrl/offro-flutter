@@ -12,10 +12,10 @@ class Api {
     if (token != null) "Authorization": "Bearer $token",
   };
 
-  static Future<Map<String,dynamic>> _post(String path, Map body, {String? token}) async {
+  static Future<Map<String,dynamic>> _post(String path, Map body, {String? token, Duration timeout = const Duration(seconds: 20)}) async {
     http.Response r;
     try {
-      r = await http.post(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(const Duration(seconds: 20));
+      r = await http.post(Uri.parse("$kBaseUrl$path"), headers: _h(token), body: json.encode(body)).timeout(timeout);
     } catch (e) {
       // Round 9: normalize network/timeout/TLS failures (SocketException,
       // TimeoutException, HandshakeException, certificate errors) into a
@@ -562,7 +562,7 @@ class Api {
   /// Fetch default fallback images — tries /admin/default-images then /default-images
   /// Returns a map with keys: city_image_url, store_image_url, product_image_url, etc.
   static Future<Map<String,dynamic>> getDefaultImages() async {
-    for (final path in ["/default-images", "/admin/default-images", "/admin/default-images"]) {
+    for (final path in ["/default-images"]) {
       try {
         final raw = await _get(path).timeout(const Duration(seconds: 8));
         if (raw is Map && raw.isNotEmpty) {
@@ -813,11 +813,20 @@ class Api {
   }
 
   // ── Favorites ──
-  static Future<void> toggleFavorite(String token, String storeId) async {
-    try { await _post("/user/favorites/$storeId", {}, token: token); } catch(_) { if (kDebugMode) debugPrint('[Offro] suppressed error'); }
+  /// Toggles the store favourite on the server and returns the server-confirmed
+  /// state (`is_favorite`). Errors are NOT swallowed: on failure this throws so
+  /// the caller can restore the previous state.
+  static Future<bool> toggleFavorite(String token, String storeId) async {
+    final d = await _post("/user/favorites/$storeId", {}, token: token);
+    return d["is_favorite"] == true;
   }
   static Future<List> getFavorites(String token) async {
     try { return await _get("/user/favorites", token: token); } catch(_) { return []; }
+  }
+  /// Like [isFavorite] but returns null when the check itself failed, so callers
+  /// never treat a failed request as "not a favourite".
+  static Future<bool?> checkFavorite(String token, String storeId) async {
+    try { final d = await _get("/user/favorites/$storeId/check", token: token); return d["is_favorite"]==true; } catch(_) { return null; }
   }
   static Future<bool> isFavorite(String token, String storeId) async {
     try { final d = await _get("/user/favorites/$storeId/check", token: token); return d["is_favorite"]==true; } catch(_) { return false; }
@@ -841,6 +850,11 @@ class Api {
 
   static Future<Map<String,dynamic>> getBannerPricing(String token) async =>
     Map<String,dynamic>.from(await _get("/merchant/banners/pricing", token: token));
+
+  /// Uploads a banner video (data:video/mp4;base64,…) to the CDN before payment;
+  /// returns {url, media_type, thumb}. Longer timeout than other calls (up to 10 MB).
+  static Future<Map<String,dynamic>> uploadBannerVideo(String token, String dataUri) =>
+    _post("/merchant/banners/upload-video", {"video": dataUri}, token: token, timeout: const Duration(seconds: 150));
 
   static Future<Map<String,dynamic>> createBannerOrder(String token, Map body) =>
     _post("/merchant/banners/order", body, token: token);
@@ -992,20 +1006,17 @@ class Api {
     } catch (_) { return {"items": []}; }
   }
 
-  static Future<Map<String,dynamic>> getProductAnalytics(
+  /// Product analytics for the merchant. Returns `null` when the request FAILED
+  /// (network/server/auth error or an unexpected response) so the UI can show a
+  /// retry state instead of misleading zeros. A real "no events yet" result is
+  /// a map with zero counts.
+  static Future<Map<String,dynamic>?> getProductAnalytics(
       String token, String pid) async {
     try {
-      final d = await _get("/merchant/products/$pid/analytics", token: token);
-      return d is Map ? Map<String,dynamic>.from(d) : {};
-    } catch (_) { return {}; }
-  }
-
-  static Future<List<Map<String,dynamic>>> getProductHistory(
-      String token, String pid) async {
-    try {
-      final d = await _get("/merchant/products/$pid/history", token: token);
-      return d is List ? List<Map<String,dynamic>>.from(d.map((e) => Map<String,dynamic>.from(e))) : [];
-    } catch (_) { return []; }
+      final d = await _get("/merchant/products/$pid/analytics", token: token)
+          .timeout(const Duration(seconds: 20));
+      return d is Map ? Map<String,dynamic>.from(d) : null;
+    } catch (_) { return null; }
   }
 
   static Future<void> trackProductEvent(String productId, String event) async {

@@ -10,12 +10,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-// Round 12 (Task 6): shimmer placeholder for the hero/admin-banner images —
-// already a declared dependency (pubspec.yaml), just not used anywhere yet.
-import 'package:shimmer/shimmer.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -23,11 +19,25 @@ import 'firebase_options.dart';
 
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
+import 'core/utils/image_url.dart';
+import 'core/utils/geo.dart';
+import 'core/utils/navigation.dart';
+import 'core/utils/store_hours.dart';
+import 'core/widgets/shimmer_box.dart';
+import 'core/widgets/base64_image.dart';
+import 'screens/home/widgets/home_background.dart';
+import 'screens/home/widgets/promo_slider_section.dart';
+import 'screens/legal/privacy_policy_page.dart';
 import 'core/services/api_service.dart';
 import 'core/services/error_mapper.dart';
 import 'core/services/fav_state.dart';
 import 'core/services/prefs_service.dart';
 import 'core/services/fcm_service.dart';
+import 'core/models/offro_location.dart';
+import 'core/services/location_service.dart';
+import 'core/services/location_store.dart';
+import 'screens/location/location_screen.dart';
+import 'screens/location/location_access_gate.dart';
 import 'screens/splash/splash_screen.dart';
 import 'screens/loading/location_loading_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -35,7 +45,6 @@ import 'core/widgets/brand_logo.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/merchant/merchant_screens.dart';
 import 'screens/favorites/favorites_page.dart';
-import 'screens/detail/detail_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
 import 'screens/home/influencer_section.dart';
@@ -44,49 +53,18 @@ import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
+import 'core/widgets/product_share_card.dart';
 // Round 12 (Task 5): reuse the exact same full-screen deal-gallery opener
 // StoreOffersSection ("Today's Offers" inside Store Detail) already uses,
 // instead of duplicating that Navigator.push + FullScreenImageViewer logic
 // here for the Home "Hot Deals" list.
 import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 
-PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
-
-// Round 12 (Task 6): shared shimmer placeholder for the hero city image and
-// the admin banner — both reserve their final box size/aspect ratio up
-// front regardless of load state (see _CityHeroSection's LayoutBuilder and
-// _BannerStoresBlock's fixed bannerH below), so swapping a flat gradient
-// box for this shimmer is a pure visual change, not a layout change.
-Widget _shimmerBox({double? width, double? height, BorderRadius? borderRadius}) {
-  return Shimmer.fromColors(
-    baseColor: const Color(0xFFE3E9E6),
-    highlightColor: const Color(0xFFF3F6F4),
-    child: Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(color: const Color(0xFFE3E9E6), borderRadius: borderRadius),
-    ),
-  );
-}
-
-
 // ─────────────────────── CONFIG ───────────────────────
-const kBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
-  defaultValue: 'https://offro-backend-production.up.railway.app',
-);
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
-// ─────────────────────── COLORS ───────────────────────
-const kPrimary  = Color(0xFF3E5F55);
-const kLight    = Color(0xFFCDEBD6);
-const kAccent   = Color(0xFFA9CDBA);
-const kBeige    = Color(0xFFE7D7C8);
-const kBg       = Color(0xFFFDFBF6);
-const kText     = Color(0xFF2c3e35);
-const kMuted    = Color(0xFF6b8c7e);
-const kBorder   = Color(0xFFd4e8de);
-
+// Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, kText, kMuted, kBorder)
+// now live only in core/constants/app_constants.dart.
 
 
 // ─────────────────────── FCM (see core/services/fcm_service.dart) ───────────────────────
@@ -132,108 +110,9 @@ Future<void> _syncIOSBadgeCount(int n) async {
 
 // ─────────────────────── PREFS ───────────────────────
 
-// ─────────────────────── LOCATION ───────────────────────
-// Haversine distance in km between two lat/lng points
-double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
-  const r = 6371.0;
-  final dLat = (lat2-lat1)*pi/180; final dLon = (lon2-lon1)*pi/180;
-  final a = sin(dLat/2)*sin(dLat/2)+cos(lat1*pi/180)*cos(lat2*pi/180)*sin(dLon/2)*sin(dLon/2);
-  return r*2*atan2(sqrt(a),sqrt(1-a));
-}
-
-/// Detect city from a pre-fetched GPS position.
-/// Tries: (1) Haversine match against /cities if they have lat/lng,
-///        (2) geocoder locality matched against city name list,
-///        (3) raw geocoder locality/sub-admin area.
-/// Returns "" (never a hardcoded default city) when none of the above
-/// resolve anything — callers must treat an empty result as "location
-/// unavailable", not silently substitute a guessed city.
-Future<String> detectCityFromPosition(Position pos) async {
-  try {
-    List cityList = [];
-    try { cityList = await Api.getCities().timeout(const Duration(seconds: 6)); } catch (_) { }
-
-    // Build a quick lookup set of supported city names (lowercase)
-    final cityNames = cityList
-        .cast<Map>()
-        .map((c) => c["name"]?.toString() ?? "")
-        .where((n) => n.isNotEmpty)
-        .toList();
-
-    // ── Step 1: Haversine match (only if cities have lat/lng fields) ──
-    String? haversineMatch;
-    double bestDist = double.infinity;
-    for (final c in cityList.cast<Map>()) {
-      final lat  = (c["lat"] as num?)?.toDouble();
-      final lng  = (c["lng"] as num?)?.toDouble();
-      final name = c["name"]?.toString() ?? "";
-      if (lat == null || lng == null || name.isEmpty) continue;
-      final dist = _gpsHaversineKm(pos.latitude, pos.longitude, lat, lng);
-      if (dist < bestDist) { bestDist = dist; haversineMatch = name; }
-    }
-    if (haversineMatch != null && bestDist < 80) {
-      return haversineMatch;
-    }
-
-    // ── Step 2: Geocoder + normalize against known city names ──
-    final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude)
-        .timeout(const Duration(seconds: 8));
-    final rawLocality = marks.first.locality?.trim() ?? "";
-    final rawSubAdmin = marks.first.subAdministrativeArea?.trim() ?? "";
-    final rawAdmin    = marks.first.administrativeArea?.trim() ?? "";
-    // Try to match geocoder result against supported city names (case-insensitive)
-    for (final candidate in [rawLocality, rawSubAdmin, rawAdmin]) {
-      if (candidate.isEmpty) continue;
-      // Exact match
-      final exact = cityNames.firstWhere(
-        (n) => n.toLowerCase() == candidate.toLowerCase(),
-        orElse: () => "",
-      );
-      if (exact.isNotEmpty) {
-        return exact;
-      }
-      // Partial match (geocoder sometimes returns sub-district names)
-      final partial = cityNames.firstWhere(
-        (n) => candidate.toLowerCase().contains(n.toLowerCase()) ||
-               n.toLowerCase().contains(candidate.toLowerCase()),
-        orElse: () => "",
-      );
-      if (partial.isNotEmpty) {
-        return partial;
-      }
-    }
-
-    // ── Step 3: Return raw geocoder result if no city list match ──
-    // No further fallback — "" means location could not be resolved to a
-    // city, which callers must handle explicitly (never a guessed city).
-    final fallback = rawLocality.isNotEmpty ? rawLocality :
-                     rawSubAdmin.isNotEmpty ? rawSubAdmin : "";
-    return fallback;
-  } catch (e) {
-    return "";
-  }
-}
-
-// Legacy wrapper (kept for any other call sites)
-Future<String> detectCity() async {
-  try {
-    final perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return "";
-    final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high)
-        .timeout(const Duration(seconds: 10));
-    return detectCityFromPosition(pos);
-  } catch (_) { return ""; }
-}
-
-/// Haversine distance in km between two lat/lng points (uses dart:math)
-double _gpsHaversineKm(double lat1, double lng1, double lat2, double lng2) {
-  const r = 6371.0;
-  final dLat = (lat2 - lat1) * pi / 180;
-  final dLng = (lng2 - lng1) * pi / 180;
-  final a = pow(sin(dLat / 2), 2) +
-      cos(lat1 * pi / 180) * cos(lat2 * pi / 180) * pow(sin(dLng / 2), 2);
-  return 2 * r * asin(sqrt(a.clamp(0.0, 1.0)));
-}
+// Location selection / permission / GPS now live in ONE place:
+// core/services/location_service.dart, core/services/location_store.dart and
+// screens/location/ (LocationScreen, LocationAccessGate).
 
 
 // ─────────────────────── NOTIFICATION NAVIGATION ───────────────────────
@@ -449,30 +328,7 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-IconData _categoryIcon(String cat) {
-  switch(cat.toLowerCase()) {
-    case "all": return Icons.apps_rounded;
-    case "grocery": return Icons.shopping_basket_rounded;
-    case "restaurant": return Icons.restaurant_rounded;
-    case "pharmacy": return Icons.local_pharmacy_rounded;
-    case "electronics": return Icons.devices_rounded;
-    case "clothing": return Icons.checkroom_rounded;
-    case "bakery": return Icons.cake_rounded;
-    case "salon": return Icons.content_cut_rounded;
-    case "pet store": return Icons.pets_rounded;
-    default: return Icons.store_rounded;
-  }
-}
 
-
-// Helper: safely decode a base64 image string, return fallback on error
-Widget _b64Img(String src, Widget fallback) {
-  try {
-    return Image.memory(base64Decode(src.split(",").last), fit: BoxFit.cover);
-  } catch (_) {
-    return fallback;
-  }
-}
 
 /// Synthesises a minimal deals list from store list data so StoreDetailPage
 /// can render the Offers section immediately before the full API call returns.
@@ -505,41 +361,77 @@ class MyApp extends StatelessWidget {
 
   // Central navigation helpers — called from SplashScreen / Login / Onboarding callbacks.
   //
-  // [requireFreshGps]: when true, LocationLoadingScreen ignores [city]
-  // entirely and always re-establishes the CURRENT device location fresh
-  // (permission → Location Services → GPS → reverse-geocode, falling back
-  // to manual State + City only if that fails) instead of reusing a
-  // previously saved/browsing city. Used for "Role Selection → User →
-  // Continue" (see _goUserViaUnified below) — NOT for splash auto-restore,
-  // which still opens instantly with the last-known city as before.
+  // Enters the customer Home.
+  //
+  // Uses the SAVED location (structured, persisted by LocationStore) — no
+  // fresh GPS is forced. [city] is only a legacy fallback (older builds
+  // persisted just a city string) and is migrated into the saved location.
+  // If there is no saved location at all, the customer must choose one on
+  // the Location screen before Home opens.
   static void goHome({required String token, required String name,
-      required String phone, required String userId, required String city,
-      bool requireFreshGps = false}) {
+      required String phone, required String userId, required String city}) {
     // TASK 2 FIX: clear stale cache + save mode so all sections reload correctly
     Api.clearCache();
     if (token.isNotEmpty) Prefs.saveMode('user');
-    // Route through LocationLoadingScreen so home opens fully loaded
+    unawaited(_enterHome(token: token, name: name, phone: phone, userId: userId, legacyCity: city));
+  }
+
+  static Future<void> _enterHome({
+    required String token, required String name,
+    required String phone, required String userId,
+    String legacyCity = '',
+  }) async {
+    OffroLocation? saved = await LocationStore.load(LocationMode.customer);
+    if (saved == null && legacyCity.trim().isNotEmpty) {
+      saved = OffroLocation(
+        city: legacyCity.trim(),
+        state: LocationService.stateForCity(legacyCity),
+        source: LocationSource.manual,
+        updatedAt: DateTime.now(),
+      );
+      await LocationStore.save(LocationMode.customer, saved);
+    }
+    if (saved != null && saved.hasCity) {
+      _pushLoader(token: token, name: name, phone: phone, userId: userId, city: saved.city);
+      return;
+    }
+
+    // No saved location → the customer must choose one before Home.
+    Future<void> onPicked(OffroLocation loc) async {
+      await LocationStore.save(LocationMode.customer, loc);
+      if (token.isNotEmpty) unawaited(Api.updateCity(token, loc.city, state: loc.state));
+      _pushLoader(token: token, name: name, phone: phone, userId: userId, city: loc.city);
+    }
+    final access = await LocationService.status();
+    final Widget first = access == LocationAccess.permissionDenied
+        ? LocationAccessGate(mode: LocationMode.customer, onSelected: onPicked)
+        : LocationScreen(mode: LocationMode.customer, mandatory: true, onSelected: onPicked);
+    navigatorKey.currentState?.pushAndRemoveUntil(appRoute(first), (r) => false);
+  }
+
+  /// Fetches stores for [city] (pure loader — no location logic) then opens Home.
+  static void _pushLoader({
+    required String token, required String name,
+    required String phone, required String userId, required String city,
+  }) {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(LocationLoadingScreen(
-        token: token, name: name, phone: phone, userId: userId,
-        // Pass saved city so it loads instantly without GPS wait — ignored
-        // entirely when requireFreshGps is true.
-        forcedCity: city.isNotEmpty ? city : null,
-        requireFreshGps: requireFreshGps,
+      appRoute(LocationLoadingScreen(
+        token: token, name: name, phone: phone, userId: userId, city: city,
         onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                   required double? lat, required double? lng}) =>
+                   required double? lat, required double? lng,
+                   bool fetchFailed = false}) =>
             goHomeWithData(token: token, name: name, phone: phone, userId: userId,
-                city: city, stores: stores, lat: lat, lng: lng),
+                city: city, stores: stores, lat: lat, lng: lng,
+                fetchFailed: fetchFailed),
       )),
       (r) => false,
     );
   }
 
-  /// Check/request device location permission without blocking the caller.
-  ///
-  /// Merchant mode does not require location to open, so a denial returns
-  /// false and the caller continues normally.  The Add Store GPS action uses
-  /// this same helper and can show its own retry/settings message.
+  /// Check/request the app location permission for the merchant Add Store
+  /// "Current Location" button ONLY (store-address capture, a separate
+  /// concern from the account/browsing location). It runs from an explicit
+  /// tap on that button and is not used by login, Home or Merchant Home.
   static Future<bool> ensureLocationPermission() async {
     try {
       var permission = await Geolocator.checkPermission();
@@ -553,48 +445,22 @@ class MyApp extends StatelessWidget {
     }
   }
 
-  static Future<void> _goMerchantAfterLocation({
-    String? merchantToken,
-    required String phone,
-    required String name,
-  }) async {
-    // Request/check permission before entering Merchant.  A denial must not
-    // prevent access to the merchant dashboard.
-    await ensureLocationPermission();
-    await _goMerchantViaUnified(
-      merchantToken: merchantToken,
-      phone: phone,
-      name: name,
-    );
-  }
-
   static void goLogin() {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(LoginScreen(
+      appRoute(LoginScreen(
         onGuest: () {
           Prefs.saveGuest(true);
-          navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(LocationLoadingScreen(
-              token: '', name: 'Guest', phone: '', userId: '',
-              onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                         required double? lat, required double? lng}) =>
-                  goHomeWithData(token: '', name: 'Guest', phone: '', userId: '',
-                      city: city, stores: stores, lat: lat, lng: lng),
-            )),
-            (r) => false,
-          );
+          Api.clearCache();
+          unawaited(_enterHome(token: '', name: 'Guest', phone: '', userId: ''));
         },
         onSuccess: (tok, nm, ph, uid, role, city) async {
         if (role == 'merchant') {
-          // Merchant role selected → request/check location, then continue
-          // to the merchant loader even if permission was denied.
-          // Awaited so the Continue button's loading state (in
-          // _ContinueAsState._proceed) stays true until this entire chain
-          // — including the location permission prompt — actually finishes.
-          // NOTE: this is the MERCHANT ACCOUNT's own location gate — it is
-          // completely independent of store location, which is captured
-          // separately (and is mandatory) in AddEditStorePage.
-          await _goMerchantAfterLocation(merchantToken: tok, phone: ph, name: nm);
+          // Merchant role selected → straight to the merchant loader. The
+          // MERCHANT ACCOUNT's location (mandatory, device-only) is enforced
+          // inside MerchantHome itself, so every entry point (login, Switch
+          // Mode, splash restore) is covered. It is independent of store
+          // location, which is captured separately in AddEditStorePage.
+          await _goMerchantViaUnified(merchantToken: tok, phone: ph, name: nm);
         } else if (role == 'influencer') {
           // C3: Influencer role selected. No new auth system, no location
           // gate — the existing C1/C2 flow already handles both "has a
@@ -603,40 +469,17 @@ class MyApp extends StatelessWidget {
           // only the authenticated token. Never a client-supplied
           // influencer_id/account_id.
           navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(InfluencerModuleScreen(
+            appRoute(InfluencerModuleScreen(
               token: tok, phone: ph, currentMode: 'influencer',
               onSwitchMode: (newRole) => goSwitchMode(tok, nm, ph, uid, newRole),
             )),
             (r) => false,
           );
         } else {
-          // User role selected + Continue tapped.
-          //
-          // Round 8 — Final User Location Flow: "Every time the user
-          // selects User → Continue, the app must start a fresh location
-          // decision" — this applies even to the very first Continue tap
-          // right after OTP verification, not just later re-entries via
-          // Switch Mode / "Back to Home" (see _goUserViaUnified below,
-          // which already does this). So this no longer passes the
-          // bootstrap-resolved accountData city through as forcedCity —
-          // that would skip straight to fetching deals for a city that may
-          // now be stale, exactly the bug already fixed for the
-          // Switch-Mode path. requireFreshGps: true runs the same
-          // permission → Location Services → GPS → reverse-geocode →
-          // manual-State+City-fallback flow uniformly for every User
-          // Continue tap. Never falls back to a default/guessed city
-          // (LocationLoadingScreen's own Ballari fallback was removed too).
-          navigatorKey.currentState?.pushAndRemoveUntil(
-            _route(LocationLoadingScreen(
-              token: tok, name: nm, phone: ph, userId: uid,
-              requireFreshGps: true,
-              onReady: ({required String city, required List<Map<String,dynamic>> stores,
-                         required double? lat, required double? lng}) =>
-                  goHomeWithData(token: tok, name: nm, phone: ph, userId: uid,
-                      city: city, stores: stores, lat: lat, lng: lng),
-            )),
-            (r) => false,
-          );
+          // User role selected + Continue tapped → use the saved location
+          // (no forced GPS). If none is saved, the Location screen is shown.
+          Api.clearCache();
+          unawaited(_enterHome(token: tok, name: nm, phone: ph, userId: uid));
         }
       })),
       (r) => false,
@@ -662,7 +505,7 @@ class MyApp extends StatelessWidget {
 
   static void _goInfluencerViaUnified({required String token, required String name, required String phone, required String userId}) {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(InfluencerModuleScreen(
+      appRoute(InfluencerModuleScreen(
         token: token, phone: phone, currentMode: 'influencer',
         onSwitchMode: (newRole) => goSwitchMode(token, name, phone, userId, newRole),
       )),
@@ -672,19 +515,9 @@ class MyApp extends StatelessWidget {
 
   /// Switch to user mode — issues a fresh user session token, then routes home.
   ///
-  /// This is the "Role Selection → User → Continue" entry point (reached
-  /// both from SwitchModeSheet and from the "Back to Home"/Role Selection
-  /// button shown on the "No Service" empty state). Per the finalized
-  /// requirement, tapping Continue as User must NOT silently reuse
-  /// whatever city was last browsed (e.g. a prior "No Service" city) — it
-  /// must re-establish the CURRENT device location fresh each time, only
-  /// falling back to manual State + City if that's genuinely unavailable.
-  /// So city is always passed as '' here AND requireFreshGps: true, so
-  /// LocationLoadingScreen runs its full permission → Location Services →
-  /// GPS → reverse-geocode → manual-fallback flow instead of its normal
-  /// cached-city fast path. The account's own saved city/state (set during
-  /// OTP bootstrap or its own manual fallback) is untouched by this —  see
-  /// LocationLoadingScreen.requireFreshGps's doc comment.
+  /// Home opens with the customer's SAVED location (no forced GPS); if none
+  /// is saved the Location screen is shown first. The customer can change it
+  /// any time from the Home location header.
   static void _goUserViaUnified({required String phone, required String name, required String userId}) async {
     try {
       Api.clearCache();
@@ -696,15 +529,15 @@ class MyApp extends StatelessWidget {
       if (freshToken.isNotEmpty) {
         await Prefs.save(freshToken, freshName, phone, 'user', userId: freshId);
         await Prefs.saveMode('user');
-        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '', requireFreshGps: true);
+        goHome(token: freshToken, name: freshName, phone: phone, userId: freshId, city: '');
       } else {
         // Fallback — use existing token (may cause wallet 401 but banners still load)
         await Prefs.saveMode('user');
-        goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
+        goHome(token: '', name: name, phone: phone, userId: userId, city: '');
       }
     } catch (e) {
       await Prefs.saveMode('user');
-      goHome(token: '', name: name, phone: phone, userId: userId, city: '', requireFreshGps: true);
+      goHome(token: '', name: name, phone: phone, userId: userId, city: '');
     }
   }
 
@@ -748,12 +581,12 @@ class MyApp extends StatelessWidget {
       }
 
       navigatorKey.currentState?.pushAndRemoveUntil(
-        _route(MerchantLoadingScreen(
+        appRoute(MerchantLoadingScreen(
           token: token,
           merchant: merchantData,
           onReady: (tok, merch) {
             navigatorKey.currentState?.pushAndRemoveUntil(
-              _route(MerchantHome(token: tok, merchant: merch)),
+              appRoute(MerchantHome(token: tok, merchant: merch)),
               (r) => false,
             );
           },
@@ -771,13 +604,15 @@ class MyApp extends StatelessWidget {
     required String userId,  required String city,
     required List<Map<String,dynamic>> stores,
     required double? lat,    required double? lng,
+    bool fetchFailed = false,
   }) {
     final isGuest = token.isEmpty;
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(HomeScreen(
+      appRoute(HomeScreen(
         token: token, name: name, phone: phone,
         savedCity: city, userId: userId,
         preloadedStores: stores,
+        preloadFailed: fetchFailed,
         preloadedLat: lat, preloadedLng: lng,
         isGuest: isGuest,
       )),
@@ -787,14 +622,14 @@ class MyApp extends StatelessWidget {
 
   static void goOnboarding() {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(OnboardingScreen(onComplete: goLogin)),
+      appRoute(OnboardingScreen(onComplete: goLogin)),
       (r) => false,
     );
   }
 
   static void goMerchant({required String token, required Map merchant}) {
     navigatorKey.currentState?.pushAndRemoveUntil(
-      _route(MerchantHome(token: token, merchant: merchant)),
+      appRoute(MerchantHome(token: token, merchant: merchant)),
       (r) => false,
     );
   }
@@ -834,33 +669,6 @@ class MyApp extends StatelessWidget {
   );
 }
 
-
-// ─────────────────────── SCALE ON TAP WIDGET ───────────────────────
-class _ScaleOnTap extends StatefulWidget {
-  final Widget child;
-  final VoidCallback? onTap;
-  const _ScaleOnTap({required this.child, this.onTap});
-  @override State<_ScaleOnTap> createState() => _ScaleOnTapState();
-}
-class _ScaleOnTapState extends State<_ScaleOnTap> with SingleTickerProviderStateMixin {
-  late AnimationController _ac;
-  late Animation<double> _scale;
-  @override void initState() {
-    super.initState();
-    _ac = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
-    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _ac, curve: Curves.easeInOut));
-  }
-  @override void dispose() { _ac.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _ac.forward(),
-      onTapUp: (_) { _ac.reverse(); widget.onTap?.call(); },
-      onTapCancel: () => _ac.reverse(),
-      child: ScaleTransition(scale: _scale, child: widget.child),
-    );
-  }
-}
 
 // ─────────────────────── NAV BTN (label on active only) ───────────────────────
 class _NavBtn extends StatelessWidget {
@@ -924,7 +732,7 @@ class _ProfileNavBtn extends StatelessWidget {
               radius: 11,
               backgroundColor: kAccent,
               backgroundImage: (profilePhoto != null && profilePhoto!.startsWith("data:image"))
-                ? MemoryImage(base64Decode(profilePhoto!.split(",").last)) as ImageProvider
+                ? MemoryImage(decodeBase64ImageCached(profilePhoto!)) as ImageProvider
                 : (profilePhoto != null && profilePhoto!.startsWith("http"))
                   ? NetworkImage(profilePhoto!) as ImageProvider
                   : null,
@@ -949,7 +757,6 @@ class _ProfileNavBtn extends StatelessWidget {
 }
 
 
-
 // ─────────────────────── MASONRY SEARCH GRID ───────────────────────
 class _MasonrySearchGrid extends StatelessWidget {
   final List<Map<String,dynamic>> stores; final String token;
@@ -961,10 +768,10 @@ class _MasonrySearchGrid extends StatelessWidget {
     if (img.isEmpty) img = s["image"]?.toString() ?? "";
     if (img.isEmpty) img = s["image2"]?.toString() ?? "";
     if (img.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
+      try { return Image.memory(decodeBase64ImageCached(img),fit:BoxFit.cover,width:double.infinity,height:double.infinity,gaplessPlayback:true); }
       catch(_) { }
     }
-    final imgUrl = img.startsWith("/") ? "$kBaseUrl$img" : img;
+    final imgUrl = resolveImageUrl(img);
     if (imgUrl.startsWith("http")) {
       return CachedNetworkImage(imageUrl:imgUrl,fit:BoxFit.cover,width:double.infinity,height:double.infinity,
         placeholder:(_,__)=>Container(color:kAccent,child:const Center(child:Icon(Icons.store,color:kPrimary,size:32))),
@@ -988,7 +795,7 @@ class _MasonrySearchGrid extends StatelessWidget {
       final dist = s["distance_km"] != null ? (s["distance_km"] as num).toDouble() : null;
       final rating=(s["rating"] as num?)?.toDouble()??0;
       return GestureDetector(
-        onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(s), token:token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+        onTap:()=>Navigator.push(context,appRoute(StoreDetailPage(store:Map<String,dynamic>.from(s), token:token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
         child:Container(
           height:heights[idx],
           margin:const EdgeInsets.only(bottom:10),
@@ -1041,6 +848,9 @@ class _MasonrySearchGrid extends StatelessWidget {
 class HomeScreen extends StatefulWidget {
   final String token, name, phone, savedCity, userId;
   final List<Map<String, dynamic>> preloadedStores;
+  /// True when the pre-Home store request FAILED (preloadedStores is empty
+  /// because nothing loaded, not because the city has no stores).
+  final bool preloadFailed;
   final double? preloadedLat, preloadedLng;
   final bool isGuest;
   const HomeScreen({
@@ -1051,6 +861,7 @@ class HomeScreen extends StatefulWidget {
     required this.savedCity,
     this.userId = "",
     this.preloadedStores = const [],
+    this.preloadFailed = false,
     this.preloadedLat,
     this.preloadedLng,
     this.isGuest = false,
@@ -1058,10 +869,16 @@ class HomeScreen extends StatefulWidget {
   @override State<HomeScreen> createState() => _HomeState();
 }
 class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
-  String city="Detecting..."; bool cityDone=false; bool _locationDenied=false; int _navIdx=0; String? _profilePhoto;
+  String city=""; bool cityDone=false; int _navIdx=0; String? _profilePhoto;
   String _noServiceImg=""; String _noServiceTitle=""; String _noServiceMsg="";
   bool _netError=false; bool _fetchFailed=false;
   bool _loadAllRunning=false; // FIX 4: prevent parallel _loadAll calls
+  int _loadAllGen=0; // newest _loadAll wins: an older city's late response must not overwrite a newer city
+  // /default-images is requested ONCE, early and independently of stores, so the
+  // Admin No-Store image/message is ready the moment a city turns out empty.
+  Future<Map<String,dynamic>>? _defaultsFuture;
+  bool _noStoreReady=false;  // default-images succeeded OR its single retry was exhausted
+  bool _noStoreFailed=false; // both attempts failed (≠ "Admin configured nothing")
   bool _isTimeout=false; // FIX 10: distinguish timeout from other errors
   bool _popupShown=false;
 
@@ -1079,7 +896,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     DateTime.now().difference(_cacheTime!) < _cacheTtl;
   double? _userLat; double? _userLng;
   bool _cityManual = false;
-  String _gpsDetectedCity = ''; // tracks the last GPS-detected city (not manual overrides)
+  OffroLocation? _loc; // structured saved location (display + persistence)
   Timer? _catTimer;
   String _cat="All"; bool _loading=true;
   double _radiusKm = 0.0; // Nearby radius filter (0=All, 1, 3, 5, 10)
@@ -1112,10 +929,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<String> _cityImageUrls = []; // all city images for rotation
   int    _heroImgIndex = 0;          // current hero image index
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
-  String _defaultCityImageUrl = "";    // fallback from /admin/default-images
-  String _defaultProductImageUrl = ""; // default product image from /admin/default-images
+  List<String> _defaultProductImageUrls = []; // default product images from /admin/default-images (all configured)
   List<Map<String,dynamic>> _mbFallbackSliders = []; // default merchant banners (may be multiple, images OR videos)
-  int _sliderPage=0;
   final PageController _sliderPc = PageController(initialPage: 49999); // FIX 5: start at midpoint for infinite scroll
   Timer? _sliderTimer;
   // FIX 2: ValueNotifier for slider page — avoids full-tree rebuild on swipe
@@ -1134,7 +949,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       final lat = double.tryParse(s["latitude"]?.toString() ?? "");
       final lng = double.tryParse(s["longitude"]?.toString() ?? "");
       if (lat != null && lng != null) {
-        s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
+        s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
       }
     }
   }
@@ -1175,7 +990,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
       final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
       if (lat != null && lng != null) {
-        s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
+        s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
         withCoords.add(s);
       } else {
         noCoords.add(s);
@@ -1199,7 +1014,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadFavStores(); // load fav store ids for home screen hearts
     // Sync badge with real-time notifier (updates from FCM foreground messages)
     _unreadNotifier.addListener(_onUnreadChanged);
-    FavState.instance.addListener(_onFavChanged);
+    FavState.instance.productRevision.addListener(_onFavChanged);
     // FIX 1: scroll listener for FAB visibility
     // Item 3: the "hide bottom nav on scroll down" behavior (previously
     // toggling _navVisible here) has been removed — the existing bottom
@@ -1211,6 +1026,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       final offset = _scrollCtrl.offset;
       // FAB: show when scrolled down > 120px
       _fabVisible.value = offset > 120;
+    });
+    unawaited(_loadSavedLocation());
+    unawaited(_loadNoStoreContent());
+    // Silent GPS check AFTER the first frame, so it can never delay Home.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_autoRefreshLocation());
     });
     if (widget.preloadedStores.isNotEmpty) {
       _usePreloadedData(); // async — clears _loading when done
@@ -1237,10 +1058,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // exactly the unwanted "second location request" this fix removes).
       _usePreloadedData(); // async — clears _loading when done; _stores stays []
     } else {
-      // No city known at all — never resolved via GPS, never manually
-      // selected. This is the genuine "location unavailable" case, and the
-      // only one where full GPS/permission detection should run.
-      _initLoc();
+      // No city known at all (normally impossible — the entry flow requires a
+      // location first). Ask for one on the Location screen; never read GPS.
+      _requireLocation();
     }
   }
 
@@ -1283,18 +1103,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (_) { }
   }
 
-  void _incrementUnread() async {
-    await Prefs.incrementUnread();
-    final n = await Prefs.getUnreadCount();
-    if (mounted) setState(() => _unreadCount = n);
-  }
 
   Future<void> _openNotifications(BuildContext ctx) async {
     await Prefs.clearUnread();
     _unreadNotifier.value = 0;
     await _clearIOSBadge();
     if (mounted) setState(() => _unreadCount = 0);
-    await Navigator.push(ctx, _route(NotificationsPage()));
+    await Navigator.push(ctx, appRoute(NotificationsPage()));
   }
 
   Future<void> _usePreloadedData() async {
@@ -1309,7 +1124,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         final lat2 = double.tryParse(s["latitude"]?.toString() ?? "");
         final lng2 = double.tryParse(s["longitude"]?.toString() ?? "");
         if (lat2 != null && lng2 != null) {
-          s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat2, lng2);
+          s["distance_km"] = haversineKm(_userLat!, _userLng!, lat2, lng2);
         }
       }
       sl.sort((a, b) =>
@@ -1333,27 +1148,35 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // populate independently — they simply show empty/skeleton for the
     // brief moment before _loadSupplementary's own setState (below) fills
     // them in, exactly like a normal incremental page load.
+    // The loading screen reports a FAILED store request separately from a
+    // genuinely empty city. Failed → show the error + Try Again state (no
+    // stores were loaded, so never claim the city has none).
+    final bool preloadFailed = widget.preloadFailed && sl.isEmpty;
     setState(() {
       city     = cityStr;
       _stores  = sl;
       _loading = false;
+      if (preloadFailed) { _netError = false; _fetchFailed = true; }
     });
     if (cityStr.isNotEmpty) {
       Prefs.saveCity(cityStr);
-      Api.updateCity(widget.token, cityStr);
     }
 
-    // Populate static cache with preloaded data
-    _cachedCity   = cityStr;
-    _cachedStores = List<Map<String,dynamic>>.from(sl);
-    _cachedLat    = widget.preloadedLat;
-    _cachedLng    = widget.preloadedLng;
-    _cacheTime    = DateTime.now();
+    if (!preloadFailed) {
+      // Populate static cache with preloaded data
+      _cachedCity   = cityStr;
+      _cachedStores = List<Map<String,dynamic>>.from(sl);
+      _cachedLat    = widget.preloadedLat;
+      _cachedLng    = widget.preloadedLng;
+      _cacheTime    = DateTime.now();
 
-    // Fire-and-forget: secondary/supplementary content loads in the
-    // background and fills in via its own setState once ready — Home's
-    // main store content is already visible by this point (see above).
-    unawaited(_loadSupplementary(cityStr));
+      // Fire-and-forget: secondary/supplementary content loads in the
+      // background and fills in via its own setState once ready — Home's
+      // main store content is already visible by this point (see above).
+      unawaited(_loadSupplementary(cityStr));
+    }
+    // (On a failed preload, "Try Again" runs _fetchStores → _loadAll, which
+    // loads the stores AND the supplementary content together.)
     FcmService.init(
       city: cityStr,
       token: widget.token,
@@ -1364,45 +1187,201 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _loadSupplementary(String c) async {
-    // ROUND 12 FIX (stale-request protection): this call's own generation
-    // token. Every state update below checks `myGen == _supplementaryGen`
-    // before writing — if a newer _loadSupplementary() call has started in
-    // the meantime (e.g. a city refresh fired while this one was still in
-    // flight), this call is stale and silently skips updating Home state.
+  /// Single shared /default-images request with ONE automatic retry.
+  /// `Api.getDefaultImages()` returns `{}` only on failure (a reachable
+  /// server always sends a non-empty map, even when nothing is configured),
+  /// so an empty result means FAILED. A successful result is cached for the
+  /// session; a double failure is not cached, so a later user-triggered load
+  /// can try again (never an endless loop).
+  Future<Map<String,dynamic>> _defaults() {
+    return _defaultsFuture ??= (() async {
+      Map<String,dynamic> d = {};
+      for (int attempt = 1; attempt <= 2; attempt++) {
+        try {
+          d = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
+        } catch (_) { d = {}; }
+        if (d.isNotEmpty) break;
+        if (attempt == 1) await Future.delayed(const Duration(seconds: 2));
+      }
+      if (d.isEmpty) _defaultsFuture = null; // exhausted → allow a later retry
+      return d;
+    })();
+  }
+
+  /// Loads ONLY the Admin No-Store image/title/message — independent of the
+  /// store, product, slider and banner requests.
+  Future<void> _loadNoStoreContent() async {
+    final defaults = await _defaults();
+    if (!mounted) return;
+    if (defaults.isEmpty) {
+      // Request FAILED (twice). Not the same as "no image configured".
+      setState(() { _noStoreReady = true; _noStoreFailed = true; });
+      return;
+    }
+    final nsImgs = defaults["no_service_url"];
+    String nsUrl = "";
+    if (nsImgs is List && nsImgs.isNotEmpty) {
+      nsUrl = nsImgs.last.toString().trim();
+    } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
+      nsUrl = nsImgs.trim();
+    }
+    final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
+    final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
+    setState(() {
+      _noStoreReady = true;
+      _noStoreFailed = false;
+      if (nsUrl.startsWith("http") || nsUrl.startsWith("data:image")) _noServiceImg = nsUrl;
+      if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
+      if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
+    });
+  }
+
+  static bool _sameStrings(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) { if (a[i] != b[i]) return false; }
+    return true;
+  }
+
+  /// Manual retry from the No-Store state after a failed content load.
+  void _retryNoStoreContent() {
+    setState(() { _noStoreReady = false; _noStoreFailed = false; });
+    unawaited(_loadNoStoreContent());
+  }
+
+  // ── Home secondary data (categories, sliders, products, wallet, admin
+  // banners, hero/default images) ─────────────────────────────────────────
+  // QA round (Oct 2026) — rewritten so Home fills in ONE coordinated step:
+  //   * every independent request starts at the same time (parallel),
+  //     including /default-images, which used to run AFTER the others;
+  //   * the duplicate product calls are gone (getPublicProducts and
+  //     fetchPublicProducts hit the same /gift-vouchers-public URL, and the
+  //     "<8 products" retries hit it twice more);
+  //   * products, categories, sliders and banners are applied together in a
+  //     single setState, and the Discover Products section shows a skeleton
+  //     until then — default product images can no longer flash first;
+  //   * default images are only waited for when they are actually needed as
+  //     a fallback (no products or no sliders).
+  // [coreLoaded]: _loadAll() already fetched categories/sliders/products
+  // moments ago — don't fetch those again, only banners/wallet/defaults.
+  Future<void> _loadSupplementary(String c, {bool coreLoaded = false}) async {
+    // Stale-request protection (Round 12): only the newest call may write state.
     final myGen = ++_supplementaryGen;
-    // Show loading state for supplementary sections while fetching
-    if (mounted) setState(() { _productsLoading = true; _adminBannersLoading = true; _heroImageLoading = true; });
+    if (mounted && (!_productsLoading || !_adminBannersLoading || (!_heroImageLoading && _cityImageUrl.isEmpty))) {
+      setState(() {
+        _productsLoading = true; _adminBannersLoading = true;
+        // Hero shimmer only while there is NO hero URL yet — never flash it back on
+        // a reload when the same hero image is already shown.
+        if (_cityImageUrl.isEmpty) _heroImageLoading = true;
+      });
+    }
     try {
-      // FIX 5: individual guards — one failure won't blank all sections
-      List<String> cats2 = ["All"]; List<Map<String,dynamic>> richCats2 = [];
-      List slides = []; List voucs = []; Map<String,dynamic> wallet = {};
-      List adminBannerList = []; String resolvedCityImg = "";
+      List<String> cats2 = List<String>.from(_cats);
+      List<Map<String,dynamic>> richCats2 = List<Map<String,dynamic>>.from(_richCats);
+      List slides = coreLoaded ? List.from(_sliders) : [];
+      List voucs  = coreLoaded ? List.from(_products) : [];
+      Map<String,dynamic> wallet = {};
+      List adminBannerList = [];
+      final bool needCats    = !(coreLoaded && _richCats.isNotEmpty);
+      final bool needSliders = !(coreLoaded && _sliders.isNotEmpty);
+      final bool needProds   = !(coreLoaded && _products.isNotEmpty);
+      if (needCats) { cats2 = ["All"]; richCats2 = []; }
+
+      // /default-images starts NOW, in parallel with everything below. It
+      // feeds the hero photo, fallback banners and the default-product
+      // fallback. Applied in its own single setState as soon as it resolves.
+      final Future<void> defaultsApplied = (() async {
+        final Map<String,dynamic> defaults = await _defaults();
+        if (!mounted || myGen != _supplementaryGen) return;
+
+        List<String> cityImgs = [];
+        final cityVal = defaults["city"];
+        bool okHero(String v) => v.startsWith("http") || v.startsWith("data:image");
+        if (cityVal is List) {
+          cityImgs = cityVal.map((v) => v.toString().trim()).where(okHero).toList();
+        } else if (cityVal is String && okHero(cityVal.trim())) {
+          cityImgs = [cityVal.trim()];
+        }
+        if (cityImgs.isEmpty) {
+          for (final key in ["city_image_url", "city_image", "hero_image_url", "image_url"]) {
+            final v = (defaults[key] ?? "").toString().trim();
+            if (okHero(v)) { cityImgs = [v]; break; }
+          }
+        }
+        final nsImgs = defaults["no_service_url"];
+        String nsUrl = "";
+        if (nsImgs is List && nsImgs.isNotEmpty) {
+          nsUrl = nsImgs.last.toString().trim();
+        } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
+          nsUrl = nsImgs.trim();
+        }
+        final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
+        final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
+        // Default product images: full configured list (tolerates a legacy
+        // single-string response).
+        final defProdVal = defaults["product"];
+        List<String> defProd = [];
+        bool okImg(String v) => v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video");
+        if (defProdVal is List) {
+          defProd = defProdVal.map((v) => v.toString().trim()).where(okImg).toList();
+        } else if (defProdVal is String && defProdVal.trim().isNotEmpty && okImg(defProdVal.trim())) {
+          defProd = [defProdVal.trim()];
+        }
+        // merchant_banner: array of URLs (images or mp4 videos)
+        List<Map<String,dynamic>> mb = [];
+        final mbRaw = defaults["merchant_banner"];
+        if (mbRaw is List) {
+          mb = mbRaw.where((u) => u is String && okImg(u)).map<Map<String,dynamic>>((u) {
+            final uid = "mb_${(u as String).hashCode.abs()}";
+            return {"id": uid, "title": "", "subtitle": "", "image": u, "image_url": u,
+              "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
+          }).toList();
+        } else if (mbRaw is String && mbRaw.startsWith("http")) {
+          mb = [{"id":"default","title":"","subtitle":"","image":mbRaw,"image_url":mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
+        }
+        setState(() {
+          _heroImageLoading = false;
+          // Only replace when the list actually changed (keeps the shown hero + rotation stable).
+          if (cityImgs.isNotEmpty && !_sameStrings(_cityImageUrls, cityImgs)) {
+            _cityImageUrls = cityImgs; _cityImageUrl = cityImgs[0]; _heroImgIndex = 0;
+          }
+          if ((nsUrl.startsWith("http") || nsUrl.startsWith("data:image"))) _noServiceImg = nsUrl;
+          if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
+          if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
+          if (defProd.isNotEmpty) _defaultProductImageUrls = defProd;
+          _mbFallbackSliders = mb;
+        });
+        _startHeroRotation();
+      })().catchError((_) {
+        // A malformed /default-images payload must never leave the hero
+        // shimmer spinning or block the fallback decision below.
+        if (mounted && myGen == _supplementaryGen) setState(() { _heroImageLoading = false; });
+      });
+
+      // Core data — all in parallel. Each future guards its own failure so
+      // one bad endpoint can't blank the others.
       await Future.wait([
-        Api.fetchCategories().then((v) {
+        if (needCats) Api.fetchCategories().then((v) {
           final raw = v as List;
           richCats2 = raw.map((e) => e is Map ? Map<String,dynamic>.from(e) : <String,dynamic>{"name":e.toString(),"icon":"🏪","image_url":"","subtitle":""}).toList();
           cats2 = ["All", ...richCats2.map((e) => e["name"].toString())];
         }).catchError((_) {}),
-        Api.getSliders().then((v) => slides = v as List).catchError((_) {}),
-        Api.getPublicProducts(city: c).then((v) => voucs = v as List).catchError((_) {}),
-        Api.fetchPublicProducts(city: c).then((v) {
-          // Merge public products into products list (avoid duplicates by title)
-          final existing = Set<String>.from(
-              voucs.map((x) => (x["title"] ?? x["name"] ?? "").toString().toLowerCase()));
-          for (final p in v) {
-            final t = (p["title"] ?? p["name"] ?? "").toString().toLowerCase();
-            if (!existing.contains(t)) { voucs.add(p); existing.add(t); }
+        if (needSliders) Api.getSliders().then((v) async {
+          slides = v as List;
+          if (slides.isEmpty) { // race-condition retry, now concurrent with the rest
+            await Future.delayed(const Duration(milliseconds: 800));
+            try { slides = await Api.getSliders(); } catch (_) { }
+          }
+        }).catchError((_) {}),
+        // ONE products request (getPublicProducts + fetchPublicProducts were
+        // the same endpoint; merging them by title returned the same list).
+        // A single retry only when the first response is genuinely empty.
+        if (needProds) Api.getPublicProducts(city: c).then((v) async {
+          voucs = v as List;
+          if (voucs.isEmpty) {
+            try { voucs = await Api.getPublicProducts(city: c); } catch (_) { }
           }
         }).catchError((_) {}),
         Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
-        // ROUND 12 FIX: admin-banner fetch + its own retry-if-empty now live
-        // together in this one future, so `_adminBannersLoading` flips to
-        // false the instant THIS future resolves — independent of how long
-        // categories/sliders/products/wallet (the other futures in this
-        // same Future.wait) or the later hero-images/sliders-retry/product-
-        // retries take. That is the entire fix: nothing else in this
-        // function's flow, ordering, or fallback behavior changes.
         Api.getAdminBanners().then((v) async {
           List list = (v as List);
           if (list.isEmpty) {
@@ -1410,193 +1389,26 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             try { list = await Api.getAdminBanners(); } catch (_) { }
           }
           adminBannerList = list;
-          // ROUND 12 FIX (partial-Home fix): apply the banner DATA here too,
-          // not just the loading flag. Previously `_adminBanners` was only
-          // ever assigned in the big end-of-function setState — which runs
-          // much later, after the hero-images fetch (up to a 10s timeout),
-          // the sliders retry and the product retries. That meant the
-          // shimmer could correctly disappear (flag flips here) while the
-          // real banner data sat unused for several more seconds, leaving
-          // _BannerStoresBlock with hasBanners=false/bannersLoading=false —
-          // i.e. nothing shown at all. Assigning it here closes that gap.
-          // ROUND 12 FIX (stale-request protection): only the current
-          // generation may write either of these — a stale call's
-          // admin-banner fetch/retry finishing late must not touch them.
-          if (mounted && myGen == _supplementaryGen) {
-            setState(() {
-              _adminBannersLoading = false;
-              _adminBanners = List<Map<String,dynamic>>.from(adminBannerList);
-            });
-          }
-        }).catchError((_) {
-          if (mounted && myGen == _supplementaryGen) setState(() { _adminBannersLoading = false; });
-        }),
-
+        }).catchError((_) {}),
       ]);
 
-      // ROUND 11 FOLLOW-UP — lifecycle safety: every setState below this
-      // point was already individually guarded by `mounted` (see the
-      // audit), so a disposed Home could never crash from this background
-      // work. This early return is the one thing that WASN'T already
-      // guarded: if the person has already left/disposed this Home by the
-      // time the network batch above finishes, there is no point spending
-      // more background work (the default-images fetch, the two 800ms/
-      // 500ms retry delays, the city/expiry filtering) on a result nobody
-      // can ever see. Bailing out here changes nothing for the normal
-      // (still-mounted) case — it only skips wasted work after disposal.
-      // ROUND 12 FIX (stale-request protection): also bail if a newer
-      // _loadSupplementary() call has since become the current generation.
       if (!mounted || myGen != _supplementaryGen) return;
 
-      // ── Hero images: fetch arrays from /default-images, rotate every 2 min ──
-      List<String> resolvedCityImgs = [];
-      try {
-        final defaults = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
-        final cityVal = defaults["city"];
-        if (cityVal is List) {
-          resolvedCityImgs = cityVal
-              .map((v) => v.toString().trim())
-              .where((v) => v.startsWith("http"))
-              .toList();
-        } else if (cityVal is String && cityVal.startsWith("http")) {
-          resolvedCityImgs = [cityVal];
-        }
-        // Fallback: old single-string keys
-        if (resolvedCityImgs.isEmpty) {
-          for (final key in ["city_image_url", "city_image", "hero_image_url", "image_url"]) {
-            final v = (defaults[key] ?? "").toString().trim();
-            if (v.startsWith("http")) { resolvedCityImgs = [v]; break; }
-          }
-        }
-        resolvedCityImg = resolvedCityImgs.isNotEmpty ? resolvedCityImgs[0] : "";
-        // ROUND 12 FIX (partial-Home fix): apply the hero/city-image DATA
-        // here too, not just later — same issue as the admin-banner fix
-        // above: previously `_cityImageUrl(s)` were only ever assigned in
-        // the big end-of-function setState, which runs after the sliders
-        // retry and product retries finish. Applying it here, right where
-        // it's resolved, means the hero photo (or the fallback, if there
-        // genuinely isn't one) can appear as soon as it's actually known,
-        // instead of sitting resolved-but-unapplied for several more
-        // seconds. `_heroImageLoading` flips false in the same setState so
-        // _CityHeroSection's shimmer and its real content change together.
-        if (mounted && myGen == _supplementaryGen) {
-          setState(() {
-            _heroImageLoading = false;
-            if (resolvedCityImgs.isNotEmpty) {
-              _cityImageUrls = resolvedCityImgs;
-              _cityImageUrl  = resolvedCityImgs[0];
-            } else if (resolvedCityImg.isNotEmpty) {
-              _cityImageUrls = [resolvedCityImg];
-              _cityImageUrl  = resolvedCityImg;
-            }
-          });
-        }
-        // Load no-service config (handle String or List from backend)
-        final nsImgs = defaults["no_service_url"];
-        String _nsUrl = "";
-        if (nsImgs is List && (nsImgs as List).isNotEmpty) {
-          _nsUrl = (nsImgs as List).last.toString().trim();
-        } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
-          _nsUrl = nsImgs.trim();
-        }
-        // ROUND 12 FIX (stale-request protection): guard every write below
-        // with `myGen == _supplementaryGen` so a stale generation's
-        // /default-images response can't overwrite a newer generation's
-        // hero/default-image/fallback-banner state.
-        if ((_nsUrl.startsWith("http") || _nsUrl.startsWith("data:image")) && mounted && myGen == _supplementaryGen) {
-          setState(() { _noServiceImg = _nsUrl; });
-        }
-        final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
-        final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
-        final defProd = (defaults["product"] ?? "").toString().trim();
-        if (mounted && myGen == _supplementaryGen) setState(() {
-          if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
-          if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
-          if (defProd.isNotEmpty) _defaultProductImageUrl = defProd;
-        });
-        // merchant_banner is now an array of URLs (images or mp4 videos)
-        if (myGen == _supplementaryGen) {
-          final _mbRaw = defaults["merchant_banner"];
-          if (_mbRaw is List) {
-            _mbFallbackSliders = _mbRaw
-                .where((u) {
-                  if (u is! String) return false;
-                  final s = u as String;
-                  // Allow http URLs AND base64 images/videos
-                  return s.startsWith("http") || s.startsWith("data:image") || s.startsWith("data:video");
-                })
-                .map<Map<String,dynamic>>((u) {
-                  final uid = "mb_${(u as String).hashCode.abs()}";
-                  return {"id": uid, "title": "", "subtitle": "",
-                    "image": u, "image_url": u,
-                    "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
-                }).toList();
-          } else if (_mbRaw is String && _mbRaw.startsWith("http")) {
-            _mbFallbackSliders = [{"id":"default","title":"","subtitle":"","image":_mbRaw,"image_url":_mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
-          } else {
-            _mbFallbackSliders = [];
-          }
-        }
-      } catch (e) {
-        // ROUND 12 FIX (partial-Home fix): the /default-images call itself
-        // failed or timed out (up to 10s) — don't leave the hero shimmer
-        // spinning forever. Flip it false here too so _CityHeroSection
-        // falls back to its existing flat-gradient look, same as "hero
-        // image genuinely doesn't exist".
-        if (mounted && myGen == _supplementaryGen) setState(() { _heroImageLoading = false; });
-      }
-
-      final cats = cats2;
-
-      // Retry sliders once if empty (FIX: banner disappear race condition)
-      if (slides.isEmpty) {
-        await Future.delayed(const Duration(milliseconds: 800));
-        try { slides = await Api.getSliders(); } catch (_) { }
-      }
-      // City filter for promo sliders/banners
+      // City filter for promo sliders
       if (c.isNotEmpty) {
-        slides = (slides).where((s) {
+        slides = slides.where((s) {
           final sCity = (s["city"] ?? "").toString().trim().toLowerCase();
           return sCity.isEmpty || sCity == c.toLowerCase().trim();
         }).toList();
       }
-      // Fallback — when no active banners exist for the city, show default merchant banners (images or videos)
-      if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
-        slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
-      }
-      // ROUND 12 FIX: admin-banner empty-retry moved into the Future.wait
-      // future above (so _adminBannersLoading can flip independently) —
-      // removed from here to avoid double-retrying.
-      // Retry products if fewer than expected
-      if (voucs.length < 8) {
-        try {
-          final extra = await Api.getPublicProducts(city: c);
-          final existingT = Set<String>.from(voucs.map((x)=>(x["title"]??x["name"]??"").toString().toLowerCase()));
-          for (final p in extra) {
-            final t = (p["title"]??p["name"]??"").toString().toLowerCase();
-            if (!existingT.contains(t)) { voucs.add(p); existingT.add(t); }
-          }
-        } catch (_) { }
-      }
-      if (voucs.length < 8) {
-        try {
-          final pubP = await Api.fetchPublicProducts(city: c);
-          final existingT2 = Set<String>.from(voucs.map((x)=>(x["title"]??x["name"]??"").toString().toLowerCase()));
-          for (final p in pubP) {
-            final t = (p["title"]??p["name"]??"").toString().toLowerCase();
-            if (!existingT2.contains(t)) { voucs.add(p); existingT2.add(t); }
-          }
-        } catch (_) { }
-      }
-
       // TASK 6 FIX: filter out expired products (end_date in past)
-      final _now6 = DateTime.now();
+      final now6 = DateTime.now();
       voucs = voucs.where((v) {
         final endRaw = (v["end_date"] ?? v["validity_end"] ?? "").toString();
         if (endRaw.isEmpty) return true;
-        try { return DateTime.parse(endRaw).isAfter(_now6); } catch (_) { return true; }
+        try { return DateTime.parse(endRaw).isAfter(now6); } catch (_) { return true; }
       }).toList();
-      // City filter: only show products/banners matching current city
+      // City filter: only products matching the current city
       if (c.isNotEmpty) {
         voucs = voucs.where((v) {
           final vCity = (v["city"] ?? v["store_city"] ?? "").toString().trim().toLowerCase();
@@ -1604,49 +1416,49 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         }).toList();
       }
 
-
-      // ROUND 12 FIX (stale-request protection): bail if a newer generation
-      // has since taken over — covers the final setState block below
-      // (_cats, _richCats, _sliders, _adminBanners, _products,
-      // _productsLoading, _walletPoints, _cityImageUrl(s)) plus the
-      // slider-autoplay/hero-rotation/popup-check calls that follow it.
+      // Default images are only needed as a fallback. If there ARE real
+      // products and sliders we don't wait for them at all.
+      if (slides.isEmpty || voucs.isEmpty) await defaultsApplied;
       if (!mounted || myGen != _supplementaryGen) return;
+
+      // Fallback — no active banners for the city: default merchant banners
+      if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
+        slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
+      }
       final sliderList  = List<Map<String,dynamic>>.from(slides);
       final productList = List<Map<String,dynamic>>.from(voucs);
       for (int i = 0; i < sliderList.length; i++)  sliderList[i]["_idx"]  = i;
       for (int i = 0; i < productList.length; i++) productList[i]["_idx"] = i;
 
-      // City image fetched in parallel in Future.wait above
-
+      // ONE setState: categories, sliders, banners, products and wallet
+      // appear in the same frame.
       setState(() {
-        if (cats.length > 1 || _cats.length <= 1) _cats = List<String>.from(cats);
+        if (cats2.length > 1 || _cats.length <= 1) _cats = List<String>.from(cats2);
         if (richCats2.isNotEmpty) _richCats = richCats2;
         else if (_richCats.isEmpty) Api.clearCache(); // force refetch next time
-        _sliders         = sliderList;
-        _adminBanners    = List<Map<String,dynamic>>.from(adminBannerList);
-        _products        = productList;
-        _productsLoading = false;
-        _walletPoints    = (wallet["visit_points"] as num?)?.toInt() ?? 0;
-        if (resolvedCityImgs.isNotEmpty) {
-          _cityImageUrls = resolvedCityImgs;
-          _cityImageUrl  = resolvedCityImgs[0];
-        } else if (resolvedCityImg.isNotEmpty) {
-          _cityImageUrls = [resolvedCityImg];
-          _cityImageUrl  = resolvedCityImg;
-        }
+        _sliders             = sliderList;
+        _adminBanners        = List<Map<String,dynamic>>.from(adminBannerList);
+        _adminBannersLoading = false;
+        _products            = productList;
+        _productsLoading     = false;
+        _walletPoints        = (wallet["visit_points"] as num?)?.toInt() ?? 0;
         _recomputeDistances();
       });
       _startSliderAutoPlay();
       _startHeroRotation();
       WidgetsBinding.instance.addPostFrameCallback((_) => _checkAndShowPopup());
     } catch (e) {
+      // Never leave a section stuck on its loading skeleton.
+      if (mounted && myGen == _supplementaryGen) {
+        setState(() { _productsLoading = false; _adminBannersLoading = false; _heroImageLoading = false; });
+      }
     }
   }
 
   Future<void> _checkAndShowPopup() async {
     if (_popupShown || !mounted) return;
     _popupShown = true;
-    final c = city.isNotEmpty && city != "Detecting..." ? city : widget.savedCity;
+    final c = city.isNotEmpty ? city : widget.savedCity;
     await showPopupCampaignIfNeeded(context: context, city: c, token: widget.token);
   }
 
@@ -1680,6 +1492,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     _loadAllRunning = true;
+    final int myLoad = ++_loadAllGen;
+    unawaited(_loadNoStoreContent()); // no-op if already loaded
 
     if(mounted) setState((){_loading=true; _netError=false; _fetchFailed=false;});
     // FIX 6: Retry up to 3 times with 2s backoff
@@ -1687,6 +1501,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     bool storeFetchFailed = false;
     bool isNetworkError = false;
     bool isTimeoutError = false;
+    Object? storeFetchError; // last failure, used to word the refresh message
 
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -1698,6 +1513,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         storeFetchFailed = false;
         break; // success
       } on SocketException catch(e) {
+        storeFetchError = e;
         isNetworkError = true;
         storeFetchFailed = true;
         if (attempt == 3 && mounted) {
@@ -1706,31 +1522,70 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
       } on TimeoutException catch(e) {
+        storeFetchError = e;
         isTimeoutError = true;
         storeFetchFailed = true;
         // On timeout: clear cache and retry
         Api.clearCache();
       } catch(e) {
+        storeFetchError = e;
         storeFetchFailed = true;
       }
     }
+
+    // A newer city selection started while this request was in flight → drop it.
+    if (myLoad != _loadAllGen) return;
 
     // If all 3 attempts failed
     if (storeFetchFailed && storeList.isEmpty) {
       if (mounted) {
         _loadAllRunning = false;
+        // A refresh (or city change) that fails while stores are already on
+        // screen must NOT blank Home or claim "no stores": keep the content
+        // and say what happened. The full-screen error state below is only
+        // for the case where there is nothing to show.
+        final bool hadContent = _stores.isNotEmpty;
         setState((){
           _loading=false;
-          _netError = isNetworkError;
-          _fetchFailed = true;
+          if (!hadContent) {
+            _netError = isNetworkError;
+            _fetchFailed = true;
+          }
           _productsLoading = false;
         });
+        if (hadContent) {
+          final raw = (storeFetchError ?? "").toString();
+          final bool offline = storeFetchError is SocketException ||
+              storeFetchError is TimeoutException ||
+              ["SocketException", "Failed host lookup", "Network is unreachable",
+               "ClientException", "Connection", "Handshake", "TimeoutException", "timed out"]
+                  .any(raw.contains);
+          final messenger = ScaffoldMessenger.of(context);
+          messenger.hideCurrentSnackBar();
+          messenger.showSnackBar(SnackBar(
+            content: Text(offline
+                ? "Unable to connect. Please check your internet connection and try again."
+                : "Couldn't refresh stores. Please try again."),
+          ));
+        }
       }
       return;
     }
 
+    // SUCCESSFUL response with zero stores → show the Admin No-Store state NOW.
+    // (Do not wait for categories / sliders / products / retries below.)
+    if (storeList.isEmpty && mounted) {
+      setState(() {
+        _stores = [];
+        _loading = false;
+        _netError = false;
+        _fetchFailed = false;
+        _isTimeout = false;
+      });
+    }
+
     // Fetch everything else in parallel (non-critical — fail silently)
-    List cats = ["All"]; List<Map<String,dynamic>> richCats3 = []; List slides = []; List voucs = []; Map<String,dynamic> wallet = {};
+    List cats = ["All"]; List<Map<String,dynamic>> richCats3 = []; List slides = []; List voucs = [];
     try {
       // FIX 5: guard each future individually
       await Future.wait([
@@ -1740,17 +1595,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           cats = ["All", ...richCats3.map((e) => e["name"].toString())];
         }).catchError((_) {}),
         Api.getSliders().then((v) => slides = v as List).catchError((_) {}),
+        // ONE products request. fetchPublicProducts hits the same
+        // /gift-vouchers-public URL, so it is no longer fired in parallel;
+        // the wallet is fetched by _loadSupplementary() (its only consumer).
         Api.getPublicProducts(city: c).then((v) => voucs = v as List).catchError((_) {}),
-        Api.fetchPublicProducts(city: c).then((v) {
-          // Merge public products into products list (avoid duplicates by title)
-          final existing = Set<String>.from(
-              voucs.map((x) => (x["title"] ?? x["name"] ?? "").toString().toLowerCase()));
-          for (final p in v) {
-            final t = (p["title"] ?? p["name"] ?? "").toString().toLowerCase();
-            if (!existing.contains(t)) { voucs.add(p); existing.add(t); }
-          }
-        }).catchError((_) {}),
-        Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
       ]);
     } catch(e) {
     }
@@ -1772,13 +1620,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
 
     if(!mounted) { _loadAllRunning = false; return; }
+    if (myLoad != _loadAllGen) return; // superseded by a newer city
 
     final sl = List<Map<String,dynamic>>.from(storeList);
     if(_userLat != null && _userLng != null) {
       for(final s in sl){
         final lat = double.tryParse(s["latitude"]?.toString()??"");
         final lng = double.tryParse(s["longitude"]?.toString()??"");
-        if(lat!=null && lng!=null) s["distance_km"] = _haversineKm(_userLat!,_userLng!,lat,lng);
+        if(lat!=null && lng!=null) s["distance_km"] = haversineKm(_userLat!,_userLng!,lat,lng);
       }
       sl.sort((a,b){
         final da=(a["distance_km"] as double?)??9999.0;
@@ -1794,8 +1643,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       } catch(e) {
       }
     }
-    // Also merge public products on the secondary path (FIX 4c)
-    if (voucs.length < 8) {
+    // Last-resort retry (FIX 4c) — only when nothing was returned. With 1-7
+    // products the first request already succeeded, and this would just
+    // re-request the same endpoint.
+    if (voucs.isEmpty) {
       try {
         final pubProds = await Api.fetchPublicProducts(city: c);
         final existingTitles = Set<String>.from(
@@ -1855,7 +1706,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadAllRunning = false;
     _startSliderAutoPlay();
     // FIX 6: trigger hero + admin banners load immediately on first open
-    _loadSupplementary(c);
+    _loadSupplementary(c, coreLoaded: true);
     if(mounted) setState((){_isTimeout=false;});
     // Init FCM after data loads — city is known at this point
     FcmService.init(
@@ -1899,165 +1750,114 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
   // _startProductSlide — removed (not needed)
 
-  // ── City Picker ──────────────────────────────────────
-  Future<void> _showCityPicker(BuildContext context) async {
-    // Use cities map from merchant_screens (imported library — re-declare locally)
-    const _cityMap = {
-      "Andhra Pradesh":["Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Rajahmundry","Tirupati"],
-      "Karnataka":["Bengaluru","Mysuru","Hubli","Mangaluru","Ballari","Belagavi","Davangere","Shivamogga"],
-      "Telangana":["Hyderabad","Warangal","Karimnagar","Nizamabad","Khammam","Mahbubnagar"],
-      "Maharashtra":["Mumbai","Pune","Nagpur","Nashik","Aurangabad","Solapur","Kolhapur"],
-      "Tamil Nadu":["Chennai","Coimbatore","Madurai","Tiruchirappalli","Salem","Tirunelveli"],
-      "Delhi":["New Delhi","Dwarka","Rohini","Saket","Lajpat Nagar","Connaught Place"],
-      "Gujarat":["Ahmedabad","Surat","Vadodara","Rajkot","Bhavnagar","Jamnagar"],
-      "Rajasthan":["Jaipur","Jodhpur","Udaipur","Kota","Ajmer","Bikaner"],
-      "Uttar Pradesh":["Lucknow","Kanpur","Agra","Varanasi","Meerut","Allahabad","Ghaziabad","Noida"],
-      "West Bengal":["Kolkata","Howrah","Durgapur","Asansol","Siliguri"],
-      "Punjab":["Chandigarh","Ludhiana","Amritsar","Jalandhar","Patiala"],
-      "Haryana":["Gurugram","Faridabad","Hisar","Rohtak","Panipat"],
-      "Kerala":["Thiruvananthapuram","Kochi","Kozhikode","Thrissur","Kollam"],
-      "Madhya Pradesh":["Bhopal","Indore","Gwalior","Jabalpur","Ujjain"],
-      "Bihar":["Patna","Gaya","Bhagalpur","Muzaffarpur"],
-      "Odisha":["Bhubaneswar","Cuttack","Rourkela","Sambalpur"],
-      "Jharkhand":["Ranchi","Jamshedpur","Dhanbad","Bokaro"],
-      "Chhattisgarh":["Raipur","Bilaspur","Durg","Bhilai"],
-      "Assam":["Guwahati","Dibrugarh","Silchar","Jorhat"],
-      "Himachal Pradesh":["Shimla","Manali","Dharamshala","Solan"],
-      "Uttarakhand":["Dehradun","Haridwar","Roorkee","Haldwani"],
-      "Jammu and Kashmir":["Srinagar","Jammu","Leh"],
-      "Goa":["Panaji","Margao","Vasco da Gama"],
-      "Puducherry":["Puducherry","Karaikal"],
-    };
-    final states = _cityMap.keys.toList()..sort();
-    String selState = "";
-    String selCity  = "";
-    // Pre-fill current city's state if possible
-    for(final st in states){
-      if(_cityMap[st]!.contains(city)){selState=st; selCity=city; break;}
+  // ── Location (single system: LocationScreen + LocationStore) ───────────
+  // Display/selection only — store filtering stays CITY-based (`city`).
+
+  OffroLocation get _effectiveLoc =>
+      (_loc != null && _loc!.sameCity(city))
+          ? _loc!
+          : OffroLocation(city: city, state: LocationService.stateForCity(city));
+  String get _locTitle => city.isEmpty ? "Select location" : _effectiveLoc.title;
+  String get _locSubtitle => city.isEmpty ? "" : _effectiveLoc.subtitle;
+
+  /// Loads the saved structured location for the header (never changes `city`).
+  Future<void> _loadSavedLocation() async {
+    final saved = await LocationStore.load(LocationMode.customer);
+    if (!mounted || saved == null) return;
+    setState(() {
+      _loc = saved;
+      _cityManual = saved.source == LocationSource.manual;
+    });
+  }
+
+  /// Home location header tap → the shared Location screen.
+  bool _locScreenOpen = false;
+  Future<void> _openLocationScreen() async {
+    if (_locScreenOpen) return; // no double-open / loops
+    _locScreenOpen = true;
+    final OffroLocation? picked;
+    try {
+      picked = await Navigator.push<OffroLocation>(
+        context,
+        MaterialPageRoute<OffroLocation>(
+          builder: (_) => LocationScreen(mode: LocationMode.customer, current: _effectiveLoc),
+        ),
+      );
+    } finally {
+      _locScreenOpen = false;
     }
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(builder: (ctx, setS) {
-        final cities = selState.isNotEmpty?(_cityMap[selState]!.toList()..sort()):<String>[];
-        return Container(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom+20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20,16,20,8),
-            child: Column(mainAxisSize:MainAxisSize.min, crossAxisAlignment:CrossAxisAlignment.start, children:[
-              Row(children:[
-                const Icon(Icons.location_on, color:kPrimary, size:20),
-                const SizedBox(width:8),
-                const Text("Select Your City", style:TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:kText)),
-                const Spacer(),
-                // GPS button — refresh to live location
-                IconButton(
-                  icon: const Icon(Icons.gps_fixed, color:kPrimary),
-                  tooltip:"Use GPS",
-                  onPressed: () async {
-                    Navigator.pop(ctx);
-                    setState((){_cityManual=false; city="Detecting..."; _loading=true; _productsLoading=true; _adminBannersLoading=true;});
-                    final det = await detectCity();
-                    try {
-                      final pos = await Geolocator.getCurrentPosition(desiredAccuracy:LocationAccuracy.medium)
-                          .timeout(const Duration(seconds:10));
-                      if(mounted) setState((){
-                        _userLat=pos.latitude; _userLng=pos.longitude;
-                        _cityManual=false; // Explicitly restore GPS mode
-                      });
-                      _recomputeDistances(); // Recompute distances after GPS restored
-                    } catch(_){ }
-                    if(!mounted) return;
-                    _gpsDetectedCity = det; // restore GPS city reference
-                    setState((){city=det; _locationDenied=false; _cityManual=false;});
-                    await Prefs.saveCity(det);
-                    await Api.updateCity(widget.token, det);
-                    await _fetchStores(det);
-                  },
-                ),
-              ]),
-              const Divider(height:1),
-              const SizedBox(height:14),
-              // State dropdown
-              const Text("State", style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:kMuted)),
-              const SizedBox(height:6),
-              DropdownButtonFormField<String>(
-                value: selState.isNotEmpty?selState:null,
-                hint: const Text("Select State"),
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal:14,vertical:10),
-                ),
-                items: states.map((s)=>DropdownMenuItem(value:s,child:Text(s))).toList(),
-                onChanged:(v){ setS((){selState=v??''; selCity='';});},
-              ),
-              const SizedBox(height:14),
-              // City dropdown
-              const Text("City", style:TextStyle(fontSize:13,fontWeight:FontWeight.w600,color:kMuted)),
-              const SizedBox(height:6),
-              DropdownButtonFormField<String>(
-                value: selCity.isNotEmpty?selCity:null,
-                hint: const Text("Select City"),
-                isExpanded: true,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal:14,vertical:10),
-                ),
-                items: cities.map((c)=>DropdownMenuItem(value:c,child:Text(c))).toList(),
-                onChanged:(v){ setS((){selCity=v??'';});},
-              ),
-              const SizedBox(height:20),
-              SizedBox(width:double.infinity, child:ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:kPrimary, foregroundColor:Colors.white,
-                  shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
-                  padding:const EdgeInsets.symmetric(vertical:14),
-                ),
-                onPressed: selCity.isEmpty?null:() async {
-                  Navigator.pop(ctx);
-                  final oldCity = city;
-                  // If user picks the same city GPS detected → restore GPS mode (show KM chips)
-                  // Compare against _gpsDetectedCity (in-memory), NOT Prefs.getCity()
-                  // because Prefs.getCity() returns the LAST saved city (could be manual)
-                  final isGpsCity = _gpsDetectedCity.isNotEmpty &&
-                      _gpsDetectedCity.trim().toLowerCase() == selCity.trim().toLowerCase();
-                  setState((){city=selCity; _cityManual=!isGpsCity;});
-                  await Prefs.saveCity(selCity);
-                  await Api.updateCity(widget.token, selCity);
-                  if (widget.token.isNotEmpty) FcmService.updateCityTopic(selCity, oldCity: oldCity);
-                  await _fetchStores(selCity);
-                },
-                child: const Text("Apply", style:TextStyle(fontSize:15,fontWeight:FontWeight.w700)),
-              )),
-            ]),
-          ),
-        );
-      }),
-    );
+    if (picked == null || !mounted) return;
+    await _applyLocation(picked);
+  }
+
+  /// Persists [loc], updates the header and reloads Home when the city changed.
+  Future<void> _applyLocation(OffroLocation loc) async {
+    final oldCity = city;
+    final cityChanged = !loc.sameCity(oldCity);
+    await LocationStore.save(LocationMode.customer, loc);
+    if (!mounted) return;
+    final gps = loc.source == LocationSource.gps && loc.lat != null && loc.lng != null;
+    setState(() {
+      _loc = loc;
+      city = loc.city;
+      _cityManual = loc.source == LocationSource.manual;
+      if (gps) { _userLat = loc.lat; _userLng = loc.lng; }
+    });
+    if (gps) _recomputeDistances();
+    if (widget.token.isNotEmpty) {
+      unawaited(Api.updateCity(widget.token, loc.city, state: loc.state));
+      FcmService.updateCityTopic(loc.city, oldCity: oldCity);
+    }
+    if (cityChanged) await _fetchStores(loc.city);
+  }
+
+  // Silent refresh of a saved GPS location (app open / resume), same service
+  // call Merchant Home uses. Skips manual cities, never prompts, keeps the
+  // saved location on any failure; 2-min throttle + 1.5 km threshold are
+  // enforced inside LocationService.autoRefreshIfMoved.
+  bool _autoLocBusy = false;
+  Future<void> _autoRefreshLocation() async {
+    if (_autoLocBusy || _locScreenOpen || !mounted) return;
+    _autoLocBusy = true;
+    try {
+      final saved = await LocationStore.load(LocationMode.customer);
+      final fresh = await LocationService.autoRefreshIfMoved(saved);
+      if (fresh == null || !mounted || _locScreenOpen) return;
+      await _applyLocation(fresh);
+    } catch (_) {
+      // keep the current location
+    } finally {
+      _autoLocBusy = false;
+    }
+  }
+
+  /// Only reached when Home is created with no city (normally impossible).
+  void _requireLocation() {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final picked = await Navigator.push<OffroLocation>(
+        context,
+        MaterialPageRoute<OffroLocation>(
+          builder: (_) => const LocationScreen(mode: LocationMode.customer, mandatory: true),
+        ),
+      );
+      if (picked == null || !mounted) return;
+      await _applyLocation(picked);
+    });
   }
 
   Future<void> _fetchLiveGpsAndRecomputeDistances() async {
-    // Called when preloaded data is used — fetches live GPS and recomputes distances
-    // This ensures banner store cards always show real distance, not "0.0 km"
+    // Called when preloaded data is used — refreshes distance_km from live GPS.
+    // SILENT: reads GPS only when device Location Services are on AND the app
+    // permission is already granted. It never shows a permission dialog and
+    // never changes the saved/selected city.
     try {
-      LocationPermission perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.deniedForever) return;
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      ).timeout(const Duration(seconds: 12));
-      if (!mounted) return;
-      if (mounted) setState(() {
+      final pos = await LocationService.silentPosition(
+        timeout: const Duration(seconds: 12),
+        accuracy: LocationAccuracy.high,
+      );
+      if (pos == null || !mounted) return;
+      setState(() {
         _userLat = pos.latitude;
         _userLng = pos.longitude;
         // Recompute distance_km on all store maps in-place
@@ -2065,7 +1865,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
           final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
           if (lat != null && lng != null) {
-            s["distance_km"] = _haversineKm(pos.latitude, pos.longitude, lat, lng);
+            s["distance_km"] = haversineKm(pos.latitude, pos.longitude, lat, lng);
           }
         }
       });
@@ -2075,139 +1875,15 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _initLoc() async {
-    // ── Permission-first location flow ──
-    // Step 0: Request location permission if needed BEFORE calling GPS.
-    // This shows the native OS dialog on first launch.
-    // Only show the Settings screen on permanent denial.
-
-    // FIX 1: Always invalidate static cache at the start of every _initLoc call.
-    // This ensures that if the user physically moved to a different city since
-    // last session, the stale sameCity cache never blocks a fresh fetch.
-    _cachedCity   = "";
-    _cachedStores = [];
-    _cacheTime    = null;
-    Api.clearCache();
-
-    String? firstLoadCity;
-
-    // Step 1: Show savedCity immediately while we wait for GPS
-    if (widget.savedCity.isNotEmpty) {
-      firstLoadCity = widget.savedCity;
-      setState(() { city = widget.savedCity; _locationDenied = false; });
-    } else {
-      if (mounted) setState(() { _loading = true; });
-    }
-
-    // Step 2: Check and request permission (shows native dialog if needed)
-    LocationPermission perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      // Show native OS permission dialog
-      perm = await Geolocator.requestPermission();
-    }
-
-    if (!mounted) return;
-
-    if (perm == LocationPermission.deniedForever) {
-      // Truly permanently denied — only NOW show the Settings screen
-      setState(() { city = ""; _loading = false; _locationDenied = true; });
-      // Still load all stores without city filter
-      if (firstLoadCity != null) {
-        await _loadAll(firstLoadCity);
-      } else {
-        await _loadAll("");
-      }
-      return;
-    }
-
-    // Step 3: Try GPS — first use cached GPS for instant render, then refresh in background
-    String det = widget.savedCity;
-
-    // 3a: Try to restore last known GPS from Prefs (instant, no network)
-    final savedLoc = await Prefs.getSavedLocation();
-    if (savedLoc != null) {
-      _userLat = savedLoc["lat"];
-      _userLng = savedLoc["lng"];
-    }
-
-    // 3b: Live GPS — single fetch, then resolve city name
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      ).timeout(const Duration(seconds: 12));
-      _userLat = pos.latitude;
-      _userLng = pos.longitude;
-      if (mounted) {
-        setState(() { _userLat = pos.latitude; _userLng = pos.longitude; });
-        _recomputeDistances();
-        if (mounted) setState(() {}); // trigger rebuild with updated distances
-      };
-      // Pass position directly — avoids a second GPS fetch inside detectCity()
-      det = await detectCityFromPosition(pos).timeout(const Duration(seconds: 10));
-    } catch (e) {
-      // Use cached coords city if available, else savedCity. NEVER a
-      // hardcoded default city (no "Ballari") — the account's city was
-      // already resolved (via GPS or mandatory manual State+City entry) or
-      // intentionally left empty before Role Selection (see
-      // login_screen.dart's _AccountBootstrapScreen/_handleRoleSelected);
-      // this live-GPS refresh (for distance sorting) must never silently
-      // override that with a guessed city when it fails.
-      if (_userLat != null && _userLng != null) {
-        try {
-          final cachedPos = Position(
-            latitude: _userLat!, longitude: _userLng!,
-            timestamp: DateTime.now(), accuracy: 0, altitude: 0,
-            altitudeAccuracy: 0, heading: 0, headingAccuracy: 0, speed: 0, speedAccuracy: 0,
-          );
-          det = await detectCityFromPosition(cachedPos).timeout(const Duration(seconds: 8));
-        } catch (_) {
-          det = widget.savedCity;
-        }
-      } else {
-        det = widget.savedCity;
-      }
-    }
-
-    if (!mounted) return;
-
-    // Step 4: Commit city and load stores
-    _gpsDetectedCity = det; // remember GPS city for chip logic
-    setState(() { city = det; _locationDenied = false; });
-    Prefs.saveCity(det);
-    // Persist GPS coords so next restart skips GPS detection
-    if (_userLat != null && _userLng != null) {
-      Prefs.saveLocation(_userLat!, _userLng!);
-    }
-    if (widget.token.isNotEmpty) Api.updateCity(widget.token, det);
-
-    // FIX 1: If GPS city differs from cached city, wipe stale static cache
-    // so _loadAll always fetches fresh stores for the new location.
-    if (det.toLowerCase().trim() != _cachedCity.toLowerCase().trim()) {
-      _cachedCity   = "";
-      _cachedStores = [];
-      _cacheTime    = null;
-      Api.clearCache();
-    }
-    await _loadAll(det);
-
-    // Step 5: Recalculate distances if GPS available
-    if (_userLat != null && _userLng != null && mounted) {
-      setState(() {
-        for (final s in _stores) {
-          final lat = double.tryParse(s["latitude"]?.toString() ?? "");
-          final lng = double.tryParse(s["longitude"]?.toString() ?? "");
-          if (lat != null && lng != null) {
-            s["distance_km"] = _haversineKm(_userLat!, _userLng!, lat, lng);
-          }
-        }
-        _recomputeDistances();
-      });
-    }
-  }
-
   // Called ONLY when the city changes — category changes are client-side only
   Future<void> _fetchStores(String c) async {
     _loadAllRunning = false; // reset guard so city change always goes through
+    // Also drop Home's own 5-minute store cache (same reset a city change does) —
+    // otherwise _loadAll() would "refresh" from memory and never hit the
+    // network, which made pull-to-refresh a silent no-op.
+    _cachedCity   = "";
+    _cachedStores = [];
+    _cacheTime    = null;
     Api.clearCache();
     await _loadAll(c);
   }
@@ -2217,14 +1893,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
 
 
-  void _showCatMenu() { _catTimer?.cancel();
-    _catTimer=Timer(const Duration(seconds:5),(){});
-  }
-
   void _onFavChanged() { if (mounted) setState(() {}); }
 
   @override void dispose() {
-    FavState.instance.removeListener(_onFavChanged);
+    FavState.instance.productRevision.removeListener(_onFavChanged);
     _unreadNotifier.removeListener(_onUnreadChanged);
     WidgetsBinding.instance.removeObserver(this);
     _catTimer?.cancel(); _sliderTimer?.cancel(); _heroRotateTimer?.cancel(); _sliderPc.dispose();
@@ -2240,6 +1912,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _loadUnreadCount();
       if (mounted) setState(() => _unreadCount = _unreadNotifier.value);
+      // Silent GPS check on return to the app (throttled inside the service).
+      unawaited(_autoRefreshLocation());
     }
   }
 
@@ -2247,7 +1921,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final sl=_sl;
     final nearbyStores=_nearbyStores;  // GPS-aware with fallback to top stores
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.sizeOf(context);
     final topStores = _topStores;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -2257,16 +1931,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: const Color(0xFFF5FBF7),
-        body: _locationDenied
-          ? _locationDeniedState()
-          : Stack(children: [
+        backgroundColor: const Color(0xFFE9F1ED),
+        body: Stack(children: [
               // ── Premium abstract gradient background ──────────────────
-              Positioned.fill(child: CustomPaint(painter: _OffroHomeBgPainter())),
+              Positioned.fill(child: CustomPaint(painter: OffroHomeBgPainter())),
               _loading
               ? LayoutBuilder(builder: (ctx, bc) => SizedBox(
                   width: bc.maxWidth,
-                  height: bc.maxHeight.isFinite ? bc.maxHeight : MediaQuery.of(ctx).size.height,
+                  height: bc.maxHeight.isFinite ? bc.maxHeight : MediaQuery.sizeOf(ctx).height,
                   child: ColoredBox(
                     color: Colors.white,
                     child: _buildLoadingSkeleton(),
@@ -2290,7 +1962,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       // the same height) instead of jumping straight to the
                       // "no image" flat-gradient fallback.
                       imageLoading: _heroImageLoading,
-                      onCityTap: () => _showCityPicker(context),
+                      locationTitle: _locTitle,
+                      locationSubtitle: _locSubtitle,
+                      onCityTap: _openLocationScreen,
                       onBellTap: () => _openNotifications(context),
                     )),
 
@@ -2303,7 +1977,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         userLat: _userLat,
                         userLng: _userLng,
                         selectedCity: city,
-                        onMoreTap: () => Navigator.push(context, _route(_BrowseAllCategoriesScreen(
+                        onMoreTap: () => Navigator.push(context, appRoute(_BrowseAllCategoriesScreen(
                           token: widget.token,
                           userLat: _userLat, userLng: _userLng,
                           selectedCity: city))),
@@ -2334,7 +2008,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       products: _products,
                       onViewAll: () => _viewAllProducts(context),
                       token: widget.token,
-                      defaultProductImageUrl: _defaultProductImageUrl,
+                      defaultProductImageUrls: _defaultProductImageUrls,
+                      // True until the real product request finishes — shows a
+                      // skeleton instead of the default images (no flash).
+                      loading: _productsLoading,
                     )),
 
                     // ══════ 6b. CITY INFLUENCERS (reuses screens/home/influencer_section.dart) ══════
@@ -2342,7 +2019,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
                     // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
-                    SliverToBoxAdapter(child: _PromoSliderSection(
+                    SliverToBoxAdapter(child: PromoSliderSection(
                       sliders: _sliders,
                       sliderPc: _sliderPc,
                       sliderPageNotifier: _sliderPageNotifier,
@@ -2362,8 +2039,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         await Prefs.saveRadius(km);
                       },
                       onViewAll: () => _viewAll(context, "Nearby Stores", nearbyStores),
-                      onStoreTap: (s) => Navigator.push(context, _route(
-                        StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
+                      onStoreTap: (s) => Navigator.push(context, appRoute(
+                        StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
                     )),
 
                     // ══════ EXPLORE AREAS ══════
@@ -2372,13 +2049,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       token: widget.token,
                     )),
 
-                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
+                    const SliverToBoxAdapter(child: SizedBox(height: 124)),
                   ]),
                 ),
 
             // Scroll-to-top FAB
             Positioned(
-              bottom: 90, right: 16,
+              bottom: 104, right: 16,
               child: ValueListenableBuilder<bool>(
                 valueListenable: _fabVisible,
                 builder: (_, visible, __) => AnimatedOpacity(
@@ -2405,26 +2082,28 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
 
-            // ══ BOTTOM NAV v2 — Home | Deals | [QR] | Search | Profile ══
+            // ══ BOTTOM NAV v3 (floating pill) — Home | Deals | [QR] | Search | Profile ══
+            // QA round (Oct 2026): same items/handlers as before, now inside a
+            // floating rounded pill with margins from the left/right/bottom
+            // edges. QR stays the prominent centre action, lifted above the bar.
             ValueListenableBuilder<bool>(
               valueListenable: _navVisible,
               builder: (_, visible, child) => AnimatedPositioned(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeInOut,
-                bottom: (visible && (_cityFiltered.isNotEmpty || _loading)) ? 0 : -80,
-                left: 0, right: 0,
+                bottom: (visible && (_cityFiltered.isNotEmpty || _loading))
+                    ? 12 + MediaQuery.of(context).padding.bottom : -120,
+                left: 16, right: 16,
                 child: child!,
               ),
-              child: ClipRRect(
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                  child: Container(
-                    height: 72,
+              child: Container(
+                    height: 68,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .92),
-                      border: const Border(top: BorderSide(color: Color(0xFFe8f5ee), width: 1)),
+                      color: Colors.white.withValues(alpha: .95),
+                      borderRadius: BorderRadius.circular(34),
+                      border: Border.all(color: const Color(0xFFCDEBD6), width: 1),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 16, offset: const Offset(0,-3)),
+                        BoxShadow(color: kPrimary.withValues(alpha: .18), blurRadius: 24, offset: const Offset(0,8)),
                       ],
                     ),
                     child: Row(children: [
@@ -2437,9 +2116,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       Expanded(child: GestureDetector(
                         onTap: () {
                           setState(() => _navIdx = 1);
-                          // Pass city only when detection is complete (not "Detecting...")
-                          final _dealsCity = (city == "Detecting..." || city.isEmpty) ? "" : city;
-                          Navigator.push(context, _route(_AllDealsScreen(token: widget.token, city: _dealsCity)));
+                          final _dealsCity = city;
+                          Navigator.push(context, appRoute(_AllDealsScreen(token: widget.token, city: _dealsCity)));
                         },
                         child: _NavBtn(icon: Icons.local_offer_rounded, label: "Deals", active: _navIdx == 1),
                       )),
@@ -2447,16 +2125,17 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       GestureDetector(
                         onTap: () {
                           if (!_requireLogin(context, 'QR Scan & Rewards')) return;
-                          Navigator.push(context, _route(QRPage(token: widget.token, onDone: () {})));
+                          Navigator.push(context, appRoute(QRPage(token: widget.token, onDone: () {})));
                         },
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Container(
-                            width: 52, height: 52,
-                            margin: const EdgeInsets.only(bottom: 6),
+                            width: 56, height: 56,
+                            transform: Matrix4.translationValues(0, -6, 0),
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               color: kPrimary,
+                              border: Border.all(color: Colors.white, width: 3),
                               boxShadow: [
                                 BoxShadow(color: kPrimary.withValues(alpha: .40), blurRadius: 14, offset: const Offset(0, 4)),
                               ],
@@ -2481,8 +2160,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       )),
                     ]),
                   ),
-                ),
-              ),
             ),
           ]),
       ),
@@ -2490,66 +2167,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
 
-  Widget _buildCardContent(Map s){
-    String imgStr = s["image_url"]?.toString() ?? "";
-    if (imgStr.isEmpty) imgStr = s["image_thumb"]?.toString() ?? "";
-    if (imgStr.isEmpty) imgStr = s["image"]?.toString() ?? "";
-    if (imgStr.isEmpty) imgStr = s["image2"]?.toString() ?? "";
-    if (imgStr.startsWith("data:image")) {
-      try { return Image.memory(base64Decode(imgStr.split(",").last), fit:BoxFit.cover, gaplessPlayback:true); }
-      catch(_) { }
-    }
-    if (imgStr.startsWith("http")) {
-      return CachedNetworkImage(imageUrl: imgStr, fit: BoxFit.cover,
-        width: double.infinity, height: double.infinity,
-        placeholder: (_, __) => _placeholder(s),
-        errorWidget: (_, __, ___) => _placeholder(s));
-    }
-    return _placeholder(s);
-  }
-
-  Widget _placeholder(Map s)=>Container(
-    decoration:BoxDecoration(
-      gradient:LinearGradient(colors:[kPrimary,const Color(0xFF3E5F55)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
-    child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-      const Icon(Icons.store_mall_directory_outlined,size:80,color:kLight),const SizedBox(height:14),
-      Text(s["store_name"]??"",style:const TextStyle(color:Colors.white,fontSize:20,fontWeight:FontWeight.bold),textAlign:TextAlign.center),
-      const SizedBox(height:4),
-      Text(s["city"]??"",style:const TextStyle(color:kAccent,fontSize:13)),
-    ])));
-
-  Widget _locationDeniedState() => Container(
-    color: kPrimary,
-    child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const Icon(Icons.location_off, color: kLight, size: 64),
-      const SizedBox(height: 20),
-      const Text("Location Access Required", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-      const SizedBox(height: 12),
-      const Padding(padding: EdgeInsets.symmetric(horizontal: 40),
-        child: Text("Please allow location access to find stores near you.", style: TextStyle(color: kAccent, fontSize: 14), textAlign: TextAlign.center)),
-      const SizedBox(height: 28),
-      ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(backgroundColor: kLight, foregroundColor: kPrimary, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24))),
-        icon: const Icon(Icons.settings),
-        label: const Text("Open Settings", style: TextStyle(fontWeight: FontWeight.bold)),
-        onPressed: () => Geolocator.openAppSettings(),
-      ),
-      const SizedBox(height: 12),
-      TextButton(
-        onPressed: () async { setState(()=>_locationDenied=false); await _initLoc(); },
-        child: const Text("Try Again", style: TextStyle(color: Colors.white70)),
-      ),
-      const SizedBox(height: 8),
-      TextButton.icon(
-        onPressed: () {
-          setState(() => _locationDenied = false);
-          _showCityPicker(context);
-        },
-        icon: const Icon(Icons.edit_location_alt, color: kLight, size: 20),
-        label: const Text("Select Location Manually", style: TextStyle(color: kLight, fontWeight: FontWeight.w600)),
-      ),
-    ])),
-  );
 
   // Skeleton extracted to: core/widgets/shimmer/home_skeleton.dart
   Widget _buildLoadingSkeleton() {
@@ -2597,7 +2214,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _emptyState() {
     void _goRoleSelect() {
       Navigator.of(context).pushAndRemoveUntil(
-        _route(ContinueAsScreen(
+        appRoute(ContinueAsScreen(
           phone: widget.phone,
           onRoleSelected: (role, remember) async => MyApp.goSwitchMode(
             widget.token, widget.name, widget.phone, widget.userId, role),
@@ -2628,7 +2245,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           width: double.infinity,
           height: 54,
           child: ElevatedButton(
-            onPressed: _goRoleSelect,
+            // No-Store (successful load, zero stores) → the Location screen so
+            // the customer can pick another city / current location. Error
+            // states keep the previous behaviour.
+            onPressed: (!_netError && !_isTimeout && !_fetchFailed)
+                ? () { _openLocationScreen(); }
+                : _goRoleSelect,
             style: ElevatedButton.styleFrom(
               backgroundColor: kPrimary,
               foregroundColor: Colors.white,
@@ -2669,17 +2291,47 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // ── No-service with image: image fills top, footer below ──
     if (!_netError && !_isTimeout && !_fetchFailed && _noServiceImg.isNotEmpty) {
+      // Shown if the image itself can't be loaded: the Admin message (if any)
+      // on the brand colour — never a blank box without explanation.
+      Widget nsFallback() => Container(
+            color: kPrimary,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: _noServiceMsg.isEmpty
+                ? null
+                : Text(_noServiceMsg,
+                    style: const TextStyle(color: kLight, fontSize: 15),
+                    textAlign: TextAlign.center),
+          );
       Widget nsImgWidget;
       if (_noServiceImg.startsWith("data:image")) {
+        // Shared base64 helper: same Uint8List per source → decoded once, and
+        // Flutter's image cache hits on every rebuild.
         try {
           nsImgWidget = Image.memory(
-            base64Decode(_noServiceImg.split(",").last),
-            fit: BoxFit.cover, width: double.infinity, gaplessPlayback: true);
-        } catch (_) { nsImgWidget = Container(color: kPrimary); }
+            decodeBase64ImageCached(_noServiceImg),
+            fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => nsFallback());
+        } catch (_) { nsImgWidget = nsFallback(); }
       } else {
-        nsImgWidget = Image.network(
-          _noServiceImg, fit: BoxFit.cover, width: double.infinity,
-          errorBuilder: (_, __, ___) => Container(color: kPrimary));
+        // Same cached loader as the Hero: disk + memory cache, no re-download
+        // on rebuilds.
+        nsImgWidget = CachedNetworkImage(
+          imageUrl: _noServiceImg,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          memCacheWidth: 1080,
+          fadeInDuration: const Duration(milliseconds: 150),
+          placeholder: (_, __) => const ColoredBox(
+            color: kPrimary,
+            child: Center(child: SizedBox(
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white54))),
+          ),
+          errorWidget: (_, __, ___) => nsFallback(),
+        );
       }
       return Column(children: [Expanded(child: nsImgWidget), footer]);
     }
@@ -2707,14 +2359,48 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             const Text("Couldn't load stores", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             const Text("Please try again", style: TextStyle(color: Colors.white60, fontSize: 13)),
-          ] else ...[
-            Builder(builder: (_) {
-              final displayCity = (city.isNotEmpty && city != 'Detecting...') ? city : 'your area';
-              if (_noServiceMsg.isNotEmpty) {
-                return Text(_noServiceMsg, style: const TextStyle(color: kLight, fontSize: 15), textAlign: TextAlign.center);
-              }
-              return Text('No stores in $displayCity yet', style: const TextStyle(color: kLight, fontSize: 16));
-            }),
+          ] else if (_noServiceMsg.isNotEmpty)
+            // Successful load with zero stores → the Admin Dashboard "No
+            // Store" message (same _noServiceMsg as before; no hard-coded
+            // "No stores in <city> yet" text any more).
+            Text(_noServiceMsg, style: const TextStyle(color: kLight, fontSize: 15), textAlign: TextAlign.center)
+          else if (_noStoreFailed) ...[
+            // default-images could not be loaded (after one retry). Say so —
+            // do NOT imply the Admin has no image configured.
+            const Icon(Icons.cloud_off_rounded, color: Colors.white54, size: 40),
+            const SizedBox(height: 10),
+            const Text("Couldn't load this page", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            OutlinedButton(
+              onPressed: _retryNoStoreContent,
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
+              child: const Text('Retry'),
+            ),
+          ]
+          else if (!_noStoreReady)
+            // Admin No Store content (/default-images) is still loading —
+            // wait quietly instead of flashing placeholder text first.
+            const SizedBox(
+              width: 28, height: 28,
+              child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white54)),
+          // Failure states (and only those) get a Try Again action.
+          if (_netError || _isTimeout || _fetchFailed) ...[
+            const SizedBox(height: 22),
+            ElevatedButton(
+              onPressed: () => _fetchStores(city),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: kPrimary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                Icon(Icons.refresh_rounded, size: 18),
+                SizedBox(width: 8),
+                Text('Try Again', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              ]),
+            ),
           ],
         ]))),
         footer,
@@ -2724,72 +2410,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
 
 
-  // ── Filter sheet: radius + open now ──
-  void _showFilterSheet(BuildContext ctx) {
-    showModalBottomSheet(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => StatefulBuilder(builder: (ctx2, setSt) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const SizedBox(height: 12),
-            Container(width:40,height:4,
-              decoration:BoxDecoration(color:Colors.grey.shade300,borderRadius:BorderRadius.circular(2))),
-            const SizedBox(height:20),
-            const Text("Filter Stores", style: TextStyle(fontSize:17,fontWeight:FontWeight.w800,color:kText)),
-            const SizedBox(height:20),
-            Align(alignment:Alignment.centerLeft,
-              child:const Text("Distance",style:TextStyle(fontSize:13,fontWeight:FontWeight.w700,color:kText))),
-            const SizedBox(height:10),
-            Row(children:[
-              for(final km in [5.0, 10.0, 0.0])
-                Expanded(child:Padding(
-                  padding:const EdgeInsets.only(right:8),
-                  child:GestureDetector(
-                    onTap:() async {
-                      setState(()=>_radiusKm=km);
-                      await Prefs.saveRadius(km);
-                      setSt((){});
-                    },
-                    child:AnimatedContainer(
-                      duration:const Duration(milliseconds:200),
-                      padding:const EdgeInsets.symmetric(vertical:10),
-                      decoration:BoxDecoration(
-                        color:_radiusKm==km?kPrimary:Colors.white,
-                        border:Border.all(color:_radiusKm==km?kPrimary:kBorder,width:1.5),
-                        borderRadius:BorderRadius.circular(12),
-                      ),
-                      child:Center(child:Text(
-                        km==0?"All Distance":km==5?"5 km":"10 km",
-                        style:TextStyle(color:_radiusKm==km?Colors.white:kMuted,fontSize:12,fontWeight:FontWeight.w700))),
-                    ),
-                  ),
-                )),
-            ]),
-            const SizedBox(height:24),
-            SizedBox(width:double.infinity,child:ElevatedButton(
-              style:ElevatedButton.styleFrom(
-                backgroundColor:kPrimary,foregroundColor:Colors.white,
-                padding:const EdgeInsets.symmetric(vertical:14),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
-              ),
-              onPressed:()=>Navigator.pop(ctx),
-              child:const Text("Apply Filters",style:TextStyle(fontSize:15,fontWeight:FontWeight.w800)),
-            )),
-          ]),
-        );
-      }),
-    );
-  }
-
   void _searchStores(BuildContext ctx) {
-    Navigator.push(ctx, _route(_SearchPage(token:widget.token, city:city)));
+    Navigator.push(ctx, appRoute(_SearchPage(token:widget.token, city:city)));
   }
 
   // Profile sheet (replaces _more) — all options inside
@@ -2811,14 +2433,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           const Divider(height:1),
           Expanded(child:ListView(controller:sc,children:[
             _pItem(ctx,Icons.search_rounded,"Search Stores",()=>_searchStores(ctx)),
-            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",(){if(_requireLogin(ctx,"My Rewards"))Navigator.push(ctx,_route(WalletPage(token:widget.token)));}),
-            _pItem(ctx,Icons.history_rounded,"Scan History",(){if(_requireLogin(ctx,"Scan History"))Navigator.push(ctx,_route(HistoryPage(token:widget.token)));}),
-            _pItem(ctx,Icons.favorite_rounded,"My Favourites",(){if(_requireLogin(ctx,"My Favourites"))Navigator.push(ctx,_route(FavoritesPage(token:widget.token)));}),
-            _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,_route(NotificationsPage()))),
+            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",(){if(_requireLogin(ctx,"My Rewards"))Navigator.push(ctx,appRoute(WalletPage(token:widget.token)));}),
+            _pItem(ctx,Icons.history_rounded,"Scan History",(){if(_requireLogin(ctx,"Scan History"))Navigator.push(ctx,appRoute(HistoryPage(token:widget.token)));}),
+            _pItem(ctx,Icons.favorite_rounded,"My Favourites",(){if(_requireLogin(ctx,"My Favourites"))Navigator.push(ctx,appRoute(FavoritesPage(token:widget.token)));}),
+            _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,appRoute(NotificationsPage()))),
             const Divider(height:1),
             _pItem(ctx,Icons.info_outline_rounded,"About Us",()async{final c=await Api.getAboutUs();if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"About Us",body:c.isEmpty?"Offro connects local stores with customers through deals and loyalty points.":c));}),
             _pItem(ctx,Icons.description_rounded,"Terms & Conditions",()async{final c=await Api.fetchTerms("user");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Terms & Conditions",body:c));}),
-            _pItem(ctx,Icons.privacy_tip_rounded,"Privacy Policy",()=>Navigator.push(ctx,_route(PrivacyPolicyPage(token:widget.token)))),
+            _pItem(ctx,Icons.privacy_tip_rounded,"Privacy Policy",()=>Navigator.push(ctx,appRoute(PrivacyPolicyPage(token:widget.token)))),
             _pItem(ctx,Icons.receipt_rounded,"Refund Policy",()async{final c=await Api.fetchPolicy("refund");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Refund Policy",body:c));}),
             const Divider(height:1),
             // ── Switch Mode ──
@@ -2947,13 +2569,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // View All page
   // Cast _products to proper type for ProductViewAllPage
   void _viewAllProducts(BuildContext ctx) =>
-    Navigator.push(ctx, _route(ProductViewAllPage(
+    Navigator.push(ctx, appRoute(ProductViewAllPage(
       products: _products.map((v)=>Map<String,dynamic>.from(v as Map)).toList(),
       token: widget.token,
       city: city)));
 
   void _viewAll(BuildContext ctx, String title, List<Map<String,dynamic>> stores, {bool bigCards=false}) =>
-    Navigator.push(ctx, _route(_ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
+    Navigator.push(ctx, appRoute(_ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
 }
 
 // ─────────────────────── VIEW ALL PAGE ───────────────────────
@@ -3031,14 +2653,14 @@ class _SearchPageState extends State<_SearchPage> {
                   final s=_results[i];
                   String img=s["image_url"]?.toString()??''; if(img.isEmpty)img=s["image_thumb"]?.toString()??''; if(img.isEmpty)img=s["image"]?.toString()??''; if(img.isEmpty)img=s["image2"]?.toString()??'';
                   return GestureDetector(
-                    onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(s), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+                    onTap:()=>Navigator.push(context,appRoute(StoreDetailPage(store:Map<String,dynamic>.from(s), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
                     child:Container(padding:const EdgeInsets.all(12),
                       decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),
                         boxShadow:[BoxShadow(color:Colors.black.withValues(alpha: .05),blurRadius:8,offset:const Offset(0,2))]),
                       child:Row(children:[
                         ClipRRect(borderRadius:BorderRadius.circular(10),child:SizedBox(width:62,height:62,
                           child:img.isNotEmpty&&img.startsWith("data:image")
-                            ? Image.memory(base64Decode(img.split(",").last),fit:BoxFit.cover)
+                            ? Image.memory(decodeBase64ImageCached(img),fit:BoxFit.cover)
                             : Container(color:kAccent,child:const Icon(Icons.store,color:kPrimary,size:28)))),
                         const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -3102,7 +2724,7 @@ class _ViewAllPageState extends State<_ViewAllPage>{
 
   @override Widget build(BuildContext context){
     final filtered = _filtered;
-    final scrH = MediaQuery.of(context).size.height;
+    final scrH = MediaQuery.sizeOf(context).height;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -3143,7 +2765,7 @@ class _ViewAllPageState extends State<_ViewAllPage>{
             itemBuilder:(_,i)=>Padding(
               padding:const EdgeInsets.only(bottom:10),
               child:GestureDetector(
-                onTap:()=>Navigator.push(context,_route(StoreDetailPage(store:Map<String,dynamic>.from(filtered[i]), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+                onTap:()=>Navigator.push(context,appRoute(StoreDetailPage(store:Map<String,dynamic>.from(filtered[i]), token:widget.token, userName:"", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
                 child:TopStoreCard(store:filtered[i]),
               ),
             )),
@@ -3325,7 +2947,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                   child: ConstrainedBox(
                                     constraints: const BoxConstraints(maxHeight: 240),
                                     child: imgUrl.startsWith("data:image")
-                                      ? Image.memory(base64Decode(imgUrl.split(",").last), width: double.infinity, fit: BoxFit.contain, gaplessPlayback: true)
+                                      ? Image.memory(decodeBase64ImageCached(imgUrl), width: double.infinity, fit: BoxFit.contain, gaplessPlayback: true)
                                       : CachedNetworkImage(imageUrl: imgUrl, width: double.infinity, fit: BoxFit.contain,
                                           placeholder: (_, __) => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: kPrimary))),
                                           errorWidget: (_, __, ___) => const SizedBox(height: 80, child: Icon(Icons.broken_image_outlined, color: kMuted, size: 40))),
@@ -3364,7 +2986,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             width: 52, height: 52,
                             child: imgUrl.isNotEmpty
                                 ? (imgUrl.startsWith("data:image")
-                                    ? Image.memory(base64Decode(imgUrl.split(",").last), fit: BoxFit.cover, gaplessPlayback: true)
+                                    ? Image.memory(decodeBase64ImageCached(imgUrl), fit: BoxFit.cover, gaplessPlayback: true)
                                     : CachedNetworkImage(imageUrl: imgUrl, fit: BoxFit.cover,
                                         placeholder: (_, __) => Container(color: kLight),
                                         errorWidget: (_, __, ___) => Container(color: kLight,
@@ -3498,7 +3120,7 @@ class _BrowseByCategoriesSection extends StatelessWidget {
                   merged.add(fb);
                 }
               }
-              Navigator.push(context, _route(_CategoryListScreen(cats: merged, token: token, userLat: userLat, userLng: userLng, selectedCity: selectedCity)));
+              Navigator.push(context, appRoute(_CategoryListScreen(cats: merged, token: token, userLat: userLat, userLng: userLng, selectedCity: selectedCity)));
             },
             child: Container(
               height: 110,
@@ -3527,7 +3149,7 @@ class _BrowseByCategoriesSection extends StatelessWidget {
 
   void _openCategory(BuildContext context, Map<String,dynamic> cat) {
     final catName = cat["name"].toString();
-    Navigator.push(context, _route(_CategoryStoresScreen(
+    Navigator.push(context, appRoute(_CategoryStoresScreen(
       key: ValueKey(catName),
       categoryName: catName, token: token,
       userLat: userLat, userLng: userLng,
@@ -3548,7 +3170,7 @@ class _CategoryCard extends StatelessWidget {
     String _rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     // Resolve relative URLs to absolute
     if (_rawImg.isNotEmpty && _rawImg.startsWith("/")) {
-      _rawImg = "https://offro-backend-production.up.railway.app$_rawImg";
+      _rawImg = resolveImageUrl(_rawImg);
     }
     final bool _isBase64 = _rawImg.startsWith("data:image");
     final bool _isHttp   = _rawImg.startsWith("http://") || _rawImg.startsWith("https://");
@@ -3559,7 +3181,7 @@ class _CategoryCard extends StatelessWidget {
       try {
         final commaIdx = _rawImg.indexOf(",");
         if (commaIdx >= 0) {
-          _imgBytes = base64Decode(_rawImg.substring(commaIdx + 1));
+          _imgBytes = decodeBase64ImageCached(_rawImg);
         }
       } catch (_) { _imgBytes = null; }
     }
@@ -3737,10 +3359,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
           final lat = _safeDouble(m["latitude"]) ?? _safeDouble(m["lat"]);
           final lng = _safeDouble(m["longitude"]) ?? _safeDouble(m["lng"]);
           if (lat != null && lng != null) {
-            final dlat = (widget.userLat! - lat) * 0.01745329251;
-            final dlng = (widget.userLng! - lng) * 0.01745329251;
-            final a = (dlat/2)*(dlat/2) + (dlng/2)*(dlng/2) * 0.99664719 * 0.99664719;
-            final dist = 6371.0 * 2 * 0.0174533 * (a < 1 ? a : 1);
+            final dist = haversineKm(widget.userLat!, widget.userLng!, lat, lng);
             m["distance_km"] = double.parse(dist.toStringAsFixed(1));
           }
         }
@@ -3874,7 +3493,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                         store: Map<String,dynamic>.from(_filtered[i]),
                         token: widget.token,
                         userName: "",
-                        onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))),
+                        onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))),
                       ))),
                     child: TopStoreCard(store: _filtered[i]),
                   ),
@@ -3972,7 +3591,7 @@ class _PinterestCategoryGrid extends StatelessWidget {
 
   void _open(BuildContext ctx, Map<String,dynamic> cat) {
     final name = cat["name"].toString();
-    Navigator.push(ctx, _route(_CategoryStoresScreen(
+    Navigator.push(ctx, appRoute(_CategoryStoresScreen(
       key: ValueKey(name), categoryName: name, token: token,
       userLat: userLat, userLng: userLng,
       selectedCity: selectedCity)));
@@ -4149,7 +3768,7 @@ class _PinCard extends StatelessWidget {
     // ── Image resolution ──
     String rawImg = (cat["image_url"] ?? cat["image"] ?? cat["img"] ?? cat["photo"] ?? "").toString().trim();
     if (rawImg.isNotEmpty && rawImg.startsWith("/")) {
-      rawImg = "https://offro-backend-production.up.railway.app$rawImg";
+      rawImg = resolveImageUrl(rawImg);
     }
     final bool isBase64 = rawImg.startsWith("data:image");
     final bool isHttp   = rawImg.startsWith("http://") || rawImg.startsWith("https://");
@@ -4157,7 +3776,7 @@ class _PinCard extends StatelessWidget {
     if (isBase64) {
       try {
         final ci = rawImg.indexOf(",");
-        if (ci >= 0) imgBytes = base64Decode(rawImg.substring(ci + 1));
+        if (ci >= 0) imgBytes = decodeBase64ImageCached(rawImg);
       } catch (_) { }
     }
 
@@ -4276,493 +3895,6 @@ class _PinCard extends StatelessWidget {
 }
 
 
-// ══════════════════════════════════════════════════════════════════
-class _SpecialFindsSection extends StatelessWidget {
-  final List<Map<String,dynamic>> stores;
-  final String token;
-  const _SpecialFindsSection({required this.stores, required this.token});
-
-  static const List<Map<String,dynamic>> _defs = [
-    {"label":"People Love",       "filter":"popular",   "fallback1":0xFFFF6B6B,"fallback2":0xFFFF8E53},
-    {"label":"Late Night Spots",  "filter":"latenight", "fallback1":0xFF1a2550,"fallback2":0xFF2C3E7A},
-    {"label":"Just Opened",       "filter":"new",       "fallback1":0xFF2E7D5E,"fallback2":0xFF1a5040},
-    {"label":"Popular This Week", "filter":"trending",  "fallback1":0xFFE67E22,"fallback2":0xFFD35400},
-  ];
-
-  List<Map<String,dynamic>> _ranked(String type) {
-    if (stores.isEmpty) return [];
-    final list = List<Map<String,dynamic>>.from(stores);
-    switch (type) {
-      case "popular":
-        list.sort((a, b) {
-          final pa = (a["is_popular"] == true) ? 3 : (a["favorite_count"] ?? 0) > 0 ? 2 : 1;
-          final pb = (b["is_popular"] == true) ? 3 : (b["favorite_count"] ?? 0) > 0 ? 2 : 1;
-          if (pa != pb) return pb.compareTo(pa);
-          final fc = ((b["favorite_count"] ?? 0) as num).compareTo((a["favorite_count"] ?? 0) as num);
-          if (fc != 0) return fc;
-          return ((b["rating"] ?? 0) as num).compareTo((a["rating"] ?? 0) as num);
-        });
-        return list.take(5).toList();
-      case "latenight":
-        final lateKeywords = ["late night","late","night","24","open late","night service"];
-        final late = list.where((s) {
-          if (s["late_night"] == true) return true;
-          final tags = ((s["tags"] ?? []) as List).map((t) => t.toString().toLowerCase());
-          return tags.any((t) => lateKeywords.any((k) => t.contains(k)));
-        }).toList();
-        if (late.isNotEmpty) {
-          late.sort((a,b) => ((b["rating"]??0) as num).compareTo((a["rating"]??0) as num));
-          return late.take(5).toList();
-        }
-        return [];
-      case "new":
-        final now = DateTime.now();
-        final newS = list.where((s) {
-          final tags = ((s["tags"] ?? []) as List).map((t) => t.toString().toLowerCase());
-          if (tags.any((t) => ["new","just opened","newly opened","grand opening"].any((k) => t.contains(k)))) return true;
-          final cs = s["created_at"]?.toString() ?? "";
-          if (cs.isNotEmpty) {
-            try { final dt = DateTime.tryParse(cs); if (dt != null && now.difference(dt).inDays <= 14) return true; } catch (_) { }
-          }
-          return false;
-        }).toList();
-        if (newS.isNotEmpty) {
-          newS.sort((a,b) => ((b["favorite_count"]??0) as num).compareTo((a["favorite_count"]??0) as num));
-          return newS.take(5).toList();
-        }
-        final withDate = list.where((s) => (s["created_at"]?.toString() ?? "").isNotEmpty).toList();
-        withDate.sort((a,b) => (b["created_at"]?.toString() ?? "").compareTo(a["created_at"]?.toString() ?? ""));
-        return withDate.isNotEmpty ? withDate.take(3).toList() : list.take(3).toList();
-      case "trending":
-        list.sort((a, b) {
-          final ta = (a["is_trending"] == true) ? 1 : 0;
-          final tb = (b["is_trending"] == true) ? 1 : 0;
-          if (ta != tb) return tb.compareTo(ta);
-          final vc = ((b["view_count"] ?? 0) as num).compareTo((a["view_count"] ?? 0) as num);
-          if (vc != 0) return vc;
-          final dc = ((b["deal_count"] ?? 0) as num).compareTo((a["deal_count"] ?? 0) as num);
-          if (dc != 0) return dc;
-          return ((b["rating"] ?? 0) as num).compareTo((a["rating"] ?? 0) as num);
-        });
-        return list.take(5).toList();
-      default:
-        return list.take(5).toList();
-    }
-  }
-
-  String? _storeImg(Map<String,dynamic> s) {
-    for (final k in ["image_url","image_thumb","image","image2"]) {
-      final v = s[k]?.toString() ?? "";
-      if (v.isNotEmpty && v.startsWith("http")) return v;
-    }
-    final imgs = s["images"];
-    if (imgs is List && imgs.isNotEmpty) {
-      final v = imgs.first.toString();
-      if (v.startsWith("http")) return v;
-    }
-    return null;
-  }
-
-  @override Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-            Text("Special Finds",
-              style: TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
-            SizedBox(height: 2),
-            Text("Handpicked just for you",
-              style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
-        ),
-        SizedBox(
-          height: 168,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: _defs.length,
-            itemBuilder: (_, i) {
-              final def          = _defs[i];
-              final ranked       = _ranked(def["filter"] as String);
-              final imgUrl       = ranked.isNotEmpty ? _storeImg(ranked[0]) : null;
-              final storeCount   = ranked.length;
-              final color1       = Color(def["fallback1"] as int);
-              final color2       = Color(def["fallback2"] as int);
-              final isComingSoon = def["filter"] == "latenight" && ranked.isEmpty;
-              final label        = def["label"] as String;
-
-              return GestureDetector(
-                onTap: () {
-                  if (ranked.isEmpty) return;
-                  Navigator.push(context, _route(_SpecialCategoryScreen(
-                    label: label,
-                    emoji: "",
-                    stores: ranked,
-                    token: token,
-                    color1: color1,
-                    color2: color2,
-                  )));
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: SizedBox(
-                    width: 160,
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft, end: Alignment.bottomRight,
-                          colors: [color1, color2]),
-                        boxShadow: [BoxShadow(
-                          color: Colors.black.withValues(alpha: .14),
-                          blurRadius: 14, offset: const Offset(0, 4))],
-                      ),
-                      child: Stack(fit: StackFit.expand, children: [
-                        // ── Background image (always shown, even for Coming Soon) ──
-                        if (imgUrl != null)
-                          Positioned.fill(child: CachedNetworkImage(
-                            imageUrl: imgUrl,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: [color1, color2]))),
-                            errorWidget: (_, __, ___) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: [color1, color2]))),
-                          ))
-                        else
-                          // No image yet — gradient background
-                          Positioned.fill(child: Container(
-                            decoration: BoxDecoration(gradient: LinearGradient(
-                              begin: Alignment.topLeft, end: Alignment.bottomRight,
-                              colors: [color1, color2])),
-                          )),
-
-                        // ── Transparent ribbon at bottom ──
-                        Positioned(
-                          left: 0, right: 0, bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: .58),
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft:  Radius.circular(22),
-                                bottomRight: Radius.circular(22),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(label,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.2,
-                                  )),
-                                const SizedBox(height: 3),
-                                Text(
-                                  isComingSoon
-                                    ? "Coming Soon"
-                                    : "$storeCount Store${storeCount == 1 ? "" : "s"}",
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: .80),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _PopularAreasSection extends StatelessWidget {
-  final List<Map<String,dynamic>> stores;
-  final String token;
-  const _PopularAreasSection({required this.stores, required this.token});
-
-  // ── Build area list from store.area field ─────────────────────────
-  // All keys where a store image might live
-  static const _imgKeys = [
-    "image_url","image_thumb","image","image2","logo_url","logo","img","photo",
-    "_thumb","banner","cover","thumbnail","store_image","store_image2",
-  ];
-
-  String? _pickImg(Map<String,dynamic> store) {
-    bool _validImg(String v) =>
-        v.isNotEmpty && (v.startsWith("http") || v.startsWith("data:image"));
-    for (final k in _imgKeys) {
-      final v = store[k]?.toString() ?? "";
-      if (_validImg(v)) return v;
-    }
-    // Try images array
-    final imgs = store["images"];
-    if (imgs is List) {
-      for (final img in imgs) {
-        final v = img?.toString() ?? "";
-        if (_validImg(v)) return v;
-      }
-    }
-    return null;
-  }
-
-  List<Map<String,dynamic>> _buildAreas() {
-    final Map<String, List<Map<String,dynamic>>> grouped = {};
-    for (final s in stores) {
-      final area = (s["area"] ?? "").toString().trim();
-      if (area.isEmpty || area == "null") continue;
-      grouped.putIfAbsent(area, () => []).add(s);
-    }
-    if (grouped.isEmpty) return [];
-
-    return grouped.entries.map((e) {
-      final areaStores = e.value;
-      // Priority: most favorited → highest rated → most viewed → any with image
-      String? imgUrl;
-
-      // Sort by favorites first, then rating, then views
-      final sorted = List<Map<String,dynamic>>.from(areaStores)
-        ..sort((a, b) {
-          final fa = (a["favorite_count"] ?? 0) as num;
-          final fb = (b["favorite_count"] ?? 0) as num;
-          if (fb != fa) return fb.compareTo(fa);
-          final ra = (a["rating"] ?? a["admin_rating"] ?? 0) as num;
-          final rb = (b["rating"] ?? b["admin_rating"] ?? 0) as num;
-          if (rb != ra) return rb.compareTo(ra);
-          final va = (a["view_count"] ?? 0) as num;
-          final vb = (b["view_count"] ?? 0) as num;
-          return vb.compareTo(va);
-        });
-
-      // Try priority-sorted stores first
-      for (final s in sorted) {
-        imgUrl = _pickImg(s);
-        if (imgUrl != null) break;
-      }
-      // Last resort: iterate ALL stores in area
-      if (imgUrl == null) {
-        for (final s in areaStores) {
-          imgUrl = _pickImg(s);
-          if (imgUrl != null) break;
-        }
-      }
-
-      return {
-        "name":      e.key,
-        "count":     e.value.length,
-        "image_url": imgUrl ?? "",
-        "stores":    areaStores,
-        "subtitle":  "",
-      };
-    }).toList()
-      ..sort((a,b) => (b["count"] as int).compareTo(a["count"] as int));
-  }
-
-  @override Widget build(BuildContext context) {
-    final areas = _buildAreas();
-    if (areas.isEmpty) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header with "See all areas →"
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-                Text("Popular Areas",
-                  style: TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
-                SizedBox(height: 2),
-                Text("Discover local neighbourhoods",
-                  style: TextStyle(color: kMuted, fontSize: 12)),
-              ]),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => Navigator.push(context, _route(_AllAreasScreen(
-                  stores: stores, token: token))),
-                child: const Text("See all areas →",
-                  style: TextStyle(
-                    color: kPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-        ),
-        // Horizontal scroll — identical structure to Special Finds
-        SizedBox(
-          height: 168,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            itemCount: areas.length > 8 ? 8 : areas.length,
-            itemBuilder: (_, i) {
-              final area = areas[i];
-              final _areaImg = area["image_url"] as String;
-              final _areaGrad = _AreaBg._fallbackGrads[
-                (area["name"] as String).isEmpty ? 0
-                : (area["name"] as String).codeUnitAt(0) % _AreaBg._fallbackGrads.length
-              ];
-              return GestureDetector(
-                onTap: () => Navigator.push(context, _route(_AreaDetailScreen(
-                  areaName:  area["name"] as String,
-                  stores:    List<Map<String,dynamic>>.from(area["stores"] as List),
-                  token:     token,
-                ))),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(22),
-                  child: SizedBox(
-                    width: 160,
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(22),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft, end: Alignment.bottomRight,
-                          colors: _areaGrad),
-                        boxShadow: [BoxShadow(
-                          color: Colors.black.withValues(alpha: .14),
-                          blurRadius: 14, offset: const Offset(0, 4))],
-                      ),
-                      child: Stack(fit: StackFit.expand, children: [
-                        // ── Full-bleed background image (same as SF) ──
-                        if (_areaImg.isNotEmpty)
-                          Positioned.fill(child: CachedNetworkImage(
-                            imageUrl: _areaImg,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: _areaGrad))),
-                            errorWidget: (_, __, ___) => Container(
-                              decoration: BoxDecoration(gradient: LinearGradient(
-                                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                                colors: _areaGrad))),
-                          ))
-                        else
-                          Positioned.fill(child: Container(
-                            decoration: BoxDecoration(gradient: LinearGradient(
-                              begin: Alignment.topLeft, end: Alignment.bottomRight,
-                              colors: _areaGrad)),
-                            child: Center(child: Text(
-                              (area["name"] as String).trim().split(" ").take(2)
-                                .map((w) => w.isEmpty ? "" : w[0].toUpperCase()).join(),
-                              style: const TextStyle(color: Colors.white38, fontSize: 42, fontWeight: FontWeight.w900),
-                            )),
-                          )),
-
-                        // ── Ribbon — exact SF style ──
-                        Positioned(
-                          left: 0, right: 0, bottom: 0,
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: .58),
-                              borderRadius: const BorderRadius.only(
-                                bottomLeft:  Radius.circular(22),
-                                bottomRight: Radius.circular(22),
-                              ),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(area["name"] as String,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.2,
-                                  )),
-                                const SizedBox(height: 3),
-                                Text(
-                                  "${area["count"]} Store${(area["count"] as int) == 1 ? "" : "s"}",
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: .80),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-// Background image widget for area card
-class _AreaBg extends StatelessWidget {
-  final String imgUrl;
-  final String areaName;
-  const _AreaBg({required this.imgUrl, this.areaName = ""});
-
-  static const List<List<Color>> _fallbackGrads = [
-    [Color(0xFF1a3329), Color(0xFF3E5F55)],
-    [Color(0xFF1a2535), Color(0xFF2C4A7A)],
-    [Color(0xFF3b2a1a), Color(0xFF7a5533)],
-    [Color(0xFF2a1a35), Color(0xFF6A3FA0)],
-    [Color(0xFF1a3340), Color(0xFF2C7A8C)],
-    [Color(0xFF3E2020), Color(0xFF8C3F3F)],
-  ];
-
-  @override Widget build(BuildContext context) {
-    if (imgUrl.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imgUrl, fit: BoxFit.cover,
-        width: double.infinity, height: double.infinity,
-        errorWidget: (_, __, ___) => _fallback(),
-      );
-    }
-    return _fallback();
-  }
-
-  Widget _fallback() {
-    final grad = _fallbackGrads[(areaName.isEmpty ? 0 : areaName.codeUnitAt(0)) % _fallbackGrads.length];
-    final initials = areaName.trim().isEmpty ? "?"
-        : areaName.trim().split(" ").take(2).map((w) => w.isEmpty ? "" : w[0].toUpperCase()).join();
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: grad)),
-      child: Center(child: Text(initials,
-        style: const TextStyle(color: Colors.white38, fontSize: 42, fontWeight: FontWeight.w900))),
-    );
-  }
-}
-
-
-
 // ─────────────────────── ALL DEALS SCREEN ───────────────────────
 class _AllDealsScreen extends StatefulWidget {
   final String token;
@@ -4852,15 +3984,6 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     return null;
   }
 
-  String _fmtDate(String s) {
-    // Guard: reject raw Dart template strings stored accidentally in DB
-    if (s.contains('dt.day') || s.contains('months[') || s.contains(r'\$') || (s.contains('{') && s.contains('}'))) return "";
-    final dt = _parseDate(s);
-    if (dt == null) return "";
-    final months = ["Jan","Feb","Mar","Apr","May","Jun",
-                    "Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "${dt.day} ${months[dt.month-1]} ${dt.year}";
-  }
 
   bool _isExpired(String s) {
     final dt = _parseDate(s);
@@ -4948,7 +4071,6 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                   itemBuilder: (ctx, i) {
                     final d = items[i];
                     final imgUrl  = (d["image_url"]  ?? "").toString();
-                    final discount= (d["discount"]   ?? "").toString();
                     final endDate = (d["end_date"]   ?? "").toString();
                     final storeName = (d["store_name"] ?? "").toString();
                     final storeArea = (d["store_area"] ?? "").toString();
@@ -4987,8 +4109,8 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                           "image_url":  imgUrl,
                           "category":   (d["category"] ?? "").toString(),
                         };
-                        Navigator.push(ctx, _route(
-                          StoreDetailPage(store: store, token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))))));
+                        Navigator.push(ctx, appRoute(
+                          StoreDetailPage(store: store, token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
                       },
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
@@ -5020,18 +4142,10 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                           Expanded(child: Padding(
                             padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              // Discount badge
-                              if (discount.isNotEmpty && !expired)
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 5),
-                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: kPrimary,
-                                    borderRadius: BorderRadius.circular(20)),
-                                  child: Text(
-                                    discount.contains('%') ? discount : "${discount}% OFF",
-                                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
-                                ),
+                              // QA fix: percentage/discount badge removed from
+                              // the Hot Deals LIST card (still shown in the
+                              // deal's own full detail/gallery view — only
+                              // this list presentation was asked to drop it).
                               if (expired)
                                 Container(
                                   margin: const EdgeInsets.only(bottom: 5),
@@ -5066,20 +4180,8 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                                     style: const TextStyle(fontSize: 11, color: kMuted)),
                                 ]),
                               ],
-                              // Validity
-                              if (endDate.isNotEmpty && !endDate.contains('dt.day') && !endDate.contains(r'\${')) ...[
-                                const SizedBox(height: 4),
-                                Row(children: [
-                                  Icon(Icons.calendar_today_rounded, size: 11,
-                                    color: expired ? Colors.red : kMuted),
-                                  const SizedBox(width: 4),
-                                  Text("Valid till ${_fmtDate(endDate)}",
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: expired ? Colors.red : kMuted,
-                                      fontWeight: expired ? FontWeight.w600 : FontWeight.normal)),
-                                ]),
-                              ],
+                              // QA fix: validity/"Valid till" date line removed
+                              // from the Hot Deals LIST card presentation.
                             ]),
                           )),
                           // Chevron
@@ -5223,7 +4325,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
               final count  = area["count"] as int;
               final name   = area["name"] as String;
               return GestureDetector(
-                onTap: () => Navigator.push(context, _route(_AreaDetailScreen(
+                onTap: () => Navigator.push(context, appRoute(_AreaDetailScreen(
                   areaName: name,
                   stores: List<Map<String,dynamic>>.from(area["stores"] as List),
                   token: widget.token,
@@ -5379,63 +4481,13 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
                   padding: const EdgeInsets.only(bottom: 10),
                   child: GestureDetector(
                     onTap: () => Navigator.push(context,
-                      _route(StoreDetailPage(store: Map<String,dynamic>.from(filtered[i]), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
+                      appRoute(StoreDetailPage(store: Map<String,dynamic>.from(filtered[i]), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))),
                     child: TopStoreCard(store: filtered[i]),
                   ),
                 ),
                 childCount: filtered.length,
               )),
             ),
-      ]),
-    );
-  }
-}
-
-class _SpecialCategoryScreen extends StatelessWidget {
-  final String label, emoji, token;
-  final List<Map<String,dynamic>> stores;
-  final Color color1, color2;
-  const _SpecialCategoryScreen({
-    required this.label, required this.emoji, required this.token,
-    required this.stores, required this.color1, required this.color2,
-  });
-
-  @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: CustomScrollView(slivers: [
-        SliverAppBar(
-          pinned: true,
-          backgroundColor: Colors.white,
-          foregroundColor: kText,
-          elevation: 0,
-          expandedHeight: 0,
-          toolbarHeight: 52,
-          title: Text(label,
-            style: const TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
-          centerTitle: false,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Divider(height: 1, color: kBorder),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 80),
-          sliver: stores.isEmpty
-            ? const SliverToBoxAdapter(child: Center(child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Text("No stores found", style: TextStyle(color: kMuted)))))
-            : SliverList(delegate: SliverChildBuilderDelegate(
-                (_, i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: GestureDetector(
-                    onTap: () => Navigator.push(context, _route(StoreDetailPage(store: Map<String,dynamic>.from(stores[i]), token: token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))),
-                    child: TopStoreCard(store: stores[i]),
-                  ),
-                ),
-                childCount: stores.length,
-              )),
-        ),
       ]),
     );
   }
@@ -5459,12 +4511,15 @@ class _CityHeroSection extends StatelessWidget {
   // purely additive change. Mirrors _adminBannersLoading's role for
   // _BannerStoresBlock.
   final bool imageLoading;
+  final String locationTitle;    // locality, else area, else city
+  final String locationSubtitle; // e.g. "Cowl Bazaar, Ballari, Karnataka"
   final VoidCallback onCityTap;
   final VoidCallback onBellTap;
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     required this.cityManual, required this.unreadCount,
     this.imageLoading = false,
+    this.locationTitle = '', this.locationSubtitle = '',
     required this.onCityTap, required this.onBellTap,
   });
 
@@ -5477,18 +4532,37 @@ class _CityHeroSection extends StatelessWidget {
   }
 
   @override Widget build(BuildContext context) {
-    final displayCity = (city.isNotEmpty && city != "Detecting...") ? city : "Your City";
+    final displayCity = city.isNotEmpty ? city : "Your City";
     final topPad = MediaQuery.of(context).padding.top;
 
     return LayoutBuilder(builder: (ctx, constraints) {
       final heroH = constraints.maxWidth * (2.0 / 3.0) + topPad;
+      Widget gradientBox() => Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft, end: Alignment.bottomRight,
+            colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+          ),
+        ),
+      );
+      Widget memoryHero() {
+        try {
+          return Image.memory(
+            decodeBase64ImageCached(cityImageUrl),
+            fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+            cacheWidth: 900, gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => gradientBox());
+        } catch (_) { return gradientBox(); }
+      }
     return SizedBox(
       height: heroH,
       width: double.infinity,
       child: Stack(fit: StackFit.expand, children: [
 
         // ── Background: network image OR brand gradient ──
-        cityImageUrl.isNotEmpty
+        cityImageUrl.startsWith("data:image")
+          ? memoryHero()
+          : cityImageUrl.isNotEmpty
           ? CachedNetworkImage(
               imageUrl: cityImageUrl,
               fit: BoxFit.cover,
@@ -5501,7 +4575,7 @@ class _CityHeroSection extends StatelessWidget {
               // fills that box during the brief loading window, not the
               // box itself. A genuine failure still falls back to the
               // original plain gradient below (errorWidget, unchanged).
-              placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
+              placeholder: (_, __) => shimmerBox(width: double.infinity, height: double.infinity),
               errorWidget: (_, __, ___) => Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -5520,7 +4594,7 @@ class _CityHeroSection extends StatelessWidget {
           // before its own data has actually arrived. Once imageLoading is
           // false, this falls through to the exact original fallback.
           : imageLoading
-            ? _shimmerBox(width: double.infinity, height: double.infinity)
+            ? shimmerBox(width: double.infinity, height: double.infinity)
             : Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -5551,22 +4625,35 @@ class _CityHeroSection extends StatelessWidget {
         // ── TOP ROW: city picker + bell ──
         Positioned(top: topPad + 10, left: 16, right: 16,
           child: Row(children: [
-            GestureDetector(
+            Expanded(child: Align(alignment: Alignment.centerLeft, child: GestureDetector(
               onTap: onCityTap,
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(
                   cityManual ? Icons.edit_location_alt_rounded : Icons.location_on_rounded,
                   color: Colors.white, size: 20),
                 const SizedBox(width: 4),
-                Text(
-                  city.isNotEmpty ? city : "Detecting...",
-                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800,
-                    shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
+                Flexible(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      locationTitle.isNotEmpty ? locationTitle : (city.isNotEmpty ? city : "Select location"),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800,
+                        shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
+                    if (locationSubtitle.isNotEmpty)
+                      Text(
+                        locationSubtitle,
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600,
+                          shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
+                  ],
+                )),
                 const SizedBox(width: 2),
                 const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
               ]),
-            ),
-            const Spacer(),
+            ))),
+            const SizedBox(width: 12),
             GestureDetector(
               onTap: onBellTap,
               child: Stack(clipBehavior: Clip.none, children: [
@@ -5724,77 +4811,6 @@ class _CategoryChipsRow extends StatelessWidget {
 }
 
 
-// ─── 3. Sponsored Banner + Featured Stores (combined gradient card) ──
-// ═══════════════════════════════════════════════════════
-// 4. Banner Section — clean image, downward gradient
-// ═══════════════════════════════════════════════════════
-class _BannerSection extends StatelessWidget {
-  final List<Map<String,dynamic>> sliders;
-  final PageController sliderPc;
-  final ValueNotifier<int> sliderPageNotifier;
-  final String token;
-  final ValueChanged<int> onSliderPageChanged;
-  const _BannerSection({
-    required this.sliders, required this.sliderPc, required this.sliderPageNotifier,
-    required this.token, required this.onSliderPageChanged,
-  });
-
-  @override Widget build(BuildContext context) {
-    if (sliders.isEmpty) {
-      return const SizedBox(height: 170,
-        child: Center(child: CircularProgressIndicator(color: Color(0xFFA9CDBA), strokeWidth: 2)));
-    }
-    return Column(children: [
-      const SizedBox(height: 16),
-      LayoutBuilder(
-        builder: (context, constraints) {
-          final bannerWidth  = constraints.maxWidth - 20; // 10px padding each side
-          final bannerHeight = (bannerWidth / 2.35).clamp(140.0, 220.0);
-          return SizedBox(
-            height: bannerHeight,
-            child: PageView.builder(
-              controller: sliderPc,
-              clipBehavior: Clip.hardEdge,
-              itemCount: sliders.length > 1 ? 99999 : sliders.length,
-              onPageChanged: onSliderPageChanged,
-              itemBuilder: (_, i) {
-                final s = sliders[i % sliders.length];
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
-                  child: PromoSliderCard(
-                    slider: Map<String,dynamic>.from(s as Map),
-                    token: token,
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      ),
-      if (sliders.length > 1) ...[
-        const SizedBox(height: 8),
-        ValueListenableBuilder<int>(
-          valueListenable: sliderPageNotifier,
-          builder: (_, page, __) => Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            ...List.generate(sliders.length > 5 ? 5 : sliders.length, (i) => AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: (i == page % (sliders.length > 5 ? 5 : sliders.length)) ? 20 : 6,
-              height: 6, margin: const EdgeInsets.only(right: 4),
-              decoration: BoxDecoration(
-                color: (i == page % (sliders.length > 5 ? 5 : sliders.length))
-                  ? const Color(0xFF3E5F55) : const Color(0xFFd4e8de),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            )),
-          ]),
-        ),
-      ],
-    ]);
-  }
-}
-
-
-
 // ═══════════════════════════════════════════════════════
 // 6. Discover Products — clean horizontal cards, no background
 // ═══════════════════════════════════════════════════════
@@ -5802,13 +4818,53 @@ class _DiscoverProductsSection extends StatelessWidget {
   final List<Map<String,dynamic>> products;
   final VoidCallback onViewAll;
   final String token;
-  final String defaultProductImageUrl;
+  final List<String> defaultProductImageUrls;
+  final bool loading;
   const _DiscoverProductsSection({
     required this.products,
     required this.onViewAll,
     this.token = "",
-    this.defaultProductImageUrl = "",
+    this.defaultProductImageUrls = const [],
+    this.loading = false,
   });
+
+  // Skeleton shown while the real products are still being fetched — same
+  // header + Bento footprint (1 large + 2 small), so nothing shifts when the
+  // real cards replace it.
+  Widget _loadingSkeleton() {
+    const double h = 270;
+    BorderRadius r() => BorderRadius.circular(18);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text("Discover Products",
+              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
+          ]),
+        ),
+        SizedBox(
+          height: h,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              shimmerBox(width: 190, height: h, borderRadius: r()),
+              const SizedBox(width: 10),
+              Column(children: [
+                shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
+                const SizedBox(height: 10),
+                shimmerBox(width: 150, height: (h - 10) / 2, borderRadius: r()),
+              ]),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
 
   static num? _numVal(Map v, List<String> keys) {
     for (final k in keys) {
@@ -5862,21 +4918,25 @@ class _DiscoverProductsSection extends StatelessWidget {
     );
   }
 
-  Widget _defaultProductPlaceholder(BuildContext context) {
-    final imgUrl = defaultProductImageUrl;
-    Widget imgW;
+  Widget _defaultProductImage(String imgUrl) {
     if (imgUrl.startsWith("data:image")) {
       try {
-        imgW = Image.memory(base64Decode(imgUrl.split(",").last),
+        return Image.memory(decodeBase64ImageCached(imgUrl),
           fit: BoxFit.cover, width: double.infinity, gaplessPlayback: true);
-      } catch (_) { imgW = Container(color: const Color(0xFFe8f5f0)); }
+      } catch (_) { return Container(color: const Color(0xFFe8f5f0)); }
     } else if (imgUrl.startsWith("http")) {
-      imgW = Image.network(imgUrl, fit: BoxFit.cover, width: double.infinity,
+      return Image.network(imgUrl, fit: BoxFit.cover, width: double.infinity,
         errorBuilder: (_, __, ___) => Container(color: const Color(0xFFe8f5f0)));
-    } else {
-      imgW = Container(color: const Color(0xFFe8f5f0),
-        child: const Icon(Icons.image_not_supported_outlined, color: Color(0xFF6b8c7e), size: 36));
     }
+    return Container(color: const Color(0xFFe8f5f0),
+      child: const Icon(Icons.image_not_supported_outlined, color: Color(0xFF6b8c7e), size: 36));
+  }
+
+  // Renders ALL configured default product images (not a hardcoded count) —
+  // a single image keeps the original full-width look; multiple images lay
+  // out as a scrollable row of cards.
+  Widget _defaultProductPlaceholder(BuildContext context) {
+    final urls = defaultProductImageUrls;
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -5888,20 +4948,350 @@ class _DiscoverProductsSection extends StatelessWidget {
             Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
           ]),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(height: 170, width: double.infinity, child: imgW),
+        if (urls.length <= 1)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(height: 170, width: double.infinity,
+                child: _defaultProductImage(urls.isNotEmpty ? urls.first : "")),
+            ),
+          )
+        else
+          SizedBox(
+            height: 170,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: urls.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) => ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(width: 170, height: 170, child: _defaultProductImage(urls[i])),
+              ),
+            ),
           ),
-        ),
       ]),
     );
   }
 
+  // Groups product indices into Bento blocks: a group of 3 renders as
+  // 1 feature card + 2 stacked small cards; leftover groups of 2 or 1 fall
+  // back to simpler side-by-side / single-card blocks. Works for any count —
+  // the QA report that "Bento products are not appearing" traced to this
+  // Home Screen (lib/main.dart) never having received the Bento redesign in
+  // the first place (it lived only in an unused duplicate file); this is
+  // that redesign applied to the actual live code.
+  List<List<int>> _bentoGroups(int total) {
+    final groups = <List<int>>[];
+    int i = 0;
+    while (i < total) {
+      final remaining = total - i;
+      if (remaining >= 3) {
+        groups.add([i, i + 1, i + 2]);
+        i += 3;
+      } else if (remaining == 2) {
+        groups.add([i, i + 1]);
+        i += 2;
+      } else {
+        groups.add([i]);
+        i += 1;
+      }
+    }
+    return groups;
+  }
+
+  // Single product card — same visuals/data/navigation as before (white
+  // card, badge, wishlist heart, rating chip, title/seller/price), now
+  // parameterized by size so it can be the big "feature" tile or a smaller
+  // stacked tile inside a Bento block.
+  Widget _productCard(BuildContext ctx, Map<String,dynamic> v, int gradIndex, List<List<Color>> cardGrads,
+      {required double width, required double imgHeight, required double cardHeight, bool compact = false, bool showReviewRow = false}) {
+    final title     = _resolveTitle(v);
+    final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
+    final storeName = _resolveStoreName(v);
+    final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
+    final badge     = discMatch != null ? "${discMatch.group(1)}%" : "";
+    final discLabel = v["discount_label"]?.toString() ?? "";
+    final finalBadge = badge.isNotEmpty ? badge : (discLabel.isNotEmpty ? discLabel : "");
+    final imgSrc    = _resolveImg(v);
+    final grad      = cardGrads[gradIndex % cardGrads.length];
+
+    return GestureDetector(
+      onTap: () => Navigator.push(ctx, MaterialPageRoute(
+        builder: (_) => ProductDetailsPage(product: v, token: token))),
+      child: Container(
+        width: width,
+        height: cardHeight,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0,4))],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Top image
+          Stack(children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
+              child: SizedBox(
+                width: width, height: imgHeight,
+                // QA fix: Bento Home Screen product images were too
+                // zoomed/cropped (BoxFit.cover always fills the box,
+                // cropping whatever doesn't fit the aspect ratio). Switched
+                // to BoxFit.contain on a soft background fill so the whole
+                // product photo is visible, uncropped, the way it actually
+                // looks — same change ProductDetailsPage's own image
+                // rendering is explicitly NOT touched (separate widget).
+                child: imgSrc.startsWith("http")
+                  ? Container(
+                      width: width, height: imgHeight,
+                      color: grad[1],
+                      child: CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
+                        width: width, height: imgHeight,
+                        placeholder: (_, __) => Container(width: width, height: imgHeight, color: grad[1]),
+                        errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]])))
+                  : imgSrc.startsWith("data:image")
+                    ? Container(
+                        width: width, height: imgHeight,
+                        color: grad[1],
+                        child: Builder(builder: (_) {
+                          try {
+                            return Image.memory(decodeBase64ImageCached(imgSrc),
+                              fit: BoxFit.cover, width: width, height: imgHeight,
+                              errorBuilder: (_, __, ___) => _fallback(title, [grad[0], grad[1]]));
+                          } catch (_) {
+                            return _fallback(title, [grad[0], grad[1]]);
+                          }
+                        }))
+                    : Container(width: width, height: imgHeight,
+                        color: const Color(0xFFF5F5F5),
+                        child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
+                          style: TextStyle(color: const Color(0xFF3E5F55), fontSize: compact ? 20 : 26, fontWeight: FontWeight.w900)))),
+              ),
+            ),
+            if (finalBadge.isNotEmpty)
+              Positioned(top: 7, left: 7,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
+                  child: Text(finalBadge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                )),
+            // ── Product wishlist heart — live toggle ──
+            Positioned(top: 6, right: 6,
+              child: StatefulBuilder(
+                builder: (ctx2, setH) {
+                  final _pid0 = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
+                  bool _pFav = FavState.instance.hasProduct(_pid0) || v["_isFav"] == true;
+                  return GestureDetector(
+                    onTap: () async {
+                      final pid = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
+                      if (pid.isEmpty || token.isEmpty) return;
+                      final next = !_pFav;
+                      setH(() { v["_isFav"] = next; _pFav = next; });
+                      FavState.instance.toggleProduct(pid);
+                      try {
+                        await Api.toggleProductFavorite(token, pid);
+                      } catch (e) {
+                        setH(() { v["_isFav"] = !next; _pFav = !next; });
+                        FavState.instance.toggleProduct(pid);
+                        ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
+                          content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+                          backgroundColor: Colors.red.shade700,
+                          duration: const Duration(seconds: 12),
+                          showCloseIcon: true));
+                      }
+                    },
+                    child: Container(
+                      width: 26, height: 26,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .88),
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius: 4)],
+                      ),
+                      child: Icon(
+                        _pFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                        color: _pFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
+                        size: 14),
+                    ),
+                  );
+                },
+              )),
+            // ── Rating chip — bottom-right corner of image (full-size cards
+            // only, and not when the fuller review row below already shows
+            // it — avoids showing the same rating twice on the feature card) ──
+            if (!compact && !showReviewRow) Builder(builder: (_rc) {
+              final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
+              final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
+              if (_pr <= 0) return const SizedBox.shrink();
+              return Positioned(bottom: 6, right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
+                    const SizedBox(width: 1),
+                    Text(_pr.toStringAsFixed(1),
+                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                    if (_pc > 0) Text(" (${_pc})",
+                      style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                  ]),
+                ),
+              );
+            }),
+          ]),
+          // Bottom text with prices — fills remaining card height. Compact
+          // (small stacked) cards keep just title + price to fit their
+          // smaller fixed height without overflowing.
+          Expanded(
+            child: Builder(builder: (_) {
+              num? saleP = _numVal(v, ["offer_price","sale_price","price","current_price"]); // ITEM10
+              num? origP = _numVal(v, ["original_price","mrp","was_price","compare_price"]);
+              if (origP != null && saleP != null && origP <= saleP) origP = null;
+              return Padding(
+                padding: compact
+                    ? const EdgeInsets.fromLTRB(8, 5, 8, 5)
+                    : const EdgeInsets.fromLTRB(10, 6, 10, 7),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.max, children: [
+                  if (title.isNotEmpty)
+                    Text(title,
+                      style: TextStyle(color: const Color(0xFF2c3e35), fontSize: compact ? 12 : 15, fontWeight: FontWeight.w800, height: 1.25),
+                      maxLines: compact ? 1 : 2, overflow: TextOverflow.ellipsis),
+                  if (!compact && storeName.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text("Seller: " + storeName,
+                        style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ),
+                  // QA fix: review/rating info on the large Bento feature
+                  // card — real data only (never hard-coded), simply absent
+                  // (no placeholder/zero shown) when a product has no
+                  // rating yet, so the card stays balanced either way.
+                  if (showReviewRow) Builder(builder: (_rr) {
+                    final _prRaw = v["rating"];
+                    final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
+                    final _pcRaw = v["rating_count"] ?? v["review_count"];
+                    final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
+                    if (_pr <= 0) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 13),
+                        const SizedBox(width: 3),
+                        Text(_pr.toStringAsFixed(1),
+                          style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w700)),
+                        if (_pc > 0) Text(" (${_pc} review${_pc == 1 ? '' : 's'})",
+                          style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
+                      ]),
+                    );
+                  }),
+                  // Spacer anchors the price row to the bottom of the card so
+                  // any slack sits between the text and the price, never as a
+                  // blank band under the price.
+                  const Spacer(),
+                  if (saleP != null && saleP > 0) Padding(
+                    padding: EdgeInsets.only(top: compact ? 4 : 6),
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: compact ? 2 : 3),
+                        decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
+                        child: Text("₹${saleP.toStringAsFixed(0)}",
+                          style: TextStyle(color: const Color(0xFF2c3e35), fontSize: compact ? 12 : 15, fontWeight: FontWeight.w900)),
+                      ),
+                      if (origP != null) ...[
+                        SizedBox(width: compact ? 5 : 6),
+                        Flexible(
+                          child: Text("₹${origP.toStringAsFixed(0)}",
+                            maxLines: 1, softWrap: false, overflow: TextOverflow.fade,
+                            style: TextStyle(
+                              color: const Color(0xFF9e9e9e), fontSize: compact ? 11 : 12,
+                              decoration: TextDecoration.lineThrough,
+                              decorationColor: const Color(0xFF9e9e9e),
+                              decorationThickness: 1.6)),
+                        ),
+                      ],
+                    ]),
+                  ),
+                ]),
+              );
+            }),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  // Renders one Bento block for a group of 1, 2 or 3 product indices.
+  // QA round (Oct 2026): redesigned proportions, not just a bumped height —
+  // _bentoHeight raised 230→270 and every card's imgHeight recalculated so
+  // the product image now takes roughly 60-65% of the card (was ~55-57%),
+  // with the text block beneath sized to the content it actually holds
+  // (title/seller/review/price) plus a small ~6-8px buffer — not a huge
+  // leftover Expanded gap like before. The 2-item blocks also gained
+  // showReviewRow so they use their now-larger text area the same way the
+  // feature/solo cards do, instead of leaving it mostly blank.
+  static const double _bentoHeight = 270;
+  Widget _bentoGroup(BuildContext ctx, List<int> idxs, List<Map<String,dynamic>> items, List<List<Color>> cardGrads) {
+    if (idxs.length == 3) {
+      final bigIdx = idxs[0], s1 = idxs[1], s2 = idxs[2];
+      const double smallH = (_bentoHeight - 10) / 2;
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: SizedBox(
+          height: _bentoHeight,
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Feature card: wider (170→190) and its image taller (130→168,
+            // ~62% of the 270 card height) so the product photo is the
+            // dominant visual element, per the Bento reference direction.
+            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 190, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 150,
+              height: _bentoHeight,
+              child: Column(children: [
+                // Small stacked cards: image enlarged 56→76 to match the
+                // feature card's fuller-image proportion at this smaller
+                // scale, rather than staying a thin strip above the text.
+                _productCard(ctx, items[s1], s1, cardGrads, width: 150, imgHeight: 76, cardHeight: smallH, compact: true),
+                const SizedBox(height: 10),
+                _productCard(ctx, items[s2], s2, cardGrads, width: 150, imgHeight: 76, cardHeight: smallH, compact: true),
+              ]),
+            ),
+          ]),
+        ),
+      );
+    } else if (idxs.length == 2) {
+      final a = idxs[0], b = idxs[1];
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: SizedBox(
+          height: _bentoHeight,
+          child: Row(children: [
+            _productCard(ctx, items[a], a, cardGrads, width: 180, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
+            const SizedBox(width: 10),
+            _productCard(ctx, items[b], b, cardGrads, width: 180, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
+          ]),
+        ),
+      );
+    } else {
+      final a = idxs[0];
+      return Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: SizedBox(
+          height: _bentoHeight,
+          width: 240,
+          child: _productCard(ctx, items[a], a, cardGrads, width: 240, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
+        ),
+      );
+    }
+  }
+
   @override Widget build(BuildContext context) {
     if (products.isEmpty) {
-      return defaultProductImageUrl.isNotEmpty
+      // Real products still loading -> skeleton, never the default images.
+      if (loading) return _loadingSkeleton();
+      return defaultProductImageUrls.isNotEmpty
           ? _defaultProductPlaceholder(context)
           : const SizedBox.shrink();
     }
@@ -5914,6 +5304,12 @@ class _DiscoverProductsSection extends StatelessWidget {
       [Color(0xFFe8f0e8), Color(0xFFb8d8c0)],
       [Color(0xFFf5eef0), Color(0xFFe8c8d4)],
     ];
+
+    // Bento-style grouping: 1 feature card + 2 stacked small cards per group
+    // of 3, with graceful 2- and 1-item blocks for the remainder. Preserves
+    // the products/onViewAll/token contract and per-card tap navigation.
+    final _items = products.map((p) => Map<String,dynamic>.from(p as Map)).toList();
+    final _groups = _bentoGroups(_items.length);
 
     return Container(
       color: Colors.transparent,
@@ -5929,15 +5325,14 @@ class _DiscoverProductsSection extends StatelessWidget {
           ]),
         ),
         SizedBox(
-          height: 170, // reduced — title/price fonts are smaller now
+          height: _bentoHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            itemCount: products.length + 1,
+            itemCount: _groups.length + 1,
             itemBuilder: (ctx, i) {
-              final maxCount = products.length;
-              if (i == maxCount) {
+              if (i == _groups.length) {
                 return GestureDetector(
                   onTap: onViewAll,
                   child: Center(
@@ -5970,165 +5365,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                   ),
                 );
               }
-              final v = Map<String,dynamic>.from(products[i] as Map);
-              final title     = _resolveTitle(v);
-              final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
-              final storeName = _resolveStoreName(v);
-              final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
-              final badge     = discMatch != null ? "${discMatch.group(1)}%" : "";
-              // Also check discount_label from API
-              final discLabel = v["discount_label"]?.toString() ?? "";
-              final finalBadge = badge.isNotEmpty ? badge : (discLabel.isNotEmpty ? discLabel : "");
-              final imgSrc    = _resolveImg(v);
-              final grad      = _cardGrads[i % _cardGrads.length];
-
-              return GestureDetector(
-                onTap: () => Navigator.push(ctx, MaterialPageRoute(
-                  builder: (_) => ProductDetailsPage(product: v, token: token))),
-                child: Container(
-                  width: 155,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0,4))],
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    // Top image
-                    Stack(children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
-                        child: SizedBox(
-                          width: 155, height: 95, // increased for better UX
-                          child: imgSrc.startsWith("http")
-                            ? CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
-                                width: 155, height: 95,
-                                placeholder: (_, __) => Container(width:140, height:84, color: grad[1]),
-                                errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]]))
-                            : imgSrc.startsWith("data:image")
-                              ? _b64Img(imgSrc, _fallback(title, [grad[0], grad[1]]))
-                              : Container(width:155, height:95,
-                                  color: const Color(0xFFF5F5F5),
-                                  child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
-                                    style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 26, fontWeight: FontWeight.w900)))),
-                        ),
-                      ),
-                      if (badge.isNotEmpty)
-                        Positioned(top: 7, left: 7,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
-                            child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                          )),
-                      // ── Product wishlist heart — live toggle ──
-                      Positioned(top: 6, right: 6,
-                        child: StatefulBuilder(
-                          builder: (ctx2, setH) {
-                            final _pid0 = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
-                            bool _pFav = FavState.instance.hasProduct(_pid0) || v["_isFav"] == true;
-                            return GestureDetector(
-                              onTap: () async {
-                                final pid = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
-                                if (pid.isEmpty || token.isEmpty) return;
-                                final next = !_pFav;
-                                setH(() { v["_isFav"] = next; _pFav = next; });
-                                FavState.instance.toggleProduct(pid);
-                                try {
-                                  await Api.toggleProductFavorite(token, pid);
-                                } catch (e) {
-                                  setH(() { v["_isFav"] = !next; _pFav = !next; });
-                                  FavState.instance.toggleProduct(pid);
-                                  ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
-                                    content: Text("Couldn't save favorite: ${friendlyError(e)}"),
-                                    backgroundColor: Colors.red.shade700,
-                                    duration: const Duration(seconds: 12),
-                                    showCloseIcon: true));
-                                }
-                              },
-                              child: Container(
-                                width: 26, height: 26,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: .88),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius: 4)],
-                                ),
-                                child: Icon(
-                                  _pFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                                  color: _pFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
-                                  size: 14),
-                              ),
-                            );
-                          },
-                        )),
-                      // ── Rating chip — bottom-right corner of image ──
-                      Builder(builder: (_rc) {
-                        final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
-                        final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
-                        if (_pr <= 0) return const SizedBox.shrink();
-                        return Positioned(bottom: 6, right: 6,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                            decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
-                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
-                              const SizedBox(width: 1),
-                              Text(_pr.toStringAsFixed(1),
-                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                              if (_pc > 0) Text(" (${_pc})",
-                                style: const TextStyle(color: Colors.white70, fontSize: 8)),
-                            ]),
-                          ),
-                        );
-                      }),
-                    ]),
-                    // Bottom text with prices
-                    Builder(builder: (_) {
-                      // Resolve prices
-                      num? saleP = _numVal(v, ["offer_price","sale_price","price","current_price"]); // ITEM10
-                      num? origP = _numVal(v, ["original_price","mrp","was_price","compare_price"]);
-                      if (origP != null && saleP != null && origP <= saleP) origP = null;
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 6, 10, 7),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                          // Title
-                          if (title.isNotEmpty)
-                            Text(title,
-                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800, height: 1.25),
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          // Seller line — name only now (rating pill moved above, under the image)
-                          if (storeName.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text("Seller: " + storeName,
-                                style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                            ),
-                          if (saleP != null && saleP > 0) Padding(
-                            padding: const EdgeInsets.only(top: 6),
-                            child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
-                                child: Text("₹${saleP.toStringAsFixed(0)}",
-                                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w900)),
-                              ),
-                              if (origP != null) ...[
-                                const SizedBox(width: 6),
-                                Text("₹${origP.toStringAsFixed(0)}",
-                                  style: const TextStyle(
-                                    color: Color(0xFF9e9e9e), fontSize: 12,
-                                    decoration: TextDecoration.lineThrough,
-                                    decorationColor: Color(0xFF9e9e9e))),
-                              ],
-                            ]),
-                          ),
-                        ]),
-                      );
-                    }),
-                  ]),
-                ),
-              );
+              return _bentoGroup(ctx, _groups[i], _items, _cardGrads);
             },
           ),
         ),
@@ -6283,7 +5520,9 @@ class _NearbyStoresSection extends StatelessWidget {
               ];
               final grad = _cardGrads[i % _cardGrads.length];
 
+              final nId = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
               return GestureDetector(
+                key: nId.isEmpty ? null : ValueKey("nearby_store_$nId"),
                 onTap: () => onStoreTap(s),
                 child: Container(
                   width: 140,
@@ -6308,7 +5547,7 @@ class _NearbyStoresSection extends StatelessWidget {
                                   color: grad[1]),
                                 errorWidget: (_, __, ___) => _fallback(name))
                             : imgSrc.startsWith("data:image")
-                              ? _b64Img(imgSrc, _fallback(name))
+                              ? base64Image(imgSrc, _fallback(name))
                               : Container(
                                   width: 140, height: 100,
                                   decoration: BoxDecoration(
@@ -6387,10 +5626,6 @@ class _ExploreAreasSection extends StatelessWidget {
   final String token;
   const _ExploreAreasSection({required this.stores, required this.token});
 
-  static const _areaColors = [
-    Color(0xFFA9CDBA), Color(0xFFB8A9CD), Color(0xFF3E5F55),
-    Color(0xFFE7D7C8), Color(0xFFCDEBD6), Color(0xFF6b8c7e),
-  ];
 
   @override Widget build(BuildContext context) {
     // Build area map from stores
@@ -6562,24 +5797,6 @@ class _ExploreAreasSection extends StatelessWidget {
 }
 
 
-// ─── 6. All Stores Screen ───────────────────────────────────────
-class _AllStoresScreen extends StatelessWidget {
-  final String token;
-  const _AllStoresScreen({required this.token});
-  @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: Colors.white,
-    appBar: AppBar(
-      backgroundColor: Colors.white,
-      foregroundColor: const Color(0xFF2c3e35),
-      elevation: 0,
-      title: const Text("All Stores", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-      surfaceTintColor: Colors.white,
-    ),
-    body: const Center(child: Text("Coming soon", style: TextStyle(color: Color(0xFF6b8c7e)))),
-  );
-}
-
-
 // ─── 7. Browse All Categories Screen ─────────────────────────────
 class _BrowseAllCategoriesScreen extends StatefulWidget {
   final String token;
@@ -6697,6 +5914,12 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
 // ═══════════════════════════════════════════════════════════════
 // 1. ADMIN BANNER SECTION — large, full-width, with page dots
 // ═══════════════════════════════════════════════════════════════
+class _StoreCardLayout {
+  final double height;
+  final bool stackRating;
+  const _StoreCardLayout(this.height, this.stackRating);
+}
+
 class _BannerStoresBlock extends StatefulWidget {
   final List<Map<String,dynamic>> banners;
   final List<Map<String,dynamic>> stores;
@@ -6734,7 +5957,10 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   void _startTimer() {
     _timer?.cancel();
     if (widget.banners.length > 1) {
-      _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      // QA fix: slowed from 4s to 7s so each banner stays visible long
+      // enough to read; manual swipe (same PageController) and the 500ms
+      // easeInOut transition are unchanged.
+      _timer = Timer.periodic(const Duration(seconds: 7), (_) {
         _pc.nextPage(duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
       });
     }
@@ -6756,7 +5982,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   Widget _bannerImg(String imgUrl) {
     if (imgUrl.startsWith("data:image")) {
       try {
-        return Image.memory(base64Decode(imgUrl.split(",").last),
+        return Image.memory(decodeBase64ImageCached(imgUrl),
           fit: BoxFit.fitWidth, alignment: Alignment.topCenter,
           width: double.infinity, gaplessPlayback: true);
       } catch (_) { }
@@ -6768,7 +5994,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         // ROUND 12 FIX (Task 6): shimmer while this specific banner image
         // downloads, instead of a flat solid box. errorWidget (a genuine
         // load failure) keeps the original gradient fallback, unchanged.
-        placeholder: (_, __) => _shimmerBox(width: double.infinity, height: double.infinity),
+        placeholder: (_, __) => shimmerBox(width: double.infinity, height: double.infinity),
         errorWidget: (_, __, ___) => _gradBox());
     }
     return _gradBox();
@@ -6777,15 +6003,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     gradient: LinearGradient(colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
       begin: Alignment.topLeft, end: Alignment.bottomRight)));
 
-  String _resolveStoreImg(Map s) {
-    for (final k in ["image_url","image_thumb","_thumb","image"]) {
-      final v = s[k]?.toString() ?? "";
-      if (v.isNotEmpty) return v;
-    }
-    final imgs = s["images"];
-    if (imgs is List && imgs.isNotEmpty) return imgs.first.toString();
-    return "";
-  }
 
   @override Widget build(BuildContext context) {
     final hasBanners = widget.banners.isNotEmpty;
@@ -6795,7 +6012,12 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     // Heights — 3:2 banner, 35-40% card overlap
     const double bannerH   = 320.0;
     const double overlapPx = 100.0; // ~31% of bannerH — cards peek but don't obscure banner
-    const double cardH     = 212.0; // reduced ~22% — compact card height
+    // QA round (Oct 2026): computed from the tallest store card actually in
+    // the list (see _storeLayout) instead of a fixed worst-case constant.
+    // Each store's layout is measured ONCE per build and reused for both the
+    // row height and the individual cards (stackRating).
+    final List<_StoreCardLayout> layouts = _storeLayouts(context);
+    final double cardH     = _storeRowHeight(layouts);
     const double headerH   = 0.0;
     const double topPad    = 14.0;
 
@@ -6813,25 +6035,25 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
       if (!hasStores) {
         return Padding(
           padding: const EdgeInsets.only(top: topPad),
-          child: SizedBox(height: bannerH, child: _shimmerBox(width: double.infinity, height: bannerH)));
+          child: SizedBox(height: bannerH, child: shimmerBox(width: double.infinity, height: bannerH)));
       }
       final totalH = topPad + bannerH + cardH - overlapPx;
       return SizedBox(
         height: totalH,
         child: Stack(clipBehavior: Clip.none, children: [
           Positioned(top: topPad, left: 0, right: 0, height: bannerH,
-            child: _shimmerBox(width: double.infinity, height: bannerH)),
+            child: shimmerBox(width: double.infinity, height: bannerH)),
           Positioned(
             top: topPad + bannerH - overlapPx,
             left: 0, right: 0,
-            child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
+            child: _storeCardsList(cardH, layouts, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
           ),
         ]),
       );
     }
 
     // Stores-only (no banner, and we now know there genuinely isn't one)
-    if (!hasBanners) return _storesOnly(cardH, headerH);
+    if (!hasBanners) return _storesOnly(cardH, headerH, layouts);
 
     // Banner-only (no stores)
     if (!hasStores) {
@@ -6854,7 +6076,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         Positioned(
           top: topPad + bannerH - overlapPx,
           left: 0, right: 0,
-          child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
+          child: _storeCardsList(cardH, layouts, const EdgeInsets.fromLTRB(16, 0, 4, 0)),
         ),
       ]),
     );
@@ -6863,7 +6085,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // ── Shared store-cards row (Round 12: extracted so the real "Both"
   // layout and the new loading-shimmer layout above don't each maintain
   // their own copy of this ListView.builder + "See All" card) ──────────
-  Widget _storeCardsList(double cardH, EdgeInsets padding) {
+  Widget _storeCardsList(double cardH, List<_StoreCardLayout> layouts, EdgeInsets padding) {
     return SizedBox(
       height: cardH,
       child: ListView.builder(
@@ -6875,7 +6097,17 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         itemCount: (widget.stores.length > 8 ? 8 : widget.stores.length) + 1,
         itemBuilder: (ctx, i) {
           final storeCount = widget.stores.length > 8 ? 8 : widget.stores.length;
-          if (i < storeCount) return _storeCard(ctx, widget.stores[i]);
+          if (i < storeCount) {
+            final st = widget.stores[i];
+            final stId = st["_id"]?.toString() ?? st["id"]?.toString() ?? "";
+            return KeyedSubtree(
+              key: stId.isEmpty ? null : ValueKey("main_store_$stId"),
+              child: _storeCard(
+                ctx, st,
+                // Reuse the layout measured in build(); fall back to measuring
+                // only if the index is somehow outside the precomputed list.
+                (i < layouts.length ? layouts[i] : _storeLayout(ctx, st)).stackRating));
+          }
           // Last card: "See All" — matches floating store card dimensions
           return GestureDetector(
             onTap: widget.onViewAll,
@@ -6958,15 +6190,17 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // ── Stores-only fallback (no banner) — no heading, See All as last card ──
   // Round 12: now just calls the shared _storeCardsList helper above
   // instead of keeping its own copy of the same ListView.builder.
-  Widget _storesOnly(double cardH, double headerH) {
+  Widget _storesOnly(double cardH, double headerH, List<_StoreCardLayout> layouts) {
     return Padding(
       padding: const EdgeInsets.only(top: 14),
-      child: _storeCardsList(cardH, const EdgeInsets.fromLTRB(16, 0, 16, 0)),
+      child: _storeCardsList(cardH, layouts, const EdgeInsets.fromLTRB(16, 0, 16, 0)),
     );
   }
 
   // ── Individual store card ────────────────────────────────────
   // ── Badge metadata for glass ribbon ──
+  // Height of the badge ribbon, drawn as an overlay on the bottom of the store image.
+  static const double _kBadgeRibbonH = 30;
   static const Map<String, Map<String,String>> _badgeRibbonMeta = {
     "new_store":     {"label": "🆕 NEW STORE"},
     "just_opened":   {"label": "🎉 JUST OPENED"},
@@ -7030,7 +6264,120 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     return resolved;
   }
 
-  Widget _storeCard(BuildContext ctx, Map<String,dynamic> s) {
+  // Open/close status — logic moved verbatim out of _storeCard so the row-height
+  // calculation below can know whether the status row will be shown. Returns
+  // [statusLabel, closingInfo].
+  List<String> _storeStatus(Map<String,dynamic> s) {
+    // Uses the shared computeStoreOpenStatus() — same logic as Store Detail.
+    final st = computeStoreOpenStatus(
+      s["open_time"]?.toString() ?? "",
+      s["close_time"]?.toString() ?? "",
+    );
+    if (st == null) return ["", ""];
+    return [st.isOpen ? "Open" : "Closed", st.subLabel];
+  }
+
+  // Card geometry shared by _storeCard and the carousel row height. The card
+  // hugs its content, and the parent horizontal ListView needs a fixed height,
+  // so that height is computed as the tallest card actually in the list (text
+  // measured with the same styles/widths the card uses) instead of a
+  // worst-case constant.
+  double _storeCardW(BuildContext ctx) =>
+      (MediaQuery.sizeOf(ctx).width * 0.72).clamp(240.0, 290.0);
+
+  _StoreCardLayout _storeLayout(BuildContext ctx, Map<String,dynamic> s) {
+    final scaler = MediaQuery.textScalerOf(ctx);
+    double mh(String t, TextStyle st, double w, [int lines = 1]) {
+      final tp = TextPainter(text: TextSpan(text: t, style: st),
+        textDirection: TextDirection.ltr, maxLines: lines, textScaler: scaler);
+      try {
+        tp.layout(maxWidth: w);
+        return tp.height; // read before dispose (finally runs after the value is computed)
+      } finally {
+        tp.dispose();
+      }
+    }
+    double mw(String t, TextStyle st) {
+      final tp = TextPainter(text: TextSpan(text: t, style: st),
+        textDirection: TextDirection.ltr, maxLines: 1, textScaler: scaler);
+      try {
+        tp.layout();
+        return tp.width; // read before dispose
+      } finally {
+        tp.dispose();
+      }
+    }
+    const nameSt  = TextStyle(fontSize: 16, fontWeight: FontWeight.w800, height: 1.2);
+    const ratSt   = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800);
+    const cntSt   = TextStyle(fontSize: 11.5);
+    const catSt   = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500);
+    const pillSt  = TextStyle(fontSize: 13, fontWeight: FontWeight.w800);
+    const hoursSt = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500);
+
+    final name     = s["store_name"]?.toString() ?? "";
+    final cat      = s["category"]?.toString() ?? "";
+    final rating   = (s["rating"] as num?)?.toDouble() ?? 0.0;
+    final revCount = (s["rating_count"] ?? s["review_count"] as num?)?.toInt() ?? 0;
+    final st       = _storeStatus(s);
+
+    final cardW  = _storeCardW(ctx);
+    final imgH   = (cardW * 0.57).roundToDouble();
+    final innerW = cardW - 2 - 28; // border + horizontal padding
+
+    // Rating width (star + value + " (count)")
+    final ratingW = rating > 0
+        ? 18 + mw(rating.toStringAsFixed(1), ratSt) + (revCount > 0 ? mw(" ($revCount)", cntSt) : 0)
+        : 0.0;
+    // If side-by-side would leave the name too narrow, the rating moves to the
+    // category line instead (name never gets squeezed).
+    final nameAvail = innerW - (rating > 0 ? 8 + ratingW : 0);
+    final stack = rating > 0 && nameAvail < 120;
+
+    final nameH = mh(name, nameSt, stack || rating <= 0 ? innerW : nameAvail, 2);
+    double row2 = 0;
+    if (stack) {
+      row2 = max(cat.isNotEmpty ? mh(cat, catSt, innerW - ratingW - 6) : 0, 17);
+    } else if (cat.isNotEmpty) {
+      row2 = mh(cat, catSt, innerW);
+    }
+    double statusH = 0;
+    if (st[0].isNotEmpty || st[1].isNotEmpty) {
+      final pillH = st[0].isNotEmpty ? mh("Open Now", pillSt, 200) + 12 : 0.0;
+      final hoursH = st[1].isNotEmpty ? max(17.0, mh(st[1], hoursSt, 200)) : 0.0;
+      statusH = 10 + 1 + 10 + max(max(pillH, hoursH), 22.0);
+    }
+    final infoH = 22 + max(nameH, rating > 0 && !stack ? 17.0 : 0) +
+        (row2 > 0 ? 2 + row2 : 0) + statusH;
+    final total = 8 + 6 + 2 + imgH + infoH + 2; // margins + border + safety (ribbon is an image overlay, adds no height)
+    return _StoreCardLayout(total.ceilToDouble(), stack);
+  }
+
+  // Layout of each of the (max 8) stores the carousel shows, measured once.
+  // Index i matches widget.stores[i], same cap as _storeCardsList.
+  List<_StoreCardLayout> _storeLayouts(BuildContext ctx) {
+    final n = widget.stores.length > 8 ? 8 : widget.stores.length;
+    return [for (int i = 0; i < n; i++) _storeLayout(ctx, widget.stores[i])];
+  }
+
+  double _storeRowHeight(List<_StoreCardLayout> layouts) {
+    double m = 0;
+    for (final l in layouts) {
+      m = max(m, l.height);
+    }
+    return m > 0 ? m : 260.0;
+  }
+
+  Widget _ratingChip(double rating, int revCount) =>
+    Row(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 16),
+      const SizedBox(width: 2),
+      Text(rating.toStringAsFixed(1),
+        style: const TextStyle(color: Color(0xFF1a2e27), fontSize: 13.5, fontWeight: FontWeight.w800)),
+      if (revCount > 0) Text(" ($revCount)",
+        style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11.5)),
+    ]);
+
+  Widget _storeCard(BuildContext ctx, Map<String,dynamic> s, bool stackRating) {
     final name      = s["store_name"]?.toString() ?? "";
     final cat       = s["category"]?.toString() ?? "";
     final rating    = (s["rating"] as num?)?.toDouble() ?? 0.0;
@@ -7039,44 +6386,9 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     final distTxt   = dist != null
         ? (dist < 1.0 ? "${(dist * 1000).toStringAsFixed(0)} m" : "${dist.toStringAsFixed(1)} km")
         : null; // Hide badge when GPS/distance not yet available
-    final openTime  = s["open_time"]?.toString()  ?? "";
-    final closeTime = s["close_time"]?.toString() ?? "";
-    final now       = TimeOfDay.now();
-
-    // Open/close status
-    String statusLabel = "";
-    String closingInfo = "";
-    // ITEM4: treat "00:00" as "not configured" to avoid showing "Opens 12 AM • Closes 12 AM"
-    final bool _timesConfigured = !(openTime == "00:00" && closeTime == "00:00")
-        && !(openTime.isEmpty && closeTime == "00:00");
-    if (closeTime.isNotEmpty && _timesConfigured) {
-      try {
-        final cParts    = closeTime.split(":");
-        final closeH    = int.parse(cParts[0]);
-        final closeM    = cParts.length > 1 ? int.parse(cParts[1]) : 0;
-        final nowMins   = now.hour * 60 + now.minute;
-        final closeMins = closeH * 60 + closeM;
-        final cSuffix   = closeH >= 12 ? "PM" : "AM";
-        final cH12      = closeH > 12 ? closeH - 12 : (closeH == 0 ? 12 : closeH);
-        final cMinStr   = closeM > 0 ? ":${closeM.toString().padLeft(2,'0')}" : "";
-        if (nowMins < closeMins) {
-          statusLabel = "Open";
-          closingInfo = "Closes $cH12$cMinStr $cSuffix";
-        } else {
-          statusLabel = "Closed";
-          if (openTime.isNotEmpty) {
-            final oParts  = openTime.split(":");
-            final oH      = int.parse(oParts[0]);
-            final oM      = oParts.length > 1 ? int.parse(oParts[1]) : 0;
-            final oSuffix = oH >= 12 ? "PM" : "AM";
-            final oH12    = oH > 12 ? oH - 12 : (oH == 0 ? 12 : oH);
-            final oMinStr = oM > 0 ? ":${oM.toString().padLeft(2,'0')}" : "";
-            closingInfo = "Opens $oH12$oMinStr $oSuffix";
-          }
-        }
-      } catch (_) { }
-    }
-
+    final _st         = _storeStatus(s);
+    final String statusLabel = _st[0];
+    final String closingInfo = _st[1];
     // ── Badge key for glass ribbon ──
     final String? badgeKey = _resolveStoreBadge(s);
 
@@ -7085,249 +6397,274 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     if (logoSrc.isEmpty)
       logoSrc = s["image_url"]?.toString() ?? s["image"]?.toString() ?? s["image_thumb"]?.toString() ?? "";
 
-    Widget logoWidget;
+    // QA round (Oct 2026) — Main Store Card redesign (visual only).
+    // Was: a small 56px circular logo centered above center-aligned text,
+    // with the distance badge/heart in their own header row above it. Now:
+    // the store photo is the dominant visual element at the top of the
+    // card (like the reference e-commerce card), with the distance badge
+    // and favorite heart overlaid directly on the image — matching the
+    // reference's badge/heart placement — and the badge ribbon (new/
+    // trending/etc.) moved from the bottom of the whole card to the bottom
+    // of the image. All the same fields (name, category, distance, rating,
+    // open/closed status, opening/closing info, favorite state, badge) are
+    // still shown; only the layout/sizing/hierarchy changed. Same API/
+    // data/navigation/favorite-toggle/distance calc as before — none of
+    // that logic was touched below.
+    // QA round (Oct 2026) — Main Store Card follows the approved mockup:
+    // large full-width image (distance badge + heart over it) -> full-width
+    // ribbon band directly under the image -> name (left) + rating/reviews
+    // (right) -> category -> divider -> status | hours row. The card hugs its
+    // content (Align below) so no blank area is left at the bottom. All data,
+    // favorite toggle, distance, status logic and navigation are unchanged.
+    final double _cardW = _storeCardW(ctx);
+    final bool _stack = stackRating;
+    final double _cardImgH = (_cardW * 0.57).roundToDouble();
+    Widget storeImageWidget;
     if (logoSrc.startsWith("http")) {
-      logoWidget = CachedNetworkImage(
+      storeImageWidget = CachedNetworkImage(
         imageUrl: logoSrc,
-        fit: BoxFit.cover,    // FIX 2: cover inside rounded square
-        width: 60, height: 60,
+        fit: BoxFit.cover,
+        width: double.infinity, height: _cardImgH,
         placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
         errorWidget: (_, __, ___) => _storeFallback(name));
     } else if (logoSrc.startsWith("data:image")) {
       try {
-        logoWidget = Image.memory(base64Decode(logoSrc.split(",").last),
-          fit: BoxFit.cover, width: 60, height: 60);
-      } catch (_) { logoWidget = _storeFallback(name); }
+        // Decode once per distinct image: a stable byte buffer keeps the same
+        // MemoryImage key across rebuilds, so the image is not re-decoded/flashed.
+        final bytes = decodeBase64ImageCached(logoSrc);
+        storeImageWidget = Image.memory(bytes,
+          fit: BoxFit.cover, width: double.infinity, height: _cardImgH);
+      } catch (_) { storeImageWidget = _storeFallback(name); }
     } else {
-      logoWidget = _storeFallback(name);
+      storeImageWidget = _storeFallback(name);
     }
+    final String _sid = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
 
-    return GestureDetector(
+    return Align(
+      alignment: Alignment.topLeft,
+      child: GestureDetector(
       onTap: () => Navigator.push(ctx, MaterialPageRoute(
         builder: (_) => StoreDetailPage(
           store: _enrichStoreForDetail(Map<String,dynamic>.from(s)),
           token: widget.token, userName: "",
-          onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk)))))).then((_) => widget.onFavChanged()),
+          onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => widget.onFavChanged()),
       child: Container(
-        width: 152,
+        width: _cardW,
         margin: const EdgeInsets.only(right: 12, top: 8, bottom: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F6F5),
-          borderRadius: BorderRadius.circular(20),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: const Color(0xFFe0ece6), width: 1.0),
           boxShadow: [BoxShadow(
-            color: Colors.black.withValues(alpha: .07),
-            blurRadius: 14, offset: const Offset(0, 4))],
+            color: Colors.black.withValues(alpha: .09),
+            blurRadius: 16, offset: const Offset(0, 5))],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Stack(
-            children: [
-              Padding(
-          padding: const EdgeInsets.fromLTRB(10, 4, 10, 4),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
+          borderRadius: BorderRadius.circular(22),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-            // ── Top row: distance badge (FIX3: only here) + heart + rating (FIX4) ──
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              // Distance badge — only location_top
-              if (distTxt != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFe8f5f0),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.location_on_rounded,
-                      color: Color(0xFF3E5F55), size: 9),
-                    const SizedBox(width: 2),
-                    Text(distTxt,
-                      style: const TextStyle(
-                        color: Color(0xFF3E5F55),
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w700)),
-                  ]),
-                )
-              else
-                const SizedBox(width: 4),
+            // ── Large store image with distance badge + heart over it ──
+            SizedBox(
+              width: double.infinity,
+              height: _cardImgH,
+              child: Stack(children: [
+                Positioned.fill(child: storeImageWidget),
 
-              // FIX 7: live heart — real-time sync via FavState
-              GestureDetector(
-                onTap: () async {
-                  final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
-                  if (id.isEmpty || widget.token.isEmpty) return;
-                  FavState.instance.toggleStore(id);
-                  try {
-                    await Api.toggleFavorite(widget.token, id);
-                    widget.onFavChanged();
-                  } catch (_) {
-                    FavState.instance.toggleStore(id);
-                  }
-                },
-                child: Icon(
-                  FavState.instance.hasStore(
-                    s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  color: FavState.instance.hasStore(
-                    s["_id"]?.toString() ?? s["id"]?.toString() ?? "")
-                      ? const Color(0xFFe74c3c)
-                      : const Color(0xFF9e9e9e),
-                  size: 17),
-              ),
-            ]),
-
-            const SizedBox(height: 7),
-
-            // ── FIX 2: Double circle logo ──
-            // Outer circle: white bg + Offro green border (84px)
-            Container(
-              width: 78, height: 78,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-                border: Border.all(color: const Color(0xFFA9CDBA), width: 1.5),
-                boxShadow: [BoxShadow(
-                  color: Colors.black.withValues(alpha: .06),
-                  blurRadius: 8, offset: const Offset(0, 2))],
-              ),
-              child: Center(
-                // Inner rounded image (62px, radius 16)
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: SizedBox(
-                    width: 56, height: 56,
-                    child: logoWidget,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 5),
-
-            // ── Store name ──
-            Text(name,
-              style: const TextStyle(
-                color: Color(0xFF1a2e27),
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-                height: 1.2),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
-
-            if (cat.isNotEmpty) ...[
-              const SizedBox(height: 2),
-              Text(cat,
-                style: const TextStyle(
-                  color: Color(0xFF9e9e9e),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
-            ],
-
-            if (rating > 0) ...[
-              const SizedBox(height: 3),
-              Row(mainAxisAlignment: MainAxisAlignment.center, mainAxisSize: MainAxisSize.min, children: [
-                const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 11),
-                const SizedBox(width: 2),
-                Text(rating.toStringAsFixed(1),
-                  style: const TextStyle(color: Color(0xFF555555), fontSize: 10, fontWeight: FontWeight.w700)),
-                if (revCount > 0) Text(" ($revCount)",
-                  style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 9)),
-              ]),
-            ],
-
-            const SizedBox(height: 4),
-
-            // ── Divider ──
-            Container(height: 1, color: const Color(0xFFf0f0f0)),
-
-            const SizedBox(height: 3),
-
-            // ── Open / Closed status row (always shown) ──
-            Builder(builder: (_ctx) {
-              final _displayLabel = statusLabel.isNotEmpty ? statusLabel : "";
-              final _displayInfo  = closingInfo.isNotEmpty ? closingInfo
-                  : "";  // FIX 2: empty = hide row when no times configured
-              if (_displayLabel.isEmpty && _displayInfo.isEmpty) return const SizedBox.shrink();
-              return Column(mainAxisSize: MainAxisSize.min, children: [
-                const SizedBox(height: 4),
-                Row(mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min, children: [
-                  if (_displayLabel.isNotEmpty) Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _displayLabel == "Open"
-                        ? const Color(0xFFe8f5f0)
-                        : const Color(0xFFfdf0f0),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(_displayLabel,
-                      style: TextStyle(
-                        color: _displayLabel == "Open"
-                          ? const Color(0xFF3E5F55)
-                          : const Color(0xFFc0392b),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800)),
-                  ),
-                  if (_displayLabel.isNotEmpty && _displayInfo.isNotEmpty) ...[
-                    const SizedBox(width: 5),
-                    const Text("·",
-                      style: TextStyle(color: Color(0xFF9e9e9e), fontSize: 12)),
-                    const SizedBox(width: 5),
-                  ],
-                  if (_displayInfo.isNotEmpty) Flexible(
-                    child: Text(_displayInfo,
-                      style: const TextStyle(
-                        color: Color(0xFF555555),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ),
-                ]),
-              ]);
-            }),
-
-          ]),
-        ),
-              // ── Glass badge ribbon (bottom overlay, 28px, no layout shift) ──
-              if (badgeKey != null)
-                Positioned(
-                  bottom: 0, left: 0, right: 0,
-                  child: ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft:  Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                    ),
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                      child: Container(
-                        height: 28,
-                        color: Colors.black.withValues(alpha: 0.62),
-                        alignment: Alignment.center,
-                        child: Text(
-                          _badgeRibbonMeta[badgeKey]!["label"]!,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.4,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                // Badge ribbon — overlaid on the bottom of the image (image keeps its full
+                // size; nothing is rendered or reserved when the store has no badge).
+                if (badgeKey != null)
+                  Positioned(
+                    left: 0, right: 0, bottom: 0,
+                    child: Container(
+                      width: double.infinity,
+                      height: _kBadgeRibbonH,
+                      color: const Color(0xFF3a3a35),
+                      alignment: Alignment.center,
+                      child: Text(
+                        _badgeRibbonMeta[badgeKey]!["label"]!,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+
+                // Distance badge — OffrO green filled pill, white content
+                if (distTxt != null)
+                  Positioned(top: 10, left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3E5F55),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .20), blurRadius: 5)],
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.location_on_rounded, color: Colors.white, size: 14),
+                        const SizedBox(width: 3),
+                        Text(distTxt,
+                          style: const TextStyle(
+                            color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800)),
+                      ]),
+                    ),
+                  ),
+
+                // Favorite heart — top-right, circular, light background
+                // (same FavState / Api.toggleFavorite logic as before)
+                Positioned(top: 10, right: 10,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final id = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
+                      if (id.isEmpty || widget.token.isEmpty) return;
+                      // One in-flight request per store; ignore taps until it settles.
+                      if (!FavState.instance.tryLockStore(id)) return;
+                      final prev = FavState.instance.hasStore(id);
+                      FavState.instance.setStore(id, !prev); // optimistic
+                      try {
+                        final confirmed = await Api.toggleFavorite(widget.token, id);
+                        FavState.instance.setStore(id, confirmed); // server-confirmed
+                      } catch (e) {
+                        FavState.instance.setStore(id, prev); // restore
+                        if (mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                            content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+                            backgroundColor: Colors.red.shade700,
+                            duration: const Duration(seconds: 12),
+                            showCloseIcon: true));
+                        }
+                      } finally {
+                        FavState.instance.unlockStore(id);
+                      }
+                    },
+                    child: Container(
+                      width: 34, height: 34,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .95),
+                        shape: BoxShape.circle,
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .15), blurRadius: 5)],
+                      ),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: FavState.instance.storeListenable(_sid),
+                        builder: (_, isFav, __) => Icon(
+                          isFav
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: isFav
+                              ? const Color(0xFFe74c3c)
+                              : const Color(0xFF9e9e9e),
+                          size: 19),
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
+              ]),
+            ),
+
+            // ── Info block ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+                // Name (left) + rating/reviews (right). If the rating is too wide
+                // to leave the name readable, it drops to the category line.
+                if (_stack)
+                  Text(name,
+                    style: const TextStyle(
+                      color: Color(0xFF1a2e27), fontSize: 16,
+                      fontWeight: FontWeight.w800, height: 1.2),
+                    maxLines: 2, overflow: TextOverflow.ellipsis)
+                else
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(
+                      child: Text(name,
+                        style: const TextStyle(
+                          color: Color(0xFF1a2e27), fontSize: 16,
+                          fontWeight: FontWeight.w800, height: 1.2),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                    if (rating > 0) ...[
+                      const SizedBox(width: 8),
+                      Padding(padding: const EdgeInsets.only(top: 1), child: _ratingChip(rating, revCount)),
+                    ],
+                  ]),
+
+                if (cat.isNotEmpty || (_stack && rating > 0)) ...[
+                  const SizedBox(height: 2),
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    Expanded(
+                      child: cat.isNotEmpty
+                        ? Text(cat,
+                            style: const TextStyle(
+                              color: Color(0xFF8a9a93), fontSize: 12.5,
+                              fontWeight: FontWeight.w500),
+                            maxLines: 1, overflow: TextOverflow.ellipsis)
+                        : const SizedBox.shrink(),
+                    ),
+                    if (_stack && rating > 0) ...[
+                      const SizedBox(width: 6),
+                      _ratingChip(rating, revCount),
+                    ],
+                  ]),
+                ],
+
+                // Divider + status row (same status/hours logic; empty = hidden)
+                Builder(builder: (_ctx) {
+                  final _displayLabel = statusLabel.isNotEmpty ? statusLabel : "";
+                  final _displayInfo  = closingInfo.isNotEmpty ? closingInfo : "";
+                  if (_displayLabel.isEmpty && _displayInfo.isEmpty) return const SizedBox.shrink();
+                  final bool _open = _displayLabel == "Open";
+                  return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const SizedBox(height: 10),
+                    Container(height: 1, color: const Color(0xFFe6ece9)),
+                    const SizedBox(height: 10),
+                    // Status row (matches approved reference): green pill |
+                    // vertical divider | clock icon + dynamic hours text,
+                    // all on one horizontal line.
+                    Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                      if (_displayLabel.isNotEmpty) Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _open ? const Color(0xFFCDEBD6) : const Color(0xFFfdf0f0),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(_open ? "Open Now" : _displayLabel,
+                          style: TextStyle(
+                            color: _open ? const Color(0xFF2f5a47) : const Color(0xFFc0392b),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800)),
+                      ),
+                      if (_displayLabel.isNotEmpty && _displayInfo.isNotEmpty)
+                        Container(
+                          width: 1, height: 22,
+                          margin: const EdgeInsets.symmetric(horizontal: 11),
+                          color: const Color(0xFFd5ddd9)),
+                      if (_displayInfo.isNotEmpty) ...[
+                        const Icon(Icons.access_time_rounded, size: 17, color: Color(0xFF6b7c75)),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(_displayInfo,
+                            style: const TextStyle(
+                              color: Color(0xFF5f6f68),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ]),
+                  ]);
+                }),
+
+              ]),
+            ),
+          ]),
         ),
       ),
-    );
+    ));
   }
 
   Widget _storeFallback(String name) => Container(
@@ -7337,97 +6674,6 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   );
 }
 
-
-// ═══════════════════════════════════════════════════════════════
-// 3. PROMO SLIDER SECTION — merchant banners, compact (160px)
-// ═══════════════════════════════════════════════════════════════
-class _PromoSliderSection extends StatelessWidget {
-  final List<Map<String,dynamic>> sliders;
-  final PageController sliderPc;
-  final ValueNotifier<int> sliderPageNotifier;
-  final String token;
-  final ValueChanged<int> onSliderPageChanged;
-  const _PromoSliderSection({
-    required this.sliders, required this.sliderPc,
-    required this.sliderPageNotifier, required this.token,
-    required this.onSliderPageChanged,
-  });
-
-  @override Widget build(BuildContext context) {
-    if (sliders.isEmpty) return const SizedBox.shrink();
-    return Container(
-      color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(0, 16, 0, 14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Featured Banners",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Latest offers from our stores", style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            // Banner aspect ratio 2.35:1 — matches typical promotional banner dimensions
-            // This ensures the full image is shown without top/bottom letterboxing or cropping
-            final bannerWidth  = constraints.maxWidth - 32; // 16px padding each side
-            final bannerHeight = (bannerWidth / 2.35).clamp(140.0, 220.0);
-            return SizedBox(
-              height: bannerHeight,
-              child: PageView.builder(
-                controller: sliderPc,
-                clipBehavior: Clip.none,
-                itemCount: sliders.isNotEmpty ? 99999 : 0, // always loop
-                onPageChanged: onSliderPageChanged,
-                itemBuilder: (_, i) {
-                  final s = sliders[i % sliders.length];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: PromoSliderCard(
-                      slider: Map<String,dynamic>.from(s as Map),
-                      token: token,
-                      squareCorners: false,
-                      hideText: false,
-                      onVideoComplete: () {
-                        if (sliderPc.hasClients) {
-                          sliderPc.nextPage(
-                            duration: const Duration(milliseconds: 500),
-                            curve: Curves.easeInOut);
-                        }
-                      },
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        ),
-        // Dots
-        const SizedBox(height: 10),
-        ValueListenableBuilder<int>(
-          valueListenable: sliderPageNotifier,
-          builder: (_, pg, __) {
-            final count = sliders.length;
-            return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              for (int i = 0; i < count; i++)
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: pg == i ? 20 : 6, height: 6,
-                  decoration: BoxDecoration(
-                    color: pg == i ? const Color(0xFFD4A017) : const Color(0xFFe8d9a0),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-            ]);
-          },
-        ),
-        const SizedBox(height: 6),
-      ]),
-    );
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════
 // PREMIUM PRODUCT CARD — full-bleed image, cinematic style
@@ -7464,6 +6710,31 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     // never called anywhere, so Premium Product Analytics always showed 0.
     final _pidTrack = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
     if (_pidTrack.isNotEmpty) Api.trackProductEvent(_pidTrack, "view");
+  }
+
+  // Branded share card (image + caption + product link); plain text if the
+  // card can't be built. Logic lives in core/widgets/product_share_card.dart.
+  bool _shareBusy = false;
+  Future<void> _shareProduct() async {
+    if (_shareBusy) return; // no double taps / duplicate analytics
+    setState(() => _shareBusy = true);
+    try {
+      await ProductShare.share(
+        context,
+        widget.product,
+        // Called once, right before the share sheet opens (same "share"
+        // analytics event as before — never twice, even if the text fallback runs).
+        onInitiated: () {
+          final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+          if (pid.isNotEmpty) Api.trackProductEvent(pid, "share");
+          if (mounted) setState(() => _shareBusy = false);
+        },
+      );
+    } catch (_) {
+      // ProductShare.share never throws; belt and braces.
+    } finally {
+      if (mounted && _shareBusy) setState(() => _shareBusy = false);
+    }
   }
 
   Future<void> _loadMyReview() async {
@@ -7514,7 +6785,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
           errorWidget: (_, __, ___) => _fallbackImg());
         if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
+          try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
         }
       }
     }
@@ -7524,7 +6795,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
         errorWidget: (_, __, ___) => _fallbackImg());
       if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
+        try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
       }
     }
     return _fallbackImg();
@@ -7541,7 +6812,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           placeholder: (_, __) => const SizedBox.shrink(),
           errorWidget: (_, __, ___) => _fallbackImg());
         if (v.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { }
+          try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.contain); } catch (_) { }
         }
       }
     }
@@ -7551,7 +6822,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         placeholder: (_, __) => const SizedBox.shrink(),
         errorWidget: (_, __, ___) => _fallbackImg());
       if (v.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(v.split(",").last), fit: BoxFit.contain); } catch (_) { }
+        try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.contain); } catch (_) { }
       }
     }
     return _fallbackImg();
@@ -7668,6 +6939,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final offerText  = p["text"]?.toString() ?? p["offer_text"]?.toString() ?? p["offer"]?.toString() ?? p["discount"]?.toString() ?? "";
     final discMatch  = RegExp(r'(\d+)%').firstMatch(offerText);
     final discBadge  = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
+    // Merchant "Offer Text", shown as plain text under the title. First NON-empty
+    // value (an empty "text" must not hide a filled "offer_text").
+    final offerDesc  = [p["offer_text"], p["text"], p["offer"]]
+        .map((e) => e?.toString().trim() ?? "")
+        .firstWhere((e) => e.isNotEmpty && e != "null", orElse: () => "");
 
     final saleP = _numVal(["offer_price","sale_price","price","current_price"]); // ITEM10
     final origP = _numVal(["original_price","mrp","was_price","compare_price"]);
@@ -7732,30 +7008,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             ),
             // ── Share button ──
             GestureDetector(
-              onTap: () {
-                final _title   = widget.product["title"]?.toString() ?? widget.product["name"]?.toString() ?? "Product";
-                final _store   = (widget.product["store"] is Map
-                    ? widget.product["store"]["store_name"]
-                    : widget.product["store_name"])?.toString() ?? "";
-                final _saleP   = _numVal(["offer_price","sale_price","price","current_price"]);
-                final _offerTx = widget.product["offer"]?.toString() ?? "";
-                final parts    = <String>[
-                  "🛍️ $_title",
-                  if (_store.isNotEmpty) "📍 Store: $_store",
-                  if (_saleP != null && _saleP > 0) "💰 Offer Price: ₹${_saleP.toStringAsFixed(0)}",
-                  if (_offerTx.isNotEmpty) "🎁 $_offerTx",
-                  "\nDownload OFFRO app to explore more deals!",
-                ];
-                Share.share(parts.join("\n"), subject: "OFFRO – $_title");
-                // FIX: fire "share" analytics event
-                final _pidShare = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-                if (_pidShare.isNotEmpty) Api.trackProductEvent(_pidShare, "share");
-              },
+              onTap: _shareProduct,
               child: Container(
                 margin: const EdgeInsets.only(right: 4),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
-                child: const Icon(Icons.share_rounded, color: Colors.white, size: 20)),
+                child: _shareBusy
+                    ? const SizedBox(width: 20, height: 20,
+                        child: Padding(padding: EdgeInsets.all(2),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
+                    : const Icon(Icons.share_rounded, color: Colors.white, size: 20)),
             ),
             const SizedBox(width: 4),
           ],
@@ -7816,6 +7078,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             Text(title,
               style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 22, fontWeight: FontWeight.w900, height: 1.25)),
 
+            // ── Offer text: plain text directly under the title (nothing when empty) ──
+            if (offerDesc.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(offerDesc,
+                style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.45)),
+            ],
+
             const SizedBox(height: 10),
 
             // ── Price row ──
@@ -7855,11 +7124,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   if (saleP != null)
                     const Text("Selling Price",
                       style: TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w600)),
-                  if (showOrig) ...[
-                    const SizedBox(width: 12),
-                    Text("MRP ₹${origP!.toStringAsFixed(0)}",
-                      style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
-                  ],
                 ]),
               ]),
 
@@ -7890,26 +7154,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               const SizedBox(height: 6),
               Text(description,
                 style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.55)),
-              const SizedBox(height: 20),
-            ],
-
-            // ── Offer text ──
-            if (offerText.isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe8f5f0),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFA9CDBA)),
-                ),
-                child: Row(children: [
-                  const Icon(Icons.local_offer_rounded, color: Color(0xFF3E5F55), size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(offerText,
-                    style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 13, fontWeight: FontWeight.w600))),
-                ]),
-              ),
               const SizedBox(height: 20),
             ],
 
@@ -7945,7 +7189,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         store: fullStore,
                         token: widget.token,
                         userName: "",
-                        onProductTap:(p,tk)=>Navigator.push(context,_route(ProductDetailsPage(product:p,token:tk))))));
+                        onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
                   }
                 : null,
               child: Container(
@@ -8114,146 +7358,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           ]),
         )),
       ]),
-    );
-  }
-}
-
-class _PremiumProductCard extends StatelessWidget {
-  final Map<String,dynamic> product;
-  final int colorIdx;
-  const _PremiumProductCard({required this.product, this.colorIdx = 0});
-
-  static const _fallbackColors = [
-    [Color(0xFF3E5F55), Color(0xFF2c4a3e)],
-    [Color(0xFF5D4037), Color(0xFF3E2723)],
-    [Color(0xFF1565C0), Color(0xFF0D47A1)],
-    [Color(0xFF6A1B9A), Color(0xFF4A148C)],
-    [Color(0xFFC62828), Color(0xFFB71C1C)],
-    [Color(0xFF00695C), Color(0xFF004D40)],
-  ];
-
-  Widget _buildImage() {
-    final storeObj = product["store"];
-    if (storeObj is Map) {
-      for (final k in ["image2", "image", "photo"]) {
-        final si = storeObj[k]?.toString() ?? "";
-        if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
-        }
-        final url = si.startsWith("/") ? kBaseUrl + si : si;
-        if (url.startsWith("http")) {
-          return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-            placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-            errorWidget: (_, __, ___) => _fallback());
-        }
-      }
-    }
-    for (final k in ["logo_url","logo_thumb","image_url","image_thumb","image2","image","logo"]) {
-      final img = product[k]?.toString() ?? "";
-      if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
-      }
-      final url = img.startsWith("/") ? kBaseUrl + img : img;
-      if (url.startsWith("http")) {
-        return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-          placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
-          errorWidget: (_, __, ___) => _fallback());
-      }
-    }
-    return _fallback();
-  }
-
-  Widget _fallback() {
-    final pal = _fallbackColors[colorIdx % _fallbackColors.length];
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: pal, begin: Alignment.topLeft, end: Alignment.bottomRight),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final title     = product["title"]?.toString() ?? "";
-    final offerText = product["offer"]?.toString() ?? product["text"]?.toString() ?? "";
-    final storeName = (product["store"] is Map ? product["store"]["store_name"] : null)?.toString()
-        ?? product["store_name"]?.toString() ?? "";
-    final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
-    final discLabel = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
-
-    return Container(
-      width: 185,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .10), blurRadius: 18, offset: const Offset(0, 5)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Stack(fit: StackFit.expand, children: [
-          // Full-bleed image
-          _buildImage(),
-          // Bottom gradient
-          Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.transparent,
-                Colors.transparent,
-                Colors.black.withValues(alpha: .55),
-                Colors.black.withValues(alpha: .88),
-              ],
-              stops: const [0.0, 0.38, 0.70, 1.0],
-            ),
-          ))),
-          // Discount badge top-left
-          if (discLabel.isNotEmpty)
-            Positioned(top: 10, left: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe74c3c),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.25), blurRadius: 6)],
-                ),
-                child: Text(discLabel,
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
-              ),
-            ),
-          // Bottom content
-          Positioned(bottom: 12, left: 10, right: 10,
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              if (storeName.isNotEmpty)
-                Text(storeName,
-                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              if (title.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(title,
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900, height: 1.2,
-                    shadows: [Shadow(blurRadius: 8, color: Colors.black87)]),
-                  maxLines: 2, overflow: TextOverflow.ellipsis),
-              ],
-              if (offerText.isNotEmpty && offerText != title) ...[
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withValues(alpha: .25)),
-                  ),
-                  child: Text(offerText,
-                    style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                    maxLines: 1, overflow: TextOverflow.ellipsis),
-                ),
-              ],
-            ]),
-          ),
-        ]),
-      ),
     );
   }
 }
@@ -8469,9 +7573,9 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       for (final k in ["image2","image","img","photo"]) {
         final si = storeObj[k]?.toString() ?? "";
         if (si.startsWith("data:image")) {
-          try { return Image.memory(base64Decode(si.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
+          try { return Image.memory(decodeBase64ImageCached(si), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
         }
-        final siUrl = si.startsWith("/") ? "$kBaseUrl$si" : si;
+        final siUrl = resolveImageUrl(si);
         if (siUrl.startsWith("http")) {
           return CachedNetworkImage(imageUrl:siUrl, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
             placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
@@ -8482,9 +7586,9 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
     for (final key in ["logo_url","logo_thumb","logo","image_url","image_thumb","image2","store_image2","image","photo","img"]) {
       final img = product[key]?.toString() ?? "";
       if (img.startsWith("data:image")) {
-        try { return Image.memory(base64Decode(img.split(",").last), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
+        try { return Image.memory(decodeBase64ImageCached(img), fit:BoxFit.cover, width:double.infinity, height:double.infinity, gaplessPlayback:true); } catch(_) { }
       }
-      final imgUrl2 = img.startsWith("/") ? "$kBaseUrl$img" : img;
+      final imgUrl2 = resolveImageUrl(img);
       if (imgUrl2.startsWith("http")) {
         return CachedNetworkImage(imageUrl:imgUrl2, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
           placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
@@ -8845,413 +7949,5 @@ class _VapSearchBarState extends State<_VapSearchBar> {
         ),
       ),
     );
-  }
-}
-// ═══════════════════════════════════════════════════════════════
-// OFFRO HOME BACKGROUND — premium abstract green gradient
-// Light, modern, elegant: soft circles + flowing curved wave lines
-// ═══════════════════════════════════════════════════════════════
-class _OffroHomeBgPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // ── Base gradient fill ──────────────────────────────────────
-    final bgPaint = Paint()
-      ..shader = LinearGradient(
-        colors: const [
-          Color(0xFFF0FAF5),
-          Color(0xFFE8F7F0),
-          Color(0xFFF5FBF8),
-          Color(0xFFECF9F2),
-        ],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bgPaint);
-
-    // ── Large soft circle — top left ──────────────────────────
-    final c1 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x28A9CDBA), Color(0x00A9CDBA)],
-        center: Alignment.topLeft,
-        radius: 1.0,
-      ).createShader(Rect.fromLTWH(-w * 0.1, -h * 0.05, w * 0.75, w * 0.75));
-    canvas.drawCircle(Offset(w * 0.05, h * 0.08), w * 0.38, c1);
-
-    // ── Medium circle — top right ────────────────────────────
-    final c2 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x223E5F55), Color(0x003E5F55)],
-        center: Alignment.topRight,
-        radius: 1.0,
-      ).createShader(Rect.fromLTWH(w * 0.55, -h * 0.02, w * 0.55, w * 0.55));
-    canvas.drawCircle(Offset(w * 0.85, h * 0.06), w * 0.28, c2);
-
-    // ── Small accent circle — mid left ──────────────────────
-    final c3 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x1ACDEBD6), Color(0x00CDEBD6)],
-      ).createShader(Rect.fromLTWH(0, h * 0.28, w * 0.4, w * 0.4));
-    canvas.drawCircle(Offset(w * 0.08, h * 0.38), w * 0.22, c3);
-
-    // ── Small circle — lower right ───────────────────────────
-    final c4 = Paint()
-      ..shader = RadialGradient(
-        colors: const [Color(0x18A9CDBA), Color(0x00A9CDBA)],
-      ).createShader(Rect.fromLTWH(w * 0.6, h * 0.55, w * 0.5, w * 0.5));
-    canvas.drawCircle(Offset(w * 0.9, h * 0.68), w * 0.26, c4);
-
-    // ── Dot grid (top right area) ────────────────────────────
-    final dotPaint = Paint()..color = const Color(0x223E5F55);
-    for (int row = 0; row < 5; row++) {
-      for (int col = 0; col < 4; col++) {
-        canvas.drawCircle(
-          Offset(w * 0.68 + col * 14.0, h * 0.04 + row * 14.0),
-          2.0, dotPaint);
-      }
-    }
-
-    // ── Wave 1 — large sweeping curve (bottom third) ─────────
-    final wave1 = Paint()
-      ..shader = LinearGradient(
-        colors: const [Color(0x1A3E5F55), Color(0x0A3E5F55)],
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-      ).createShader(Rect.fromLTWH(0, h * 0.5, w, h * 0.5))
-      ..style = PaintingStyle.fill;
-    final wPath1 = Path();
-    wPath1.moveTo(0, h * 0.72);
-    wPath1.cubicTo(w * 0.25, h * 0.60, w * 0.55, h * 0.84, w, h * 0.68);
-    wPath1.lineTo(w, h);
-    wPath1.lineTo(0, h);
-    wPath1.close();
-    canvas.drawPath(wPath1, wave1);
-
-    // ── Wave 2 — lighter higher curve ───────────────────────
-    final wave2 = Paint()
-      ..color = const Color(0x0F3E5F55)
-      ..style = PaintingStyle.fill;
-    final wPath2 = Path();
-    wPath2.moveTo(0, h * 0.62);
-    wPath2.cubicTo(w * 0.30, h * 0.54, w * 0.65, h * 0.74, w, h * 0.58);
-    wPath2.lineTo(w, h * 0.68);
-    wPath2.cubicTo(w * 0.55, h * 0.84, w * 0.25, h * 0.60, 0, h * 0.72);
-    wPath2.close();
-    canvas.drawPath(wPath2, wave2);
-
-    // ── Thin curved accent line ──────────────────────────────
-    final linePaint = Paint()
-      ..color = const Color(0x1A3E5F55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    final linePath = Path();
-    linePath.moveTo(0, h * 0.45);
-    linePath.cubicTo(w * 0.2, h * 0.38, w * 0.75, h * 0.52, w, h * 0.42);
-    canvas.drawPath(linePath, linePaint);
-  }
-
-  @override bool shouldRepaint(_OffroHomeBgPainter old) => false;
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// PRIVACY POLICY PAGE — with Read More + Delete Account flow
-// ══════════════════════════════════════════════════════════════════════════════
-class PrivacyPolicyPage extends StatefulWidget {
-  final String token;
-  const PrivacyPolicyPage({required this.token, super.key});
-  @override State<PrivacyPolicyPage> createState() => _PrivacyPolicyPageState();
-}
-
-class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
-  String _content = "";
-  bool _loading = true;
-  bool _expanded = false;
-
-  @override void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final c = await Api.fetchPolicy("privacy");
-    if (mounted) setState(() { _content = c; _loading = false; });
-  }
-
-  @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF6),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: const Text("Privacy Policy", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
-        ),
-      ),
-      body: _loading
-        ? const Center(child: CircularProgressIndicator(color: kPrimary))
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Policy text
-              if (_content.isEmpty)
-                const Text("Privacy policy content is being updated. Please check back later.",
-                  style: TextStyle(color: kMuted, fontSize: 14))
-              else ...[
-                Text(
-                  _expanded ? _content : (_content.length > 280 ? _content.substring(0, 280) + "..." : _content),
-                  style: const TextStyle(fontSize: 14, color: kText, height: 1.6),
-                ),
-                if (_content.length > 280) ...[
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: () => setState(() => _expanded = !_expanded),
-                    child: Text(
-                      _expanded ? "Read Less" : "Read More",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14),
-                    ),
-                  ),
-                ],
-              ],
-              const SizedBox(height: 32),
-              // Delete account section
-              const Divider(height: 1, color: kBorder),
-              const SizedBox(height: 16),
-              // "Request to delete my account" tile
-              GestureDetector(
-                onTap: () => Navigator.push(context,
-                  _route(DeleteAccountReasonPage(token: widget.token))),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 38, height: 38,
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Request to delete my account",
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.red)),
-                        const SizedBox(height: 2),
-                        Text("All your data will be permanently removed",
-                          style: TextStyle(fontSize: 12, color: Colors.red.shade700)),
-                      ],
-                    )),
-                    const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.red),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 28),
-            ]),
-          ),
-    );
-  }
-}
-
-
-// ══════════════════════════════════════════════════════════════════════════════
-// DELETE ACCOUNT — Reason selection page (Customer app)
-// ══════════════════════════════════════════════════════════════════════════════
-class DeleteAccountReasonPage extends StatefulWidget {
-  final String token;
-  const DeleteAccountReasonPage({required this.token, super.key});
-  @override State<DeleteAccountReasonPage> createState() => _DeleteAccountReasonPageState();
-}
-
-class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
-  String? _selectedReason;
-  final _reasons = [
-    "I no longer use the app",
-    "I have privacy concerns",
-    "I have a duplicate account",
-    "Too many notifications or irrelevant content",
-    "Other",
-  ];
-
-  @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFDFBF6),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: const Text("Delete Account", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
-        ),
-      ),
-      body: Column(children: [
-        Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.orange.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.orange.shade200),
-          ),
-          child: Row(children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
-            const SizedBox(width: 12),
-            Expanded(child: Text(
-              "Once your account is deleted, your data cannot be retrieved. Signing up again will create a new account.",
-              style: TextStyle(fontSize: 13, color: Colors.orange.shade900, height: 1.4),
-            )),
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Select a reason for deleting your account",
-              style: TextStyle(fontSize: 13, color: kMuted, fontWeight: FontWeight.w500)),
-          ),
-        ),
-        Expanded(child: ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: _reasons.length,
-          itemBuilder: (ctx, i) {
-            final r = _reasons[i];
-            final selected = _selectedReason == r;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedReason = r),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  color: selected ? kPrimary.withOpacity(0.08) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: selected ? kPrimary : kBorder),
-                ),
-                child: Row(children: [
-                  Icon(
-                    selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                    color: selected ? kPrimary : kMuted, size: 22,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(r,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                      color: selected ? kPrimary : kText,
-                    )),
-                  ),
-                ]),
-              ),
-            );
-          },
-        )),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _selectedReason == null ? null : () => _showConfirmDialog(),
-              icon: const Icon(Icons.delete_forever_rounded, size: 20),
-              label: const Text("Submit Delete Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.red.withOpacity(0.3),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  void _showConfirmDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Delete Account?", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
-        content: const Text(
-          "Your account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your data cannot be retrieved. Are you absolutely sure?",
-          style: TextStyle(fontSize: 14, color: kText, height: 1.5),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _submitDeletion();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text("Yes, Delete", style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _submitDeletion() async {
-    try {
-      await Api.requestDeleteAccount(widget.token, _selectedReason!);
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Deletion Requested", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
-          content: const Text(
-            "Your account deletion request has been submitted. You have been logged out.",
-            style: TextStyle(fontSize: 14, color: kText),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () async {
-                await Prefs.clear();
-                FcmService.reset();
-                Api.clearCache();
-                MyApp.goOnboarding();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
-          ],
-        ),
-      );
-    } catch (e) {
-      debugPrint('[OffrO] delete account request error: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
-          backgroundColor: Colors.red),
-      );
-    }
   }
 }

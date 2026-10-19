@@ -12,6 +12,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/services/fav_state.dart';
+import '../../core/utils/navigation.dart';
 
 // ══════════════════════════════════════════════════════════
 // INFLUENCER MODULE — connected to the real backend (Phase 2/3).
@@ -47,10 +48,6 @@ Color _avatarColor(String seed) {
   return palette[idx];
 }
 
-// Local route helper — main.dart/home_screen.dart's own `_route` is
-// file-private and not visible here, so this mirrors it for this file.
-PageRoute _route(Widget w) => MaterialPageRoute(builder: (_) => w);
-
 Future<void> _openSocial(String? url) async {
   if (url == null || url.isEmpty) return;
   final uri = Uri.tryParse(url);
@@ -80,42 +77,6 @@ Widget _socialIcons(Map social, {double size = 16}) {
   return Row(mainAxisSize: MainAxisSize.min, children: icons);
 }
 
-/// Polished social row for the profile screen — icon + platform name +
-/// chevron, tappable, using the same _openSocial launcher as the compact
-/// icon row above.
-Widget _socialRow(Map social) {
-  final rows = <Widget>[];
-  void addIfPresent(String key, String label, IconData icon, Color color) {
-    final url = social[key]?.toString() ?? "";
-    if (url.isEmpty) return;
-    rows.add(InkWell(
-      onTap: () => _openSocial(url),
-      borderRadius: BorderRadius.circular(10),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        child: Row(children: [
-          Container(
-            width: 34, height: 34,
-            decoration: BoxDecoration(color: color.withValues(alpha: .12), shape: BoxShape.circle),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 18, color: color),
-          ),
-          const SizedBox(width: 12),
-          Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: kText)),
-          const Spacer(),
-          const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: kMuted),
-        ]),
-      ),
-    ));
-  }
-  addIfPresent("instagram", "Instagram", Icons.camera_alt_rounded, const Color(0xFFD4537E));
-  addIfPresent("youtube", "YouTube", Icons.play_circle_fill_rounded, const Color(0xFFE24B4A));
-  addIfPresent("facebook", "Facebook", Icons.facebook_rounded, const Color(0xFF378ADD));
-  if (rows.isEmpty) {
-    return const Text("No social links added yet", style: TextStyle(fontSize: 12, color: kMuted));
-  }
-  return Column(children: rows);
-}
 
 /// Redesigned Social card for the public/user-facing profile — ONLY the 3
 /// platform icons (YouTube, Instagram, Facebook), no "Social" heading, no
@@ -203,6 +164,68 @@ Widget _avatar(Map influencer, double size) {
   return _avatarFallback(name, size);
 }
 
+// QA fix: SQUARE avatar for the Home Screen influencer card specifically
+// (_InfluencerCard below) — kept separate from _avatar()/_avatarFallback()
+// above, which stay circular for every OTHER place they're used (the "View
+// All" influencer list, the profile screen header, etc.), since only the
+// Home Screen card was asked to change. Mirrors _avatar()'s structure
+// exactly, swapping BoxShape.circle/ClipOval for a lightly-rounded square
+// (ClipRRect) so it still reads as an intentional OffrO card shape rather
+// than a plain cropped rectangle.
+Widget _squareAvatar(Map influencer, double size) {
+  final name = influencer["name"]?.toString() ?? "?";
+  final photoUrl = influencer["photo_url"]?.toString() ?? "";
+  if (photoUrl.startsWith("http")) {
+    return Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: kBorder, width: 1)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(13),
+        child: CachedNetworkImage(
+          imageUrl: photoUrl, width: size, height: size, fit: BoxFit.cover,
+          placeholder: (_, __) => _squareAvatarFallback(name, size, bordered: false),
+          errorWidget: (_, __, ___) => _squareAvatarFallback(name, size, bordered: false),
+        ),
+      ),
+    );
+  }
+  if (photoUrl.startsWith("data:")) {
+    try {
+      final b64 = photoUrl.split(",").last;
+      return Container(
+        width: size, height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: kBorder, width: 1)),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(13),
+          child: Image.memory(base64Decode(b64), width: size, height: size, fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _squareAvatarFallback(name, size, bordered: false)),
+        ),
+      );
+    } catch (_) {
+      return _squareAvatarFallback(name, size);
+    }
+  }
+  return _squareAvatarFallback(name, size);
+}
+
+Widget _squareAvatarFallback(String name, double size, {bool bordered = true}) {
+  return Container(
+    width: size, height: size,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(14),
+      color: _avatarColor(name),
+      border: bordered ? Border.all(color: kBorder, width: 1) : null,
+    ),
+    alignment: Alignment.center,
+    child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?",
+      style: TextStyle(fontSize: size * 0.36, fontWeight: FontWeight.w800, color: kPrimary)),
+  );
+}
+
 Widget _avatarFallback(String name, double size, {bool bordered = true}) {
   return Container(
     width: size, height: size,
@@ -240,34 +263,41 @@ class _InfluencerCard extends StatelessWidget {
     final name = influencer["name"]?.toString() ?? "";
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: influencer, token: token))),
+      onTap: () => Navigator.push(context, appRoute(InfluencerProfileScreen(influencer: influencer, token: token))),
       child: Container(
-        // Item 1: matches Discover Products' card width (155) and right
-        // margin (12) exactly (see _DiscoverProductsSection in main.dart).
-        // The row height is set to 170 at the SizedBox wrapper in
-        // CityInfluencersSection below, also matching Discover Products.
-        width: 155,
+        // QA round (Oct 2026): widened from 155 to let the influencer image
+        // grow substantially. Left/right padding was tightened from 10 to 8
+        // so the image gets more of the extra width too, while still
+        // leaving a small, even margin on both sides (never touching the
+        // card edge). Top/bottom padding (10 / 8) plus the inner top
+        // Padding(4) below keep the same ~14px top inset as before — the
+        // user explicitly wants the top spacing left alone.
+        // Redesign to match the approved reference: white rounded card, a
+        // large square image filling almost the whole upper area (8px inset),
+        // then ONE compact row — name left, rating/reviews right. Card is
+        // 184 wide -> 168px square image; no extra whitespace below.
+        width: 184,
         margin: const EdgeInsets.only(right: 12),
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 9),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(color: kBorder),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Items 8 & 9: no social-icon overlay and no city on the Home
-          // card — both were removed here specifically; the profile screen
-          // still shows city and social links in full.
-          // Avatar kept at its exact existing explicit size (108) — NOT
-          // wrapped in AspectRatio anymore, since AspectRatio would stretch
-          // it to fill the new, wider card. Centered instead so only the
-          // card grew, not the avatar.
-          Center(child: _avatar(influencer, 108)),
+          _squareAvatar(influencer, 168),
           const SizedBox(height: 8),
-          Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
-          const SizedBox(height: 4),
-          _ratingRow(influencer),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              Expanded(
+                child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: kText)),
+              ),
+              const SizedBox(width: 6),
+              _ratingRow(influencer, fontSize: 11.5),
+            ]),
+          ),
           // Item 10: Follow button removed — it was local-UI-only and never
           // actually persisted a follow relationship anywhere.
         ]),
@@ -350,7 +380,42 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
     // Still loading (first fetch hasn't returned yet) — stay hidden exactly
     // as before, so nothing flashes on screen before we know either way.
     // This is the ONLY case that still hides the section entirely.
-    if (influencers == null) return const SizedBox.shrink();
+    // QA round: instead of collapsing to nothing (which made everything below
+    // jump down once the list arrived), reserve the same header + row height
+    // with plain placeholder cards.
+    if (influencers == null) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Local Voices",
+                style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
+              Text("People shaping the city",
+                style: TextStyle(color: kMuted, fontSize: 12)),
+            ]),
+          ),
+          SizedBox(
+            height: 218,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: List.generate(2, (_) => Container(
+                width: 184, height: 208,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kBorder),
+                ),
+              )),
+            ),
+          ),
+        ]),
+      );
+    }
 
     // FIX: previously `influencers.isEmpty` ALSO returned SizedBox.shrink()
     // here, which hid this whole section (heading included) the moment the
@@ -368,18 +433,25 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(isEmpty ? "City Influencers" : "City influencers",
-              style: const TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(isEmpty ? "Discover local creators and recommendations" : "Discover creators from your city",
-              style: const TextStyle(color: kMuted, fontSize: 12)),
+            // QA rename: "City Influencers" / "Discover local creators..."
+            // -> "Local Voices" / "People shaping the city" (same text in
+            // both the empty and non-empty state — functionality unchanged).
+            const Text("Local Voices",
+              style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text("People shaping the city",
+              style: TextStyle(color: kMuted, fontSize: 12)),
           ]),
         ),
         if (isEmpty)
           _influencerComingSoonCard()
         else
-        // Item 1: row height matches Discover Products (170) exactly.
+        // QA round (Oct 2026): row height raised from 170 to 232 to fit the
+        // enlarged 150px square image (was 92px) plus the card's padding,
+        // name and rating row beneath it, with a small safety margin so
+        // nothing clips/overflows. No longer tied to Discover Products'
+        // row height — that match was incidental, not a requirement.
         SizedBox(
-          height: 170,
+          height: 218,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -394,7 +466,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
                 // trailing See All card (see _DiscoverProductsSection in
                 // main.dart) — only the destination differs.
                 return GestureDetector(
-                  onTap: () => Navigator.push(context, _route(InfluencerListingScreen(city: widget.city, token: widget.token))),
+                  onTap: () => Navigator.push(context, appRoute(InfluencerListingScreen(city: widget.city, token: widget.token))),
                   child: Center(
                     child: Container(
                       width: 52, height: 120,
@@ -465,7 +537,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
         backgroundColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: kText),
-        title: const Text("City influencers", style: TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
+        title: const Text("Local Voices", style: TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
       ),
       body: influencers == null
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
@@ -489,7 +561,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                     final inf = influencers[i];
                     final social = (inf["social"] is Map) ? inf["social"] as Map : {};
                     return GestureDetector(
-                      onTap: () => Navigator.push(context, _route(InfluencerProfileScreen(influencer: inf, token: widget.token))),
+                      onTap: () => Navigator.push(context, appRoute(InfluencerProfileScreen(influencer: inf, token: widget.token))),
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
@@ -867,7 +939,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
             const Spacer(),
             if (_reviews.length > 2)
               GestureDetector(
-                onTap: () => Navigator.push(context, _route(_InfluencerReviewsScreen(name: name, reviews: _reviews))),
+                onTap: () => Navigator.push(context, appRoute(_InfluencerReviewsScreen(name: name, reviews: _reviews))),
                 child: Text("See all (${_reviews.length})",
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kPrimary)),
               ),

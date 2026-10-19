@@ -25,8 +25,12 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
+import '../../core/models/offro_location.dart';
+import '../../core/services/location_service.dart';
+import '../../core/services/location_store.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
+import '../location/location_screen.dart';
 import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../payment/payment_success_screen.dart';
@@ -34,8 +38,7 @@ import 'products_phase2.dart';
 // Round 7 Item 2: reuse the existing full-screen image viewer for the Merchant
 // Deals list thumbnail tap-to-view — no duplicate viewer implementation.
 import '../store/widgets/store_header.dart' show FullScreenImageViewer;
-
-PageRoute _offroRoute(Widget w) => MaterialPageRoute(builder: (_) => w);
+import '../../core/utils/navigation.dart';
 
 /// PERMANENT HEADER REDESIGN: small circular filled "+" action button used
 /// in place of the old large outlined "New X" buttons across merchant list
@@ -68,7 +71,17 @@ Widget offroHeaderAddButton({
 
 class MerchantHomePage extends StatefulWidget {
   final String token;
-  const MerchantHomePage({super.key, required this.token});
+  // Merchant ACCOUNT location header (device-only; never the store address).
+  final String locationTitle;
+  final String locationSubtitle;
+  final VoidCallback? onLocationTap;
+  const MerchantHomePage({
+    super.key,
+    required this.token,
+    this.locationTitle = '',
+    this.locationSubtitle = '',
+    this.onLocationTap,
+  });
   @override State<MerchantHomePage> createState() => _MerchantHomePageState();
 }
 class _MerchantHomePageState extends State<MerchantHomePage> {
@@ -132,6 +145,14 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       ]),
       backgroundColor: Colors.white, foregroundColor: kText,
       automaticallyImplyLeading:false,
+      bottom: widget.onLocationTap == null ? null : PreferredSize(
+        preferredSize: const Size.fromHeight(52),
+        child: _MerchantLocationBar(
+          title: widget.locationTitle,
+          subtitle: widget.locationSubtitle,
+          onTap: widget.onLocationTap!,
+        ),
+      ),
     ),
     body: _loading
       ? const Center(child:CircularProgressIndicator(color:kPrimary))
@@ -176,7 +197,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                 subtitle: _stores.isEmpty
                   ? "No stores yet — tap to add your first"
                   : "${_stores.length} Store${_stores.length>1?'s':''} • ${_stores.where((s)=>s['status']=='active').length} Active",
-                onTap: ()=>Navigator.push(context,_offroRoute(MerchantStoresPage(token:widget.token))).then((_)=>_load()),
+                onTap: ()=>Navigator.push(context,appRoute(MerchantStoresPage(token:widget.token))).then((_)=>_load()),
               ),
               const SizedBox(height:12),
 
@@ -198,7 +219,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         return "${_banners.length} Banner${_banners.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
                       })(),
                 onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,_offroRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
+                  ? ()=>Navigator.push(context,appRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content:Text("Subscribe your store to create banners."),
                       backgroundColor:Colors.orange)),
@@ -230,7 +251,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                         return parts.join('  ·  ');
                       })(),
                 onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,_offroRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
+                  ? ()=>Navigator.push(context,appRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
                   : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content:Text("Subscribe your store to add products."),
                       backgroundColor:Colors.orange)),
@@ -363,7 +384,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
           child:offroHeaderAddButton(
             icon:Icons.add,
             tooltip:"New Banner",
-            onPressed:()=>Navigator.push(context,_offroRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
+            onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
           ),
         ),
       ],
@@ -446,14 +467,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                     Widget _thumb;
                     if (imgUrl.isNotEmpty) {
                       if (_isVideo) {
-                        _thumb = Container(
-                          width: 80,
-                          height: 80,
-                          color: Colors.black87,
-                          child: const Center(
-                            child: Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
-                          ),
-                        );
+                        _thumb = _BannerThumbVideo(url: imgUrl, initial: initialStr);
                       } else if (imgUrl.startsWith("data:image")) {
                         _thumb = Image.memory(
                           base64Decode(imgUrl.split(",").last),
@@ -662,84 +676,6 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
   );
 }
 
-// ── Banner placement preview widget ──
-class _BannerPlacementPreview extends StatelessWidget {
-  const _BannerPlacementPreview();
-  @override Widget build(BuildContext context) => Container(
-    margin:const EdgeInsets.fromLTRB(14,14,14,0),
-    padding:const EdgeInsets.all(12),
-    decoration:BoxDecoration(
-      color:Colors.white,
-      borderRadius:BorderRadius.circular(14),
-      border:Border.all(color:const Color(0xFF3E5F55), width:1.5),
-    ),
-    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[
-        const Icon(Icons.info_outline,size:15,color:kPrimary),
-        const SizedBox(width:6),
-        const Text("Where your banner appears",style:TextStyle(fontWeight:FontWeight.w700,color:kPrimary,fontSize:13)),
-      ]),
-      const SizedBox(height:10),
-      // FIX 13: Real OFFRO app mockup image
-      ClipRRect(
-        borderRadius:BorderRadius.circular(10),
-        child:Image.network(
-          "https://media.base44.com/images/public/69dc008cb5876dcb8680be38/a09b33237_generated_image.png",
-          width:double.infinity,
-          height:160,
-          fit:BoxFit.cover,
-          errorBuilder:(_,__,___) => Container(
-            height:160, color:kLight,
-            child:const Center(child:Text("Banner preview unavailable",style:TextStyle(color:kMuted,fontSize:12))),
-          ),
-        ),
-      ),
-      // Simulated phone UI preview — HIDDEN, replaced by mockup above
-      if(false) Container(
-        decoration:BoxDecoration(
-          border:Border.all(color:kBorder),
-          borderRadius:BorderRadius.circular(10),
-        ),
-        child:Column(children:[
-          // Fake app header
-          Container(height:28,decoration:const BoxDecoration(
-            color:Color(0xFF3E5F55),
-            borderRadius:BorderRadius.vertical(top:Radius.circular(9)),
-          ),alignment:Alignment.center,child:const Text("OFFRO",style:TextStyle(color:Colors.white,fontSize:11,fontWeight:FontWeight.w800))),
-          // Banner slot — highlighted
-          Container(
-            height:50,
-            margin:const EdgeInsets.symmetric(horizontal:6,vertical:5),
-            decoration:BoxDecoration(
-              gradient:const LinearGradient(colors:[Color(0xFF3E5F55),Color(0xFFA9CDBA)]),
-              borderRadius:BorderRadius.circular(8),
-              border:Border.all(color:const Color(0xFFe67e22),width:2),
-            ),
-            alignment:Alignment.center,
-            child:const Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Icon(Icons.arrow_upward,size:12,color:Colors.white),
-              SizedBox(width:4),
-              Text(">> YOUR BANNER HERE",style:TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.w800)),
-            ]),
-          ),
-          // Fake content rows
-          ...List.generate(2,(_)=>Container(height:14,margin:const EdgeInsets.fromLTRB(6,0,6,4),
-            decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(4)))),
-          const SizedBox(height:4),
-        ]),
-      ),
-      const SizedBox(height:8),
-      Row(children:[
-        _InfoChip("📐 1200×400px"),
-        const SizedBox(width:6),
-        _InfoChip("📦 Max 2MB"),
-        const SizedBox(width:6),
-        _InfoChip("🖼️ JPG/PNG"),
-      ]),
-    ]),
-  );
-}
-
 class _InfoChip extends StatelessWidget {
   final String text;
   const _InfoChip(this.text);
@@ -784,6 +720,14 @@ class _AddBannerState extends State<AddBannerPage> {
   final _daysC     = TextEditingController(text:"30");
   final _discountC = TextEditingController();
   String? _imgB64; bool _loading = false; String _msg = "";
+  // Banner media: "image" (default, unchanged) or "video" (max 15 s / 10 MB).
+  static const int _kVideoMaxBytes = 10 * 1024 * 1024;
+  static const Duration _kVideoMaxDuration = Duration(seconds: 15);
+  String _mediaType = "image";
+  String? _videoPath;                 // picked file (already validated)
+  String? _videoUrl;                  // CDN url after upload (done once, right before payment)
+  VideoPlayerController? _videoCtrl;  // muted preview
+  bool _videoBusy = false;
   DateTime _fromDate = DateTime.now();
   Map<String,dynamic>? _pricing;
   String? _selCity;
@@ -795,7 +739,7 @@ class _AddBannerState extends State<AddBannerPage> {
   String? _appliedCode; double _appliedDiscount = 0; String? _appliedDiscountType;
   String _discountMsg = ""; bool _discountOk = false; bool _applyingCode = false;
 
-  @override void dispose() { _titleC.dispose(); _daysC.dispose(); _discountC.dispose(); _razorpay.clear(); super.dispose(); }
+  @override void dispose() { _titleC.dispose(); _daysC.dispose(); _discountC.dispose(); _razorpay.clear(); _videoCtrl?.dispose(); super.dispose(); }
 
   Future<void> _loadPricing() async {
     try {
@@ -837,14 +781,152 @@ class _AddBannerState extends State<AddBannerPage> {
     setState(()=>_imgB64="data:image/jpeg;base64,${base64Encode(bytes)}");
   }
 
+  // What gets sent as the banner media: the CDN video url, or the image data URI.
+  String? get _mediaPayload => _mediaType == "video" ? _videoUrl : _imgB64;
+
+  void _videoError(String message) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red));
+  }
+
+  // Validates size (<= 10 MB) and duration (<= 15 s) BEFORE anything is uploaded.
+  Future<void> _pickVideo() async {
+    if (_videoBusy) return;
+    final XFile? picked = await ImagePicker().pickVideo(source: ImageSource.gallery);
+    if (picked == null) return;
+    setState(() => _videoBusy = true);
+    VideoPlayerController? c;
+    try {
+      final file = File(picked.path);
+      if (await file.length() > _kVideoMaxBytes) {
+        _videoError("Video is too large. Please select a video up to 10 MB.");
+        return;
+      }
+      c = VideoPlayerController.file(file);
+      await c.initialize();
+      if (c.value.duration > _kVideoMaxDuration) {
+        await c.dispose();
+        c = null;
+        _videoError("Video is too long. Please select a video up to 15 seconds.");
+        return;
+      }
+      await c.setVolume(0);
+      await c.setLooping(true);
+      await c.play();
+      final old = _videoCtrl;
+      if (!mounted) return;
+      setState(() { _videoCtrl = c; _videoPath = picked.path; _videoUrl = null; _msg = ""; });
+      c = null; // now owned by the state
+      old?.dispose();
+    } catch (_) {
+      _videoError("Could not read this video. Please select another video.");
+    } finally {
+      c?.dispose();
+      if (mounted) setState(() => _videoBusy = false);
+    }
+  }
+
+  void _removeVideo() {
+    final old = _videoCtrl;
+    setState(() { _videoCtrl = null; _videoPath = null; _videoUrl = null; });
+    old?.dispose();
+  }
+
+  // Uploads the validated video once (before payment, so a failed upload never
+  // costs the merchant anything). Reused on retry. Returns false + sets _msg on failure.
+  Future<bool> _uploadVideoIfNeeded() async {
+    if (_videoUrl != null) return true;
+    final path = _videoPath;
+    if (path == null) return false;
+    try {
+      final bytes = await File(path).readAsBytes();
+      if (bytes.length > _kVideoMaxBytes) {
+        if (mounted) setState(() => _msg = "Video is too large. Please select a video up to 10 MB.");
+        return false;
+      }
+      debugPrint("[BannerVideo] POST $kBaseUrl/merchant/banners/upload-video bytes=${bytes.length}");
+      final res = await Api.uploadBannerVideo(widget.token, "data:video/mp4;base64,${base64Encode(bytes)}");
+      final url = (res["url"] ?? "").toString();
+      if (url.isEmpty) throw Exception("empty video url");
+      _videoUrl = url;
+      return true;
+    } catch (e) {
+      debugPrint("[BannerVideo] upload failed: $e");
+      if (mounted) setState(() => _msg = friendlyError(e, fallback: "Could not upload the video. Please try again."));
+      return false;
+    }
+  }
+
+  Widget _mediaTypeChip(String label, IconData icon, String value) {
+    final sel = _mediaType == value;
+    return Expanded(child: GestureDetector(
+      onTap: () => setState(() => _mediaType = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          color: sel ? kPrimary : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: sel ? kPrimary : kBorder)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 18, color: sel ? Colors.white : kMuted),
+          const SizedBox(width: 6),
+          Text(label, style: TextStyle(
+            color: sel ? Colors.white : kText, fontSize: 13, fontWeight: FontWeight.w700)),
+        ]))));
+  }
+
+  Widget _videoBox() {
+    final c = _videoCtrl;
+    final has = c != null && c.value.isInitialized;
+    return GestureDetector(
+      onTap: has ? null : _pickVideo,
+      child: Container(
+        height: 110,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: has ? kPrimary : kBorder, width: has ? 2 : 1)),
+        child: _videoBusy
+          ? const Center(child: SizedBox(width: 24, height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary)))
+          : has
+            ? Stack(children: [
+                ClipRRect(borderRadius: BorderRadius.circular(11),
+                  child: SizedBox(width: double.infinity, height: 110,
+                    child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge,
+                      child: SizedBox(width: c!.value.size.width, height: c.value.size.height,
+                        child: VideoPlayer(c))))),
+                Positioned(top: 6, right: 6, child: GestureDetector(
+                  onTap: _removeVideo,
+                  child: Container(padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+              ])
+            : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.video_library_outlined, size: 36, color: kAccent),
+                const SizedBox(height: 6),
+                const Text("Tap to select banner video", style: TextStyle(color: kMuted, fontSize: 13)),
+                const SizedBox(height: 3),
+                _InfoChip("Max 15 seconds · Max 10 MB"),
+              ]),
+      ));
+  }
+
   Future<void> _proceed() async {
     if (_titleC.text.trim().isEmpty) { setState(()=>_msg="Banner title required"); return; }
     if (_selectedBannerStore==null) { setState(()=>_msg="Please select a store"); return; }
     if (_selCity==null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city"); return; }
-    if (_imgB64==null) { setState(()=>_msg="Please upload a banner image"); return; }
+    if (_mediaType=="video") {
+      if (_videoPath==null) { setState(()=>_msg="Please select a banner video"); return; }
+    } else if (_imgB64==null) { setState(()=>_msg="Please upload a banner image"); return; }
     if (_days<1) { setState(()=>_msg="Enter number of days (minimum 1)"); return; }
     setState((){_loading=true; _msg="";});
     try {
+      // Video: upload once, before any order/payment is created.
+      if (_mediaType=="video" && !await _uploadVideoIfNeeded()) {
+        if (mounted) setState(()=>_loading=false);
+        return;
+      }
       final order = await Api.createBannerOrder(widget.token, {
         "days":       _days,
         "from_date":  _fromDateStr,
@@ -868,7 +950,8 @@ class _AddBannerState extends State<AddBannerPage> {
           final res = await Api.activateFreeBanner(widget.token, {
             "order_id":  order["order_id"],
             "title":     _titleC.text.trim(),
-            "image_url": _imgB64,
+            "image_url": _mediaPayload,
+            "media_type": _mediaType,
             "city":      _selCity??"",
             "store_id":  (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
             "store_name":(_selectedBannerStore?["store_name"] ?? "").toString(),
@@ -986,7 +1069,8 @@ class _AddBannerState extends State<AddBannerPage> {
       final result = await Api.verifyBannerPayment(widget.token, {
         "order_id":           captured!["order_id"],
         "title":              _titleC.text.trim(),
-        "image_url":          _imgB64,
+        "image_url":          _mediaPayload,
+        "media_type":         _mediaType,
         "city":               _selCity??"",
         "store_id":           (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
         "store_name":         (_selectedBannerStore?["store_name"] ?? "").toString(),
@@ -1116,8 +1200,16 @@ class _AddBannerState extends State<AddBannerPage> {
       ),
       const SizedBox(height: 12),
 
-      // Image upload
-      GestureDetector(
+      // Banner type: Image / Video
+      Row(children:[
+        _mediaTypeChip("Image", Icons.image_outlined, "image"),
+        const SizedBox(width:10),
+        _mediaTypeChip("Video", Icons.videocam_outlined, "video"),
+      ]),
+      const SizedBox(height:10),
+
+      // Upload (Image = existing behaviour, Video = new)
+      if (_mediaType=="image") GestureDetector(
         onTap:_pickImage,
         child:Container(
           height:110,
@@ -1146,7 +1238,8 @@ class _AddBannerState extends State<AddBannerPage> {
                   _InfoChip("📐 1200×400px"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
                 ]),
               ]),
-        )),
+        ))
+      else _videoBox(),
       const SizedBox(height:12),
 
       // Duration + From Date
@@ -1545,21 +1638,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 child: Icon(Icons.edit_rounded, color: kPrimary, size: 18)),
               title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
-            // FIX3: Analytics & Activity only for Premium
+            // FIX3: Analytics only for Premium
             if (pid.isNotEmpty && !isStd)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFF3CD),
                   child: Icon(Icons.bar_chart_rounded, color: Color(0xFF856404), size: 18)),
                 title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
-                  Navigator.push(context, _offroRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
-            if (pid.isNotEmpty && !isStd)
-              ListTile(
-                leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFF0F0F0),
-                  child: Icon(Icons.history_rounded, color: kMuted, size: 18)),
-                title: const Text("Activity History", style: TextStyle(fontWeight: FontWeight.w600)),
-                onTap: () { Navigator.pop(context);
-                  Navigator.push(context, _offroRoute(ProductHistoryPage(token: widget.token, product: v))); }),
+                  Navigator.push(context, appRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
             ListTile(
               leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFEBEB),
                 child: Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18)),
@@ -1873,7 +1959,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 icon: const Icon(Icons.upgrade_rounded, size: 16),
                 label: const Text("Upgrade Now", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 onPressed: () => Navigator.push(context,
-                  _offroRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
+                  appRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
           if (!isStd && (isApproved || isExpired))
             SizedBox(width: double.infinity,
@@ -1892,7 +1978,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                     : "Renew Now",
                   style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 onPressed: () => Navigator.push(context,
-                  _offroRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
+                  appRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
         ]),
       ),
@@ -2020,33 +2106,6 @@ class _StatusBadge extends StatelessWidget {
   );
 }
 
-// ── Compact action button ──────────────────────────────────────────────────
-class _ActionBtn extends StatelessWidget {
-  final String label; final IconData icon; final Color color; final VoidCallback onTap;
-  const _ActionBtn({required this.label, required this.icon, required this.color, required this.onTap});
-  @override Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .08),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: .35)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 12, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
-      ]),
-    ),
-  );
-}
-
-// ── String capitalize extension ────────────────────────────────────────────
-extension _Capitalize on String {
-  String capitalize() => isEmpty ? this : "${this[0].toUpperCase()}${substring(1)}";
-}
-
 // ── Product type choice dialog + navigation ──────────────────────────────────
 void _showProductTypeDialog(BuildContext context, String token, VoidCallback onRefresh) {
   showModalBottomSheet(
@@ -2064,7 +2123,7 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
           InkWell(
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, _offroRoute(StandardProductPage(token: token))).then((_) => onRefresh());
+              Navigator.push(context, appRoute(StandardProductPage(token: token))).then((_) => onRefresh());
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -2092,7 +2151,7 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
           InkWell(
             onTap: () {
               Navigator.pop(context);
-              Navigator.push(context, _offroRoute(AddProductPage(token: token))).then((_) => onRefresh());
+              Navigator.push(context, appRoute(AddProductPage(token: token))).then((_) => onRefresh());
             },
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -2169,81 +2228,6 @@ class _ProductThumb extends StatelessWidget {
         image:DecorationImage(image:NetworkImage(logoUrl),fit:BoxFit.cover),
       ));
   }
-}
-
-// ── Product placement preview widget ──
-class _ProductPlacementPreview extends StatelessWidget {
-  const _ProductPlacementPreview();
-  @override Widget build(BuildContext context) => Container(
-    margin:const EdgeInsets.fromLTRB(14,14,14,0),
-    padding:const EdgeInsets.all(12),
-    decoration:BoxDecoration(
-      color:Colors.white,
-      borderRadius:BorderRadius.circular(14),
-      border:Border.all(color:const Color(0xFF856404),width:1.5),
-    ),
-    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      Row(children:[
-        const Icon(Icons.info_outline,size:15,color:Color(0xFF856404)),
-        const SizedBox(width:6),
-        const Text("Where your product appears",style:TextStyle(fontWeight:FontWeight.w700,color:Color(0xFF856404),fontSize:13)),
-      ]),
-      const SizedBox(height:10),
-      // FIX 13: Real OFFRO app mockup image
-      ClipRRect(
-        borderRadius:BorderRadius.circular(10),
-        child:Image.network(
-          "https://media.base44.com/images/public/69dc008cb5876dcb8680be38/0d2c11ece_generated_image.png",
-          width:double.infinity, height:160, fit:BoxFit.cover,
-          errorBuilder:(_,__,___) => Container(
-            height:160,color:kLight,
-            child:const Center(child:Text("Product preview unavailable",style:TextStyle(color:kMuted,fontSize:12)))),
-        ),
-      ),
-      // Simulated Product Zone preview — hidden
-      if(false) Container(
-        decoration:BoxDecoration(border:Border.all(color:kBorder),borderRadius:BorderRadius.circular(10)),
-        child:Column(children:[
-          Container(height:22,decoration:const BoxDecoration(
-            color:Color(0xFF3E5F55),
-            borderRadius:BorderRadius.vertical(top:Radius.circular(9)),
-          ),alignment:Alignment.centerLeft,padding:const EdgeInsets.only(left:8),
-          child:const Text("🎟️ Discover Products",style:TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.w800))),
-          Container(height:56,padding:const EdgeInsets.symmetric(vertical:4,horizontal:6),
-            child:Row(children:[
-              // Fake product cards
-              ...List.generate(2,(_)=>Container(
-                width:52,margin:const EdgeInsets.only(right:6),
-                decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
-              )),
-              // Highlighted slot
-              Container(
-                width:52,
-                decoration:BoxDecoration(
-                  color:const Color(0xFFfff3cd),
-                  borderRadius:BorderRadius.circular(8),
-                  border:Border.all(color:const Color(0xFF856404),width:2),
-                ),
-                child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  const Icon(Icons.location_on,size:10,color:Color(0xFF856404)),
-                  const Text("YOURS",textAlign:TextAlign.center,
-                    style:TextStyle(fontSize:7,fontWeight:FontWeight.w800,color:Color(0xFF856404))),
-                ]),
-              ),
-            ])),
-          const SizedBox(height:4),
-        ]),
-      ),
-      const SizedBox(height:8),
-      Row(children:[
-        _InfoChip("📐 400×400px"),
-        const SizedBox(width:6),
-        _InfoChip("📦 Max 1MB"),
-        const SizedBox(width:6),
-        _InfoChip("🖼️ PNG/JPG"),
-      ]),
-    ]),
-  );
 }
 
 // ══════════════════════════════════════════════════════════
@@ -3099,40 +3083,179 @@ class MerchantHome extends StatefulWidget {
   const MerchantHome({super.key, required this.token, required this.merchant});
   @override State<MerchantHome> createState() => _MerchantHomeState();
 }
-class _MerchantHomeState extends State<MerchantHome> {
+class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver {
   int _idx = 0;
-  late List<Widget> _pages;
+  // The merchant ACCOUNT location (device-only, shared Location screen).
+  // Pages are not built — and no merchant API calls start — until a valid
+  // location exists. This never reads or writes the registered store address.
+  OffroLocation? _loc;
+
   @override void initState() {
     super.initState();
-    _pages = [
-      MerchantHomePage(token: widget.token),
-      MerchantDealsPage(token: widget.token),
-      MerchantInvoicesPage(token: widget.token),
-      MerchantTxnPage(token: widget.token),
-      MerchantProfilePage(token: widget.token, merchant: widget.merchant),
-    ];
+    WidgetsBinding.instance.addObserver(this);
+    _ensureLocation();
+    // Silent GPS check AFTER the first frame, so it can never delay Home.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_autoRefreshLocation());
+    });
   }
-  @override Widget build(BuildContext context) => PopScope(
-    canPop: false,
-    child: Scaffold(
-    body: _pages[_idx],
-    bottomNavigationBar: BottomNavigationBar(
-      currentIndex: _idx,
-      onTap: (i) => setState(()=>_idx=i),
-      selectedItemColor: kPrimary, unselectedItemColor: kMuted,
-      type: BottomNavigationBarType.fixed,
-      items: const [
-        BottomNavigationBarItem(icon:Icon(Icons.home_rounded),label:"Home"),
-        BottomNavigationBarItem(icon:Icon(Icons.local_offer),label:"Deals"),
-        BottomNavigationBarItem(icon:Icon(Icons.receipt_long),label:"Invoices"),
-        BottomNavigationBarItem(icon:Icon(Icons.history),label:"Activity"),
-        BottomNavigationBarItem(icon:Icon(Icons.person),label:"Profile"),
-      ],
+
+  @override void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Silent GPS check on return to the app (throttled inside the service).
+    if (state == AppLifecycleState.resumed) unawaited(_autoRefreshLocation());
+  }
+
+  // Silent GPS refresh of the shared device location (app open / resume).
+  // Only replaces a saved GPS location after the person really moved; a manual
+  // pick is never touched, nothing is prompted, failures keep the saved value.
+  // Saves ONLY to the shared LocationStore: no Api.updateCity, and the
+  // merchant's registered store address / lat / lng are never read or written.
+  bool _autoLocBusy = false;
+  bool _picking = false; // Location screen currently open
+  Future<void> _autoRefreshLocation() async {
+    if (_autoLocBusy) return;
+    _autoLocBusy = true;
+    try {
+      if (!mounted || _picking) return;
+      final saved = await LocationStore.load(LocationMode.merchant);
+      final fresh = await LocationService.autoRefreshIfMoved(saved);
+      if (fresh == null || !mounted || _picking) return;
+      final oldCity = _loc?.city ?? saved?.city ?? '';
+      await LocationStore.save(LocationMode.merchant, fresh);
+      if (!mounted) return;
+      setState(() => _loc = fresh);
+      if (!fresh.sameCity(oldCity)) {
+        ScaffoldMessenger.maybeOf(context)
+          ?..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            content: Text("Location updated to ${fresh.city}"),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ));
+      }
+    } catch (_) {
+      // keep the saved location
+    } finally {
+      _autoLocBusy = false;
+    }
+  }
+
+  Future<void> _ensureLocation() async {
+    final saved = await LocationStore.load(LocationMode.merchant);
+    if (!mounted) return;
+    if (saved != null && saved.hasCity) {
+      setState(() => _loc = saved);
+      return;
+    }
+    await _chooseLocation(mandatory: true);
+  }
+
+  Future<void> _chooseLocation({required bool mandatory}) async {
+    _picking = true;
+    final OffroLocation? picked;
+    try {
+      picked = await Navigator.push<OffroLocation>(
+        context,
+        MaterialPageRoute<OffroLocation>(
+          builder: (_) => LocationScreen(mode: LocationMode.merchant, mandatory: mandatory, current: _loc),
+        ),
+      );
+    } finally {
+      _picking = false;
+    }
+    if (!mounted) return;
+    if (picked != null) {
+      await LocationStore.save(LocationMode.merchant, picked);
+      if (!mounted) return;
+      setState(() => _loc = picked);
+    } else if (mandatory) {
+      await _chooseLocation(mandatory: true); // never proceed without a location
+    }
+  }
+
+  List<Widget> get _pages => [
+    MerchantHomePage(
+      token: widget.token,
+      locationTitle: _loc?.title ?? '',
+      locationSubtitle: _loc?.subtitle ?? '',
+      onLocationTap: () => _chooseLocation(mandatory: false),
     ),
-  ));
+    MerchantDealsPage(token: widget.token),
+    MerchantInvoicesPage(token: widget.token),
+    MerchantTxnPage(token: widget.token),
+    MerchantProfilePage(token: widget.token, merchant: widget.merchant),
+  ];
+
+  @override Widget build(BuildContext context) {
+    if (_loc == null) {
+      return const PopScope(
+        canPop: false,
+        child: Scaffold(
+          backgroundColor: kBg,
+          body: Center(child: CircularProgressIndicator(color: kPrimary)),
+        ),
+      );
+    }
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        body: _pages[_idx],
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: _idx,
+          onTap: (i) => setState(()=>_idx=i),
+          selectedItemColor: kPrimary, unselectedItemColor: kMuted,
+          type: BottomNavigationBarType.fixed,
+          items: const [
+            BottomNavigationBarItem(icon:Icon(Icons.home_rounded),label:"Home"),
+            BottomNavigationBarItem(icon:Icon(Icons.local_offer),label:"Deals"),
+            BottomNavigationBarItem(icon:Icon(Icons.receipt_long),label:"Invoices"),
+            BottomNavigationBarItem(icon:Icon(Icons.history),label:"Activity"),
+            BottomNavigationBarItem(icon:Icon(Icons.person),label:"Profile"),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-// ─────────── Merchant Stores Page ───────────
+/// Tappable location header on Merchant Home (opens the shared Location screen).
+class _MerchantLocationBar extends StatelessWidget {
+  final String title, subtitle; final VoidCallback onTap;
+  const _MerchantLocationBar({required this.title, required this.subtitle, required this.onTap});
+  @override Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    child: Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: kBorder), bottom: BorderSide(color: kBorder)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.location_on_rounded, color: kPrimary, size: 22),
+        const SizedBox(width: 8),
+        Expanded(child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title.isEmpty ? 'Select location' : title,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
+            if (subtitle.isNotEmpty)
+              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11.5, color: kMuted)),
+          ],
+        )),
+        const Icon(Icons.keyboard_arrow_down_rounded, color: kMuted),
+      ]),
+    ),
+  );
+}
 class MerchantStoresPage extends StatefulWidget {
   final String token;
   const MerchantStoresPage({super.key, required this.token});
@@ -3167,7 +3290,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
             child:offroHeaderAddButton(
               icon:Icons.add_business,
               tooltip:"New Store",
-              onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
+              onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
             ),
           ),
         ]),
@@ -3232,12 +3355,12 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:ElevatedButton.icon(
                 icon:const Icon(Icons.payment,size:15), label:const Text("Subscribe",style:TextStyle(fontSize:12)),
                 style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           } else if (status=="waiting_approval") {
             _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:Color(0xFF856404),fontSize:11,fontWeight:FontWeight.w600))));
@@ -3246,12 +3369,12 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.add_shopping_cart,size:15,color:kPrimary),label:const Text("Deals",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
+                onPressed:()=>Navigator.push(context,appRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
                 icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kPrimary),
@@ -3273,7 +3396,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
-                onPressed:()=>Navigator.push(context,_offroRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
+                onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           }
 
@@ -3379,13 +3502,6 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 // shared with the account-level manual State+City entry flow in
 // login_screen.dart without a circular import. Values are unchanged.
 
-// Flat city list for banner/product city targeting
-List<String> get _allCities {
-  final set = <String>{};
-  for (final cities in kIndiaCities.values) set.addAll(cities);
-  final list = set.toList()..sort();
-  return list;
-}
 
 class AddEditStorePage extends StatefulWidget {
   final String token; final Map? store;
@@ -3658,336 +3774,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose(); super.dispose(); }
 
   Future<void> _loadCategories() async { _categories = await Api.fetchCategories(token: widget.token); if (mounted) setState((){}); }
-
-  /// Google Maps location picker — premium dialog with URL paste & coordinate extraction.
-  /// Supports all Google Maps URL formats including short links (maps.app.goo.gl).
-  Future<void> _pickFromGoogleMaps() async {
-    double? _parsedLat;
-    double? _parsedLng;
-    String _parseError = "";
-    String _pastedText = "";
-    bool _isProcessing = false;
-
-    // ── Enhanced URL parser — covers all Google Maps URL variants ──
-    // Handles: @lat,lng  |  ?q=lat,lng  |  ll=lat,lng  |  /place/@lat,lng
-    // Also handles: manual "lat,lng" or "lat lng" coordinate entry
-    Future<bool> _tryParse(String input, void Function(double, double) onSuccess) async {
-      final raw = input.trim();
-      if (raw.isEmpty) return false;
-
-      // ── Coord patterns: relaxed to 1+ decimal digits to catch all Google formats ──
-      // ── Step 1: Direct coordinate input (bare "lat,lng" typed by user) ──
-      final bareCoord = RegExp(r'^\s*(-?\d{1,3}\.\d{4,})\s*,\s*(-?\d{1,3}\.\d{4,})\s*$');
-      final bcm = bareCoord.firstMatch(raw);
-      if (bcm != null) {
-        final la = double.tryParse(bcm.group(1)!);
-        final ln = double.tryParse(bcm.group(2)!);
-        if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
-            && la != 0.0 && ln != 0.0) {
-          onSuccess(la, ln);
-          return true;
-        }
-      }
-
-      // ── Step 2: Direct Maps URL — safe coord extraction ──
-      // ONLY @lat,lng and ?q=lat,lng patterns — never loose patterns.
-      bool _safeExtractCoords(String url) {
-        for (final pat in [
-          RegExp(r'@(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})'),
-          RegExp(r'[?&]q=(-?\d{1,3}\.\d{4,}),(-?\d{1,3}\.\d{4,})'),
-        ]) {
-          final m = pat.firstMatch(url);
-          if (m != null) {
-            final la = double.tryParse(m.group(1)!);
-            final ln = double.tryParse(m.group(2)!);
-            if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
-                && la != 0.0 && ln != 0.0) {
-              onSuccess(la, ln);
-              return true;
-            }
-          }
-        }
-        return false;
-      }
-      if (_safeExtractCoords(raw)) return true;
-
-      // ── Step 3: Handle Google Maps URLs — resolve via backend ──
-      // Flutter's http package cannot reliably follow maps.app.goo.gl redirects on
-      // Android. Delegate ALL Google Maps resolution to the backend which uses
-      // Python urllib (full redirect chain, Nominatim fallback).
-      final isGoogleUrl = raw.contains('goo.gl') || raw.contains('maps.app')
-          || raw.contains('google.com/maps') || raw.contains('maps.google');
-      if (!isGoogleUrl) return false;
-
-      try {
-        final res = await Api.resolveMapsLink(raw);
-        if (!res.containsKey('error')) {
-          final la = double.tryParse(res['lat']?.toString() ?? '');
-          final ln = double.tryParse(res['lng']?.toString() ?? '');
-          if (la != null && ln != null && la.abs() <= 90 && ln.abs() <= 180
-              && la != 0.0 && ln != 0.0) {
-            onSuccess(la, ln);
-            return true;
-          }
-        }
-      } catch (_) {}
-      return false;
-    }
-
-    await showDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierColor: Colors.black54,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx2, setD) {
-              return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-          child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Header with Google branding ──
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1a73e8),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                ),
-                child: Row(children: [
-                  // Google Maps "G" logo badge
-                  Container(
-                    width: 38, height: 38,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Text("G",
-                        style: TextStyle(color: Color(0xFF1a73e8), fontSize: 22, fontWeight: FontWeight.w900)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Google Maps", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-                      Text("Paste a shared Maps link to set location", style: TextStyle(color: Colors.white70, fontSize: 11.5)),
-                    ],
-                  )),
-                  GestureDetector(
-                    onTap: () => Navigator.pop(ctx),
-                    child: const Icon(Icons.close_rounded, color: Colors.white70, size: 22),
-                  ),
-                ]),
-              ),
-
-              // ── Body ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Step-by-step instructions
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFe8f0fe),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        _mapsStep("1", "Open Google Maps app on your phone"),
-                        const SizedBox(height: 6),
-                        _mapsStep("2", "Search for your store or drop a pin"),
-                        const SizedBox(height: 6),
-                        _mapsStep("3", "Tap Share → Copy link (then paste full link here)"),
-                        const SizedBox(height: 6),
-                        _mapsStep("4", "Paste it below and tap Apply"),
-                      ]),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Paste field
-                    const Text("Paste Maps Link or Coordinates",
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF444444))),
-                    const SizedBox(height: 6),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _parseError.isNotEmpty
-                          ? const Color(0xFFc0392b)
-                          : _parsedLat != null
-                            ? const Color(0xFF1a6640)
-                            : const Color(0xFFCCCCCC)),
-                      ),
-                      child: TextField(
-                        autofocus: false,
-                        maxLines: 2,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF333333)),
-                        onChanged: (v) async {
-                          _pastedText = v;
-                          final ok = await _tryParse(v, (la, ln) {
-                            _parsedLat = la;
-                            _parsedLng = ln;
-                            _parseError = "";
-                          });
-                          if (!ok && v.trim().isNotEmpty) {
-                            _parsedLat = null;
-                            _parsedLng = null;
-                            _parseError = "Could not extract coordinates from this link.";
-                          } else if (v.trim().isEmpty) {
-                            _parsedLat = null;
-                            _parsedLng = null;
-                            _parseError = "";
-                          }
-                          setD(() {});
-                        },
-                        decoration: const InputDecoration(
-                          hintText: "Paste full share link or type: 12.9716, 77.5946",
-                          hintStyle: TextStyle(fontSize: 12, color: Color(0xFFAAAAAA)),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          border: InputBorder.none,
-                          prefixIcon: Icon(Icons.link_rounded, color: Color(0xFF1a73e8), size: 20),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Result feedback
-                    if (_parsedLat != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFe6f4ea),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .3)),
-                        ),
-                        child: Row(children: [
-                          const Icon(Icons.check_circle_rounded, color: Color(0xFF1a6640), size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text("Location detected!", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF1a6640))),
-                              Text(
-                                "Lat: ${_parsedLat!.toStringAsFixed(6)}  |  Lng: ${_parsedLng!.toStringAsFixed(6)}",
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF555555)),
-                              ),
-                            ],
-                          )),
-                        ]),
-                      )
-                    else if (_parseError.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFfce8e6),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFc0392b).withValues(alpha: .3)),
-                        ),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            const Icon(Icons.error_outline_rounded, color: Color(0xFFc0392b), size: 16),
-                            const SizedBox(width: 6),
-                            const Text("Could not extract coordinates",
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFc0392b))),
-                          ]),
-                          const SizedBox(height: 4),
-                          const Text(
-                            "Make sure you copy the link using the Share button in Google Maps — not the address bar URL.",
-                            style: TextStyle(fontSize: 11, color: Color(0xFF888888), height: 1.4)),
-                        ]),
-                      )
-                    else
-                      const Text(
-                        "You can also type coordinates directly: e.g. 12.9716, 77.5946",
-                        style: TextStyle(fontSize: 11, color: Color(0xFF888888)),
-                      ),
-                  ],
-                ),
-              ),
-
-              // ── Action buttons ──
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                child: Row(children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        // Open Google Maps app to let user find location
-                        final uri = Uri.parse("https://maps.google.com/?q=my+location");
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                      label: const Text("Open Maps"),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1a73e8),
-                        side: const BorderSide(color: Color(0xFF1a73e8)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _parsedLat == null ? null : () {
-                        if (mounted) setState(() {
-                          _lat.text     = _parsedLat!.toStringAsFixed(7);
-                          _lng.text     = _parsedLng!.toStringAsFixed(7);
-                          _locConfirmed = true;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                      icon: const Icon(Icons.check_rounded, size: 18),
-                      label: const Text("Apply Location"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _parsedLat != null
-                          ? const Color(0xFF1a73e8)
-                          : const Color(0xFFCCCCCC),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        disabledBackgroundColor: const Color(0xFFE0E0E0),
-                        disabledForegroundColor: const Color(0xFF999999),
-                        elevation: 0,
-                      ),
-                    ),
-                  ),
-                ]),
-              ),
-            ],
-          ), // Column
-          ), // SingleChildScrollView
-        );  // Dialog/return
-        }, // StatefulBuilder builder fn
-      ),  // StatefulBuilder widget
-    );  // showDialog
-  }
-
-  // Helper: numbered step row for maps instructions
-  static Widget _mapsStep(String num, String text) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Container(
-        width: 20, height: 20,
-        decoration: const BoxDecoration(color: Color(0xFF1a73e8), shape: BoxShape.circle),
-        child: Center(child: Text(num,
-          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800))),
-      ),
-      const SizedBox(width: 8),
-      Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF333333), height: 1.4))),
-    ],
-  );
 
 
   Future<void> _loadAreas(String city) async {
@@ -4794,41 +4580,6 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
     if(mounted) setState(()=>_loading=false);
   }
 
-  // FIX 14: Build printable HTML for an invoice
-  String _buildInvoiceHtml(Map inv) => """
-<!DOCTYPE html><html><head><meta charset='utf-8'>
-<style>
-  body{font-family:Arial,sans-serif;padding:24px;color:#2c3e35;max-width:600px;margin:0 auto;}
-  .header{background:#3E5F55;color:white;padding:20px 24px;border-radius:10px;margin-bottom:24px;}
-  .header h1{margin:0;font-size:22px;} .header p{margin:4px 0;font-size:13px;opacity:.85;}
-  .section{background:#fff;border:1px solid #d4e8de;border-radius:8px;padding:16px;margin-bottom:16px;}
-  .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;}
-  .row:last-child{border-bottom:none;}
-  .label{color:#6b8c7e;font-size:13px;} .value{font-size:13px;font-weight:600;color:#2c3e35;}
-  .total-row{background:#CDEBD6;border-radius:6px;padding:10px 14px;display:flex;justify-content:space-between;margin-top:12px;}
-  .total-label{font-weight:bold;color:#2c3e35;} .total-value{font-weight:bold;color:#3E5F55;font-size:16px;}
-  .badge{display:inline-block;background:#CDEBD6;color:#3E5F55;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;}
-  .footer{text-align:center;color:#6b8c7e;font-size:11px;margin-top:24px;}
-</style></head><body>
-<div class='header'>
-  <h1>OFFRO</h1>
-  <p>Tax Invoice</p>
-  <p>${inv['invoice_no']??''}</p>
-</div>
-<div class='section'>
-  <div class='row'><span class='label'>Store</span><span class='value'>${inv['store_name']??''}</span></div>
-  <div class='row'><span class='label'>Plan</span><span class='value'>${inv['plan']??''}</span></div>
-  <div class='row'><span class='label'>Period</span><span class='value'>${inv['from_date']??''} – ${inv['end_date']??''}</span></div>
-  <div class='row'><span class='label'>Date</span><span class='value'>${inv['created_at']?.toString().substring(0,10)??''}</span></div>
-</div>
-<div class='section'>
-  <div class='row'><span class='label'>Base Amount</span><span class='value'>₹${inv['base_price']??0}</span></div>
-  <div class='row'><span class='label'>GST (18%)</span><span class='value'>₹${inv['gst']??0}</span></div>
-  <div class='total-row'><span class='total-label'>Total Paid</span><span class='total-value'>₹${inv['total']??0}</span></div>
-</div>
-<div class='footer'>OFFRO — Thank you for your business!<br>This is a system-generated invoice.</div>
-</body></html>
-""";
 
   // FIX 14: Share invoice as text
   void _shareInvoice(Map inv) {
@@ -4994,7 +4745,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
     RefreshIndicator(
       color:kPrimary,onRefresh:_load,
       child:_invoices.isEmpty
-        ? ListView(children:[SizedBox(height:MediaQuery.of(context).size.height*0.4,
+        ? ListView(children:[SizedBox(height:MediaQuery.sizeOf(context).height*0.4,
             child:const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
               Icon(Icons.receipt_long_outlined,size:56,color:kAccent),
               SizedBox(height:12),
@@ -5113,6 +4864,9 @@ class _TxnState extends State<MerchantTxnPage> {
   int _tab=0; // 0=All, 1=Banners, 2=Products, 3=Payments
   @override void initState() { super.initState(); _load(); }
 
+  // Amounts can arrive as num or numeric String — never let a String reach a `> 0` compare.
+  static num _amt(dynamic v) => v is num ? v : (num.tryParse(v?.toString() ?? "") ?? 0);
+
   Future<void> _load() async {
     if(mounted) setState(()=>_loading=true);
     final results = await Future.wait([
@@ -5137,7 +4891,7 @@ class _TxnState extends State<MerchantTxnPage> {
         "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??"Payment"),
         "subtitle":"₹${t['amount']??0}",
         "date":t["date"]??t["created_at"]??"",
-        "amount":t["amount"]??0,
+        "amount":_amt(t["amount"]),
       });
     }
     // Banner events
@@ -5154,7 +4908,7 @@ class _TxnState extends State<MerchantTxnPage> {
         "subtitle":st=="approved"?"✅ Approved — Live":st=="rejected"?"❌ Rejected":"⏳ Pending Approval",
         "subtitle_color":sc,"status_icon":si,
         "date":b["created_at"]??"",
-        "amount":b["amount"]??0,
+        "amount":_amt(b["amount"]),
         "from_date":b["from_date"]??"",
         "end_date":b["end_date"]??"",
       });
@@ -5173,7 +4927,7 @@ class _TxnState extends State<MerchantTxnPage> {
         "subtitle":st=="approved"?"✅ Approved — Live":st=="rejected"?"❌ Rejected":"⏳ Pending Approval",
         "subtitle_color":sc,"status_icon":si,
         "date":v["created_at"]??"",
-        "amount":v["amount"]??0,
+        "amount":_amt(v["amount"]),
         "from_date":v["from_date"]??"",
         "end_date":v["end_date"]??"",
       });
@@ -5192,7 +4946,9 @@ class _TxnState extends State<MerchantTxnPage> {
     return _allActivity.where((e)=>e["type"]=="payment").toList();
   }
 
-  @override Widget build(BuildContext context) => Scaffold(
+  @override Widget build(BuildContext context) {
+    final items = _filtered; // once per build (was recomputed, incl. a sort, for every row)
+    return Scaffold(
     backgroundColor:kBg,
     appBar:AppBar(
       title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Activity",style:TextStyle(fontWeight:FontWeight.w800))]),
@@ -5202,8 +4958,9 @@ class _TxnState extends State<MerchantTxnPage> {
     body:Column(children:[
       // Filter tabs
       Container(decoration:const BoxDecoration(color:kPrimary),padding:const EdgeInsets.fromLTRB(12,0,12,10),
-        child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
+        child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
           GestureDetector(
+            behavior:HitTestBehavior.opaque,
             onTap:()=>setState(()=>_tab=e.key),
             child:Container(
               margin:const EdgeInsets.only(right:8),
@@ -5215,14 +4972,14 @@ class _TxnState extends State<MerchantTxnPage> {
                 color:_tab==e.key?kPrimary:Colors.white,
                 fontSize:12,fontWeight:FontWeight.w700)),
             ),
-          )).toList()),
+          )).toList())),
       ),  // close filter-tabs Container
       // Content
       Expanded(child:_loading
         ? const Center(child:CircularProgressIndicator(color:kPrimary))
         : RefreshIndicator(
             color:kPrimary,onRefresh:_load,
-            child:_filtered.isEmpty
+            child:items.isEmpty
               ? ListView(children:[SizedBox(height:300,child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                   const Icon(Icons.history,size:48,color:kAccent),
                   const SizedBox(height:12),
@@ -5230,9 +4987,9 @@ class _TxnState extends State<MerchantTxnPage> {
                 ])))])
               : ListView.builder(
                   padding:const EdgeInsets.fromLTRB(14,12,14,24),
-                  itemCount:_filtered.length,
+                  itemCount:items.length,
                   itemBuilder:(_,i){
-                    final t = _filtered[i];
+                    final t = items[i];
                     final Color ic = t["color"] as Color? ?? kPrimary;
                     final Color sc = t["subtitle_color"] as Color? ?? kMuted;
                     return Container(
@@ -5259,7 +5016,8 @@ class _TxnState extends State<MerchantTxnPage> {
                   }),
           )),
     ]),
-  );
+    );
+  }
 }
 
 // ─────────── Merchant Profile Page ───────────
@@ -5552,7 +5310,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                     content: Text("You need an active store to add deals."), backgroundColor: Colors.orange));
                   return;
                 }
-                Navigator.push(context, _offroRoute(AddDealPage(
+                Navigator.push(context, appRoute(AddDealPage(
                   token: widget.token,
                   storeId: activeStores[0]["_id"] ?? "",
                   storeName: activeStores[0]["store_name"] ?? "",
@@ -5620,7 +5378,12 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                   Builder(builder: (_) {
                     final endStr = d["end_date"]?.toString() ?? "";
                     final endDt = _parseDealDate(endStr);
-                    final isExpired = endDt != null && endDt.isBefore(DateTime.now());
+                    // Valid THROUGH the end date (same rule as backend/Store Detail):
+                    // expired only after 23:59:59 IST of that day. IST = UTC+05:30,
+                    // computed from UTC so the phone's timezone setting is irrelevant.
+                    final istNow = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+                    final isExpired = endDt != null &&
+                        istNow.isAfter(DateTime.utc(endDt.year, endDt.month, endDt.day, 23, 59, 59));
                     return Row(mainAxisSize: MainAxisSize.min, children: [
                       if (endStr.isNotEmpty) ...[
                         const Icon(Icons.calendar_today_rounded, size: 11, color: kMuted),
@@ -5646,7 +5409,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                   icon: const Icon(Icons.edit_outlined, color: kPrimary),
                   tooltip: "Edit Deal",
                   onPressed: () {
-                    Navigator.push(context, _offroRoute(AddDealPage(
+                    Navigator.push(context, appRoute(AddDealPage(
                       token: widget.token,
                       storeId: d["store_id"]?.toString() ?? "",
                       storeName: d["store_name"]?.toString() ?? "",
@@ -5998,6 +5761,79 @@ class _AddDealState extends State<AddDealPage> {
 
 }
 
+
+// ── My Banners video thumbnail: tap to play/pause in place (80x80, muted) ──
+class _BannerThumbVideo extends StatefulWidget {
+  final String url;
+  final String initial;
+  const _BannerThumbVideo({required this.url, required this.initial});
+  @override State<_BannerThumbVideo> createState() => _BannerThumbVideoState();
+}
+
+class _BannerThumbVideoState extends State<_BannerThumbVideo> {
+  VideoPlayerController? _c;
+  bool _loading = false;
+  bool _failed = false;
+
+  Future<void> _init() async {
+    setState(() => _loading = true);
+    try {
+      VideoPlayerController c;
+      if (widget.url.startsWith("data:video")) {
+        final bytes = base64Decode(widget.url.substring(widget.url.indexOf(",") + 1));
+        c = VideoPlayerController.contentUri(Uri.dataFromBytes(bytes, mimeType: "video/mp4"));
+      } else {
+        c = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+      }
+      _c = c;
+      await c.initialize();
+      await c.setVolume(0);
+      await c.setLooping(true);
+      await c.play();
+      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      debugPrint("[MyBanners] video thumb failed: $e");
+      try { await _c?.dispose(); } catch (_) {}
+      _c = null;
+      if (mounted) setState(() { _loading = false; _failed = true; });
+    }
+  }
+
+  void _onTap() {
+    final c = _c;
+    if (c == null || !c.value.isInitialized) {
+      if (!_loading) _init();
+      return;
+    }
+    setState(() { c.value.isPlaying ? c.pause() : c.play(); });
+  }
+
+  @override void dispose() { _c?.dispose(); super.dispose(); }
+
+  @override Widget build(BuildContext context) {
+    if (_failed) {
+      return Container(width: 80, height: 80, color: kAccent,
+        child: Center(child: Text(widget.initial, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22))));
+    }
+    final c = _c;
+    final ready = c != null && c.value.isInitialized;
+    final playing = ready && c!.value.isPlaying;
+    return GestureDetector(
+      onTap: _onTap,
+      child: SizedBox(width: 80, height: 80, child: Stack(alignment: Alignment.center, children: [
+        if (ready)
+          SizedBox(width: 80, height: 80, child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge,
+            child: SizedBox(width: c!.value.size.width, height: c.value.size.height, child: VideoPlayer(c))))
+        else
+          Container(width: 80, height: 80, color: Colors.black87),
+        if (_loading)
+          const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+        else if (!playing)
+          const Icon(Icons.play_circle_fill, color: Colors.white, size: 32),
+      ])),
+    );
+  }
+}
 
 // ── Banner Video Tile (merchant banner list) ──────────────────────────────
 class _BannerVideoTile extends StatefulWidget {
