@@ -9,6 +9,7 @@
 // tap. [silentPosition] never prompts.
 
 import 'dart:async';
+import 'package:flutter/foundation.dart' show debugPrint, visibleForTesting;
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import '../constants/india_locations.dart';
@@ -31,18 +32,38 @@ class LocationService {
   LocationService._();
 
   // ── Access state ────────────────────────────────────────────────────────
-  static Future<LocationAccess> status() async {
-    try {
-      if (!await Geolocator.isLocationServiceEnabled()) return LocationAccess.serviceOff;
-      final perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
-        return LocationAccess.ready;
-      }
-      if (perm == LocationPermission.deniedForever) return LocationAccess.permissionDeniedForever;
-      return LocationAccess.permissionDenied;
-    } catch (_) {
-      return LocationAccess.permissionDenied;
+  static LocationAccess? _lastStatus; // last status the OS actually reported
+
+  /// Pure mapping of the two OS answers to a [LocationAccess].
+  @visibleForTesting
+  static LocationAccess classify({required bool serviceEnabled, required LocationPermission perm}) {
+    if (!serviceEnabled) return LocationAccess.serviceOff;
+    if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+      return LocationAccess.ready;
     }
+    if (perm == LocationPermission.deniedForever) return LocationAccess.permissionDeniedForever;
+    return LocationAccess.permissionDenied;
+  }
+
+  /// Live OS state. Only what the OS REPORTS is mapped to denied/off: if the
+  /// platform call itself throws (transient channel error) it is retried once
+  /// and then the last known status is kept — an error is never presented as
+  /// "permission denied", which would make the Location screen ask again.
+  static Future<LocationAccess> status() async {
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final enabled = await Geolocator.isLocationServiceEnabled();
+        final perm = await Geolocator.checkPermission();
+        final s = classify(serviceEnabled: enabled, perm: perm);
+        debugPrint('[Location] status: services=$enabled permission=$perm -> $s');
+        _lastStatus = s;
+        return s;
+      } catch (e) {
+        debugPrint('[Location] status read failed (attempt ${attempt + 1}): $e');
+        if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
+    return _lastStatus ?? LocationAccess.permissionDenied;
   }
 
   /// Fires whenever the device Location Services switch changes.

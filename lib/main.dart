@@ -1029,6 +1029,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     });
     unawaited(_loadSavedLocation());
     unawaited(_loadNoStoreContent());
+    // Silent GPS check AFTER the first frame, so it can never delay Home.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_autoRefreshLocation());
+    });
     if (widget.preloadedStores.isNotEmpty) {
       _usePreloadedData(); // async — clears _loading when done
       // Always fetch live GPS even when preloaded — ensures distance_km is computed
@@ -1807,6 +1811,26 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (cityChanged) await _fetchStores(loc.city);
   }
 
+  // Silent refresh of a saved GPS location (app open / resume), same service
+  // call Merchant Home uses. Skips manual cities, never prompts, keeps the
+  // saved location on any failure; 2-min throttle + 1.5 km threshold are
+  // enforced inside LocationService.autoRefreshIfMoved.
+  bool _autoLocBusy = false;
+  Future<void> _autoRefreshLocation() async {
+    if (_autoLocBusy || _locScreenOpen || !mounted) return;
+    _autoLocBusy = true;
+    try {
+      final saved = await LocationStore.load(LocationMode.customer);
+      final fresh = await LocationService.autoRefreshIfMoved(saved);
+      if (fresh == null || !mounted || _locScreenOpen) return;
+      await _applyLocation(fresh);
+    } catch (_) {
+      // keep the current location
+    } finally {
+      _autoLocBusy = false;
+    }
+  }
+
   /// Only reached when Home is created with no city (normally impossible).
   void _requireLocation() {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -1888,6 +1912,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _loadUnreadCount();
       if (mounted) setState(() => _unreadCount = _unreadNotifier.value);
+      // Silent GPS check on return to the app (throttled inside the service).
+      unawaited(_autoRefreshLocation());
     }
   }
 
