@@ -25,7 +25,7 @@ import 'core/utils/navigation.dart';
 import 'core/utils/store_hours.dart';
 import 'core/widgets/shimmer_box.dart';
 import 'core/widgets/base64_image.dart';
-import 'screens/home/widgets/home_background.dart';
+import 'core/design/design.dart';
 import 'screens/home/widgets/promo_slider_section.dart';
 import 'screens/legal/privacy_policy_page.dart';
 import 'core/services/api_service.dart';
@@ -49,7 +49,6 @@ import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
 import 'screens/home/influencer_section.dart';
 import 'screens/influencer/my_influencer_profile.dart';
-import 'screens/qr/qr_page.dart';
 import 'screens/wallet/wallet_page.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
@@ -667,93 +666,6 @@ class MyApp extends StatelessWidget {
       onLogin:      goLogin,
     ),
   );
-}
-
-
-// ─────────────────────── NAV BTN (label on active only) ───────────────────────
-class _NavBtn extends StatelessWidget {
-  final IconData icon; final String label; final bool active;
-  const _NavBtn({required this.icon,required this.label,required this.active});
-
-  @override Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: active ? const Color(0xFFCDEBD6) : Colors.transparent,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: active ? kPrimary : const Color(0xFF9aada8), size: 22),
-          ),
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 180),
-            crossFadeState: active ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-            firstChild: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(label, style: const TextStyle(
-                color: kPrimary, fontSize: 10, fontWeight: FontWeight.w800))),
-            secondChild: const SizedBox(height: 14),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Profile nav button with avatar ──
-class _ProfileNavBtn extends StatelessWidget {
-  final String? profilePhoto;
-  final String name;
-  final bool active;
-  const _ProfileNavBtn({required this.profilePhoto, required this.name, required this.active});
-
-  @override Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: active ? const Color(0xFFCDEBD6) : Colors.transparent,
-            ),
-            child: CircleAvatar(
-              radius: 11,
-              backgroundColor: kAccent,
-              backgroundImage: (profilePhoto != null && profilePhoto!.startsWith("data:image"))
-                ? MemoryImage(decodeBase64ImageCached(profilePhoto!)) as ImageProvider
-                : (profilePhoto != null && profilePhoto!.startsWith("http"))
-                  ? NetworkImage(profilePhoto!) as ImageProvider
-                  : null,
-              child: (profilePhoto == null || profilePhoto!.isEmpty)
-                ? Text(name.isNotEmpty ? name[0].toUpperCase() : "U",
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10))
-                : null,
-            ),
-          ),
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 180),
-            crossFadeState: active ? CrossFadeState.showFirst : CrossFadeState.showSecond,
-            firstChild: Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: const Text("Me", style: TextStyle(color: kPrimary, fontSize: 10, fontWeight: FontWeight.w800))),
-            secondChild: const SizedBox(height: 14),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 
@@ -1931,10 +1843,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: const Color(0xFFE9F1ED),
+        backgroundColor: OffroColors.background,
         body: Stack(children: [
-              // ── Premium abstract gradient background ──────────────────
-              Positioned.fill(child: CustomPaint(painter: OffroHomeBgPainter())),
               _loading
               ? LayoutBuilder(builder: (ctx, bc) => SizedBox(
                   width: bc.maxWidth,
@@ -1982,6 +1892,15 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                           userLat: _userLat, userLng: _userLng,
                           selectedCity: city))),
                       ),
+                    )),
+
+                    // ══════ 3b. REWARDS SNAPSHOT (existing wallet data) ══════
+                    SliverToBoxAdapter(child: _HomeRewardsCard(
+                      points: _walletPoints,
+                      onTap: () {
+                        if (!_requireLogin(context, 'My Rewards')) return;
+                        Navigator.push(context, appRoute(WalletPage(token: widget.token)));
+                      },
                     )),
 
                                         // ══════ 4+5. ADMIN BANNER + EXPLORE STORES — one merged block ══════
@@ -2082,84 +2001,23 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
 
-            // ══ BOTTOM NAV v3 (floating pill) — Home | Deals | [QR] | Search | Profile ══
-            // QA round (Oct 2026): same items/handlers as before, now inside a
-            // floating rounded pill with margins from the left/right/bottom
-            // edges. QR stays the prominent centre action, lifted above the bar.
+            // ══ BOTTOM NAV (Figma) — Home | Explore | Deals | Rewards | Profile ══
+            // QR is no longer a tab; it stays inside Store Detail. Same
+            // show/hide behaviour as before (_navVisible + empty-state hide).
             ValueListenableBuilder<bool>(
               valueListenable: _navVisible,
               builder: (_, visible, child) => AnimatedPositioned(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeInOut,
-                bottom: (visible && (_cityFiltered.isNotEmpty || _loading))
-                    ? 12 + MediaQuery.of(context).padding.bottom : -120,
-                left: 16, right: 16,
+                bottom: (visible && (_cityFiltered.isNotEmpty || _loading)) ? 0 : -140,
+                left: 0, right: 0,
                 child: child!,
               ),
-              child: Container(
-                    height: 68,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .95),
-                      borderRadius: BorderRadius.circular(34),
-                      border: Border.all(color: const Color(0xFFCDEBD6), width: 1),
-                      boxShadow: [
-                        BoxShadow(color: kPrimary.withValues(alpha: .18), blurRadius: 24, offset: const Offset(0,8)),
-                      ],
-                    ),
-                    child: Row(children: [
-                      // Home
-                      Expanded(child: GestureDetector(
-                        onTap: () { setState(() => _navIdx = 0); },
-                        child: _NavBtn(icon: Icons.home_rounded, label: "Home", active: _navIdx == 0),
-                      )),
-                      // Deals
-                      Expanded(child: GestureDetector(
-                        onTap: () {
-                          setState(() => _navIdx = 1);
-                          final _dealsCity = city;
-                          Navigator.push(context, appRoute(_AllDealsScreen(token: widget.token, city: _dealsCity)));
-                        },
-                        child: _NavBtn(icon: Icons.local_offer_rounded, label: "Deals", active: _navIdx == 1),
-                      )),
-                      // QR — center floating
-                      GestureDetector(
-                        onTap: () {
-                          if (!_requireLogin(context, 'QR Scan & Rewards')) return;
-                          Navigator.push(context, appRoute(QRPage(token: widget.token, onDone: () {})));
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Container(
-                            width: 56, height: 56,
-                            transform: Matrix4.translationValues(0, -6, 0),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: kPrimary,
-                              border: Border.all(color: Colors.white, width: 3),
-                              boxShadow: [
-                                BoxShadow(color: kPrimary.withValues(alpha: .40), blurRadius: 14, offset: const Offset(0, 4)),
-                              ],
-                            ),
-                            child: const Icon(Icons.qr_code_scanner_rounded, color: Colors.white, size: 24),
-                          ),
-                        ),
-                      ),
-                      // Search
-                      Expanded(child: GestureDetector(
-                        onTap: () { setState(() => _navIdx = 2); _searchStores(context); },
-                        child: _NavBtn(icon: Icons.search_rounded, label: "Search", active: _navIdx == 2),
-                      )),
-                      // Profile
-                      Expanded(child: GestureDetector(
-                        onTap: () { setState(() => _navIdx = 3); _showProfile(context); },
-                        child: _ProfileNavBtn(
-                          profilePhoto: _profilePhoto,
-                          name: widget.name,
-                          active: _navIdx == 3,
-                        ),
-                      )),
-                    ]),
-                  ),
+              child: OffroBottomNav(
+                items: _customerNavItems(),
+                currentIndex: _navIdx,
+                onTap: _onNavTap,
+              ),
             ),
           ]),
       ),
@@ -2410,12 +2268,82 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
 
 
+  // ── Customer bottom navigation (Figma) ───────────────────────────────
+  List<OffroNavItem> _customerNavItems() {
+    final base = OffroBottomNav.customerItems;
+    final photo = _profilePhoto;
+    final name = widget.name;
+    return [
+      base[0], base[1], base[2], base[3],
+      OffroNavItem(
+        label: 'Profile',
+        icon: OffroIcons.user,
+        iconBuilder: (active) {
+          ImageProvider? img;
+          if (photo != null && photo.startsWith("data:image")) {
+            img = MemoryImage(decodeBase64ImageCached(photo));
+          } else if (photo != null && photo.startsWith("http")) {
+            img = NetworkImage(photo);
+          }
+          if (img == null) {
+            return OffroIcon(OffroIcons.user, size: 19,
+                color: active ? OffroColors.primary : const Color(0x4D000000));
+          }
+          return Container(
+            padding: const EdgeInsets.all(1.5),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: active ? OffroColors.primary : Colors.transparent, width: 1.5),
+            ),
+            child: CircleAvatar(
+              radius: 9.5,
+              backgroundColor: OffroColors.mint,
+              backgroundImage: img,
+              child: null,
+            ),
+          );
+        },
+      ),
+    ];
+  }
+
+  // Same destinations as the old nav: Home stays, Explore = store search,
+  // Deals = all deals, Rewards = wallet (login-gated), Profile = sheet.
+  void _onNavTap(int i) {
+    switch (i) {
+      case 0:
+        setState(() => _navIdx = 0);
+        return;
+      case 1:
+        setState(() => _navIdx = 1);
+        _searchStores(context);
+        return;
+      case 2:
+        setState(() => _navIdx = 2);
+        Navigator.push(context, appRoute(_AllDealsScreen(token: widget.token, city: city)))
+            .then((_) { if (mounted) setState(() => _navIdx = 0); });
+        return;
+      case 3:
+        if (!_requireLogin(context, 'My Rewards')) return;
+        setState(() => _navIdx = 3);
+        Navigator.push(context, appRoute(WalletPage(token: widget.token)))
+            .then((_) { if (mounted) setState(() => _navIdx = 0); });
+        return;
+      case 4:
+        setState(() => _navIdx = 4);
+        _showProfile(context);
+        return;
+    }
+  }
+
   void _searchStores(BuildContext ctx) {
-    Navigator.push(ctx, appRoute(_SearchPage(token:widget.token, city:city)));
+    Navigator.push(ctx, appRoute(_SearchPage(token:widget.token, city:city)))
+        .then((_) { if (mounted) setState(() => _navIdx = 0); });
   }
 
   // Profile sheet (replaces _more) — all options inside
-  void _showProfile(BuildContext ctx) => showModalBottomSheet(
+  Future<void> _showProfile(BuildContext ctx) => showModalBottomSheet(
     context:ctx,
     isScrollControlled:true,
     backgroundColor:Colors.transparent,
@@ -2498,7 +2426,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
     },
-  );
+  ).whenComplete(() { if (mounted) setState(() => _navIdx = 0); });
 
   Widget _pItem(BuildContext ctx,IconData icon,String title,VoidCallback onTap,{Color color=kPrimary})=>
     ListTile(
@@ -4523,14 +4451,6 @@ class _CityHeroSection extends StatelessWidget {
     required this.onCityTap, required this.onBellTap,
   });
 
-  String _greeting() {
-    final h = DateTime.now().hour;
-    if (h < 12) return "Good Morning 👋";
-    if (h < 17) return "Good Afternoon 👋";
-    if (h < 21) return "Good Evening 👋";
-    return "Good Night 👋";
-  }
-
   @override Widget build(BuildContext context) {
     final displayCity = city.isNotEmpty ? city : "Your City";
     final topPad = MediaQuery.of(context).padding.top;
@@ -4541,7 +4461,7 @@ class _CityHeroSection extends StatelessWidget {
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+            colors: [Color(0xFF2B463E), OffroColors.primary],
           ),
         ),
       );
@@ -4557,6 +4477,8 @@ class _CityHeroSection extends StatelessWidget {
     return SizedBox(
       height: heroH,
       width: double.infinity,
+      child: ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(OffroRadii.hero)),
       child: Stack(fit: StackFit.expand, children: [
 
         // ── Background: network image OR brand gradient ──
@@ -4580,7 +4502,7 @@ class _CityHeroSection extends StatelessWidget {
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+                    colors: [Color(0xFF2B463E), OffroColors.primary],
                   ),
                 ),
               ),
@@ -4599,7 +4521,7 @@ class _CityHeroSection extends StatelessWidget {
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+                    colors: [Color(0xFF2B463E), OffroColors.primary],
                   ),
                 ),
               ),
@@ -4622,59 +4544,64 @@ class _CityHeroSection extends StatelessWidget {
           ),
         ),
 
-        // ── TOP ROW: city picker + bell ──
-        Positioned(top: topPad + 10, left: 16, right: 16,
+        // ── TOP ROW: location pill + bell (Figma) ──
+        Positioned(top: topPad + 10, left: OffroSpacing.gutter, right: OffroSpacing.gutter,
           child: Row(children: [
             Expanded(child: Align(alignment: Alignment.centerLeft, child: GestureDetector(
               onTap: onCityTap,
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(
-                  cityManual ? Icons.edit_location_alt_rounded : Icons.location_on_rounded,
-                  color: Colors.white, size: 20),
-                const SizedBox(width: 4),
-                Flexible(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      locationTitle.isNotEmpty ? locationTitle : (city.isNotEmpty ? city : "Select location"),
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800,
-                        shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
-                    if (locationSubtitle.isNotEmpty)
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .18),
+                  borderRadius: OffroRadii.pillRadius,
+                  border: Border.all(color: Colors.white.withValues(alpha: .30)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  const OffroIcon(OffroIcons.pin, size: 15, color: Colors.white),
+                  const SizedBox(width: 6),
+                  Flexible(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
                       Text(
-                        locationSubtitle,
+                        locationTitle.isNotEmpty ? locationTitle : (city.isNotEmpty ? city : "Select location"),
                         maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w600,
-                          shadows: [Shadow(blurRadius: 6, color: Colors.black54)])),
-                  ],
-                )),
-                const SizedBox(width: 2),
-                const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
-              ]),
+                        style: OffroText.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                      if (locationSubtitle.isNotEmpty)
+                        Text(
+                          locationSubtitle,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: OffroText.caption.copyWith(color: Colors.white70, fontSize: 10.5)),
+                    ],
+                  )),
+                  const SizedBox(width: 4),
+                  const OffroIcon(OffroIcons.chevron, size: 12, color: Colors.white70),
+                ]),
+              ),
             ))),
             const SizedBox(width: 12),
             GestureDetector(
               onTap: onBellTap,
               child: Stack(clipBehavior: Clip.none, children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  width: 40, height: 40,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .18),
-                    borderRadius: BorderRadius.circular(12),
+                    shape: BoxShape.circle,
                     border: Border.all(color: Colors.white.withValues(alpha: .30), width: 1),
                   ),
-                  child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22),
+                  child: const OffroIcon(OffroIcons.bell, size: 18, color: Colors.white),
                 ),
                 if (unreadCount > 0)
                   Positioned(top: -3, right: -3,
                     child: Container(
                       padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(color: Color(0xFFe74c3c), shape: BoxShape.circle),
+                      decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle),
                       constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
                       child: Text(
                         unreadCount > 9 ? '9+' : '$unreadCount',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                        style: const TextStyle(fontFamily: OffroText.sans, color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
                         textAlign: TextAlign.center),
                     )),
               ]),
@@ -4682,47 +4609,63 @@ class _CityHeroSection extends StatelessWidget {
           ]),
         ),
 
-        // ── BOTTOM: greeting + city name + tagline ──
-        Positioned(left: 16, right: 16, bottom: 20,
+        // ── BOTTOM: eyebrow + "Explore <City>" (Lora italic accent) + tagline ──
+        Positioned(left: OffroSpacing.gutter, right: OffroSpacing.gutter, bottom: 24,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: .18),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: .30), width: 1),
-              ),
-              child: Text(
-                _greeting(),
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ),
+            Text("LOCAL DEALS & STORES",
+              style: OffroText.eyebrow.copyWith(color: Colors.white.withValues(alpha: .85))),
             const SizedBox(height: 8),
-            Text(
-              "Explore\n$displayCity",
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 30,
-                fontWeight: FontWeight.w900,
-                height: 1.15,
-                letterSpacing: 0.2,
-                shadows: [Shadow(blurRadius: 10, color: Colors.black87)],
-              ),
+            OffroAccentText(
+              before: "Explore\n",
+              accent: displayCity,
+              style: OffroText.display.copyWith(color: Colors.white),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
               "Discover stores, deals & local favorites",
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: .85),
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
+              style: OffroText.bodySmall.copyWith(color: Colors.white.withValues(alpha: .85)),
             ),
           ]),
         ),
       ]),
+      ),
     );
     }); // LayoutBuilder
+  }
+}
+
+
+// ─── Home rewards snapshot (Figma) — reuses the existing wallet points ───
+class _HomeRewardsCard extends StatelessWidget {
+  final int points;
+  final VoidCallback onTap;
+  const _HomeRewardsCard({required this.points, required this.onTap});
+
+  @override Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 16, OffroSpacing.gutter, 4),
+      child: OffroCard(
+        onTap: onTap,
+        color: OffroColors.mint,
+        bordered: false,
+        child: Row(children: [
+          Container(
+            width: 42, height: 42,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: OffroColors.primary, shape: BoxShape.circle),
+            child: const OffroIcon(OffroIcons.gift, size: 20, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(points > 0 ? "$points reward points" : "Your rewards", style: OffroText.cardTitle),
+            const SizedBox(height: 2),
+            Text(points > 0 ? "Tap to see what you can redeem" : "Earn points when you visit stores",
+              style: OffroText.bodySmall),
+          ])),
+          const OffroIcon(OffroIcons.chevron, size: 16, color: OffroColors.primary),
+        ]),
+      ),
+    );
   }
 }
 
@@ -4759,31 +4702,38 @@ class _CategoryChipsRow extends StatelessWidget {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       physics: const BouncingScrollPhysics(),
+      padding: OffroSpacing.gutterH,
       child: Row(children: [
         ...visible.map((cat) {
           final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
           if (name.isEmpty) return const SizedBox.shrink();
-          final imgUrl = cat["image_url"]?.toString() ?? cat["image"]?.toString() ?? "";
-          return GestureDetector(
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => _CategoryStoresScreen(
-                categoryName: name, token: token,
-                userLat: userLat, userLng: userLng,
-                selectedCity: selectedCity))),
-            child: Container(
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFd4e8de), width: 1),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.04), blurRadius: 6, offset: const Offset(0,2))],
+          final tone = OffroIcons.toneForCategory(name);
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => _CategoryStoresScreen(
+                  categoryName: name, token: token,
+                  userLat: userLat, userLng: userLng,
+                  selectedCity: selectedCity))),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(8, 6, 14, 6),
+                decoration: BoxDecoration(
+                  color: OffroColors.surface,
+                  borderRadius: OffroRadii.pillRadius,
+                  border: Border.all(color: OffroColors.border),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(
+                    width: 26, height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(color: tone.background, shape: BoxShape.circle),
+                    child: OffroIcon(OffroIcons.forCategory(name), size: 14, color: tone.foreground),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(name, style: OffroText.caption.copyWith(color: OffroColors.text, fontWeight: FontWeight.w700)),
+                ]),
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(_emoji(name), style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 5),
-                Text(name, style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w600)),
-              ]),
             ),
           );
         }),
@@ -4791,18 +4741,12 @@ class _CategoryChipsRow extends StatelessWidget {
         GestureDetector(
           onTap: onMoreTap,
           child: Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0FAF4),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFA9CDBA), width: 1),
+              color: OffroColors.mint,
+              borderRadius: OffroRadii.pillRadius,
             ),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Text("···", style: TextStyle(color: Color(0xFF3E5F55), fontSize: 14, fontWeight: FontWeight.w700)),
-              SizedBox(width: 4),
-              Text("More", style: TextStyle(color: Color(0xFF3E5F55), fontSize: 12, fontWeight: FontWeight.w600)),
-            ]),
+            child: Text("More", style: OffroText.caption.copyWith(color: OffroColors.primary, fontWeight: FontWeight.w700)),
           ),
         ),
       ]),
@@ -4837,13 +4781,10 @@ class _DiscoverProductsSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Discover Products",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
+        const OffroSectionTitle(
+          eyebrow: "Trending picks just for you",
+          title: "Discover Products",
+          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         SizedBox(
           height: h,
@@ -4940,13 +4881,10 @@ class _DiscoverProductsSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Discover Products",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
+        const OffroSectionTitle(
+          eyebrow: "Trending picks just for you",
+          title: "Discover Products",
+          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         if (urls.length <= 1)
           Padding(
@@ -5316,13 +5254,10 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 24), // extra bottom space before banners
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Discover Products",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Trending picks just for you", style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
+        const OffroSectionTitle(
+          eyebrow: "Trending picks just for you",
+          title: "Discover Products",
+          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         SizedBox(
           height: _bentoHeight,
@@ -5429,24 +5364,13 @@ class _NearbyStoresSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Header
-        Row(children: [
-          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Nearby Stores", style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Stores near your location", style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
-          ]),
-          const Spacer(),
-          GestureDetector(
-            onTap: onViewAll,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFe8f5f0),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text("View All", style: TextStyle(color: Color(0xFF3E5F55), fontSize: 11, fontWeight: FontWeight.w700)),
-            ),
-          ),
-        ]),
+        OffroSectionTitle(
+          eyebrow: "Stores near your location",
+          title: "Nearby Stores",
+          actionLabel: "View all",
+          onAction: onViewAll,
+          padding: EdgeInsets.zero,
+        ),
         const SizedBox(height: 10),
         // Distance chips
         SingleChildScrollView(

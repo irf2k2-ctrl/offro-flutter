@@ -1,3 +1,4 @@
+import '../../core/design/design.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -387,14 +388,10 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
       return Padding(
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text("Local Voices",
-                style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
-              Text("People shaping the city",
-                style: TextStyle(color: kMuted, fontSize: 12)),
-            ]),
+          const OffroSectionTitle(
+            eyebrow: "People shaping the city",
+            title: "Local Voices",
+            padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
           ),
           SizedBox(
             height: 218,
@@ -430,17 +427,10 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // QA rename: "City Influencers" / "Discover local creators..."
-            // -> "Local Voices" / "People shaping the city" (same text in
-            // both the empty and non-empty state — functionality unchanged).
-            const Text("Local Voices",
-              style: TextStyle(color: kText, fontSize: 18, fontWeight: FontWeight.w800)),
-            const Text("People shaping the city",
-              style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
+        const OffroSectionTitle(
+          eyebrow: "People shaping the city",
+          title: "Local Voices",
+          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         if (isEmpty)
           _influencerComingSoonCard()
