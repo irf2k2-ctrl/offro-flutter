@@ -3770,7 +3770,7 @@ class _AllDealsScreen extends StatefulWidget {
   // true when shown as the Deals tab inside Home (no own Scaffold / back
   // button, the floating bottom nav stays visible).
   final bool embedded;
-  const _AllDealsScreen({required this.token, required this.city, this.embedded = false});
+  const _AllDealsScreen({super.key, required this.token, required this.city, this.embedded = false});
   @override State<_AllDealsScreen> createState() => _AllDealsScreenState();
 }
 
