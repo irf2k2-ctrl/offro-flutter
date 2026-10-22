@@ -5,7 +5,7 @@
 // _PromoSliderSection and only its name became public.
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_constants.dart';
+import '../../../core/design/design.dart';
 import '../../../core/widgets/store_cards.dart' show PromoSliderCard;
 
 // ═══════════════════════════════════════════════════════════════
@@ -27,21 +27,18 @@ class PromoSliderSection extends StatelessWidget {
     if (sliders.isEmpty) return const SizedBox.shrink();
     return Container(
       color: Colors.transparent,
-      padding: const EdgeInsets.fromLTRB(0, 16, 0, 14),
+      padding: const EdgeInsets.fromLTRB(0, 28, 0, 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Featured Banners",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Latest offers from our stores", style: TextStyle(color: kMuted, fontSize: 12)),
-          ]),
+        const OffroSectionTitle(
+          eyebrow: "Latest offers from our stores",
+          title: "Promoted nearby",
+          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         LayoutBuilder(
           builder: (context, constraints) {
             // Banner aspect ratio 2.35:1 — matches typical promotional banner dimensions
             // This ensures the full image is shown without top/bottom letterboxing or cropping
-            final bannerWidth  = constraints.maxWidth - 32; // 16px padding each side
+            final bannerWidth  = constraints.maxWidth - 2 * OffroSpacing.gutter; // gutter each side
             final bannerHeight = (bannerWidth / 2.35).clamp(140.0, 220.0);
             return SizedBox(
               height: bannerHeight,
@@ -53,7 +50,7 @@ class PromoSliderSection extends StatelessWidget {
                 itemBuilder: (_, i) {
                   final s = sliders[i % sliders.length];
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: OffroSpacing.gutter),
                     child: PromoSliderCard(
                       slider: Map<String,dynamic>.from(s as Map),
                       token: token,
@@ -86,7 +83,7 @@ class PromoSliderSection extends StatelessWidget {
                   margin: const EdgeInsets.symmetric(horizontal: 3),
                   width: pg == i ? 20 : 6, height: 6,
                   decoration: BoxDecoration(
-                    color: pg == i ? const Color(0xFFD4A017) : const Color(0xFFe8d9a0),
+                    color: pg == i ? OffroColors.primary : OffroColors.accent,
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),

@@ -807,18 +807,15 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _cacheTime != null &&
     DateTime.now().difference(_cacheTime!) < _cacheTtl;
   double? _userLat; double? _userLng;
-  bool _cityManual = false;
   OffroLocation? _loc; // structured saved location (display + persistence)
   Timer? _catTimer;
   String _cat="All"; bool _loading=true;
-  double _radiusKm = 0.0; // Nearby radius filter (0=All, 1, 3, 5, 10)
   List<Map<String,dynamic>> _stores=[]; List<String> _cats=["All"]; List<Map<String,dynamic>> _richCats=[];
   List<Map<String,dynamic>> _products=[];
   bool _productsLoading=true;
-  bool _adminBannersLoading=true; // ROUND 12 FIX: tracks ONLY admin-banner fetch/retry lifecycle
   // ROUND 12 FIX (partial-Home fix): tracks ONLY the hero/city-image fetch
   // (the /default-images call inside _loadSupplementary()) — mirrors
-  // _adminBannersLoading's pattern so _CityHeroSection can show a shimmer
+  // the products flag's pattern so _CityHeroSection can show a shimmer
   // while its own photo is still loading instead of jumping straight to
   // the "no image" flat-gradient fallback look.
   bool _heroImageLoading=true;
@@ -836,7 +833,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   final ValueNotifier<bool> _fabVisible = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _navVisible = ValueNotifier<bool>(true); // FIX 3: hide nav on scroll down
   List<Map<String,dynamic>> _sliders=[];
-  List<Map<String,dynamic>> _adminBanners=[];
   String _cityImageUrl = ""; // fetched from /cities backend
   List<String> _cityImageUrls = []; // all city images for rotation
   int    _heroImgIndex = 0;          // current hero image index
@@ -853,7 +849,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // If store["city"] is empty or mismatched due to data entry, we still show it.
   // Category filtering is client-side only.
   List<Map<String,dynamic>> get _cityFiltered => _stores;
-  List<Map<String,dynamic>> get _topStores => _cityFiltered;
 
   void _recomputeDistances() {
     if (_userLat == null || _userLng == null) return;
@@ -866,62 +861,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Returns stores that the admin pinned to float on the banner.
-  /// For each banner, reads its `floating_store_ids` list.
-  /// Falls back to _topStores (first 8) if no banner has pinned stores.
-  List<Map<String,dynamic>> _floatingStores(
-      List<Map<String,dynamic>> banners, List<Map<String,dynamic>> allStores) {
-    final pinned = <String>{};
-    for (final b in banners) {
-      final ids = b["floating_store_ids"];
-      if (ids is List) {
-        for (final id in ids) {
-          if (id != null) pinned.add(id.toString());
-        }
-      }
-    }
-    if (pinned.isEmpty) return allStores; // no pins → show all top stores
-    final result = allStores
-        .where((s) => pinned.contains(s["_id"]?.toString() ?? s["id"]?.toString() ?? ""))
-        .toList();
-    return result.isEmpty ? allStores : result;
-  }
-  List<Map<String,dynamic>> get _sl => _cityFiltered;
-  // Nearby Stores: if GPS known, show stores within 5km sorted by distance.
-  // If GPS unavailable, fall back to top 10 stores so section is never blank.
-  // FIX (2026-07-10): This getter no longer applies _radiusKm — it only computes
-  // distances and sorts. All radius filtering is done ONCE inside _NearbyStoresSection
-  // so there is exactly one source of truth and no conflicting fallbacks.
-  // City filtering is preserved via _cityFiltered.
-  List<Map<String,dynamic>> get _nearbyStores {
-    final base = _cityFiltered;
-    if (_userLat == null || _userLng == null) return base; // GPS unavailable → show all
-    final withCoords = <Map<String,dynamic>>[];
-    final noCoords   = <Map<String,dynamic>>[];
-    for (final s in base) {
-      final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
-      final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
-      if (lat != null && lng != null) {
-        s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
-        withCoords.add(s);
-      } else {
-        noCoords.add(s);
-      }
-    }
-    withCoords.sort((a, b) {
-      final da = (a["distance_km"] as num?)?.toDouble() ?? 9999.0;
-      final db = (b["distance_km"] as num?)?.toDouble() ?? 9999.0;
-      return da.compareTo(db);
-    });
-    // Stores without coords appended — appear only when "All" chip selected
-    return [...withCoords, ...noCoords];
-  }
-
   @override void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
-    _loadRadius(); // Issue 1: load saved radius preference
     _loadUnreadCount(); // Issue 8: load notification badge
     _loadFavStores(); // load fav store ids for home screen hearts
     // Sync badge with real-time notifier (updates from FCM foreground messages)
@@ -974,15 +917,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // location first). Ask for one on the Location screen; never read GPS.
       _requireLocation();
     }
-  }
-
-  Future<void> _loadRadius() async {
-    final r = await Prefs.getRadius();
-    if (mounted) {
-        _radiusKm = r;
-        _recomputeDistances();
-        setState(() {});
-      }
   }
 
   Future<void> _loadUnreadCount() async {
@@ -1178,9 +1112,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadSupplementary(String c, {bool coreLoaded = false}) async {
     // Stale-request protection (Round 12): only the newest call may write state.
     final myGen = ++_supplementaryGen;
-    if (mounted && (!_productsLoading || !_adminBannersLoading || (!_heroImageLoading && _cityImageUrl.isEmpty))) {
+    if (mounted && (!_productsLoading || (!_heroImageLoading && _cityImageUrl.isEmpty))) {
       setState(() {
-        _productsLoading = true; _adminBannersLoading = true;
+        _productsLoading = true;
         // Hero shimmer only while there is NO hero URL yet — never flash it back on
         // a reload when the same hero image is already shown.
         if (_cityImageUrl.isEmpty) _heroImageLoading = true;
@@ -1192,7 +1126,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       List slides = coreLoaded ? List.from(_sliders) : [];
       List voucs  = coreLoaded ? List.from(_products) : [];
       Map<String,dynamic> wallet = {};
-      List adminBannerList = [];
       final bool needCats    = !(coreLoaded && _richCats.isNotEmpty);
       final bool needSliders = !(coreLoaded && _sliders.isNotEmpty);
       final bool needProds   = !(coreLoaded && _products.isNotEmpty);
@@ -1294,14 +1227,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }
         }).catchError((_) {}),
         Api.getWallet(widget.token).then((v) => wallet = v as Map<String,dynamic>).catchError((_) {}),
-        Api.getAdminBanners().then((v) async {
-          List list = (v as List);
-          if (list.isEmpty) {
-            await Future.delayed(const Duration(milliseconds: 500));
-            try { list = await Api.getAdminBanners(); } catch (_) { }
-          }
-          adminBannerList = list;
-        }).catchError((_) {}),
       ]);
 
       if (!mounted || myGen != _supplementaryGen) return;
@@ -1349,8 +1274,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         if (richCats2.isNotEmpty) _richCats = richCats2;
         else if (_richCats.isEmpty) Api.clearCache(); // force refetch next time
         _sliders             = sliderList;
-        _adminBanners        = List<Map<String,dynamic>>.from(adminBannerList);
-        _adminBannersLoading = false;
         _products            = productList;
         _productsLoading     = false;
         _walletPoints        = (wallet["visit_points"] as num?)?.toInt() ?? 0;
@@ -1362,7 +1285,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       // Never leave a section stuck on its loading skeleton.
       if (mounted && myGen == _supplementaryGen) {
-        setState(() { _productsLoading = false; _adminBannersLoading = false; _heroImageLoading = false; });
+        setState(() { _productsLoading = false; _heroImageLoading = false; });
       }
     }
   }
@@ -1678,7 +1601,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted || saved == null) return;
     setState(() {
       _loc = saved;
-      _cityManual = saved.source == LocationSource.manual;
     });
   }
 
@@ -1712,7 +1634,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _loc = loc;
       city = loc.city;
-      _cityManual = loc.source == LocationSource.manual;
       if (gps) { _userLat = loc.lat; _userLng = loc.lng; }
     });
     if (gps) _recomputeDistances();
@@ -1831,10 +1752,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final sl=_sl;
-    final nearbyStores=_nearbyStores;  // GPS-aware with fallback to top stores
-    final size = MediaQuery.sizeOf(context);
-    final topStores = _topStores;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -1856,31 +1773,38 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                 ))
               : _cityFiltered.isEmpty
                 ? _emptyState()
-                : RefreshIndicator(
+                : Column(children: [
+                  // Figma header: logo + bell, then "Exploring <location>"
+                  _HomeHeader(
+                    locationTitle: _locTitle,
+                    locationSubtitle: _locSubtitle,
+                    unreadCount: _unreadCount,
+                    onCityTap: _openLocationScreen,
+                    onBellTap: () => _openNotifications(context),
+                  ),
+                  Expanded(child: RefreshIndicator(
                   onRefresh: ()=>_fetchStores(city),
                   color: kPrimary,
                   child: CustomScrollView(controller: _scrollCtrl, slivers:[
 
-                    // ══════ 1. HERO — City image (flush to top, header merged) ══════
-                    SliverToBoxAdapter(child: _CityHeroSection(
-                      city: city,
-                      cityImageUrl: _cityImageUrl,
-                      cityManual: _cityManual,
-                      unreadCount: _unreadCount,
-                      // ROUND 12 FIX (partial-Home fix): while the hero
-                      // photo is still loading, show a shimmer (reserving
-                      // the same height) instead of jumping straight to the
-                      // "no image" flat-gradient fallback.
-                      imageLoading: _heroImageLoading,
-                      locationTitle: _locTitle,
-                      locationSubtitle: _locSubtitle,
-                      onCityTap: _openLocationScreen,
-                      onBellTap: () => _openNotifications(context),
+                    // ══════ 1. SEARCH (opens the existing store search) ══════
+                    SliverToBoxAdapter(child: _HomeSearchBar(onTap: () => _searchStores(context))),
+
+                    // ══════ 2. HERO — Figma hero card (city artwork from /default-images) ══════
+                    SliverToBoxAdapter(child: Padding(
+                      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 20, OffroSpacing.gutter, 0),
+                      child: _CityHeroSection(
+                        city: city,
+                        cityImageUrl: _cityImageUrl,
+                        // while the hero photo is loading, shimmer instead of the flat fallback
+                        imageLoading: _heroImageLoading,
+                        onCtaTap: () => _searchStores(context),
+                      ),
                     )),
 
-                    // ══════ 3. CATEGORY CHIPS (below search) ══════
+                    // ══════ 3. CATEGORIES ══════
                     SliverToBoxAdapter(child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 10, 0, 0),
+                      padding: const EdgeInsets.only(top: 28),
                       child: _CategoryChipsRow(
                         cats: _richCats,
                         token: widget.token,
@@ -1894,7 +1818,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     )),
 
-                    // ══════ 3b. REWARDS SNAPSHOT (existing wallet data) ══════
+                    // ══════ 4. REWARDS (real wallet points) ══════
                     SliverToBoxAdapter(child: _HomeRewardsCard(
                       points: _walletPoints,
                       onTap: () {
@@ -1903,26 +1827,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       },
                     )),
 
-                                        // ══════ 4+5. ADMIN BANNER + EXPLORE STORES — one merged block ══════
-                    SliverToBoxAdapter(child: _BannerStoresBlock(
-                      banners: _adminBanners,
-                      stores: _floatingStores(_adminBanners, _topStores),
-                      token: widget.token,
-                      favStoreIds: _favStoreIds,
-                      onFavChanged: _loadFavStores,
-                      onViewAll: () => _viewAll(context, "Explore Stores", _topStores, bigCards: false),
-                      // ROUND 12 FIX: was `_productsLoading` (the whole
-                      // _loadSupplementary() bundle — categories, sliders,
-                      // products, wallet, default-images, retries). Now
-                      // uses a dedicated flag that tracks ONLY the admin-
-                      // banner fetch/retry, so the shimmer here disappears
-                      // exactly when the banner itself is ready, regardless
-                      // of how long unrelated background loading takes.
-                      bannersLoading: _adminBannersLoading,
-                    )),
-
-
-                    // ══════ 6. DISCOVER PRODUCTS ══════
+                    // ══════ 5. PRODUCTS NEAR YOU ══════
                     SliverToBoxAdapter(child: _DiscoverProductsSection(
                       products: _products,
                       onViewAll: () => _viewAllProducts(context),
@@ -1933,11 +1838,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       loading: _productsLoading,
                     )),
 
-                    // ══════ 6b. CITY INFLUENCERS (reuses screens/home/influencer_section.dart) ══════
+                    // ══════ 6. LOCAL VOICES (screens/home/influencer_section.dart) ══════
                     SliverToBoxAdapter(child: CityInfluencersSection(city: city, token: widget.token)),
 
-                    // ══════ 7. PROMO SLIDERS (merchant banners, small) ══════
-                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                    // ══════ 7. PROMOTED NEARBY — merchant promo sliders (kept: paid merchant placement) ══════
                     SliverToBoxAdapter(child: PromoSliderSection(
                       sliders: _sliders,
                       sliderPc: _sliderPc,
@@ -1948,29 +1852,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       },
                     )),
 
-                    // ══════ 8. NEARBY STORES ══════
-                    SliverToBoxAdapter(child: _NearbyStoresSection(
-                      stores: nearbyStores,
-                      radiusKm: _radiusKm,
-                      token: widget.token,
-                      onRadiusChanged: (km) async {
-                        setState(() => _radiusKm = km);
-                        await Prefs.saveRadius(km);
-                      },
-                      onViewAll: () => _viewAll(context, "Nearby Stores", nearbyStores),
-                      onStoreTap: (s) => Navigator.push(context, appRoute(
-                        StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
-                    )),
-
-                    // ══════ EXPLORE AREAS ══════
-                    SliverToBoxAdapter(child: _ExploreAreasSection(
-                      stores: _stores,
-                      token: widget.token,
-                    )),
-
                     const SliverToBoxAdapter(child: SizedBox(height: 124)),
                   ]),
-                ),
+                )),
+                ]),
 
             // Scroll-to-top FAB
             Positioned(
@@ -2401,7 +2286,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           ])),
         ]),
       ),
-    ));
+    )).whenComplete(() { if (mounted) setState(() => _navIdx = 0); });
 
   Widget _switchModeItem(BuildContext ctx) => ListTile(
     leading: Container(
@@ -2426,7 +2311,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       );
     },
-  ).whenComplete(() { if (mounted) setState(() => _navIdx = 0); });
+  );
 
   Widget _pItem(BuildContext ctx,IconData icon,String title,VoidCallback onTap,{Color color=kPrimary})=>
     ListTile(
@@ -2502,8 +2387,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       token: widget.token,
       city: city)));
 
-  void _viewAll(BuildContext ctx, String title, List<Map<String,dynamic>> stores, {bool bigCards=false}) =>
-    Navigator.push(ctx, appRoute(_ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
 }
 
 // ─────────────────────── VIEW ALL PAGE ───────────────────────
@@ -2624,6 +2507,8 @@ class _SearchLandingGridState extends State<_SearchLandingGrid> {
   }
 }
 
+// Retired from Customer Home (Figma Phase 2 correction); kept for the later Store Card phase.
+// ignore: unused_element
 class _ViewAllPage extends StatefulWidget {
   final String title;
   final List<Map<String,dynamic>> stores;
@@ -4427,243 +4312,312 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
 
 // ─── 1. Hero Greeting Section ────────────────────────────────────
 // City Hero Section — full-bleed image from Default Images module (key: "city")
+// ─── Figma header: logo + bell, then "Exploring <location>" ───
+class _HomeHeader extends StatelessWidget {
+  final String locationTitle;
+  final String locationSubtitle;
+  final int unreadCount;
+  final VoidCallback onCityTap;
+  final VoidCallback onBellTap;
+  const _HomeHeader({
+    required this.locationTitle, required this.locationSubtitle,
+    required this.unreadCount, required this.onCityTap, required this.onBellTap,
+  });
+
+  @override Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top;
+    return Container(
+      color: OffroColors.background,
+      padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, topPad + 14, OffroSpacing.gutter, 12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+        Row(children: [
+          buildImageLogo(height: 30),
+          const Spacer(),
+          GestureDetector(
+            onTap: onBellTap,
+            child: Stack(clipBehavior: Clip.none, children: [
+              Container(
+                width: 40, height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: OffroColors.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: OffroColors.border),
+                ),
+                child: const OffroIcon(OffroIcons.bell, size: 18, color: OffroColors.text),
+              ),
+              if (unreadCount > 0)
+                Positioned(top: 9, right: 10,
+                  child: Container(
+                    width: 7, height: 7,
+                    decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle),
+                  )),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: onCityTap,
+          behavior: HitTestBehavior.opaque,
+          child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+            const OffroIcon(OffroIcons.pin, size: 14, color: Color(0xFF61917A), filled: true),
+            const SizedBox(width: 8),
+            Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Text("Exploring", style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+              Text(locationTitle.isNotEmpty ? locationTitle : "Select location",
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.text)),
+              if (locationSubtitle.isNotEmpty)
+                Text(locationSubtitle,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+            ])),
+            const SizedBox(width: 6),
+            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: OffroColors.textFaint),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+// ─── Figma search bar (tap opens the existing store search) ───
+class _HomeSearchBar extends StatelessWidget {
+  final VoidCallback onTap;
+  const _HomeSearchBar({required this.onTap});
+
+  @override Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 4, OffroSpacing.gutter, 0),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: OffroColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: OffroColors.border),
+            boxShadow: const [BoxShadow(color: Color(0x0F3E5F55), blurRadius: 32, offset: Offset(0, 8))],
+          ),
+          child: Row(children: [
+            const OffroIcon(OffroIcons.search, size: 18, color: Color(0x8C3E5F55)),
+            const SizedBox(width: 12),
+            Expanded(child: Text("Search stores, products or services",
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: OffroText.body.copyWith(fontSize: 14, color: const Color(0x59000000)))),
+            const SizedBox(width: 8),
+            const OffroIcon(OffroIcons.sliders, size: 18, color: OffroColors.primary),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Figma hero card: city artwork + "Explore <City>" ───
 class _CityHeroSection extends StatelessWidget {
   final String city;
   final String cityImageUrl;   // URL from /default-images → "city" key
-  final bool cityManual;
-  final int unreadCount;
-  // ROUND 12 FIX (partial-Home fix): true while _loadSupplementary()'s
-  // hero/city-image fetch is still in flight for the current generation —
-  // i.e. `cityImageUrl` being empty might just mean "not fetched yet", not
-  // "no hero image for this city". Defaults to false so this stays a
-  // purely additive change. Mirrors _adminBannersLoading's role for
-  // _BannerStoresBlock.
+  // True while the hero/city-image fetch is still in flight, i.e. an empty
+  // [cityImageUrl] may just mean "not fetched yet" (shows a shimmer).
   final bool imageLoading;
-  final String locationTitle;    // locality, else area, else city
-  final String locationSubtitle; // e.g. "Cowl Bazaar, Ballari, Karnataka"
-  final VoidCallback onCityTap;
-  final VoidCallback onBellTap;
+  final VoidCallback onCtaTap;
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
-    required this.cityManual, required this.unreadCount,
-    this.imageLoading = false,
-    this.locationTitle = '', this.locationSubtitle = '',
-    required this.onCityTap, required this.onBellTap,
+    this.imageLoading = false, required this.onCtaTap,
   });
 
   @override Widget build(BuildContext context) {
     final displayCity = city.isNotEmpty ? city : "Your City";
-    final topPad = MediaQuery.of(context).padding.top;
-
-    return LayoutBuilder(builder: (ctx, constraints) {
-      final heroH = constraints.maxWidth * (2.0 / 3.0) + topPad;
-      Widget gradientBox() => Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
-            colors: [Color(0xFF2B463E), OffroColors.primary],
-          ),
+    Widget gradientBox() => const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+          colors: [Color(0xFF2B463E), OffroColors.primary],
         ),
-      );
-      Widget memoryHero() {
-        try {
-          return Image.memory(
-            decodeBase64ImageCached(cityImageUrl),
-            fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-            cacheWidth: 900, gaplessPlayback: true,
-            errorBuilder: (_, __, ___) => gradientBox());
-        } catch (_) { return gradientBox(); }
-      }
-    return SizedBox(
-      height: heroH,
-      width: double.infinity,
-      child: ClipRRect(
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(OffroRadii.hero)),
-      child: Stack(fit: StackFit.expand, children: [
-
-        // ── Background: network image OR brand gradient ──
-        cityImageUrl.startsWith("data:image")
-          ? memoryHero()
-          : cityImageUrl.isNotEmpty
-          ? CachedNetworkImage(
-              imageUrl: cityImageUrl,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              memCacheWidth: 900,
-              // ROUND 12 FIX (Task 6): was a flat gradient box while the
-              // image downloaded — same reserved SizedBox/height either
-              // way (see the LayoutBuilder above), so this only swaps what
-              // fills that box during the brief loading window, not the
-              // box itself. A genuine failure still falls back to the
-              // original plain gradient below (errorWidget, unchanged).
-              placeholder: (_, __) => shimmerBox(width: double.infinity, height: double.infinity),
-              errorWidget: (_, __, ___) => Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFF2B463E), OffroColors.primary],
-                  ),
-                ),
-              ),
-            )
-          // ROUND 12 FIX (partial-Home fix): `cityImageUrl` empty used to
-          // always mean "show the flat brand-gradient fallback", with no
-          // way to tell "genuinely no hero image" apart from "the fetch
-          // just hasn't come back yet". While `imageLoading` is true it's
-          // the latter — reserve the same box (SizedBox/heroH unchanged)
-          // and shimmer instead, so this section doesn't visually "finish"
-          // before its own data has actually arrived. Once imageLoading is
-          // false, this falls through to the exact original fallback.
-          : imageLoading
-            ? shimmerBox(width: double.infinity, height: double.infinity)
-            : Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFF2B463E), OffroColors.primary],
-                  ),
-                ),
-              ),
-
-        // ── Dark scrim for readability ──
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: .40),
-                  Colors.black.withValues(alpha: .15),
-                  Colors.black.withValues(alpha: .55),
-                ],
-                stops: const [0.0, 0.45, 1.0],
-              ),
-            ),
-          ),
-        ),
-
-        // ── TOP ROW: location pill + bell (Figma) ──
-        Positioned(top: topPad + 10, left: OffroSpacing.gutter, right: OffroSpacing.gutter,
-          child: Row(children: [
-            Expanded(child: Align(alignment: Alignment.centerLeft, child: GestureDetector(
-              onTap: onCityTap,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 7, 12, 7),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: .18),
-                  borderRadius: OffroRadii.pillRadius,
-                  border: Border.all(color: Colors.white.withValues(alpha: .30)),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const OffroIcon(OffroIcons.pin, size: 15, color: Colors.white),
-                  const SizedBox(width: 6),
-                  Flexible(child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        locationTitle.isNotEmpty ? locationTitle : (city.isNotEmpty ? city : "Select location"),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: OffroText.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
-                      if (locationSubtitle.isNotEmpty)
-                        Text(
-                          locationSubtitle,
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: OffroText.caption.copyWith(color: Colors.white70, fontSize: 10.5)),
-                    ],
-                  )),
-                  const SizedBox(width: 4),
-                  const OffroIcon(OffroIcons.chevron, size: 12, color: Colors.white70),
-                ]),
-              ),
-            ))),
-            const SizedBox(width: 12),
-            GestureDetector(
-              onTap: onBellTap,
-              child: Stack(clipBehavior: Clip.none, children: [
-                Container(
-                  width: 40, height: 40,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .18),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: .30), width: 1),
-                  ),
-                  child: const OffroIcon(OffroIcons.bell, size: 18, color: Colors.white),
-                ),
-                if (unreadCount > 0)
-                  Positioned(top: -3, right: -3,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle),
-                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                      child: Text(
-                        unreadCount > 9 ? '9+' : '$unreadCount',
-                        style: const TextStyle(fontFamily: OffroText.sans, color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
-                        textAlign: TextAlign.center),
-                    )),
-              ]),
-            ),
-          ]),
-        ),
-
-        // ── BOTTOM: eyebrow + "Explore <City>" (Lora italic accent) + tagline ──
-        Positioned(left: OffroSpacing.gutter, right: OffroSpacing.gutter, bottom: 24,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-            Text("LOCAL DEALS & STORES",
-              style: OffroText.eyebrow.copyWith(color: Colors.white.withValues(alpha: .85))),
-            const SizedBox(height: 8),
-            OffroAccentText(
-              before: "Explore\n",
-              accent: displayCity,
-              style: OffroText.display.copyWith(color: Colors.white),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              "Discover stores, deals & local favorites",
-              style: OffroText.bodySmall.copyWith(color: Colors.white.withValues(alpha: .85)),
-            ),
-          ]),
-        ),
-      ]),
       ),
     );
-    }); // LayoutBuilder
+    Widget memoryHero() {
+      try {
+        return Image.memory(
+          decodeBase64ImageCached(cityImageUrl),
+          fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+          cacheWidth: 900, gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => gradientBox());
+      } catch (_) { return gradientBox(); }
+    }
+
+    final Widget background = cityImageUrl.startsWith("data:image")
+        ? memoryHero()
+        : cityImageUrl.isNotEmpty
+            ? CachedNetworkImage(
+                imageUrl: cityImageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                memCacheWidth: 900,
+                placeholder: (_, __) => shimmerBox(width: double.infinity, height: double.infinity),
+                errorWidget: (_, __, ___) => gradientBox(),
+              )
+            : imageLoading
+                ? shimmerBox(width: double.infinity, height: double.infinity)
+                : gradientBox();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(OffroRadii.hero),
+      child: SizedBox(
+        height: 296,
+        width: double.infinity,
+        child: Stack(fit: StackFit.expand, children: [
+          const ColoredBox(color: OffroColors.text),
+          background,
+
+          // Figma overlays: left→right text scrim, bottom→top depth
+          Positioned.fill(child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft, end: Alignment.centerRight,
+                colors: [
+                  OffroColors.textDark.withValues(alpha: .90),
+                  OffroColors.textDark.withValues(alpha: .55),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          )),
+          Positioned.fill(child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                colors: [
+                  Colors.black.withValues(alpha: .55),
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: .10),
+                ],
+              ),
+            ),
+          )),
+
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: .15),
+                  borderRadius: OffroRadii.pillRadius,
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Container(width: 6, height: 6,
+                    decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle)),
+                  const SizedBox(width: 6),
+                  Text("LOCAL DEALS & STORES",
+                    style: OffroText.eyebrow.copyWith(color: Colors.white, fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+              const SizedBox(height: 20),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 285),
+                child: OffroAccentText(
+                  before: "Explore\n",
+                  accent: displayCity,
+                  style: OffroText.headline.copyWith(color: Colors.white, fontSize: 34),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 250),
+                child: Text("Discover stores, deals & local favorites",
+                  style: OffroText.bodySmall.copyWith(fontSize: 12, height: 1.6, color: Colors.white.withValues(alpha: .70))),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: onCtaTap,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .95),
+                    borderRadius: OffroRadii.pillRadius,
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text("Discover stores",
+                      style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                    const SizedBox(width: 6),
+                    const OffroIcon(OffroIcons.arrow, size: 12, color: OffroColors.primary),
+                  ]),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
   }
 }
 
 
-// ─── Home rewards snapshot (Figma) — reuses the existing wallet points ───
+// ─── Home rewards card (Figma) — shows the existing wallet points ───
 class _HomeRewardsCard extends StatelessWidget {
   final int points;
   final VoidCallback onTap;
   const _HomeRewardsCard({required this.points, required this.onTap});
 
+  static String _fmt(int n) =>
+      n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
+
   @override Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 16, OffroSpacing.gutter, 4),
-      child: OffroCard(
+      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 28, OffroSpacing.gutter, 0),
+      child: GestureDetector(
         onTap: onTap,
-        color: OffroColors.mint,
-        bordered: false,
-        child: Row(children: [
-          Container(
-            width: 42, height: 42,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(color: OffroColors.primary, shape: BoxShape.circle),
-            child: const OffroIcon(OffroIcons.gift, size: 20, color: Colors.white),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(26),
+          child: Container(
+            color: OffroColors.beige,
+            padding: const EdgeInsets.all(20),
+            child: Stack(clipBehavior: Clip.hardEdge, children: [
+              Positioned(
+                right: -52, top: -52,
+                child: Container(
+                  width: 144, height: 144,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white.withValues(alpha: .20), width: 28),
+                  ),
+                ),
+              ),
+              Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .60),
+                      borderRadius: OffroRadii.pillRadius,
+                    ),
+                    child: Text("OFFRO REWARDS",
+                      style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                  ),
+                  const SizedBox(height: 12),
+                  Text.rich(TextSpan(children: [
+                    TextSpan(text: _fmt(points), style: OffroText.titleSm),
+                    TextSpan(text: "  points",
+                      style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+                  ])),
+                  const SizedBox(height: 4),
+                  Text(points > 0 ? "Tap to view and redeem your rewards" : "Visit stores to start earning points",
+                    style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+                ])),
+                const SizedBox(width: 12),
+                Container(
+                  width: 48, height: 48,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: OffroColors.primary, shape: BoxShape.circle),
+                  child: const OffroIcon(OffroIcons.gift, size: 20, color: Colors.white),
+                ),
+              ]),
+            ]),
           ),
-          const SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(points > 0 ? "$points reward points" : "Your rewards", style: OffroText.cardTitle),
-            const SizedBox(height: 2),
-            Text(points > 0 ? "Tap to see what you can redeem" : "Earn points when you visit stores",
-              style: OffroText.bodySmall),
-          ])),
-          const OffroIcon(OffroIcons.chevron, size: 16, color: OffroColors.primary),
-        ]),
+        ),
       ),
     );
   }
@@ -4680,75 +4634,58 @@ class _CategoryChipsRow extends StatelessWidget {
   final String? selectedCity;
   const _CategoryChipsRow({required this.cats, required this.token, required this.onMoreTap, this.userLat, this.userLng, this.selectedCity});
 
-  static const _catEmojis = <String, String>{
-    'food': '🍔', 'restaurant': '🍽️', 'cafe': '☕', 'fashion': '👗',
-    'electronics': '📱', 'beauty': '💄', 'pharmacy': '💊', 'hospital': '🏥',
-    'education': '📚', 'grocery': '🛒', 'supermarket': '🛒',
-    'gym': '💪', 'salon': '✂️', 'bakery': '🥐', 'hotel': '🏨',
-    'jewellery': '💍', 'hardware': '🔧', 'furniture': '🛋️',
-  };
-
-  String _emoji(String name) {
-    final k = name.toLowerCase().trim();
-    for (final e in _catEmojis.entries) {
-      if (k.contains(e.key)) return e.value;
+  @override Widget build(BuildContext context) {
+    final names = <String>[];
+    for (final cat in cats) {
+      final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
+      if (name.isNotEmpty) names.add(name);
+      if (names.length == 4) break;
     }
-    return '🏪';
+    if (names.isEmpty) return const SizedBox.shrink();
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      OffroSectionTitle(
+        eyebrow: "Find what you need",
+        title: "Explore categories",
+        actionLabel: "See all",
+        onAction: onMoreTap,
+      ),
+      const SizedBox(height: 16),
+      Padding(
+        padding: OffroSpacing.gutterH,
+        child: Row(children: [
+          for (var i = 0; i < 4; i++)
+            Expanded(child: Padding(
+              padding: EdgeInsets.only(right: i < 3 ? 12 : 0),
+              child: i < names.length ? _tile(context, names[i]) : const SizedBox.shrink(),
+            )),
+        ]),
+      ),
+    ]);
   }
 
-  @override Widget build(BuildContext context) {
-    // Show max 5 categories + "More" button to fit single row
-    final visible = cats.take(5).toList();
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      padding: OffroSpacing.gutterH,
-      child: Row(children: [
-        ...visible.map((cat) {
-          final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
-          if (name.isEmpty) return const SizedBox.shrink();
-          final tone = OffroIcons.toneForCategory(name);
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => _CategoryStoresScreen(
-                  categoryName: name, token: token,
-                  userLat: userLat, userLng: userLng,
-                  selectedCity: selectedCity))),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(8, 6, 14, 6),
-                decoration: BoxDecoration(
-                  color: OffroColors.surface,
-                  borderRadius: OffroRadii.pillRadius,
-                  border: Border.all(color: OffroColors.border),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(
-                    width: 26, height: 26,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(color: tone.background, shape: BoxShape.circle),
-                    child: OffroIcon(OffroIcons.forCategory(name), size: 14, color: tone.foreground),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(name, style: OffroText.caption.copyWith(color: OffroColors.text, fontWeight: FontWeight.w700)),
-                ]),
-              ),
-            ),
-          );
-        }),
-        // ··· More button
-        GestureDetector(
-          onTap: onMoreTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-            decoration: BoxDecoration(
-              color: OffroColors.mint,
-              borderRadius: OffroRadii.pillRadius,
-            ),
-            child: Text("More", style: OffroText.caption.copyWith(color: OffroColors.primary, fontWeight: FontWeight.w700)),
+  Widget _tile(BuildContext context, String name) {
+    final tone = OffroIcons.toneForCategory(name);
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => _CategoryStoresScreen(
+          categoryName: name, token: token,
+          userLat: userLat, userLng: userLng,
+          selectedCity: selectedCity))),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 56, height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: tone.background,
+            borderRadius: BorderRadius.circular(18),
           ),
+          child: OffroIcon(OffroIcons.forCategory(name), size: 24, color: tone.foreground),
         ),
+        const SizedBox(height: 8),
+        Text(name,
+          maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+          style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: OffroColors.text)),
       ]),
     );
   }
@@ -4781,10 +4718,12 @@ class _DiscoverProductsSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const OffroSectionTitle(
-          eyebrow: "Trending picks just for you",
-          title: "Discover Products",
-          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
+        OffroSectionTitle(
+          eyebrow: "Across local stores",
+          title: "Products near you",
+          actionLabel: "Browse all",
+          onAction: onViewAll,
+          padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         SizedBox(
           height: h,
@@ -4881,10 +4820,12 @@ class _DiscoverProductsSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const OffroSectionTitle(
-          eyebrow: "Trending picks just for you",
-          title: "Discover Products",
-          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
+        OffroSectionTitle(
+          eyebrow: "Across local stores",
+          title: "Products near you",
+          actionLabel: "Browse all",
+          onAction: onViewAll,
+          padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         if (urls.length <= 1)
           Padding(
@@ -5254,10 +5195,12 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 24), // extra bottom space before banners
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const OffroSectionTitle(
-          eyebrow: "Trending picks just for you",
-          title: "Discover Products",
-          padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
+        OffroSectionTitle(
+          eyebrow: "Across local stores",
+          title: "Products near you",
+          actionLabel: "Browse all",
+          onAction: onViewAll,
+          padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         SizedBox(
           height: _bentoHeight,
@@ -5311,6 +5254,8 @@ class _DiscoverProductsSection extends StatelessWidget {
 }
 
 
+// Retired from Customer Home (Figma Phase 2 correction); kept for the later Store Card phase.
+// ignore: unused_element
 class _NearbyStoresSection extends StatelessWidget {
   final List<Map<String,dynamic>> stores;
   final double radiusKm;
@@ -5545,6 +5490,8 @@ class _NearbyStoresSection extends StatelessWidget {
   );
 }
 
+// Retired from Customer Home (Figma Phase 2 correction); kept for the later Store Card phase.
+// ignore: unused_element
 class _ExploreAreasSection extends StatelessWidget {
   final List<Map<String,dynamic>> stores;
   final String token;
@@ -5844,6 +5791,8 @@ class _StoreCardLayout {
   const _StoreCardLayout(this.height, this.stackRating);
 }
 
+// Retired from Customer Home (Figma Phase 2 correction); kept for the later Store Card phase.
+// ignore: unused_element
 class _BannerStoresBlock extends StatefulWidget {
   final List<Map<String,dynamic>> banners;
   final List<Map<String,dynamic>> stores;
