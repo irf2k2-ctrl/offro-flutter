@@ -7291,416 +7291,370 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     final origP = _numVal(["original_price","mrp","was_price","compare_price"]);
     final showOrig = origP != null && saleP != null && origP > saleP;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: CustomScrollView(slivers: [
-        // ── Hero image app bar ──
-        SliverAppBar(
-          expandedHeight: 300,
-          pinned: true,
-          backgroundColor: const Color(0xFF3E5F55),
-          leading: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 18)),
+    final topInset = MediaQuery.of(context).padding.top;
+    final category = (p["category"]?.toString().trim().isNotEmpty == true ? p["category"].toString() : storeCat).trim();
+
+    Widget circleBtn(Widget child, VoidCallback? onTap) => GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: .92), shape: BoxShape.circle),
+        child: child,
+      ),
+    );
+
+    Future<void> openStore() async {
+      // Fetch full store data so the detail page has images/rating/etc.
+      Map<String,dynamic> fullStore = storeData;
+      if (storeId.isNotEmpty) {
+        try {
+          final fetched = await Api.fetchStoreDetail(storeId);
+          if (fetched.isNotEmpty) {
+            fullStore = Map<String,dynamic>.from(fetched);
+            fullStore.putIfAbsent("_id", () => storeId);
+          }
+        } catch (_) {}
+      }
+      if (!context.mounted) return;
+      // FIX: fire "open" analytics event — user opened/visited the store from this product
+      final pidOpen = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+      if (pidOpen.isNotEmpty) Api.trackProductEvent(pidOpen, "open");
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => StoreDetailPage(
+          store: fullStore,
+          token: widget.token,
+          userName: "",
+          onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
+    }
+
+    void openImageViewer() => showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(children: [
+          Positioned.fill(
+            child: InteractiveViewer(
+              minScale: 0.8, maxScale: 5.0,
+              child: Center(child: _resolveImageContained()),
+            ),
           ),
-          actions: [
-            GestureDetector(
-              onTap: () async {
-                final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-                final prev = _isFav;
-                setState(() => _isFav = !_isFav); // optimistic
-                FavState.instance.toggleProduct(pid);
-                // FIX: toggleProductFavorite used to swallow every error
-                // silently and never throw — this onTap had NO try/catch at
-                // all, so a failed save was invisible until the screen was
-                // reopened later and the heart had quietly reverted itself.
-                // Now the call actually throws on failure and returns the
-                // server's DB-verified state on success, so we can trust it.
-                if (widget.token.isNotEmpty && pid.isNotEmpty) {
-                  try {
-                    final confirmed = await Api.toggleProductFavorite(widget.token, pid);
-                    if (mounted && confirmed != _isFav) {
-                      setState(() => _isFav = confirmed);
-                      FavState.instance.setProduct(pid, confirmed);
-                    }
-                  } catch (e) {
-                    // FIX: was a silent revert with no feedback at all — now
-                    // surface the real reason so failures are diagnosable.
-                    if (mounted) {
-                      setState(() => _isFav = prev);
-                      FavState.instance.setProduct(pid, prev);
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text("Couldn't save favorite: ${friendlyError(e)}"),
-                        backgroundColor: Colors.red.shade700,
-                        duration: const Duration(seconds: 12),
-                        showCloseIcon: true));
-                    }
-                  }
-                }
-              },
+          Positioned(top: 40, right: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(ctx),
               child: Container(
-                margin: const EdgeInsets.all(8),
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
-                child: Icon(_isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: _isFav ? const Color(0xFFe74c3c) : Colors.white, size: 20)),
-            ),
-            // ── Share button ──
-            GestureDetector(
-              onTap: _shareProduct,
-              child: Container(
-                margin: const EdgeInsets.only(right: 4),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: .35), shape: BoxShape.circle),
-                child: _shareBusy
-                    ? const SizedBox(width: 20, height: 20,
-                        child: Padding(padding: EdgeInsets.all(2),
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
-                    : const Icon(Icons.share_rounded, color: Colors.white, size: 20)),
-            ),
-            const SizedBox(width: 4),
-          ],
-          flexibleSpace: FlexibleSpaceBar(
-            background: GestureDetector(
-              onTap: () => showDialog(
-                context: context,
-                barrierColor: Colors.black87,
-                builder: (ctx) => Dialog(
-                  backgroundColor: Colors.transparent,
-                  insetPadding: EdgeInsets.zero,
-                  child: Stack(children: [
-                    Positioned.fill(
-                      child: InteractiveViewer(
-                        minScale: 0.8, maxScale: 5.0,
-                        child: Center(
-                          child: _resolveImageContained(),
-                        ),
-                      ),
-                    ),
-                    Positioned(top: 40, right: 16,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 20)))),
-                  ]),
-                ),
-              ),
-              child: Stack(fit: StackFit.expand, children: [
-              _resolveImage(),
-              // Bottom scrim
-              Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
+                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                child: const Icon(Icons.close_rounded, color: Colors.white, size: 20)))),
+        ]),
+      ),
+    );
+
+    final storeRating = (storeData["rating"] as num?)?.toDouble() ??
+                        (storeData["admin_rating"] as num?)?.toDouble() ?? 0.0;
+    final storeDist   = (storeData["distance_km"] as num?)?.toDouble();
+    final distLabel   = storeDist != null
+        ? (storeDist < 1.0 ? "${(storeDist * 1000).toStringAsFixed(0)} m away"
+                           : "${storeDist.toStringAsFixed(1)} km away")
+        : "";
+
+    return OffroFontScope(child: Scaffold(
+      backgroundColor: OffroColors.background,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: 40),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // ── Edge-to-edge hero image ──
+          SizedBox(
+            height: 360,
+            child: Stack(fit: StackFit.expand, children: [
+              GestureDetector(onTap: openImageViewer, child: _resolveImage()),
+              const IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.transparent, Colors.black.withValues(alpha: .55)],
-                  stops: const [0.0, 0.55, 1.0]),
-              ))),
-              // Discount badge
+                  colors: [Color(0x40000000), Color(0x00000000), Color(0x00000000), Color(0x26000000)],
+                  stops: [0.0, 0.3, 0.7, 1.0])))),
+              Positioned(
+                top: topInset + 8, left: 16, right: 16,
+                child: Row(children: [
+                  circleBtn(const OffroIcon(OffroIcons.back, size: 18, color: OffroColors.text), () => Navigator.pop(context)),
+                  const Spacer(),
+                  // ── Share button (existing branded share + analytics) ──
+                  circleBtn(
+                    _shareBusy
+                        ? const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: OffroColors.primary))
+                        : const OffroIcon(OffroIcons.share, size: 17, color: OffroColors.text),
+                    _shareBusy ? null : _shareProduct),
+                  const SizedBox(width: 8),
+                  circleBtn(
+                    OffroIcon(OffroIcons.heart, size: 17,
+                      color: _isFav ? OffroColors.terracotta : OffroColors.text, filled: _isFav),
+                    _toggleFavorite),
+                ]),
+              ),
               if (discBadge.isNotEmpty)
-                Positioned(bottom: 16, left: 16,
+                Positioned(left: 20, bottom: 40,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(8)),
-                    child: Text(discBadge, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: OffroColors.primary, borderRadius: OffroRadii.pillRadius),
+                    child: Text(discBadge.toLowerCase().replaceAll(" off", "") + " off",
+                      style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white)),
                   )),
-              ]),
-            ),
+            ]),
           ),
-        ),
 
-        SliverToBoxAdapter(child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Transform.translate(
+            offset: const Offset(0, -24),
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: OffroColors.background,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                if (category.isNotEmpty)
+                  Text(category.toUpperCase(),
+                    style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.8, color: OffroColors.sage)),
+                if (category.isNotEmpty) const SizedBox(height: 8),
+                Text(title, style: OffroText.display.copyWith(fontSize: 30, letterSpacing: -1.8, height: 1.1)),
 
-            // ── Product name ──
-            Text(title,
-              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 22, fontWeight: FontWeight.w900, height: 1.25)),
-
-            // ── Offer text: plain text directly under the title (nothing when empty) ──
-            if (offerDesc.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(offerDesc,
-                style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.45)),
-            ],
-
-            const SizedBox(height: 10),
-
-            // ── Price row ──
-            if (saleP != null || showOrig)
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  // ── Price row: sale price + strikethrough orig on ONE line ──
-                  Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                    if (saleP != null)
-                      Text("₹${saleP.toStringAsFixed(0)}",
-                        style: const TextStyle(
-                          color: Color(0xFF2c7a4b), fontSize: 24, fontWeight: FontWeight.w900)),
-                    if (showOrig) ...[
-                      const SizedBox(width: 10),
-                      Text("₹${origP!.toStringAsFixed(0)}",
-                        style: const TextStyle(
-                          color: Color(0xFF9e9e9e), fontSize: 15, fontWeight: FontWeight.w500,
-                          decoration: TextDecoration.lineThrough,
-                          decorationColor: Color(0xFF9e9e9e))),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFe74c3c),
-                          borderRadius: BorderRadius.circular(6)),
-                        child: Text(
-                          "${(((origP! - saleP!) / origP!) * 100).toStringAsFixed(0)}% off",
-                          style: const TextStyle(
-                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
-                    ],
-                  ]),
-                ]),
-                const SizedBox(height: 3),
-                Row(children: [
-                  if (saleP != null)
-                    const Text("Selling Price",
-                      style: TextStyle(color: Color(0xFF2c7a4b), fontSize: 11, fontWeight: FontWeight.w600)),
-                ]),
-              ]),
-
-            const SizedBox(height: 14),
-
-            // ── Rating row ──
-            if (_avgRating > 0 || _ratingCount > 0)
-              Row(children: [
-                ...List.generate(5, (i) => Icon(
-                  i < _avgRating.round() ? Icons.star_rounded : Icons.star_outline_rounded,
-                  color: const Color(0xFFFFD700), size: 18)),
-                const SizedBox(width: 6),
-                Text(_avgRating.toStringAsFixed(1),
-                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w700)),
-                if (_ratingCount > 0) ...[
-                  const SizedBox(width: 4),
-                  Text("($_ratingCount reviews)",
-                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
+                // Offer text under the title (nothing when empty)
+                if (offerDesc.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(offerDesc, style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.45, color: OffroColors.textMuted)),
                 ],
-              ]),
 
-            if (_avgRating > 0 || _ratingCount > 0) const SizedBox(height: 14),
-
-            // ── Description ──
-            if (description.isNotEmpty) ...[
-              const Text("About this product",
-                style: TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              Text(description,
-                style: const TextStyle(color: Color(0xFF4a6a60), fontSize: 14, height: 1.55)),
-              const SizedBox(height: 20),
-            ],
-
-            // ── Divider ──
-            const Divider(color: Color(0xFFe8f5f0)),
-            const SizedBox(height: 16),
-
-            // ── Store section ──
-            const Text("Sold by",
-              style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 12, fontWeight: FontWeight.w600,
-                letterSpacing: .5)),
-            const SizedBox(height: 10),
-            GestureDetector(
-              onTap: (storeName.isNotEmpty || storeId.isNotEmpty)
-                ? () async {
-                    // Fetch full store data so the detail page has images/rating/etc.
-                    Map<String,dynamic> fullStore = storeData;
-                    if (storeId.isNotEmpty) {
-                      try {
-                        final fetched = await Api.fetchStoreDetail(storeId);
-                        if (fetched.isNotEmpty) {
-                          fullStore = Map<String,dynamic>.from(fetched);
-                          fullStore.putIfAbsent("_id", () => storeId);
-                        }
-                      } catch (_) {}
-                    }
-                    if (!context.mounted) return;
-                    // FIX: fire "open" analytics event — user opened/visited the store from this product
-                    final _pidOpen = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
-                    if (_pidOpen.isNotEmpty) Api.trackProductEvent(_pidOpen, "open");
-                    Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => StoreDetailPage(
-                        store: fullStore,
-                        token: widget.token,
-                        userName: "",
-                        onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
-                  }
-                : null,
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFd4e8de)),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 10, offset: const Offset(0, 3))],
-                ),
-                child: Builder(builder: (_) {
-                  final storeRating = (storeData["rating"] as num?)?.toDouble() ??
-                                      (storeData["admin_rating"] as num?)?.toDouble() ?? 0.0;
-                  final storeDist   = (storeData["distance_km"] as num?)?.toDouble();
-                  final distLabel   = storeDist != null
-                    ? (storeDist < 1.0 ? "${(storeDist * 1000).toStringAsFixed(0)} m away"
-                                       : "${storeDist.toStringAsFixed(1)} km away")
-                    : "";
-                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      // Store avatar
+                // ── Price + rating ──
+                if (saleP != null || showOrig || _avgRating > 0 || _ratingCount > 0) ...[
+                  const SizedBox(height: 16),
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    if (saleP != null)
+                      Text("₹${saleP.toStringAsFixed(0)}", style: OffroText.headline.copyWith(fontSize: 22, letterSpacing: -0.8)),
+                    if (showOrig) ...[
+                      const SizedBox(width: 8),
+                      Text("₹${origP!.toStringAsFixed(0)}",
+                        style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400,
+                          color: OffroColors.textFaint, decoration: TextDecoration.lineThrough)),
+                    ],
+                    const Spacer(),
+                    if (_avgRating > 0 || _ratingCount > 0)
                       Container(
-                        width: 52, height: 52,
-                        decoration: BoxDecoration(
-                          color: storeIsActive ? const Color(0xFFe8f5f0) : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(14),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(color: OffroColors.beige.withValues(alpha: .45), borderRadius: OffroRadii.pillRadius),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          const OffroIcon(OffroIcons.star, size: 12, color: OffroColors.amber, filled: true),
+                          const SizedBox(width: 4),
+                          Text(_avgRating.toStringAsFixed(1),
+                            style: OffroText.caption.copyWith(fontSize: 11.5, fontWeight: FontWeight.w700, color: OffroColors.text)),
+                          if (_ratingCount > 0) ...[
+                            const SizedBox(width: 3),
+                            Text("($_ratingCount)",
+                              style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+                          ],
+                        ]),
+                      ),
+                  ]),
+                ],
+
+                // ── Listed by store card ──
+                const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: (storeName.isNotEmpty || storeId.isNotEmpty) ? openStore : null,
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Container(
+                          width: 44, height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: storeIsActive ? OffroColors.mint : const Color(0xFFF0EEE9),
+                            borderRadius: BorderRadius.circular(14)),
+                          child: OffroIcon(OffroIcons.store, size: 20,
+                            color: storeIsActive ? OffroColors.primary : const Color(0xFF9E9E9E)),
                         ),
-                        child: Center(child: Text(
-                          storeName.isNotEmpty ? storeName[0].toUpperCase() : "S",
-                          style: TextStyle(
-                            color: storeIsActive ? const Color(0xFF3E5F55) : const Color(0xFF9E9E9E),
-                            fontSize: 22, fontWeight: FontWeight.w900))),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text("Listed by",
+                            style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
+                          const SizedBox(height: 2),
+                          Text(storeName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: OffroText.cardTitle.copyWith(fontSize: 13)),
+                          if (storeArea.isNotEmpty || storeCat.isNotEmpty || storeRating > 0 || distLabel.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text([
+                              if (storeCat.isNotEmpty) storeCat,
+                              if (storeArea.isNotEmpty) storeArea,
+                              if (storeRating > 0) "★ ${storeRating.toStringAsFixed(1)}",
+                              if (distLabel.isNotEmpty) distLabel,
+                            ].join("  ·  "),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+                          ],
+                        ])),
+                        const SizedBox(width: 8),
+                        Text("View store", style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                        const SizedBox(width: 2),
+                        const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.primary),
+                      ]),
+                      // ── Store inactive badge (store subscription expired) ──
+                      if (!storeIsActive) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: OffroColors.amber.withValues(alpha: .12),
+                            borderRadius: OffroRadii.pillRadius),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.info_outline_rounded, size: 12, color: OffroColors.amber),
+                            const SizedBox(width: 5),
+                            Text("Store Currently Inactive",
+                              style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: OffroColors.amber)),
+                          ]),
+                        ),
+                      ],
+                    ]),
+                  ),
+                ),
+
+                // ── Offer card (real offer text only) ──
+                if (offerText.trim().isNotEmpty && offerText.trim() != "null") ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(22)),
+                    child: Row(children: [
+                      Container(
+                        width: 40, height: 40,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(color: OffroColors.primary, shape: BoxShape.circle),
+                        child: const OffroIcon(OffroIcons.tag, size: 18, color: Colors.white),
                       ),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(storeName,
-                          style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
-                        if (storeArea.isNotEmpty || storeCat.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text("${storeCat.isNotEmpty ? storeCat : ''}${storeCat.isNotEmpty && storeArea.isNotEmpty ? '  ·  ' : ''}${storeArea}".trim(),
-                            style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
-                        ],
-                        const SizedBox(height: 5),
-                        Row(children: [
-                          if (storeRating > 0) ...[
-                            const Icon(Icons.star_rounded, color: Color(0xFFFFD700), size: 13),
-                            const SizedBox(width: 3),
-                            Text(storeRating.toStringAsFixed(1),
-                              style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w700)),
-                            if (distLabel.isNotEmpty) const SizedBox(width: 8),
-                          ],
-                          if (distLabel.isNotEmpty) ...[
-                            const Icon(Icons.near_me_rounded, color: Color(0xFF3E5F55), size: 12),
-                            const SizedBox(width: 3),
-                            Text(distLabel,
-                              style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500)),
-                          ],
-                        ]),
+                        Text("OffrO offer", style: OffroText.cardTitle.copyWith(fontSize: 12)),
+                        const SizedBox(height: 2),
+                        Text(offerText.trim(),
+                          style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.4,
+                            color: OffroColors.primary.withValues(alpha: .7))),
                       ])),
-                      const Icon(Icons.chevron_right_rounded, color: Color(0xFF3E5F55), size: 22),
                     ]),
-                    // ── Store inactive badge (shown only if store subscription expired) ──
-                    if (!storeIsActive) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF3E0),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFFF9800).withValues(alpha: .4)),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          const Icon(Icons.info_outline_rounded, size: 12, color: Color(0xFFE65100)),
-                          const SizedBox(width: 5),
-                          const Text("Store Currently Inactive",
-                            style: TextStyle(color: Color(0xFFE65100), fontSize: 11, fontWeight: FontWeight.w700)),
-                        ]),
-                      ),
-                    ],
-                  ]);
-                }),
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // ── Rate & Review ──
-            const Text("Rate & Review",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 15, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-
-            // Star rating selector (locked once review submitted)
-            AbsorbPointer(
-              absorbing: _reviewSubmitted,
-              child: Row(children: [
-              ...List.generate(5, (i) => GestureDetector(
-                onTap: () => setState(() => _userRating = i + 1.0),
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Icon(
-                    i < _userRating ? Icons.star_rounded : Icons.star_outline_rounded,
-                    color: const Color(0xFFFFD700), size: 30)),
-              )),
-              const SizedBox(width: 8),
-              Text(_userRating == 0 ? "Tap to rate" : ["","Poor","Fair","Good","Great","Excellent"][_userRating.toInt()],
-                style: TextStyle(
-                  color: _userRating == 0 ? const Color(0xFF9e9e9e) : const Color(0xFF3E5F55),
-                  fontSize: 13, fontWeight: FontWeight.w600)),
-            ])),
-
-            const SizedBox(height: 12),
-
-            // Review text field
-            if (!_reviewSubmitted) ...[
-              TextField(
-                controller: _reviewCtrl,
-                maxLines: 3,
-                style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: "Share your experience with this product...",
-                  hintStyle: const TextStyle(color: Color(0xFFa0b8b0), fontSize: 13),
-                  filled: true,
-                  fillColor: const Color(0xFFF7FBF9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFd4e8de))),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFd4e8de))),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF3E5F55), width: 1.5)),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (_userRating > 0 && !_reviewSubmitting) ? _submitReview : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3E5F55),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: _reviewSubmitting
-                    ? const SizedBox(width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text("Submit Review", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ] else
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFe8f5f0),
-                  borderRadius: BorderRadius.circular(14)),
-                child: const Row(children: [
-                  Icon(Icons.check_circle_rounded, color: Color(0xFF3E5F55), size: 20),
-                  SizedBox(width: 10),
-                  Text("Thanks for your review!", style: TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w600)),
-                ]),
-              ),
+                ],
 
-            const SizedBox(height: 100),
-          ]),
-        )),
-      ]),
-    );
+                // ── Product details ──
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  Text("Product details", style: OffroText.title.copyWith(fontSize: 20)),
+                  const SizedBox(height: 10),
+                  Text(description, style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.6, color: OffroColors.textMuted)),
+                ],
+
+                // ── Rate & Review ──
+                const SizedBox(height: 28),
+                Text("Rate & Review", style: OffroText.title.copyWith(fontSize: 20)),
+                const SizedBox(height: 12),
+                // Star rating selector (locked once review submitted)
+                AbsorbPointer(
+                  absorbing: _reviewSubmitted,
+                  child: Row(children: [
+                    ...List.generate(5, (i) => GestureDetector(
+                      onTap: () => setState(() => _userRating = i + 1.0),
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: Icon(
+                          i < _userRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                          color: OffroColors.amber, size: 30)),
+                    )),
+                    const SizedBox(width: 8),
+                    Text(_userRating == 0 ? "Tap to rate" : ["","Poor","Fair","Good","Great","Excellent"][_userRating.toInt()],
+                      style: OffroText.caption.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600,
+                        color: _userRating == 0 ? OffroColors.textFaint : OffroColors.primary)),
+                  ])),
+                const SizedBox(height: 14),
+                if (!_reviewSubmitted) ...[
+                  TextField(
+                    controller: _reviewCtrl,
+                    maxLines: 3,
+                    style: OffroText.body.copyWith(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: "Share your experience with this product...",
+                      hintStyle: OffroText.body.copyWith(fontSize: 13, color: OffroColors.textPlaceholder),
+                      filled: true, fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.all(14),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: OffroColors.border)),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: OffroColors.border)),
+                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: OffroColors.primary, width: 1.5)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity, height: 50,
+                    child: ElevatedButton(
+                      onPressed: (_userRating > 0 && !_reviewSubmitting) ? _submitReview : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: OffroColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: OffroColors.primary.withValues(alpha: .35),
+                        disabledForegroundColor: Colors.white,
+                        elevation: 0,
+                        shape: const StadiumBorder(),
+                      ),
+                      child: _reviewSubmitting
+                        ? const SizedBox(width: 20, height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text("Submit Review", style: OffroText.button.copyWith(color: Colors.white, fontSize: 13)),
+                    ),
+                  ),
+                ] else
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(20)),
+                    child: Row(children: [
+                      const Icon(Icons.check_circle_rounded, color: OffroColors.primary, size: 20),
+                      const SizedBox(width: 10),
+                      Text("Thanks for your review!", style: OffroText.cardTitle.copyWith(fontSize: 13)),
+                    ]),
+                  ),
+              ]),
+            ),
+          ),
+        ]),
+      ),
+    ));
+  }
+
+  // Favourite toggle — same optimistic update + server-verified logic as before.
+  Future<void> _toggleFavorite() async {
+    final pid = widget.product["_id"]?.toString() ?? widget.product["id"]?.toString() ?? "";
+    final prev = _isFav;
+    setState(() => _isFav = !_isFav); // optimistic
+    FavState.instance.toggleProduct(pid);
+    // toggleProductFavorite throws on failure and returns the server's
+    // DB-verified state on success, so we can trust it.
+    if (widget.token.isNotEmpty && pid.isNotEmpty) {
+      try {
+        final confirmed = await Api.toggleProductFavorite(widget.token, pid);
+        if (mounted && confirmed != _isFav) {
+          setState(() => _isFav = confirmed);
+          FavState.instance.setProduct(pid, confirmed);
+        }
+      } catch (e) {
+        if (mounted) {
+          setState(() => _isFav = prev);
+          FavState.instance.setProduct(pid, prev);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 12),
+            showCloseIcon: true));
+        }
+      }
+    }
   }
 }
 

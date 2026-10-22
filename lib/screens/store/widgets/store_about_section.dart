@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/store_hours.dart';
+import '../../../core/design/design.dart';
 
 class StoreAboutSection extends StatefulWidget {
   final Map<String, dynamic> store;
@@ -45,19 +46,20 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
+            Text('About', style: OffroText.title.copyWith(fontSize: 20)),
+            const SizedBox(height: 10),
 
             // Description
             if (desc.isNotEmpty) ...[
               AnimatedCrossFade(
                 firstChild: Text(desc,
                     style: const TextStyle(
-                        color: kMuted, fontSize: 13, height: 1.7),
+                        color: OffroColors.textMuted, fontSize: 13, height: 1.7),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis),
                 secondChild: Text(desc,
                     style: const TextStyle(
-                        color: kMuted, fontSize: 13, height: 1.7)),
+                        color: OffroColors.textMuted, fontSize: 13, height: 1.7)),
                 crossFadeState: _expanded
                     ? CrossFadeState.showSecond
                     : CrossFadeState.showFirst,
@@ -83,8 +85,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kBorder, width: 1),
+                borderRadius: BorderRadius.circular(22),
               ),
               child: Column(children: [
                 // Open / Close — FIX: this used to hard-code the green dot
@@ -135,7 +136,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                     isFirst: openTime.isEmpty && closeTime.isEmpty,
                     child: Text(displayAddr,
                       style: const TextStyle(
-                          color: kText, fontSize: 13),
+                          color: OffroColors.text, fontSize: 13),
                     ),
                   ),
 
@@ -148,7 +149,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                         displayAddr.isEmpty,
                     child: Text(phone,
                       style: const TextStyle(
-                          color: kText, fontSize: 13),
+                          color: OffroColors.text, fontSize: 13),
                     ),
                   ),
 
@@ -159,7 +160,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                     isFirst: false,
                     child: Text('₹$costForTwo for two',
                       style: const TextStyle(
-                          color: kText, fontSize: 13)),
+                          color: OffroColors.text, fontSize: 13)),
                   ),
 
                 // Dine-in
@@ -169,7 +170,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                     isFirst: false,
                     child: const Text('Dine-in available',
                       style: TextStyle(
-                          color: kText, fontSize: 13)),
+                          color: OffroColors.text, fontSize: 13)),
                   ),
               ]),
             ),
@@ -184,14 +185,12 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: kLight.withValues(alpha: .5),
+                    color: OffroColors.mintSoft,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: kAccent.withValues(alpha: .4)),
                   ),
                   child: Text('#$t',
                     style: const TextStyle(
-                        color: kPrimary,
+                        color: OffroColors.primary,
                         fontSize: 11,
                         fontWeight: FontWeight.w600)),
                 )).toList(),
@@ -213,12 +212,12 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
           border: isFirst
               ? null
               : const Border(
-                  top: BorderSide(color: kBorder, width: 1)),
+                  top: BorderSide(color: Color(0x0D000000), width: 1)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: kMuted, size: 16),
+            Icon(icon, color: OffroColors.sage, size: 16),
             const SizedBox(width: 12),
             Expanded(child: child),
             // NO arrow icon — removed per mockup

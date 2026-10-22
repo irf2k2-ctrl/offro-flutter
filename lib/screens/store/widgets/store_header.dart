@@ -3,11 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/image_url.dart';
 import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import '../../../core/utils/store_hours.dart';
+import '../../../core/design/design.dart';
 
 class StoreHeader extends StatelessWidget {
   final Map<String, dynamic> store;
@@ -47,8 +46,78 @@ class StoreHeader extends StatelessWidget {
     );
   }
 
+  /// Badge label (Trending / New store / …) from the same store fields the
+  /// old inline badge used. Returns null when there is no badge.
+  String? _badgeLabel() {
+    const meta = <String, String>{
+      'new_store':     'NEW STORE',
+      'just_opened':   'JUST OPENED',
+      'newly_added':   'NEWLY ADDED',
+      'newly_opened':  'NEWLY OPENED',
+      'trending':      'TRENDING',
+      'popular':       'POPULAR',
+      'top_rated':     'TOP RATED',
+      'must_visit':    'MUST VISIT',
+      'limited_offer': 'LIMITED OFFER',
+    };
+    final rb = (store['badge'] as String?)?.trim() ?? '';
+    String? key;
+    if (rb.isNotEmpty && meta.containsKey(rb)) {
+      key = rb;
+    } else {
+      try {
+        final c = store['created_at']?.toString()
+            ?? store['created_date']?.toString() ?? '';
+        if (c.isNotEmpty) {
+          final dt = DateTime.tryParse(c);
+          if (dt != null && DateTime.now().difference(dt).inDays < 10) {
+            key = 'newly_added';
+          }
+        }
+      } catch (_) {}
+      if (key == null) {
+        final isNewInTown = store['is_new_in_town'] == true
+            || store['is_new_in_town']?.toString() == 'true'
+            || store['is_new'] == true
+            || store['is_new']?.toString() == 'true';
+        if (isNewInTown) {
+          key = 'new_store';
+        } else if (store['is_trending'] == true) {
+          key = 'trending';
+        } else if (store['is_popular'] == true) {
+          key = 'popular';
+        }
+      }
+    }
+    return key == null ? null : meta[key];
+  }
+
+  /// "Offer · 20% off" from the store's real offer / deals. Null if none.
+  String? _offerLabel() {
+    final offer = store['offer']?.toString().trim() ?? '';
+    if (offer.isNotEmpty && offer.toLowerCase() != 'null') {
+      final m = RegExp(r'(\d+)\s*%').firstMatch(offer);
+      return m != null ? 'Offer · ${m.group(1)}% off' : 'Offer · $offer';
+    }
+    final deals = store['deals'];
+    if (deals is List) {
+      int best = 0;
+      for (final d in deals) {
+        if (d is Map) {
+          final v = int.tryParse(d['discount']?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '') ?? 0;
+          if (v > best) best = v;
+        }
+      }
+      if (best > 0) return 'Offer · $best% off';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Figma store detail: edge-to-edge photo with floating back / share /
+    // favourite, offer badge, then a rounded sheet with category, rating,
+    // name, location and Call / WhatsApp / Directions.
     final name        = store['store_name']?.toString() ?? '';
     final category    = store['category']?.toString() ?? '';
     final area        = store['area']?.toString() ?? '';
@@ -56,345 +125,143 @@ class StoreHeader extends StatelessWidget {
     final rating      = (store['rating'] as num?)?.toDouble() ?? 0.0;
     final reviewCount = (store['review_count'] as num?)?.toInt() ?? 0;
     final distKm      = (store['distance_km'] as num?)?.toDouble();
-    final locationText =
-        [area, city].where((x) => x.isNotEmpty).join(', ');
-
-    // Circle on the wave: uploaded Store Logo (merchant "Upload Logo" = image2)
-    // → existing store image chain below → letter fallback.
-    final uploadedLogo = _validImg(store['image2']);
-    final storeImageUrl = (store['logo_url']?.toString() ?? '').isNotEmpty
-        ? store['logo_url'].toString()
-        : (store['logo']?.toString() ?? '').isNotEmpty
-            ? store['logo'].toString()
-            : (store['image_url']?.toString() ?? '').isNotEmpty
-                ? store['image_url'].toString()
-                : (store['image']?.toString() ?? '').isNotEmpty
-                    ? store['image'].toString()
-                    : '';
-    final logoUrl = uploadedLogo.isNotEmpty ? uploadedLogo : storeImageUrl;
-    // Always show logo circle on the wave divider
-    const hasLogo = true;
-
-    // Use only main image (index 0) — no auto-scroll per requirement
+    final locationText = [area, city].where((x) => x.isNotEmpty).join(', ');
+    final distText = distKm == null
+        ? ''
+        : (distKm < 1 ? '${(distKm * 1000).round()} m' : '${distKm.toStringAsFixed(1)} km');
     final mainImage = images.isNotEmpty ? images[0] : '';
+    final offer = _offerLabel();
+    final badge = _badgeLabel();
+    final topInset = MediaQuery.of(context).padding.top;
+    const heroH = 320.0;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ─── Hero Image (260px) + wave curve + centered logo ─
-        SizedBox(
-          // Extra height for logo overlap on wave
-          height: 308, // always show logo circle
-          child: Stack(clipBehavior: Clip.none, children: [
-            // Hero image (fixed, no pageview auto-scroll)
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: GestureDetector(
-                onTap: () => _openFullScreen(context),
-                child: SizedBox(
-                  height: 260,
-                  child: mainImage.isEmpty
-                      ? Container(
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFF2a4a40), kPrimary],
-                            ),
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.store_mall_directory_outlined,
-                              color: Colors.white24,
-                              size: 80,
-                            ),
-                          ),
-                        )
-                      : _buildImage(mainImage),
-                ),
-              ),
-            ),
+    Widget circleBtn(Widget child, VoidCallback onTap) => GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40, height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: Colors.white.withValues(alpha: .92), shape: BoxShape.circle),
+        child: child,
+      ),
+    );
 
-            // Top gradient for button readability
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: Container(
-                height: 110,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: .52),
-                      Colors.transparent,
+    Widget pill(String text, {Color bg = Colors.white, Color fg = OffroColors.primary}) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: bg, borderRadius: OffroRadii.pillRadius),
+      child: Text(text, style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: fg)),
+    );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      SizedBox(
+        height: heroH,
+        child: Stack(fit: StackFit.expand, children: [
+          GestureDetector(
+            onTap: () => _openFullScreen(context),
+            child: mainImage.isEmpty
+                ? Container(
+                    color: OffroColors.mint,
+                    child: const Center(child: OffroIcon(OffroIcons.store, size: 64, color: OffroColors.sage)))
+                : _buildImage(mainImage),
+          ),
+          const IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Color(0x40000000), Color(0x00000000), Color(0x00000000), Color(0x26000000)],
+              stops: [0.0, 0.3, 0.7, 1.0])))),
+          Positioned(
+            top: topInset + 8, left: 16, right: 16,
+            child: Row(children: [
+              circleBtn(const OffroIcon(OffroIcons.back, size: 18, color: OffroColors.text), onBack),
+              const Spacer(),
+              circleBtn(const OffroIcon(OffroIcons.share, size: 17, color: OffroColors.text), onShare),
+              const SizedBox(width: 8),
+              circleBtn(
+                OffroIcon(OffroIcons.heart, size: 17,
+                  color: isFav ? OffroColors.terracotta : OffroColors.text, filled: isFav),
+                onFavToggle),
+            ]),
+          ),
+          if (offer != null)
+            Positioned(left: 20, bottom: 44, child: pill(offer)),
+        ]),
+      ),
+
+      Transform.translate(
+        offset: const Offset(0, -24),
+        child: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: OffroColors.background,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              if (category.isNotEmpty) pill(category, bg: OffroColors.mintSoft),
+              if (badge != null) ...[
+                const SizedBox(width: 8),
+                pill(badge, bg: OffroColors.beige.withValues(alpha: .6), fg: OffroColors.text),
+              ],
+              const Spacer(),
+              if (rating > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(color: OffroColors.beige.withValues(alpha: .45), borderRadius: OffroRadii.pillRadius),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const OffroIcon(OffroIcons.star, size: 12, color: OffroColors.amber, filled: true),
+                    const SizedBox(width: 4),
+                    Text(rating.toStringAsFixed(1), style: OffroText.caption.copyWith(fontSize: 11.5, fontWeight: FontWeight.w700, color: OffroColors.text)),
+                    if (reviewCount > 0) ...[
+                      const SizedBox(width: 3),
+                      Text('($reviewCount)', style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
                     ],
-                  ),
-                ),
-              ),
-            ),
-
-            // Wave curve at bottom of hero (sits at y=242)
-            Positioned(
-              top: 242, left: 0, right: 0,
-              child: CustomPaint(
-                painter: _WavePainter(),
-                child: const SizedBox(height: 36),
-              ),
-            ),
-
-            // Top bar — back + fav + share
-            Positioned(
-              top: 0, left: 0, right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
-                  child: Row(children: [
-                    _glassBtn(Icons.arrow_back_ios_new_rounded, onBack),
-                    const Spacer(),
-                    _glassFavBtn(isFav, onFavToggle),
-                    const SizedBox(width: 8),
-                    _glassBtn(Icons.ios_share_rounded, onShare),
                   ]),
                 ),
-              ),
-            ),
+            ]),
+            const SizedBox(height: 14),
+            Text(name, style: OffroText.display.copyWith(fontSize: 28, letterSpacing: -1.6, height: 1.1)),
+            if (locationText.isNotEmpty || distText.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(children: [
+                const OffroIcon(OffroIcons.pin, size: 13, color: OffroColors.sage),
+                const SizedBox(width: 6),
+                Expanded(child: Text(
+                  [locationText, distText].where((x) => x.isNotEmpty).join(' · '),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textMuted))),
+              ]),
+            ],
 
-            // Merchant logo — centered on the wave line (y ≈ 242+8 = 250)
-            if (hasLogo)
-              Positioned(
-                top: 214,   // centers the 80px circle on the wave (wave y=242, center=251, top=251-40=211)
-                left: 0, right: 0,
-                child: Center(
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      border: Border.all(color: const Color(0xFFA9CDBA), width: 2.5),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: .15),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: ClipOval(
-                      child: logoUrl.isNotEmpty
-                          ? _buildLogoImage(logoUrl,
-                              fallback: logoUrl == uploadedLogo ? storeImageUrl : '')
-                          : Container(
-                              color: const Color(0xFFe8f5f0),
-                              child: Center(
-                                child: Text(
-                                  name.isNotEmpty ? name[0].toUpperCase() : 'S',
-                                  style: const TextStyle(
-                                    color: Color(0xFF3E5F55),
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
+            // ── Open/close status (same shared helper as the About tab) ──
+            Builder(builder: (ctx) {
+              final status = computeStoreOpenStatus(
+                  store['open_time']?.toString() ?? '', store['close_time']?.toString() ?? '');
+              if (status == null) return const SizedBox.shrink();
+              final isOpen = status.isOpen;
+              final sub = status.subLabel;
+              final fg = isOpen ? OffroColors.success : OffroColors.error;
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: fg.withValues(alpha: .10), borderRadius: OffroRadii.pillRadius),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 6, height: 6, decoration: BoxDecoration(color: fg, shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Text(isOpen ? 'Open' : 'Closed',
+                      style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
+                    if (sub.isNotEmpty)
+                      Text(' · $sub', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w500, color: fg)),
+                  ]),
                 ),
-              ),
-          ]),
-        ),
-
-        // ─── Store Info ───────────────────────────────────────
-        Padding(
-          padding: EdgeInsets.fromLTRB(
-              16, hasLogo ? 8 : 14, 16, 0),
-          child: Text(
-            name,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              color: kText,
-              height: 1.2,
-            ),
-          ),
-        ),
-        if (category.isNotEmpty || locationText.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 3, 16, 0),
-            child: Text(
-              [category, locationText]
-                  .where((x) => x.isNotEmpty)
-                  .join(' · '),
-              style: const TextStyle(
-                  color: kMuted, fontSize: 13, height: 1.3),
-            ),
-          ),
-        const SizedBox(height: 8),
-        // ─── Rating row with inline badge (same line, matches home screen) ───
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            // Distance
-            if (distKm != null) ...[
-              const Icon(Icons.near_me_rounded, color: kMuted, size: 13),
-              const SizedBox(width: 3),
-              Text(
-                distKm < 1
-                    ? '${(distKm * 1000).round()} m'
-                    : '${distKm.toStringAsFixed(1)} km',
-                style: const TextStyle(
-                    color: kMuted, fontSize: 13, fontWeight: FontWeight.w600),
-              ),
-            ],
-            // Dot separator
-            if (distKm != null && rating > 0) ...[
-              const SizedBox(width: 8),
-              const Text('·', style: TextStyle(color: kMuted, fontSize: 13)),
-              const SizedBox(width: 8),
-            ],
-            // Stars + count
-            if (rating > 0) ...[
-              const Icon(Icons.star_rounded, color: Color(0xFFFFB300), size: 15),
-              const SizedBox(width: 3),
-              Text(
-                rating.toStringAsFixed(1),
-                style: const TextStyle(
-                    color: kText, fontSize: 13, fontWeight: FontWeight.w800),
-              ),
-              if (reviewCount > 0) ...[
-                const SizedBox(width: 3),
-                Text(
-                  '($reviewCount)',
-                  style: const TextStyle(color: kMuted, fontSize: 12),
-                ),
-              ],
-            ],
-            // ─── Inline badge — same black pill as home screen ───
-            Builder(builder: (_ctx) {
-              const _meta = <String, String>{
-                'new_store':     '🆕 NEW STORE',
-                'just_opened':   '🎉 JUST OPENED',
-                'newly_added':   '✨ NEWLY ADDED',
-                'newly_opened':  '🎉 NEWLY OPENED',
-                'trending':      '🔥 TRENDING',
-                'popular':       '⭐ POPULAR',
-                'top_rated':     '🏆 TOP RATED',
-                'must_visit':    '📍 MUST VISIT',
-                'limited_offer': '⏳ LIMITED OFFER',
-              };
-              final _rb = (store['badge'] as String?)?.trim() ?? '';
-              String? _key;
-              if (_rb.isNotEmpty && _meta.containsKey(_rb)) {
-                _key = _rb;
-              } else {
-                try {
-                  final _c = store['created_at']?.toString()
-                      ?? store['created_date']?.toString() ?? '';
-                  if (_c.isNotEmpty) {
-                    final _dt = DateTime.tryParse(_c);
-                    if (_dt != null &&
-                        DateTime.now().difference(_dt).inDays < 10) {
-                      _key = 'newly_added';
-                    }
-                  }
-                } catch (_) {}
-                if (_key == null) {
-                  final _isNewInTown = store['is_new_in_town'] == true
-                    || store['is_new_in_town']?.toString() == 'true'
-                    || store['is_new'] == true
-                    || store['is_new']?.toString() == 'true';
-                if (_isNewInTown)   _key = 'new_store';
-                  else if (store['is_trending'] == true) _key = 'trending';
-                  else if (store['is_popular']  == true) _key = 'popular';
-                }
-              }
-              if (_key == null) return const SizedBox.shrink();
-              return Row(mainAxisSize: MainAxisSize.min, children: [
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.82),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _meta[_key]!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                ),
-              ]);
+              );
             }),
+
+            const SizedBox(height: 20),
+            _ActionButtonsRow(store: store),
           ]),
         ),
-
-        const SizedBox(height: 8),
-
-        // ── Open/close status ──
-        Builder(builder: (ctx) {
-          final openTime  = store['open_time']?.toString()  ?? '';
-          final closeTime = store['close_time']?.toString() ?? '';
-          // FIX: now uses the single shared computeStoreOpenStatus() helper
-          // (lib/core/utils/store_hours.dart) instead of its own partial
-          // calculation, so this badge can never disagree with the About
-          // tab's open/close row again.
-          final status = computeStoreOpenStatus(openTime, closeTime);
-          if (status == null) {
-            return const SizedBox.shrink();
-          }
-          try {
-            final bool isOpen = status.isOpen;
-            final String sub  = status.subLabel;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: isOpen ? const Color(0xFFe8f5ee) : const Color(0xFFfdf0f0),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(
-                    width: 6, height: 6,
-                    decoration: BoxDecoration(
-                      color: isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b),
-                      shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(isOpen ? 'Open' : 'Closed',
-                    style: TextStyle(
-                      color: isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b),
-                      fontSize: 11, fontWeight: FontWeight.w800)),
-                  if (sub.isNotEmpty) ...[
-                    Text(' · ',
-                      style: TextStyle(
-                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)),
-                        fontSize: 11, fontWeight: FontWeight.w800)),
-                    Text(sub,
-                      style: TextStyle(
-                        color: (isOpen ? const Color(0xFF2e7d52) : const Color(0xFFc0392b)),
-                        fontSize: 11, fontWeight: FontWeight.w800)),
-                  ],
-                ]),
-              ),
-            );
-          } catch (_) {
-            return const SizedBox.shrink();
-          }
-        }),
-        // ─── Action Buttons: Call · WhatsApp · Visit Store ────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-          child: _ActionButtonsRow(store: store),
-        ),
-      ],
-    );
+      ),
+    ]);
   }
 
   Widget _buildImage(String im) {
@@ -427,138 +294,6 @@ class StoreHeader extends StatelessWidget {
     }
     return Container(color: kLight);
   }
-
-  /// Non-empty, non-"null" image string, else ''.
-  static String _validImg(dynamic v) {
-    final s = v?.toString().trim() ?? '';
-    return (s.isEmpty || s == 'null') ? '' : s;
-  }
-
-  Widget _buildLogoImage(String url, {String fallback = ''}) {
-    if (url.isEmpty) return const SizedBox.shrink();
-    // Relative path — prepend base URL
-    final resolved = resolveImageUrl(url);
-    if (resolved.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: resolved,
-        fit: BoxFit.cover,
-        fadeInDuration: const Duration(milliseconds: 180),
-        placeholder: (_, __) => Container(
-          color: kLight,
-          child: const Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 1.5,
-              color: kPrimary,
-            ),
-          ),
-        ),
-        // Logo failed to load → show the existing store image instead.
-        errorWidget: (_, __, ___) => fallback.isNotEmpty && fallback != url
-            ? _buildLogoImage(fallback)
-            : Container(
-                color: kLight,
-                child: const Icon(Icons.store_rounded,
-                    color: kPrimary, size: 24),
-              ),
-      );
-    }
-    if (url.startsWith('data:image')) {
-      try {
-        return Image.memory(
-          decodeBase64ImageCached(url),
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (_, __, ___) => fallback.isNotEmpty && fallback != url
-              ? _buildLogoImage(fallback)
-              : Container(
-                  color: kLight,
-                  child: const Icon(Icons.store_rounded, color: kPrimary, size: 24),
-                ),
-        );
-      } catch (_) {}
-    }
-    // Raw base64 without header
-    if (url.length > 100 && !url.contains('/') && !url.contains('.')) {
-      try {
-        return Image.memory(
-          decodeBase64ImageCached(url),
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          errorBuilder: (_, __, ___) => fallback.isNotEmpty && fallback != url
-              ? _buildLogoImage(fallback)
-              : Container(
-                  color: kLight,
-                  child: const Icon(Icons.store_rounded, color: kPrimary, size: 24),
-                ),
-        );
-      } catch (_) {}
-    }
-    if (fallback.isNotEmpty && fallback != url) return _buildLogoImage(fallback);
-    return Container(
-      color: kLight,
-      child: const Icon(Icons.store_rounded, color: kPrimary, size: 24),
-    );
-  }
-
-  Widget _glassFavBtn(bool isFav, VoidCallback onTap) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: .35),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white.withValues(alpha: .2), width: 1),
-          ),
-          child: Icon(
-            isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            color: isFav ? const Color(0xFFFF4D6D) : Colors.white,
-            size: 18,
-          ),
-        ),
-      );
-
-  Widget _glassBtn(IconData icon, VoidCallback onTap) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 38,
-          height: 38,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: .32),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: .25), width: 1),
-          ),
-          child: Icon(icon, color: Colors.white, size: 18),
-        ),
-      );
-}
-
-// ─── Wave Painter ─────────────────────────────────────────────
-class _WavePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white;
-    final path = Path();
-    path.moveTo(0, size.height * 0.6);
-    path.quadraticBezierTo(
-        size.width * 0.25, 0,
-        size.width * 0.5, size.height * 0.35);
-    path.quadraticBezierTo(
-        size.width * 0.75, size.height * 0.7,
-        size.width, size.height * 0.2);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_WavePainter _) => false;
 }
 
 // ─── Action Buttons Row ───────────────────────────────────────
@@ -596,11 +331,10 @@ class _ActionButtonsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final btns = [
-      _BtnData('Call',        Icons.phone_rounded,   _call),
-      _BtnData('WhatsApp',    Icons.chat_rounded,    _whatsapp),
-      _BtnData('Visit Store', Icons.near_me_rounded, _directions),
+      _BtnData('Call',       OffroIcons.phone,   _call),
+      _BtnData('WhatsApp',   OffroIcons.message, _whatsapp),
+      _BtnData('Directions', OffroIcons.route,   _directions),
     ];
-
     return Row(
       children: btns.asMap().entries.map((e) {
         final b = e.value;
@@ -610,39 +344,19 @@ class _ActionButtonsRow extends StatelessWidget {
             child: GestureDetector(
               onTap: b.onTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 13),
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: kBorder, width: 1),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: .05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: OffroColors.borderSoft),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(b.icon,
-                        color: b.label == 'WhatsApp'
-                            ? const Color(0xFF25D366)
-                            : kPrimary,
-                        size: 22),
-                    const SizedBox(height: 5),
-                    Text(
-                      b.label,
-                      style: const TextStyle(
-                        color: kText,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  OffroIcon(b.icon, color: OffroColors.primary, size: 20),
+                  const SizedBox(height: 8),
+                  Text(b.label,
+                    style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.text),
+                    textAlign: TextAlign.center),
+                ]),
               ),
             ),
           ),
@@ -654,7 +368,7 @@ class _ActionButtonsRow extends StatelessWidget {
 
 class _BtnData {
   final String label;
-  final IconData icon;
+  final OffroIconData icon;
   final VoidCallback onTap;
   const _BtnData(this.label, this.icon, this.onTap);
 }

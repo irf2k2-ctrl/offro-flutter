@@ -22,6 +22,7 @@ import 'widgets/reward_points_section.dart';
 import 'widgets/store_about_section.dart';
 import 'widgets/store_reviews_section.dart';
 import 'widgets/bottom_action_bar.dart';
+import '../../core/design/design.dart';
 
 class StoreDetailPage extends StatefulWidget {
   final Map store;
@@ -254,8 +255,8 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     final visitPts = (_store['visit_points'] as num?)?.toInt() ?? 0;
     final storeId  = _store['_id']?.toString() ?? '';
 
-    return Scaffold(
-      backgroundColor: Colors.white,
+    return OffroFontScope(child: Scaffold(
+      backgroundColor: OffroColors.background,
       extendBodyBehindAppBar: true,
       body: Stack(children: [
         CustomScrollView(slivers: [
@@ -271,6 +272,16 @@ class _StoreDetailPageState extends State<StoreDetailPage>
               onShare:       _share,
               onBack:        () => Navigator.pop(context),
             ),
+          ),
+
+          // ── SCAN THE STORE QR (inside Store Detail; real visit points only) ──
+          SliverToBoxAdapter(
+            child: (_loading || widget.token.isEmpty)
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: StoreScanQrCard(token: widget.token, visitPoints: visitPts),
+                  ),
           ),
 
           // ── HIGHLIGHTS ──
@@ -301,23 +312,23 @@ class _StoreDetailPageState extends State<StoreDetailPage>
                 children: [
                   // Tab bar
                   Container(
-                    color: Colors.white,
+                    color: Colors.transparent,
                     child: TabBar(
                       controller: _tabCtrl,
                       isScrollable: true,
                       tabAlignment: TabAlignment.start,
-                      labelColor: kPrimary,
-                      unselectedLabelColor: kMuted,
+                      labelColor: OffroColors.primary,
+                      unselectedLabelColor: OffroColors.textSubtle,
                       labelStyle: const TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w800),
+                          fontWeight: FontWeight.w700),
                       unselectedLabelStyle: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500),
-                      indicatorColor: kPrimary,
+                      indicatorColor: OffroColors.primary,
                       indicatorWeight: 2.5,
                       indicatorSize: TabBarIndicatorSize.label,
-                      dividerColor: kBorder,
+                      dividerColor: OffroColors.borderSoft,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16),
                       tabs: _tabs
@@ -349,17 +360,8 @@ class _StoreDetailPageState extends State<StoreDetailPage>
               child: SizedBox(height: 100)),
         ]),
 
-        // ── STICKY BOTTOM BAR (Scan QR if rewards exist) ──
-        Positioned(
-          bottom: 0, left: 0, right: 0,
-          child: BottomActionBar(
-            store:       _store,
-            token:       widget.token,
-            visitPoints: 0,
-          ),
-        ),
       ]),
-    );
+    ));
   }
 
 }

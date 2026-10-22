@@ -84,3 +84,26 @@ class OffroTheme {
     );
   }
 }
+
+/// Applies the OffrO font (Manrope) to everything below it, including legacy
+/// widgets whose TextStyles don't name a family. Used by screens that are
+/// restyled one at a time, so the app-wide theme can stay untouched.
+class OffroFontScope extends StatelessWidget {
+  final Widget child;
+  const OffroFontScope({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Theme(
+      data: theme.copyWith(
+        textTheme: theme.textTheme.apply(fontFamily: OffroFonts.sans),
+        primaryTextTheme: theme.primaryTextTheme.apply(fontFamily: OffroFonts.sans),
+      ),
+      child: DefaultTextStyle.merge(
+        style: const TextStyle(fontFamily: OffroFonts.sans),
+        child: child,
+      ),
+    );
+  }
+}

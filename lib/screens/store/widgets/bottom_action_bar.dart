@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../qr/qr_page.dart';
+import '../../../core/design/design.dart';
 
 class BottomActionBar extends StatelessWidget {
   final Map<String, dynamic> store;
@@ -71,6 +72,72 @@ class BottomActionBar extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Figma "Scan the store QR" card — lives INSIDE Store Detail (QR is not a
+/// bottom-nav tab). Shown only when the store really has visit points
+/// configured; opens the existing QRPage scanner.
+class StoreScanQrCard extends StatelessWidget {
+  final String token;
+  final int visitPoints;
+  const StoreScanQrCard({super.key, required this.token, required this.visitPoints});
+
+  @override
+  Widget build(BuildContext context) {
+    if (visitPoints <= 0) return const SizedBox.shrink();
+    void open() => Navigator.push(
+        context, MaterialPageRoute(builder: (_) => QRPage(token: token)));
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Container(
+          color: OffroColors.mint,
+          padding: const EdgeInsets.all(20),
+          child: Stack(clipBehavior: Clip.hardEdge, children: [
+            Positioned(
+              right: -40, top: -50,
+              child: Container(
+                width: 120, height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white.withValues(alpha: .25), width: 22)),
+              ),
+            ),
+            Row(children: [
+              Container(
+                width: 48, height: 48,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(color: OffroColors.primary, shape: BoxShape.circle),
+                child: const OffroIcon(OffroIcons.scan, size: 22, color: Colors.white),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Scan the store QR', style: OffroText.cardTitle.copyWith(fontSize: 13)),
+                const SizedBox(height: 4),
+                Text('Verify your visit and earn $visitPoints reward points.',
+                  style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.4,
+                    color: OffroColors.primary.withValues(alpha: .65))),
+              ])),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: open,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: .7),
+                    borderRadius: OffroRadii.pillRadius),
+                  child: Text('Scan QR',
+                    style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: OffroColors.primary)),
+                ),
+              ),
+            ]),
+          ]),
         ),
       ),
     );
