@@ -26,7 +26,6 @@ import 'core/utils/store_hours.dart';
 import 'core/widgets/shimmer_box.dart';
 import 'core/widgets/base64_image.dart';
 import 'core/design/design.dart';
-import 'screens/home/widgets/promo_slider_section.dart';
 import 'screens/legal/privacy_policy_page.dart';
 import 'core/services/api_service.dart';
 import 'core/services/error_mapper.dart';
@@ -813,6 +812,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<Map<String,dynamic>> _stores=[]; List<String> _cats=["All"]; List<Map<String,dynamic>> _richCats=[];
   List<Map<String,dynamic>> _products=[];
   bool _productsLoading=true;
+  double _radiusKm = 0.0; // Nearby radius filter (0=All, 1, 3, 5, 10)
+  int _dealsNonce = 0; // bumped on pull-to-refresh to reload Exclusive Deals
   // ROUND 12 FIX (partial-Home fix): tracks ONLY the hero/city-image fetch
   // (the /default-images call inside _loadSupplementary()) — mirrors
   // the products flag's pattern so _CityHeroSection can show a shimmer
@@ -861,10 +862,41 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  // Nearby Stores: if GPS known, show stores within 5km sorted by distance.
+  // If GPS unavailable, fall back to top 10 stores so section is never blank.
+  // FIX (2026-07-10): This getter no longer applies _radiusKm — it only computes
+  // distances and sorts. All radius filtering is done ONCE inside _NearbyStoresSection
+  // so there is exactly one source of truth and no conflicting fallbacks.
+  // City filtering is preserved via _cityFiltered.
+  List<Map<String,dynamic>> get _nearbyStores {
+    final base = _cityFiltered;
+    if (_userLat == null || _userLng == null) return base; // GPS unavailable → show all
+    final withCoords = <Map<String,dynamic>>[];
+    final noCoords   = <Map<String,dynamic>>[];
+    for (final s in base) {
+      final lat = double.tryParse(s["latitude"]?.toString() ?? s["lat"]?.toString() ?? "");
+      final lng = double.tryParse(s["longitude"]?.toString() ?? s["lng"]?.toString() ?? "");
+      if (lat != null && lng != null) {
+        s["distance_km"] = haversineKm(_userLat!, _userLng!, lat, lng);
+        withCoords.add(s);
+      } else {
+        noCoords.add(s);
+      }
+    }
+    withCoords.sort((a, b) {
+      final da = (a["distance_km"] as num?)?.toDouble() ?? 9999.0;
+      final db = (b["distance_km"] as num?)?.toDouble() ?? 9999.0;
+      return da.compareTo(db);
+    });
+    // Stores without coords appended — appear only when "All" chip selected
+    return [...withCoords, ...noCoords];
+  }
+
   @override void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
+    _loadRadius(); // load saved radius preference
     _loadUnreadCount(); // Issue 8: load notification badge
     _loadFavStores(); // load fav store ids for home screen hearts
     // Sync badge with real-time notifier (updates from FCM foreground messages)
@@ -917,6 +949,15 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // location first). Ask for one on the Location screen; never read GPS.
       _requireLocation();
     }
+  }
+
+  Future<void> _loadRadius() async {
+    final r = await Prefs.getRadius();
+    if (mounted) {
+        _radiusKm = r;
+        _recomputeDistances();
+        setState(() {});
+      }
   }
 
   Future<void> _loadUnreadCount() async {
@@ -1752,11 +1793,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final nearbyStores = _nearbyStores; // GPS-aware, sorted by distance
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.white,
+        systemNavigationBarColor: OffroColors.background,
       ),
       child: Scaffold(
         extendBodyBehindAppBar: true,
@@ -1767,7 +1809,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   width: bc.maxWidth,
                   height: bc.maxHeight.isFinite ? bc.maxHeight : MediaQuery.sizeOf(ctx).height,
                   child: ColoredBox(
-                    color: Colors.white,
+                    color: OffroColors.background,
                     child: _buildLoadingSkeleton(),
                   ),
                 ))
@@ -1783,22 +1825,29 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                     onBellTap: () => _openNotifications(context),
                   ),
                   Expanded(child: RefreshIndicator(
-                  onRefresh: ()=>_fetchStores(city),
+                  onRefresh: () { setState(() => _dealsNonce++); return _fetchStores(city); },
                   color: kPrimary,
                   child: CustomScrollView(controller: _scrollCtrl, slivers:[
 
                     // ══════ 1. SEARCH (opens the existing store search) ══════
                     SliverToBoxAdapter(child: _HomeSearchBar(onTap: () => _searchStores(context))),
 
-                    // ══════ 2. HERO — Figma hero card (city artwork from /default-images) ══════
+                    // ══════ 2. HERO — the single promotional area (promo sliders; city artwork fallback) ══════
                     SliverToBoxAdapter(child: Padding(
-                      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 20, OffroSpacing.gutter, 0),
+                      padding: const EdgeInsets.only(top: 20),
                       child: _CityHeroSection(
                         city: city,
                         cityImageUrl: _cityImageUrl,
                         // while the hero photo is loading, shimmer instead of the flat fallback
                         imageLoading: _heroImageLoading,
                         onCtaTap: () => _searchStores(context),
+                        sliders: _sliders,
+                        sliderPc: _sliderPc,
+                        sliderPageNotifier: _sliderPageNotifier,
+                        token: widget.token,
+                        onSliderPageChanged: (i) {
+                          _sliderPageNotifier.value = i % (_sliders.isEmpty ? 1 : _sliders.length);
+                        },
                       ),
                     )),
 
@@ -1818,13 +1867,18 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     )),
 
-                    // ══════ 4. REWARDS (real wallet points) ══════
-                    SliverToBoxAdapter(child: _HomeRewardsCard(
-                      points: _walletPoints,
-                      onTap: () {
-                        if (!_requireLogin(context, 'My Rewards')) return;
-                        Navigator.push(context, appRoute(WalletPage(token: widget.token)));
+                    // ══════ 4. STORES NEAR YOU (real stores, distance chips, existing Store Detail) ══════
+                    SliverToBoxAdapter(child: _NearbyStoresSection(
+                      stores: nearbyStores,
+                      radiusKm: _radiusKm,
+                      token: widget.token,
+                      onRadiusChanged: (km) async {
+                        setState(() => _radiusKm = km);
+                        await Prefs.saveRadius(km);
                       },
+                      onViewAll: () => _viewAll(context, "Nearby Stores", nearbyStores),
+                      onStoreTap: (s) => Navigator.push(context, appRoute(
+                        StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
                     )),
 
                     // ══════ 5. PRODUCTS NEAR YOU ══════
@@ -1838,18 +1892,27 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       loading: _productsLoading,
                     )),
 
-                    // ══════ 6. LOCAL VOICES (screens/home/influencer_section.dart) ══════
-                    SliverToBoxAdapter(child: CityInfluencersSection(city: city, token: widget.token)),
-
-                    // ══════ 7. PROMOTED NEARBY — merchant promo sliders (kept: paid merchant placement) ══════
-                    SliverToBoxAdapter(child: PromoSliderSection(
-                      sliders: _sliders,
-                      sliderPc: _sliderPc,
-                      sliderPageNotifier: _sliderPageNotifier,
+                    // ══════ 6. EXCLUSIVE DEALS (existing /deals/all) ══════
+                    SliverToBoxAdapter(child: _ExclusiveDealsSection(
+                      key: ValueKey("deals_${city}_$_dealsNonce"),
+                      city: city,
                       token: widget.token,
-                      onSliderPageChanged: (i) {
-                        _sliderPageNotifier.value = i % (_sliders.isEmpty ? 1 : _sliders.length);
+                      onViewAll: () => Navigator.push(context, appRoute(_AllDealsScreen(token: widget.token, city: city))),
+                    )),
+
+                    // ══════ 7. REWARDS (real wallet points) ══════
+                    SliverToBoxAdapter(child: _HomeRewardsCard(
+                      points: _walletPoints,
+                      onTap: () {
+                        if (!_requireLogin(context, 'My Rewards')) return;
+                        Navigator.push(context, appRoute(WalletPage(token: widget.token)));
                       },
+                    )),
+
+                    // ══════ 8. LOCAL VOICES (screens/home/influencer_section.dart) ══════
+                    SliverToBoxAdapter(child: Padding(
+                      padding: const EdgeInsets.only(top: 28),
+                      child: CityInfluencersSection(city: city, token: widget.token),
                     )),
 
                     const SliverToBoxAdapter(child: SizedBox(height: 124)),
@@ -2387,6 +2450,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       token: widget.token,
       city: city)));
 
+  void _viewAll(BuildContext ctx, String title, List<Map<String,dynamic>> stores, {bool bigCards=false}) =>
+    Navigator.push(ctx, appRoute(_ViewAllPage(title:title, stores:stores, token:widget.token, bigCards:bigCards)));
 }
 
 // ─────────────────────── VIEW ALL PAGE ───────────────────────
@@ -2507,8 +2572,6 @@ class _SearchLandingGridState extends State<_SearchLandingGrid> {
   }
 }
 
-// Retired from Customer Home (Figma Phase 2 correction); kept for the later Store Card phase.
-// ignore: unused_element
 class _ViewAllPage extends StatefulWidget {
   final String title;
   final List<Map<String,dynamic>> stores;
@@ -4414,7 +4477,9 @@ class _HomeSearchBar extends StatelessWidget {
   }
 }
 
-// ─── Figma hero card: city artwork + "Explore <City>" ───
+// ─── Figma hero: the single promotional area on Home ───
+// Rotates the existing merchant promo sliders (images / videos, same data +
+// auto-play as before). With no sliders it shows the city artwork card.
 class _CityHeroSection extends StatelessWidget {
   final String city;
   final String cityImageUrl;   // URL from /default-images → "city" key
@@ -4422,12 +4487,189 @@ class _CityHeroSection extends StatelessWidget {
   // [cityImageUrl] may just mean "not fetched yet" (shows a shimmer).
   final bool imageLoading;
   final VoidCallback onCtaTap;
+  final List<Map<String,dynamic>> sliders;
+  final PageController sliderPc;
+  final ValueNotifier<int> sliderPageNotifier;
+  final String token;
+  final ValueChanged<int> onSliderPageChanged;
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     this.imageLoading = false, required this.onCtaTap,
+    required this.sliders, required this.sliderPc,
+    required this.sliderPageNotifier, required this.token,
+    required this.onSliderPageChanged,
   });
 
+  static const double _heroH = 296;
+
   @override Widget build(BuildContext context) {
+    if (sliders.isEmpty) {
+      return Padding(
+        padding: OffroSpacing.gutterH,
+        child: _cityCard(),
+      );
+    }
+    return SizedBox(
+      height: _heroH,
+      child: PageView.builder(
+        controller: sliderPc,
+        itemCount: 99999, // always loop (same as the old banner carousel)
+        onPageChanged: onSliderPageChanged,
+        itemBuilder: (_, i) {
+          final slide = Map<String,dynamic>.from(sliders[i % sliders.length]);
+          return Padding(
+            padding: OffroSpacing.gutterH,
+            child: _slideCard(slide),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── One promo slide: real media + Figma overlay. Text/CTA only appear when
+  // the slide itself carries a title (never invented). ──
+  Widget _slideCard(Map<String,dynamic> sl) {
+    final title    = (sl["title"] ?? "").toString().trim();
+    final sub      = (sl["subtitle"] ?? sl["text"] ?? "").toString().trim();
+    final storeId  = (sl["store_id"] ?? "").toString();
+    final promoter = (sl["store_name"] ?? sl["merchant_name"] ?? "").toString().trim();
+    final hasText  = title.isNotEmpty;
+    final words    = title.split(RegExp(r'\s+'));
+    final accent   = words.length > 1 ? words.last : title;
+    final before   = words.length > 1 ? "${words.sublist(0, words.length - 1).join(' ')} " : "";
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(OffroRadii.hero),
+      child: SizedBox(
+        height: _heroH,
+        width: double.infinity,
+        child: Stack(fit: StackFit.expand, children: [
+          const ColoredBox(color: OffroColors.text),
+          Positioned.fill(child: PromoSliderCard(
+            slider: sl,
+            token: token,
+            squareCorners: true,
+            hideText: true,
+            onVideoComplete: () {
+              if (sliderPc.hasClients) {
+                sliderPc.nextPage(
+                  duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
+              }
+            },
+          )),
+          // Overlay is decoration only — taps fall through to the slide.
+          IgnorePointer(child: Stack(fit: StackFit.expand, children: [
+            if (hasText)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft, end: Alignment.centerRight,
+                    colors: [
+                      OffroColors.textDark.withValues(alpha: .90),
+                      OffroColors.textDark.withValues(alpha: .55),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: hasText ? .55 : .35),
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: .10),
+                  ],
+                ),
+              ),
+            ),
+            if (hasText)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 44),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .15),
+                      borderRadius: OffroRadii.pillRadius,
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Container(width: 6, height: 6,
+                        decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle)),
+                      const SizedBox(width: 6),
+                      Text("PROMOTED NEARBY",
+                        style: OffroText.eyebrow.copyWith(color: Colors.white, fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                  const SizedBox(height: 18),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 285),
+                    child: OffroAccentText(
+                      before: before,
+                      accent: accent,
+                      style: OffroText.headline.copyWith(color: Colors.white, fontSize: 30),
+                    ),
+                  ),
+                  if (sub.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 250),
+                      child: Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: OffroText.bodySmall.copyWith(fontSize: 12, height: 1.6, color: Colors.white.withValues(alpha: .70))),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (storeId.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .95),
+                        borderRadius: OffroRadii.pillRadius,
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text("View store",
+                          style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                        const SizedBox(width: 6),
+                        const OffroIcon(OffroIcons.arrow, size: 12, color: OffroColors.primary),
+                      ]),
+                    ),
+                ]),
+              ),
+            // Page dots (Figma: bottom-left, active pill is wider)
+            if (sliders.length > 1)
+              Positioned(
+                left: 24, bottom: 20,
+                child: ValueListenableBuilder<int>(
+                  valueListenable: sliderPageNotifier,
+                  builder: (_, pg, __) => Row(children: [
+                    for (int i = 0; i < sliders.length; i++)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 250),
+                        margin: const EdgeInsets.only(right: 6),
+                        width: pg == i ? 20 : 6, height: 6,
+                        decoration: BoxDecoration(
+                          color: pg == i ? Colors.white : Colors.white.withValues(alpha: .35),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                  ]),
+                ),
+              ),
+            if (promoter.isNotEmpty)
+              Positioned(
+                right: 16, bottom: 18,
+                child: Text("Promoted by $promoter",
+                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: .65))),
+              ),
+          ])),
+        ]),
+      ),
+    );
+  }
+
+  // ── No promo sliders: city artwork hero ("Explore <City>") ──
+  Widget _cityCard() {
     final displayCity = city.isNotEmpty ? city : "Your City";
     Widget gradientBox() => const DecoratedBox(
       decoration: BoxDecoration(
@@ -4466,13 +4708,11 @@ class _CityHeroSection extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(OffroRadii.hero),
       child: SizedBox(
-        height: 296,
+        height: _heroH,
         width: double.infinity,
         child: Stack(fit: StackFit.expand, children: [
           const ColoredBox(color: OffroColors.text),
           background,
-
-          // Figma overlays: left→right text scrim, bottom→top depth
           Positioned.fill(child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -4497,7 +4737,6 @@ class _CityHeroSection extends StatelessWidget {
               ),
             ),
           )),
-
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -4556,6 +4795,228 @@ class _CityHeroSection extends StatelessWidget {
 }
 
 
+// ─── Figma "Exclusive deals": real active deals from the existing /deals/all ───
+// Same endpoint, expiry rule and tap behaviour as the Deals screen. The whole
+// section stays hidden while loading, on error, or when there are no deals.
+class _ExclusiveDealsSection extends StatefulWidget {
+  final String city;
+  final String token;
+  final VoidCallback onViewAll;
+  const _ExclusiveDealsSection({
+    super.key, required this.city, required this.token, required this.onViewAll,
+  });
+  @override State<_ExclusiveDealsSection> createState() => _ExclusiveDealsSectionState();
+}
+
+class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
+  List<Map<String,dynamic>> _deals = [];
+
+  @override void initState() { super.initState(); _load(); }
+
+  @override void didUpdateWidget(covariant _ExclusiveDealsSection old) {
+    super.didUpdateWidget(old);
+    if (old.city != widget.city) _load();
+  }
+
+  static DateTime? _parseEnd(String s) {
+    if (s.isEmpty) return null;
+    try { return DateTime.parse(s); } catch (_) {}
+    try {
+      final p = s.split(RegExp('[-/]'));
+      if (p.length == 3 && int.tryParse(p[0]) != null) {
+        final d = int.parse(p[0]); final m = int.parse(p[1]); final y = int.parse(p[2]);
+        if (d <= 31 && m <= 12 && y > 2000) return DateTime(y, m, d);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _load() async {
+    try {
+      final endpoint = widget.city.isNotEmpty
+          ? "/deals/all?city=" + Uri.encodeComponent(widget.city)
+          : "/deals/all";
+      final dynamic raw = await Api.get(endpoint);
+      final list = (raw is List)
+          ? List<Map<String,dynamic>>.from(raw.map((e) => Map<String,dynamic>.from(e as Map)))
+          : <Map<String,dynamic>>[];
+      final now = DateTime.now();
+      final active = list.where((d) {
+        final end = _parseEnd((d["end_date"] ?? "").toString());
+        return end == null || !now.isAfter(end.add(const Duration(days: 1)));
+      }).take(8).toList();
+      if (mounted) setState(() => _deals = active);
+    } catch (_) {
+      // Optional section — stay hidden on error.
+    }
+  }
+
+  String? _daysLeft(Map<String,dynamic> d) {
+    final end = _parseEnd((d["end_date"] ?? "").toString());
+    if (end == null) return null;
+    final days = end.add(const Duration(days: 1)).difference(DateTime.now()).inDays;
+    if (days <= 0) return "Ends today";
+    return days == 1 ? "1 day left" : "$days days left";
+  }
+
+  void _open(BuildContext ctx, Map<String,dynamic> d) {
+    final imgUrl = (d["image_url"] ?? "").toString();
+    if (imgUrl.isNotEmpty) {
+      final withImages = _deals.where((x) => (x["image_url"] ?? "").toString().isNotEmpty).toList();
+      openDealGallery(ctx, withImages, d);
+      return;
+    }
+    final store = <String,dynamic>{
+      "_id":        (d["store_id"] ?? "").toString(),
+      "store_name": (d["store_name"] ?? "").toString(),
+      "area":       (d["store_area"] ?? "").toString(),
+      "city":       (d["store_city"] ?? "").toString(),
+      "address":    (d["store_address"] ?? "").toString(),
+      "phone":      (d["store_phone"] ?? "").toString(),
+      "image_url":  imgUrl,
+      "category":   (d["category"] ?? "").toString(),
+    };
+    Navigator.push(ctx, appRoute(StoreDetailPage(
+      store: store, token: widget.token, userName: "",
+      onProductTap: (p, tk) => Navigator.push(ctx, appRoute(ProductDetailsPage(product: p, token: tk))))));
+  }
+
+  @override Widget build(BuildContext context) {
+    if (_deals.isEmpty) return const SizedBox.shrink();
+    final cardW = MediaQuery.sizeOf(context).width * 0.78;
+    return Padding(
+      padding: const EdgeInsets.only(top: 36),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        OffroSectionTitle(
+          eyebrow: "Made for OffrO members",
+          title: "Exclusive deals",
+          actionLabel: "View all",
+          onAction: widget.onViewAll,
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 224,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(left: OffroSpacing.gutter, right: 4),
+            itemCount: _deals.length,
+            itemBuilder: (ctx, i) => _dealCard(ctx, _deals[i], cardW),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  Widget _dealCard(BuildContext ctx, Map<String,dynamic> d, double width) {
+    final title     = (d["title"] ?? "").toString();
+    final storeName = (d["store_name"] ?? "").toString();
+    final imgUrl    = (d["image_url"] ?? "").toString();
+    final discInt   = int.tryParse((d["discount"] ?? "").toString()) ?? 0;
+    final left      = _daysLeft(d);
+
+    Widget image() {
+      Widget fallback() => Container(
+        color: OffroColors.accent,
+        alignment: Alignment.center,
+        child: const OffroIcon(OffroIcons.tag, size: 32, color: OffroColors.primary),
+      );
+      if (imgUrl.startsWith("http")) {
+        return CachedNetworkImage(
+          imageUrl: imgUrl, fit: BoxFit.cover,
+          width: double.infinity, height: double.infinity,
+          placeholder: (_, __) => const ColoredBox(color: OffroColors.mint),
+          errorWidget: (_, __, ___) => fallback());
+      }
+      if (imgUrl.startsWith("data:image")) return base64Image(imgUrl, fallback());
+      return fallback();
+    }
+
+    return GestureDetector(
+      onTap: () => _open(ctx, d),
+      child: Container(
+        width: width,
+        margin: const EdgeInsets.only(right: 16),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: OffroColors.surface,
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            height: 144,
+            width: double.infinity,
+            child: Stack(fit: StackFit.expand, children: [
+              image(),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: .45),
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: .05),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(left: 12, top: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: OffroColors.primary,
+                    borderRadius: OffroRadii.pillRadius,
+                    boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 10, offset: Offset(0, 4))],
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const OffroIcon(OffroIcons.tag, size: 12, color: Colors.white),
+                    const SizedBox(width: 6),
+                    Text(discInt > 0 ? "$discInt% off" : "Offer",
+                      style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ]),
+                )),
+              if (left != null)
+                Positioned(right: 12, bottom: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: .90),
+                      borderRadius: OffroRadii.pillRadius,
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const OffroIcon(OffroIcons.clock, size: 12, color: OffroColors.primary),
+                      const SizedBox(width: 4),
+                      Text(left,
+                        style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                    ]),
+                  )),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: OffroText.cardTitle),
+                const SizedBox(height: 4),
+                Text(storeName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+              ])),
+              const SizedBox(width: 12),
+              Container(
+                width: 36, height: 36,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(color: Color(0xA6CDEBD6), shape: BoxShape.circle),
+                child: const OffroIcon(OffroIcons.chevron, size: 16, color: OffroColors.primary),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+
 // ─── Home rewards card (Figma) — shows the existing wallet points ───
 class _HomeRewardsCard extends StatelessWidget {
   final int points;
@@ -4567,7 +5028,7 @@ class _HomeRewardsCard extends StatelessWidget {
 
   @override Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 28, OffroSpacing.gutter, 0),
+      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 36, OffroSpacing.gutter, 0),
       child: GestureDetector(
         onTap: onTap,
         child: ClipRRect(
@@ -4854,316 +5315,231 @@ class _DiscoverProductsSection extends StatelessWidget {
     );
   }
 
-  // Groups product indices into Bento blocks: a group of 3 renders as
-  // 1 feature card + 2 stacked small cards; leftover groups of 2 or 1 fall
-  // back to simpler side-by-side / single-card blocks. Works for any count —
-  // the QA report that "Bento products are not appearing" traced to this
-  // Home Screen (lib/main.dart) never having received the Bento redesign in
-  // the first place (it lived only in an unused duplicate file); this is
-  // that redesign applied to the actual live code.
-  List<List<int>> _bentoGroups(int total) {
-    final groups = <List<int>>[];
-    int i = 0;
-    while (i < total) {
-      final remaining = total - i;
-      if (remaining >= 3) {
-        groups.add([i, i + 1, i + 2]);
-        i += 3;
-      } else if (remaining == 2) {
-        groups.add([i, i + 1]);
-        i += 2;
-      } else {
-        groups.add([i]);
-        i += 1;
+  // ── Figma product grid: 2 columns, 1st and 4th product are full-width
+  // "featured" cards (image left, details right). Same data, favourites and
+  // navigation as before. ──
+  static bool _isFeatured(int i) => i == 0 || i == 3;
+
+  Widget _productImage(String imgSrc, String title) {
+    const tint = [Color(0xFFe8f5f0), Color(0xFFCDEBD6)];
+    if (imgSrc.startsWith("http")) {
+      return CachedNetworkImage(
+        imageUrl: imgSrc, fit: BoxFit.cover,
+        width: double.infinity, height: double.infinity,
+        placeholder: (_, __) => const ColoredBox(color: Color(0xFFCDEBD6)),
+        errorWidget: (_, __, ___) => _fallback(title, tint));
+    }
+    if (imgSrc.startsWith("data:image")) {
+      try {
+        return Image.memory(decodeBase64ImageCached(imgSrc),
+          fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+          gaplessPlayback: true,
+          errorBuilder: (_, __, ___) => _fallback(title, tint));
+      } catch (_) {
+        return _fallback(title, tint);
       }
     }
-    return groups;
+    return _fallback(title, tint);
   }
 
-  // Single product card — same visuals/data/navigation as before (white
-  // card, badge, wishlist heart, rating chip, title/seller/price), now
-  // parameterized by size so it can be the big "feature" tile or a smaller
-  // stacked tile inside a Bento block.
-  Widget _productCard(BuildContext ctx, Map<String,dynamic> v, int gradIndex, List<List<Color>> cardGrads,
-      {required double width, required double imgHeight, required double cardHeight, bool compact = false, bool showReviewRow = false}) {
+  Widget _productHeart(BuildContext ctx, Map<String,dynamic> v) {
+    return StatefulBuilder(builder: (ctx2, setH) {
+      final pid0 = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
+      bool pFav = FavState.instance.hasProduct(pid0) || v["_isFav"] == true;
+      return GestureDetector(
+        onTap: () async {
+          final pid = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
+          if (pid.isEmpty || token.isEmpty) return;
+          final next = !pFav;
+          setH(() { v["_isFav"] = next; pFav = next; });
+          FavState.instance.toggleProduct(pid);
+          try {
+            await Api.toggleProductFavorite(token, pid);
+          } catch (e) {
+            setH(() { v["_isFav"] = !next; pFav = !next; });
+            FavState.instance.toggleProduct(pid);
+            if (ctx2.mounted) {
+              ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
+                content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+                backgroundColor: Colors.red.shade700,
+                duration: const Duration(seconds: 12),
+                showCloseIcon: true));
+            }
+          }
+        },
+        child: Container(
+          width: 32, height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: pFav ? OffroColors.primary : Colors.white.withValues(alpha: .90),
+            shape: BoxShape.circle,
+            boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 4, offset: Offset(0, 1))],
+          ),
+          child: OffroIcon(OffroIcons.heart, size: 14,
+            color: pFav ? Colors.white : OffroColors.primary, filled: pFav),
+        ),
+      );
+    });
+  }
+
+  Widget _productCard(BuildContext ctx, Map<String,dynamic> v, {required bool featured}) {
     final title     = _resolveTitle(v);
-    final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
     final storeName = _resolveStoreName(v);
-    final discMatch = RegExp(r'(\d+)%').firstMatch(title + " " + offerText);
-    final badge     = discMatch != null ? "${discMatch.group(1)}%" : "";
-    final discLabel = v["discount_label"]?.toString() ?? "";
-    final finalBadge = badge.isNotEmpty ? badge : (discLabel.isNotEmpty ? discLabel : "");
+    final category  = (v["category"] ?? "").toString();
     final imgSrc    = _resolveImg(v);
-    final grad      = cardGrads[gradIndex % cardGrads.length];
+
+    num? saleP = _numVal(v, ["offer_price","sale_price","price","current_price"]);
+    num? origP = _numVal(v, ["original_price","mrp","was_price","compare_price"]);
+    if (origP != null && saleP != null && origP <= saleP) origP = null;
+
+    // Offer badge: computed from the real prices when both exist, otherwise
+    // the product's own offer text / discount label.
+    String badge = "";
+    if (saleP != null && origP != null && origP > 0) {
+      final pct = ((1 - saleP / origP) * 100).round();
+      if (pct > 0) badge = "$pct% off";
+    }
+    if (badge.isEmpty) {
+      final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
+      final m = RegExp(r'(\d+)%').firstMatch("$title $offerText");
+      if (m != null) {
+        badge = "${m.group(1)}% off";
+      } else {
+        badge = v["discount_label"]?.toString() ?? "";
+      }
+    }
+
+    final ratingRaw = v["rating"];
+    final rating = (ratingRaw is num) ? ratingRaw.toDouble() : (double.tryParse(ratingRaw?.toString() ?? "") ?? 0.0);
+    final countRaw = v["rating_count"] ?? v["review_count"];
+    final count = (countRaw is num) ? countRaw.toInt() : (int.tryParse(countRaw?.toString() ?? "") ?? 0);
+
+    final Widget imageBlock = Stack(fit: StackFit.expand, children: [
+      _productImage(imgSrc, title),
+      if (badge.isNotEmpty)
+        Positioned(top: 10, left: 10,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: OffroColors.primary, borderRadius: OffroRadii.pillRadius),
+            child: Text(badge,
+              style: OffroText.caption.copyWith(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
+          )),
+      Positioned(top: 10, right: 10, child: _productHeart(ctx, v)),
+    ]);
+
+    final Widget details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: featured ? MainAxisAlignment.center : MainAxisAlignment.start,
+      children: [
+        if (storeName.isNotEmpty)
+          Text(storeName.toUpperCase(),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: OffroText.eyebrow.copyWith(fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1.0, color: OffroColors.sage)),
+        const SizedBox(height: 6),
+        Text(title,
+          maxLines: featured ? 2 : 1, overflow: TextOverflow.ellipsis,
+          style: OffroText.cardTitle.copyWith(fontSize: featured ? 14 : 12, fontWeight: FontWeight.w600)),
+        if (category.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
+          ),
+        if (rating > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const OffroIcon(OffroIcons.star, size: 10, color: OffroColors.amber, filled: true),
+              const SizedBox(width: 4),
+              Text(rating.toStringAsFixed(1),
+                style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.amber)),
+              if (count > 0)
+                Text(" ($count)",
+                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: const Color(0x4D000000))),
+            ]),
+          ),
+        if (saleP != null && saleP > 0)
+          Padding(
+            padding: EdgeInsets.only(top: featured ? 18 : 12),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.end,
+              spacing: 6,
+              children: [
+                Text("₹${saleP.toStringAsFixed(0)}",
+                  style: OffroText.caption.copyWith(fontSize: featured ? 14 : 13, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                if (origP != null)
+                  Text("₹${origP.toStringAsFixed(0)}",
+                    style: OffroText.caption.copyWith(
+                      fontSize: 10, fontWeight: FontWeight.w400,
+                      color: const Color(0x4D000000),
+                      decoration: TextDecoration.lineThrough)),
+              ],
+            ),
+          ),
+      ],
+    );
 
     return GestureDetector(
       onTap: () => Navigator.push(ctx, MaterialPageRoute(
         builder: (_) => ProductDetailsPage(product: v, token: token))),
       child: Container(
-        width: width,
-        height: cardHeight,
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0,4))],
+          color: OffroColors.surface,
+          borderRadius: BorderRadius.circular(23),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Top image
-          Stack(children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
-              child: SizedBox(
-                width: width, height: imgHeight,
-                // QA fix: Bento Home Screen product images were too
-                // zoomed/cropped (BoxFit.cover always fills the box,
-                // cropping whatever doesn't fit the aspect ratio). Switched
-                // to BoxFit.contain on a soft background fill so the whole
-                // product photo is visible, uncropped, the way it actually
-                // looks — same change ProductDetailsPage's own image
-                // rendering is explicitly NOT touched (separate widget).
-                child: imgSrc.startsWith("http")
-                  ? Container(
-                      width: width, height: imgHeight,
-                      color: grad[1],
-                      child: CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
-                        width: width, height: imgHeight,
-                        placeholder: (_, __) => Container(width: width, height: imgHeight, color: grad[1]),
-                        errorWidget: (_, __, ___) => _fallback(title, [grad[0], grad[1]])))
-                  : imgSrc.startsWith("data:image")
-                    ? Container(
-                        width: width, height: imgHeight,
-                        color: grad[1],
-                        child: Builder(builder: (_) {
-                          try {
-                            return Image.memory(decodeBase64ImageCached(imgSrc),
-                              fit: BoxFit.cover, width: width, height: imgHeight,
-                              errorBuilder: (_, __, ___) => _fallback(title, [grad[0], grad[1]]));
-                          } catch (_) {
-                            return _fallback(title, [grad[0], grad[1]]);
-                          }
-                        }))
-                    : Container(width: width, height: imgHeight,
-                        color: const Color(0xFFF5F5F5),
-                        child: Center(child: Text(title.isNotEmpty ? title[0].toUpperCase() : "O",
-                          style: TextStyle(color: const Color(0xFF3E5F55), fontSize: compact ? 20 : 26, fontWeight: FontWeight.w900)))),
-              ),
-            ),
-            if (finalBadge.isNotEmpty)
-              Positioned(top: 7, left: 7,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
-                  child: Text(finalBadge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                )),
-            // ── Product wishlist heart — live toggle ──
-            Positioned(top: 6, right: 6,
-              child: StatefulBuilder(
-                builder: (ctx2, setH) {
-                  final _pid0 = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
-                  bool _pFav = FavState.instance.hasProduct(_pid0) || v["_isFav"] == true;
-                  return GestureDetector(
-                    onTap: () async {
-                      final pid = v["_id"]?.toString() ?? v["id"]?.toString() ?? "";
-                      if (pid.isEmpty || token.isEmpty) return;
-                      final next = !_pFav;
-                      setH(() { v["_isFav"] = next; _pFav = next; });
-                      FavState.instance.toggleProduct(pid);
-                      try {
-                        await Api.toggleProductFavorite(token, pid);
-                      } catch (e) {
-                        setH(() { v["_isFav"] = !next; _pFav = !next; });
-                        FavState.instance.toggleProduct(pid);
-                        ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
-                          content: Text("Couldn't save favorite: ${friendlyError(e)}"),
-                          backgroundColor: Colors.red.shade700,
-                          duration: const Duration(seconds: 12),
-                          showCloseIcon: true));
-                      }
-                    },
-                    child: Container(
-                      width: 26, height: 26,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .88),
-                        shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius: 4)],
-                      ),
-                      child: Icon(
-                        _pFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                        color: _pFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
-                        size: 14),
-                    ),
-                  );
-                },
-              )),
-            // ── Rating chip — bottom-right corner of image (full-size cards
-            // only, and not when the fuller review row below already shows
-            // it — avoids showing the same rating twice on the feature card) ──
-            if (!compact && !showReviewRow) Builder(builder: (_rc) {
-              final _prRaw = v["rating"]; final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
-              final _pcRaw = v["rating_count"] ?? v["review_count"]; final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
-              if (_pr <= 0) return const SizedBox.shrink();
-              return Positioned(bottom: 6, right: 6,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
-                    const SizedBox(width: 1),
-                    Text(_pr.toStringAsFixed(1),
-                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                    if (_pc > 0) Text(" (${_pc})",
-                      style: const TextStyle(color: Colors.white70, fontSize: 8)),
-                  ]),
-                ),
-              );
-            }),
-          ]),
-          // Bottom text with prices — fills remaining card height. Compact
-          // (small stacked) cards keep just title + price to fit their
-          // smaller fixed height without overflowing.
-          Expanded(
-            child: Builder(builder: (_) {
-              num? saleP = _numVal(v, ["offer_price","sale_price","price","current_price"]); // ITEM10
-              num? origP = _numVal(v, ["original_price","mrp","was_price","compare_price"]);
-              if (origP != null && saleP != null && origP <= saleP) origP = null;
-              return Padding(
-                padding: compact
-                    ? const EdgeInsets.fromLTRB(8, 5, 8, 5)
-                    : const EdgeInsets.fromLTRB(10, 6, 10, 7),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.max, children: [
-                  if (title.isNotEmpty)
-                    Text(title,
-                      style: TextStyle(color: const Color(0xFF2c3e35), fontSize: compact ? 12 : 15, fontWeight: FontWeight.w800, height: 1.25),
-                      maxLines: compact ? 1 : 2, overflow: TextOverflow.ellipsis),
-                  if (!compact && storeName.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text("Seller: " + storeName,
-                        style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ),
-                  // QA fix: review/rating info on the large Bento feature
-                  // card — real data only (never hard-coded), simply absent
-                  // (no placeholder/zero shown) when a product has no
-                  // rating yet, so the card stays balanced either way.
-                  if (showReviewRow) Builder(builder: (_rr) {
-                    final _prRaw = v["rating"];
-                    final _pr = (_prRaw is num) ? _prRaw.toDouble() : (double.tryParse(_prRaw?.toString() ?? "") ?? 0.0);
-                    final _pcRaw = v["rating_count"] ?? v["review_count"];
-                    final _pc = (_pcRaw is num) ? _pcRaw.toInt() : (int.tryParse(_pcRaw?.toString() ?? "") ?? 0);
-                    if (_pr <= 0) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 13),
-                        const SizedBox(width: 3),
-                        Text(_pr.toStringAsFixed(1),
-                          style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w700)),
-                        if (_pc > 0) Text(" (${_pc} review${_pc == 1 ? '' : 's'})",
-                          style: const TextStyle(color: Color(0xFF9e9e9e), fontSize: 11)),
-                      ]),
-                    );
-                  }),
-                  // Spacer anchors the price row to the bottom of the card so
-                  // any slack sits between the text and the price, never as a
-                  // blank band under the price.
-                  const Spacer(),
-                  if (saleP != null && saleP > 0) Padding(
-                    padding: EdgeInsets.only(top: compact ? 4 : 6),
-                    child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: compact ? 2 : 3),
-                        decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(8)),
-                        child: Text("₹${saleP.toStringAsFixed(0)}",
-                          style: TextStyle(color: const Color(0xFF2c3e35), fontSize: compact ? 12 : 15, fontWeight: FontWeight.w900)),
-                      ),
-                      if (origP != null) ...[
-                        SizedBox(width: compact ? 5 : 6),
-                        Flexible(
-                          child: Text("₹${origP.toStringAsFixed(0)}",
-                            maxLines: 1, softWrap: false, overflow: TextOverflow.fade,
-                            style: TextStyle(
-                              color: const Color(0xFF9e9e9e), fontSize: compact ? 11 : 12,
-                              decoration: TextDecoration.lineThrough,
-                              decorationColor: const Color(0xFF9e9e9e),
-                              decorationThickness: 1.6)),
-                        ),
-                      ],
-                    ]),
-                  ),
+        child: featured
+            ? SizedBox(
+                height: 192,
+                child: Row(children: [
+                  Expanded(flex: 11, child: imageBlock),
+                  Expanded(flex: 10, child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: details,
+                  )),
                 ]),
-              );
-            }),
-          ),
-        ]),
+              )
+            : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                AspectRatio(aspectRatio: 1.05, child: imageBlock),
+                Padding(padding: const EdgeInsets.all(12), child: details),
+              ]),
       ),
     );
   }
 
-  // Renders one Bento block for a group of 1, 2 or 3 product indices.
-  // QA round (Oct 2026): redesigned proportions, not just a bumped height —
-  // _bentoHeight raised 230→270 and every card's imgHeight recalculated so
-  // the product image now takes roughly 60-65% of the card (was ~55-57%),
-  // with the text block beneath sized to the content it actually holds
-  // (title/seller/review/price) plus a small ~6-8px buffer — not a huge
-  // leftover Expanded gap like before. The 2-item blocks also gained
-  // showReviewRow so they use their now-larger text area the same way the
-  // feature/solo cards do, instead of leaving it mostly blank.
-  static const double _bentoHeight = 270;
-  Widget _bentoGroup(BuildContext ctx, List<int> idxs, List<Map<String,dynamic>> items, List<List<Color>> cardGrads) {
-    if (idxs.length == 3) {
-      final bigIdx = idxs[0], s1 = idxs[1], s2 = idxs[2];
-      const double smallH = (_bentoHeight - 10) / 2;
-      return Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: SizedBox(
-          height: _bentoHeight,
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Feature card: wider (170→190) and its image taller (130→168,
-            // ~62% of the 270 card height) so the product photo is the
-            // dominant visual element, per the Bento reference direction.
-            _productCard(ctx, items[bigIdx], bigIdx, cardGrads, width: 190, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
-            const SizedBox(width: 10),
-            SizedBox(
-              width: 150,
-              height: _bentoHeight,
-              child: Column(children: [
-                // Small stacked cards: image enlarged 56→76 to match the
-                // feature card's fuller-image proportion at this smaller
-                // scale, rather than staying a thin strip above the text.
-                _productCard(ctx, items[s1], s1, cardGrads, width: 150, imgHeight: 76, cardHeight: smallH, compact: true),
-                const SizedBox(height: 10),
-                _productCard(ctx, items[s2], s2, cardGrads, width: 150, imgHeight: 76, cardHeight: smallH, compact: true),
-              ]),
-            ),
-          ]),
-        ),
-      );
-    } else if (idxs.length == 2) {
-      final a = idxs[0], b = idxs[1];
-      return Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: SizedBox(
-          height: _bentoHeight,
-          child: Row(children: [
-            _productCard(ctx, items[a], a, cardGrads, width: 180, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
-            const SizedBox(width: 10),
-            _productCard(ctx, items[b], b, cardGrads, width: 180, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
-          ]),
-        ),
-      );
-    } else {
-      final a = idxs[0];
-      return Padding(
-        padding: const EdgeInsets.only(right: 12),
-        child: SizedBox(
-          height: _bentoHeight,
-          width: 240,
-          child: _productCard(ctx, items[a], a, cardGrads, width: 240, imgHeight: 148, cardHeight: _bentoHeight, showReviewRow: true),
-        ),
-      );
+  Widget _productGrid(BuildContext ctx, List<Map<String,dynamic>> items) {
+    final rows = <Widget>[];
+    int i = 0;
+    while (i < items.length) {
+      if (_isFeatured(i)) {
+        rows.add(_productCard(ctx, items[i], featured: true));
+        i += 1;
+      } else if (i + 1 < items.length && !_isFeatured(i + 1)) {
+        rows.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: _productCard(ctx, items[i], featured: false)),
+          const SizedBox(width: 12),
+          Expanded(child: _productCard(ctx, items[i + 1], featured: false)),
+        ]));
+        i += 2;
+      } else {
+        rows.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Expanded(child: _productCard(ctx, items[i], featured: false)),
+          const SizedBox(width: 12),
+          const Expanded(child: SizedBox.shrink()),
+        ]));
+        i += 1;
+      }
     }
+    return Padding(
+      padding: OffroSpacing.gutterH,
+      child: Column(children: [
+        for (int r = 0; r < rows.length; r++) ...[
+          if (r > 0) const SizedBox(height: 12),
+          rows[r],
+        ],
+      ]),
+    );
   }
 
   @override Widget build(BuildContext context) {
@@ -5175,87 +5551,27 @@ class _DiscoverProductsSection extends StatelessWidget {
           : const SizedBox.shrink();
     }
 
-    final _cardGrads = [
-      [Color(0xFFe8f5f0), Color(0xFFCDEBD6)],
-      [Color(0xFFf5ede6), Color(0xFFE7D7C8)],
-      [Color(0xFFe6f0f5), Color(0xFFbad4e8)],
-      [Color(0xFFf0ece8), Color(0xFFe0d0c4)],
-      [Color(0xFFe8f0e8), Color(0xFFb8d8c0)],
-      [Color(0xFFf5eef0), Color(0xFFe8c8d4)],
-    ];
+    // Figma shows the first four; "Browse all" opens the full product list.
+    final items = products.take(4).map((p) => Map<String,dynamic>.from(p as Map)).toList();
 
-    // Bento-style grouping: 1 feature card + 2 stacked small cards per group
-    // of 3, with graceful 2- and 1-item blocks for the remainder. Preserves
-    // the products/onViewAll/token contract and per-card tap navigation.
-    final _items = products.map((p) => Map<String,dynamic>.from(p as Map)).toList();
-    final _groups = _bentoGroups(_items.length);
-
-    return Container(
-      color: Colors.transparent,
-      child: Padding(
-      padding: const EdgeInsets.fromLTRB(0, 18, 0, 24), // extra bottom space before banners
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 36, 0, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
           eyebrow: "Across local stores",
           title: "Products near you",
           actionLabel: "Browse all",
           onAction: onViewAll,
-          padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
-        SizedBox(
-          height: _bentoHeight,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-            itemCount: _groups.length + 1,
-            itemBuilder: (ctx, i) {
-              if (i == _groups.length) {
-                return GestureDetector(
-                  onTap: onViewAll,
-                  child: Center(
-                    child: Container(
-                    width: 52, height: 120,
-                    margin: const EdgeInsets.only(left: 4, right: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
-                      boxShadow: [BoxShadow(
-                        color: Colors.black.withValues(alpha: .08),
-                        blurRadius: 8, offset: const Offset(0, 3))],
-                    ),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Container(
-                        width: 22, height: 22,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFe8f4ef),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.add_rounded, color: Color(0xFF3E5F55), size: 14),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text("See All",
-                        style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800),
-                        textAlign: TextAlign.center),
-                    ]),
-                  ),
-                  ),
-                );
-              }
-              return _bentoGroup(ctx, _groups[i], _items, _cardGrads);
-            },
-          ),
-        ),
+        const SizedBox(height: 16),
+        _productGrid(context, items),
       ]),
-      ),
     );
   }
 }
 
 
-// Retired from Customer Home (Figma Phase 2 correction); kept for the later Store Card phase.
-// ignore: unused_element
+// ─── Figma "Stores near you": distance chips + store cards (real store data) ───
 class _NearbyStoresSection extends StatelessWidget {
   final List<Map<String,dynamic>> stores;
   final double radiusKm;
@@ -5280,47 +5596,242 @@ class _NearbyStoresSection extends StatelessWidget {
     return "";
   }
 
+  Widget _storeImage(String imgSrc, String name) {
+    Widget fallback() => Container(
+      color: OffroColors.accent,
+      alignment: Alignment.center,
+      child: Text(name.isNotEmpty ? name[0].toUpperCase() : "S",
+        style: const TextStyle(fontFamily: OffroFonts.sans, color: OffroColors.primary, fontSize: 28, fontWeight: FontWeight.w800)),
+    );
+    if (imgSrc.startsWith("http")) {
+      return CachedNetworkImage(
+        imageUrl: imgSrc, fit: BoxFit.cover,
+        width: double.infinity, height: double.infinity,
+        placeholder: (_, __) => const ColoredBox(color: OffroColors.mint),
+        errorWidget: (_, __, ___) => fallback());
+    }
+    if (imgSrc.startsWith("data:image")) return base64Image(imgSrc, fallback());
+    return fallback();
+  }
+
+  Widget _storeHeart(BuildContext ctx, Map s, String sid) {
+    return GestureDetector(
+      onTap: () async {
+        if (sid.isEmpty || token.isEmpty) return;
+        // One in-flight request per store; ignore taps until it settles.
+        if (!FavState.instance.tryLockStore(sid)) return;
+        final prev = FavState.instance.hasStore(sid);
+        FavState.instance.setStore(sid, !prev); // optimistic
+        try {
+          final confirmed = await Api.toggleFavorite(token, sid);
+          FavState.instance.setStore(sid, confirmed); // server-confirmed
+        } catch (e) {
+          FavState.instance.setStore(sid, prev); // restore
+          if (ctx.mounted) {
+            ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+              content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+              backgroundColor: Colors.red.shade700,
+              duration: const Duration(seconds: 12),
+              showCloseIcon: true));
+          }
+        } finally {
+          FavState.instance.unlockStore(sid);
+        }
+      },
+      child: ValueListenableBuilder<bool>(
+        valueListenable: FavState.instance.storeListenable(sid),
+        builder: (_, isFav, __) => Container(
+          width: 36, height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isFav ? OffroColors.primary : Colors.white.withValues(alpha: .90),
+            shape: BoxShape.circle,
+          ),
+          child: OffroIcon(OffroIcons.heart, size: 16,
+            color: isFav ? Colors.white : OffroColors.primary, filled: isFav),
+        ),
+      ),
+    );
+  }
+
+  Widget _storeCard(BuildContext ctx, Map<String,dynamic> s, double width) {
+    final sid      = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
+    final name     = s["store_name"]?.toString() ?? "";
+    final category = s["category"]?.toString() ?? "";
+    final areaRaw  = s["area"]?.toString() ?? "";
+    final area     = (areaRaw == "null") ? "" : areaRaw;
+    final rating   = ((s["rating"] as num?)?.toDouble() ?? 0.0);
+    final distKm   = (s["distance_km"] as num?)?.toDouble();
+    final offer    = (s["offer"] ?? "").toString().trim();
+    final dealCnt  = s["deal_count"];
+    final hasOffer = offer.isNotEmpty && (dealCnt == null || ((dealCnt is num) ? dealCnt : 0) > 0);
+    final isNew    = s["is_new_in_town"] == true || s["is_new_in_town"]?.toString() == 'true';
+    final status   = computeStoreOpenStatus(s["open_time"]?.toString() ?? "", s["close_time"]?.toString() ?? "");
+    final imgSrc   = _resolveImg(s);
+
+    return GestureDetector(
+      key: sid.isEmpty ? null : ValueKey("nearby_store_$sid"),
+      onTap: () => onStoreTap(s),
+      child: Container(
+        width: width,
+        margin: const EdgeInsets.only(right: 16),
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: OffroColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: OffroColors.borderSoft),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            height: 144,
+            width: double.infinity,
+            child: Stack(fit: StackFit.expand, children: [
+              _storeImage(imgSrc, name),
+              if (hasOffer)
+                Positioned(left: 12, bottom: 12,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: width - 24),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: OffroColors.background.withValues(alpha: .90),
+                        borderRadius: OffroRadii.pillRadius,
+                      ),
+                      child: Text("Offer · $offer",
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                    ),
+                  )),
+              if (distKm != null)
+                Positioned(left: 12, top: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: OffroColors.text.withValues(alpha: .80),
+                      borderRadius: OffroRadii.pillRadius,
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const OffroIcon(OffroIcons.pin, size: 10, color: Colors.white, filled: true),
+                      const SizedBox(width: 4),
+                      Text(distKm < 1 ? "${(distKm * 1000).round()} m" : "${distKm.toStringAsFixed(1)} km",
+                        style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white)),
+                    ]),
+                  )),
+              Positioned(right: 12, top: 12, child: _storeHeart(ctx, s, sid)),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: OffroText.cardTitle),
+                  const SizedBox(height: 8),
+                  Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
+                    if (category.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: OffroColors.mintSoft, borderRadius: OffroRadii.pillRadius),
+                        child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                      ),
+                    if (isNew)
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(width: 6, height: 6,
+                          decoration: const BoxDecoration(color: OffroColors.success, shape: BoxShape.circle)),
+                        const SizedBox(width: 4),
+                        Text("NEW",
+                          style: OffroText.caption.copyWith(fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 0.9, color: OffroColors.success)),
+                      ]),
+                  ]),
+                  if (area.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(children: [
+                        const OffroIcon(OffroIcons.pin, size: 10, color: OffroColors.textSubtle),
+                        const SizedBox(width: 4),
+                        Expanded(child: Text(area, maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.textSubtle))),
+                      ]),
+                    ),
+                ])),
+                if (rating > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: OffroColors.mintFill, borderRadius: OffroRadii.pillRadius),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const OffroIcon(OffroIcons.star, size: 10, color: OffroColors.amber, filled: true),
+                      const SizedBox(width: 4),
+                      Text(rating.toStringAsFixed(1),
+                        style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.text)),
+                    ]),
+                  ),
+                ],
+              ]),
+              if (status != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(children: [
+                    Container(width: 6, height: 6,
+                      decoration: BoxDecoration(
+                        color: status.isOpen ? OffroColors.open : OffroColors.textFaint,
+                        shape: BoxShape.circle)),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(
+                      status.subLabel.isNotEmpty
+                          ? "${status.isOpen ? 'Open now' : 'Closed'} · ${status.subLabel}"
+                          : (status.isOpen ? "Open now" : "Closed"),
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textMuted))),
+                  ]),
+                ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override Widget build(BuildContext context) {
     final chips = [
-      {"label": "All",    "val": 0.0},
-      {"label": "1 km",   "val": 1.0},
-      {"label": "3 km",   "val": 3.0},
-      {"label": "5 km",   "val": 5.0},
-      {"label": "10 km",  "val": 10.0},
+      {"label": "Any distance", "val": 0.0},
+      {"label": "Under 1 km",   "val": 1.0},
+      {"label": "Under 3 km",   "val": 3.0},
+      {"label": "Under 5 km",   "val": 5.0},
+      {"label": "Under 10 km",  "val": 10.0},
     ];
-    // FIX (2026-07-10): One clean filter. No silent fallback that overrides the
-    // user's chip selection. The getter already sorted by distance; widget just slices.
-    // "All" or GPS unavailable → show everything; specific radius → strict filter.
-    final bool _gpsKnown = stores.any((s) => s["distance_km"] != null);
+    // One clean filter. "Any distance" or GPS unavailable → every city store;
+    // a specific radius → strict filter (distance already computed + sorted by
+    // HomeScreen._nearbyStores).
+    final bool gpsKnown = stores.any((s) => s["distance_km"] != null);
     final List<Map<String,dynamic>> filtered;
-    if (radiusKm == 0.0 || !_gpsKnown) {
-      // "All" selected, or no GPS — show every city store
+    if (radiusKm == 0.0 || !gpsKnown) {
       filtered = stores;
     } else {
-      // STRICT radius filter — stores beyond the selected radius are hidden.
-      // If every store is beyond the radius the section shows an empty state.
       filtered = stores.where((s) {
         final d = (s["distance_km"] as num?)?.toDouble();
         return d != null && d <= radiusKm;
       }).toList();
     }
+    final cardW = MediaQuery.sizeOf(context).width * 0.78;
+    final shown = filtered.length > 8 ? 8 : filtered.length;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
+      padding: const EdgeInsets.only(top: 36),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Header
         OffroSectionTitle(
-          eyebrow: "Stores near your location",
-          title: "Nearby Stores",
-          actionLabel: "View all",
+          eyebrow: "Around your neighbourhood",
+          title: "Stores near you",
+          actionLabel: "See all",
           onAction: onViewAll,
-          padding: EdgeInsets.zero,
         ),
-        const SizedBox(height: 10),
-        // Distance chips
+        const SizedBox(height: 16),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
+          padding: OffroSpacing.gutterH,
           child: Row(children: chips.map((c) {
             final isActive = radiusKm == (c["val"] as double);
             return GestureDetector(
@@ -5328,166 +5839,54 @@ class _NearbyStoresSection extends StatelessWidget {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF3E5F55) : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: isActive ? const Color(0xFF3E5F55) : const Color(0xFFd4e8de), width: 1.2),
-                  boxShadow: isActive ? [BoxShadow(color: const Color(0xFF3E5F55).withValues(alpha:.18), blurRadius: 8, offset: const Offset(0,2))] : [],
+                  color: isActive ? OffroColors.primary : OffroColors.surface,
+                  borderRadius: OffroRadii.pillRadius,
+                  border: isActive ? null : Border.all(color: OffroColors.border),
                 ),
                 child: Text(c["label"] as String,
-                  style: TextStyle(color: isActive ? Colors.white : const Color(0xFF6b8c7e),
-                    fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: OffroText.caption.copyWith(
+                    fontSize: 11, fontWeight: FontWeight.w600,
+                    color: isActive ? Colors.white : const Color(0xA63E5F55))),
               ),
             );
           }).toList()),
         ),
-        const SizedBox(height: 12),
-        // FIX: show a clear message if no stores fall within the chosen radius.
-        // Previously a hidden fallback silently showed all stores, making the
-        // distance chips appear broken.
-        if (filtered.isEmpty && radiusKm > 0) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 28),
-            alignment: Alignment.center,
-            child: Column(children: [
-              const Icon(Icons.location_off_outlined, color: Color(0xFF6b8c7e), size: 32),
-              const SizedBox(height: 8),
-              Text("No stores within ${radiusKm.toInt()} km",
-                style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 13, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              const Text("Try a larger radius or tap All",
-                style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 11)),
-            ]),
-          ),
-        ] else
-        SizedBox(
-          height: 175,
-          child: ListView.builder(
+        const SizedBox(height: 16),
+        if (filtered.isEmpty && radiusKm > 0)
+          Padding(
+            padding: OffroSpacing.gutterH,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: OffroColors.borderStrong),
+              ),
+              child: Column(children: [
+                Text("No stores within ${radiusKm.toInt()} km",
+                  style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.textMuted)),
+                const SizedBox(height: 4),
+                Text("Try a larger radius or tap Any distance",
+                  style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+              ]),
+            ),
+          )
+        else
+          SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: EdgeInsets.zero,
-            itemCount: filtered.length > 8 ? 8 : filtered.length,
-            itemBuilder: (ctx, i) {
-              final s        = filtered[i];
-              final name     = s["store_name"]?.toString() ?? "";
-              final category = s["category"]?.toString() ?? "";
-              final area     = s["area"]?.toString() ?? "";
-              final rating   = ((s["rating"] as num?)?.toDouble() ?? 0.0);
-              final distKm   = (s["distance_km"] as num?)?.toDouble();
-              final deal     = (s["offer"] ?? "").toString();
-              final discMatch = RegExp(r'(\d+)%').firstMatch(deal);
-              final badge    = discMatch != null ? "${discMatch.group(1)}% OFF" : "";
-              final imgSrc   = _resolveImg(s);
-              final _cardGrads = [
-                [Color(0xFFe8f5f0), Color(0xFFCDEBD6)],
-                [Color(0xFFf5ede6), Color(0xFFE7D7C8)],
-                [Color(0xFFe6f0f5), Color(0xFFbad4e8)],
-                [Color(0xFFf0ece8), Color(0xFFe0d0c4)],
-                [Color(0xFFe8f0e8), Color(0xFFb8d8c0)],
-                [Color(0xFFf5eef0), Color(0xFFe8c8d4)],
-              ];
-              final grad = _cardGrads[i % _cardGrads.length];
-
-              final nId = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
-              return GestureDetector(
-                key: nId.isEmpty ? null : ValueKey("nearby_store_$nId"),
-                onTap: () => onStoreTap(s),
-                child: Container(
-                  width: 140,
-                  height: 175,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .07), blurRadius: 14, offset: const Offset(0,4))],
-                  ),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Stack(children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(17)),
-                        child: SizedBox(
-                          width: 140, height: 100,
-                          child: imgSrc.startsWith("http")
-                            ? CachedNetworkImage(imageUrl: imgSrc, fit: BoxFit.cover,
-                                width: 140, height: 100,
-                                placeholder: (_, __) => Container(
-                                  width: 140, height: 100,
-                                  color: grad[1]),
-                                errorWidget: (_, __, ___) => _fallback(name))
-                            : imgSrc.startsWith("data:image")
-                              ? base64Image(imgSrc, _fallback(name))
-                              : Container(
-                                  width: 140, height: 100,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [grad[0], grad[1]],
-                                      begin: Alignment.topLeft, end: Alignment.bottomRight)),
-                                  child: Center(child: Text(
-                                    name.isNotEmpty ? name[0].toUpperCase() : "S",
-                                    style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 26, fontWeight: FontWeight.w900)))),
-                        ),
-                      ),
-                      if (badge.isNotEmpty)
-                        Positioned(top: 7, left: 7,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(6)),
-                            child: Text(badge, style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-                          )),
-                      if (distKm != null)
-                        Positioned(top: 7, right: 7,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3E5F55).withValues(alpha: .85),
-                              borderRadius: BorderRadius.circular(6)),
-                            child: Text(
-                              distKm < 1 ? "${(distKm*1000).round()}m" : "${distKm.toStringAsFixed(1)}km",
-                              style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
-                          )),
-                    ]),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(9, 7, 9, 7),
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                        Text(name, style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w800),
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 3),
-                        Row(children: [
-                          if (category.isNotEmpty) Expanded(child: Text(category,
-                            style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                          if (rating > 0) Row(mainAxisSize: MainAxisSize.min, children: [
-                            const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 10),
-                            const SizedBox(width: 2),
-                            Text(rating.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10, fontWeight: FontWeight.w600)),
-                          ]),
-                        ]),
-                        if (area.isNotEmpty && area != "null") ...[
-                          const SizedBox(height: 3),
-                          Row(children: [
-                            const Icon(Icons.location_on, color: Color(0xFF6b8c7e), size: 10),
-                            const SizedBox(width: 2),
-                            Expanded(child: Text(area, style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 10),
-                              maxLines: 1, overflow: TextOverflow.ellipsis)),
-                          ]),
-                        ],
-                      ]),
-                    ),
-                  ]),
-                ),
-              );
-            },
+            padding: const EdgeInsets.only(left: OffroSpacing.gutter, right: 4),
+            child: IntrinsicHeight(
+              child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                for (int i = 0; i < shown; i++) _storeCard(context, filtered[i], cardW),
+              ]),
+            ),
           ),
-        ),
       ]),
     );
   }
-
-  Widget _fallback(String name) => Container(
-    color: const Color(0xFFA9CDBA),
-    child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "S",
-      style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 22, fontWeight: FontWeight.w900))),
-  );
 }
 
 // Retired from Customer Home (Figma Phase 2 correction); kept for the later Store Card phase.
