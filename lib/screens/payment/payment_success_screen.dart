@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 
 class PaymentSuccessScreen extends StatelessWidget {
   final String storeName;
@@ -52,7 +53,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                       ? 'Your "$storeName" purchase is now pending admin approval.'
                       : 'Your purchase is now pending admin approval.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: kMuted, fontSize: 15),
+                  style: const TextStyle(color: OffroColors.textMuted, fontSize: 15),
                 ),
 
                 // ── Invoice badge ─────────────────────────────────────

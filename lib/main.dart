@@ -63,7 +63,7 @@ import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 // ─────────────────────── CONFIG ───────────────────────
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
-// Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, kText, kMuted, kBorder)
+// Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, OffroColors.text, OffroColors.textMuted, OffroColors.border)
 // now live only in core/constants/app_constants.dart.
 
 
@@ -643,23 +643,7 @@ class MyApp extends StatelessWidget {
         child!,
       ],
     ),
-    theme: ThemeData(
-      primaryColor: kPrimary,
-      colorScheme: ColorScheme.fromSeed(seedColor: kPrimary),
-      useMaterial3: false,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        iconTheme: IconThemeData(color: kText),
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.dark,
-        ),
-      ),
-    ),
+    theme: OffroTheme.light(),
     home: SplashScreen(
       onUser:       (token, name, phone, city, userId) => goHome(token: token, name: name, phone: phone, userId: userId, city: city),
       onMerchant:   (token, merchant) => goMerchant(token: token, merchant: merchant),
@@ -735,7 +719,7 @@ class _MasonrySearchGrid extends StatelessWidget {
                 child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisSize:MainAxisSize.min,children:[
                   Text(s["store_name"]?.toString()??"",style:const TextStyle(color:Colors.white,fontSize:12,fontWeight:FontWeight.w800),maxLines:1,overflow:TextOverflow.ellipsis),
                   if(rating>0) Row(children:[
-                    const Icon(Icons.star_rounded,color:Color(0xFFFFD700),size:10),const SizedBox(width:2),
+                    const Icon(Icons.star_rounded,color:OffroColors.amber,size:10),const SizedBox(width:2),
                     Text(rating.toStringAsFixed(1),style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.w700)),
                   ]),
                 ]),
@@ -2397,10 +2381,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           const Icon(Icons.lock_outline_rounded, color: kPrimary, size: 40),
           const SizedBox(height: 16),
           const Text('Login Required',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: kText)),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: OffroColors.text)),
           const SizedBox(height: 8),
           Text('Please login or register to use $featureName.',
-            style: const TextStyle(fontSize: 14, color: kMuted, height: 1.5)),
+            style: const TextStyle(fontSize: 14, color: OffroColors.textMuted, height: 1.5)),
           const SizedBox(height: 24),
           SizedBox(width: double.infinity, height: 50,
             child: ElevatedButton(
@@ -2423,7 +2407,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           SizedBox(width: double.infinity,
             child: TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Maybe later', style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+              child: const Text('Maybe later', style: TextStyle(color: OffroColors.textMuted, fontWeight: FontWeight.w600)),
             ),
           ),
         ]),
@@ -2480,7 +2464,7 @@ class _SearchPageState extends State<_SearchPage> {
 
   @override Widget build(BuildContext context){
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
         backgroundColor: kPrimary,
         foregroundColor: Colors.white,
@@ -2511,7 +2495,7 @@ class _SearchPageState extends State<_SearchPage> {
             ? Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
                 const Icon(Icons.search_off,color:kAccent,size:56),
                 const SizedBox(height:12),
-                Text("No results for '$_q'",style:const TextStyle(color:kMuted,fontSize:15)),
+                Text("No results for '$_q'",style:const TextStyle(color:OffroColors.textMuted,fontSize:15)),
               ]))
             : ListView.separated(
                 padding:const EdgeInsets.all(14),
@@ -2532,12 +2516,12 @@ class _SearchPageState extends State<_SearchPage> {
                             : Container(color:kAccent,child:const Icon(Icons.store,color:kPrimary,size:28)))),
                         const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:14)),
-                          Text("${s['category']??''} · ${s['area']??''}",style:const TextStyle(color:kMuted,fontSize:12)),
+                          Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:OffroColors.text,fontSize:14)),
+                          Text("${s['category']??''} · ${s['area']??''}",style:const TextStyle(color:OffroColors.textMuted,fontSize:12)),
                           if ((s['visit_points']??0)>0) Padding(padding:const EdgeInsets.only(top:3),
                             child:Text("${s['visit_points']} pts on visit",style:const TextStyle(color:kPrimary,fontSize:11,fontWeight:FontWeight.w600))),
                         ])),
-                        const Icon(Icons.arrow_forward_ios_rounded,color:kBorder,size:14),
+                        const Icon(Icons.arrow_forward_ios_rounded,color:OffroColors.border,size:14),
                       ])));
                 }),
     );
@@ -2559,7 +2543,7 @@ class _SearchLandingGridState extends State<_SearchLandingGrid> {
   }
   @override Widget build(BuildContext context){
     if(_loading) return const Center(child:CircularProgressIndicator(color:kPrimary));
-    if(_stores.isEmpty) return const Center(child:Text("No stores yet",style:TextStyle(color:kMuted)));
+    if(_stores.isEmpty) return const Center(child:Text("No stores yet",style:TextStyle(color:OffroColors.textMuted)));
     return _MasonrySearchGrid(stores:_stores, token:widget.token);
   }
 }
@@ -2594,10 +2578,10 @@ class _ViewAllPageState extends State<_ViewAllPage>{
     final filtered = _filtered;
     final scrH = MediaQuery.sizeOf(context).height;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
+        backgroundColor: OffroColors.background,
+        foregroundColor: OffroColors.text,
         title: Text(widget.title, style:const TextStyle(fontWeight:FontWeight.w800)),
         elevation: 0,
         bottom: PreferredSize(
@@ -2609,12 +2593,12 @@ class _ViewAllPageState extends State<_ViewAllPage>{
               child: TextField(
                 controller: _searchCtrl,
                 onChanged: (v)=>setState(()=>_q=v),
-                style: const TextStyle(color:kText, fontSize:14),
+                style: const TextStyle(color:OffroColors.text, fontSize:14),
                 decoration: InputDecoration(
                   hintText: "Search store, area, offer...",
-                  hintStyle: const TextStyle(color:kMuted, fontSize:13),
-                  prefixIcon: const Icon(Icons.search, color:kMuted, size:20),
-                  suffixIcon: _q.isNotEmpty ? IconButton(icon:const Icon(Icons.clear,size:18,color:kMuted), onPressed:(){_searchCtrl.clear();setState(()=>_q="");}) : null,
+                  hintStyle: const TextStyle(color:OffroColors.textMuted, fontSize:13),
+                  prefixIcon: const Icon(Icons.search, color:OffroColors.textMuted, size:20),
+                  suffixIcon: _q.isNotEmpty ? IconButton(icon:const Icon(Icons.clear,size:18,color:OffroColors.textMuted), onPressed:(){_searchCtrl.clear();setState(()=>_q="");}) : null,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(vertical:12),
                 ),
@@ -2626,7 +2610,7 @@ class _ViewAllPageState extends State<_ViewAllPage>{
       body: filtered.isEmpty
         ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
             const Icon(Icons.search_off,color:kAccent,size:56),const SizedBox(height:12),
-            Text(_q.isEmpty?"No stores yet":"No results for '$_q'",style:const TextStyle(color:kMuted,fontSize:15))]))
+            Text(_q.isEmpty?"No stores yet":"No results for '$_q'",style:const TextStyle(color:OffroColors.textMuted,fontSize:15))]))
         : ListView.builder(
             padding:const EdgeInsets.fromLTRB(14,8,14,24),
             itemCount:filtered.length,
@@ -2757,10 +2741,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   @override Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
+        backgroundColor: OffroColors.background,
+        foregroundColor: OffroColors.text,
         title: const Text("Notifications", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         elevation: 0,
         actions: [
@@ -2775,11 +2759,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
           : _notifs.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.notifications_none_rounded, size: 64, color: kMuted.withValues(alpha: .4)),
+                  Icon(Icons.notifications_none_rounded, size: 64, color: OffroColors.textMuted.withValues(alpha: .4)),
                   const SizedBox(height: 16),
-                  const Text("No notifications yet", style: TextStyle(color: kMuted, fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Text("No notifications yet", style: TextStyle(color: OffroColors.textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  const Text("You'll see deals and alerts here", style: TextStyle(color: kMuted, fontSize: 13)),
+                  const Text("You'll see deals and alerts here", style: TextStyle(color: OffroColors.textMuted, fontSize: 13)),
                 ]))
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -2818,18 +2802,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                       ? Image.memory(decodeBase64ImageCached(imgUrl), width: double.infinity, fit: BoxFit.contain, gaplessPlayback: true)
                                       : CachedNetworkImage(imageUrl: imgUrl, width: double.infinity, fit: BoxFit.contain,
                                           placeholder: (_, __) => const SizedBox(height: 120, child: Center(child: CircularProgressIndicator(color: kPrimary))),
-                                          errorWidget: (_, __, ___) => const SizedBox(height: 80, child: Icon(Icons.broken_image_outlined, color: kMuted, size: 40))),
+                                          errorWidget: (_, __, ___) => const SizedBox(height: 80, child: Icon(Icons.broken_image_outlined, color: OffroColors.textMuted, size: 40))),
                                   ),
                                 ),
                               if (imgUrl.isNotEmpty) const SizedBox(height: 14),
-                              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: kText)),
+                              Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: OffroColors.text)),
                               if (body.isNotEmpty) ...[
                                 const SizedBox(height: 8),
-                                Text(body, style: const TextStyle(fontSize: 14, color: kMuted, height: 1.5)),
+                                Text(body, style: const TextStyle(fontSize: 14, color: OffroColors.textMuted, height: 1.5)),
                               ],
                               if (ts.isNotEmpty) ...[
                                 const SizedBox(height: 10),
-                                Text(_timeAgo(ts), style: const TextStyle(fontSize: 11, color: kMuted)),
+                                Text(_timeAgo(ts), style: const TextStyle(fontSize: 11, color: OffroColors.textMuted)),
                               ],
                               const SizedBox(height: 16),
                               Align(
@@ -2866,12 +2850,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
-                            Expanded(child: Text(title, style: const TextStyle(color: kText, fontSize: 14, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis)),
-                            if (ts.isNotEmpty) Text(_timeAgo(ts), style: const TextStyle(color: kMuted, fontSize: 11)),
+                            Expanded(child: Text(title, style: const TextStyle(color: OffroColors.text, fontSize: 14, fontWeight: FontWeight.w800), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            if (ts.isNotEmpty) Text(_timeAgo(ts), style: const TextStyle(color: OffroColors.textMuted, fontSize: 11)),
                           ]),
                           if (body.isNotEmpty) ...[
                             const SizedBox(height: 4),
-                            Text(body, style: const TextStyle(color: kMuted, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            Text(body, style: const TextStyle(color: OffroColors.textMuted, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
                           ],
                         ])),
                       ]),
@@ -2931,7 +2915,7 @@ class _BrowseByCategoriesSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: const Text("Browse by Categories",
-            style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+            style: TextStyle(color: OffroColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
         ),
         _buildMasonryGrid(context, displayCats),
       ]),
@@ -3002,10 +2986,10 @@ class _BrowseByCategoriesSection extends StatelessWidget {
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_rounded, color: Color(0xFF2c3e35), size: 32),
+                  Icon(Icons.add_rounded, color: OffroColors.text, size: 32),
                   SizedBox(height: 4),
                   Text("View", style: TextStyle(
-                    color: Color(0xFF2c3e35),
+                    color: OffroColors.text,
                     fontSize: 11, fontWeight: FontWeight.w800)),
                 ],
               ),
@@ -3278,12 +3262,12 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
 
   @override Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
+        backgroundColor: OffroColors.background,
+        foregroundColor: OffroColors.text,
         title: Text(widget.categoryName,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: kText)),
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: OffroColors.text)),
         elevation: 0,
       ),
       body: Column(children: [
@@ -3293,12 +3277,12 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
             onChanged: (v) => setState(() => _q = v),
             decoration: InputDecoration(
               hintText: "Search ${widget.categoryName} stores...",
-              hintStyle: const TextStyle(color: kMuted, fontSize: 13),
+              hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
               prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 20),
               filled: true, fillColor: Colors.white,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: kBorder)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: OffroColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: OffroColors.border)),
               focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 1.5)),
             ),
           ),
@@ -3314,9 +3298,9 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     const Icon(Icons.error_outline_rounded, color: Color(0xFFc0392b), size: 40),
                     const SizedBox(height: 10),
-                    const Text("Couldn't load stores", style: TextStyle(color: kText, fontWeight: FontWeight.w700, fontSize: 15)),
+                    const Text("Couldn't load stores", style: TextStyle(color: OffroColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
                     const SizedBox(height: 6),
-                    Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: kMuted, fontSize: 12)),
+                    Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
                     const SizedBox(height: 14),
                     ElevatedButton(
                       onPressed: () => setState(() { _loading = true; _load(); }),
@@ -3330,7 +3314,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                   padding: const EdgeInsets.all(24),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Text("No ${widget.categoryName} stores found",
-                        style: const TextStyle(color: kMuted, fontSize: 14)),
+                        style: const TextStyle(color: OffroColors.textMuted, fontSize: 14)),
                     // FIX: diagnostic — reveals the actual category strings stored
                     // in this city so a text-mismatch (e.g. "Restaurant " with a
                     // trailing space, or a wrong category assigned to a store) is
@@ -3340,13 +3324,13 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                       Text(
                         "Found $_totalFetchedInCity store(s) in this city, but none matched \"${widget.categoryName}\".",
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: kMuted, fontSize: 11)),
+                        style: const TextStyle(color: OffroColors.textMuted, fontSize: 11)),
                       if (_categoriesSeen.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           "Categories found: ${_categoriesSeen.join(', ')}",
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: kMuted, fontSize: 11, fontStyle: FontStyle.italic)),
+                          style: const TextStyle(color: OffroColors.textMuted, fontSize: 11, fontStyle: FontStyle.italic)),
                       ],
                     ],
                   ]),
@@ -3394,17 +3378,17 @@ class _CategoryListScreenState extends State<_CategoryListScreen> {
   @override Widget build(BuildContext context) {
     final cats = _filtered;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
+        backgroundColor: OffroColors.background,
+        foregroundColor: OffroColors.text,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Text("Categories",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: kText)),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: OffroColors.text)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
+          child: Divider(height: 1, color: OffroColors.border),
         ),
       ),
       body: Column(children: [
@@ -3415,16 +3399,16 @@ class _CategoryListScreenState extends State<_CategoryListScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder),
+              border: Border.all(color: OffroColors.border),
               boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0,2))],
             ),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
-              style: const TextStyle(fontSize: 14, color: kText),
+              style: const TextStyle(fontSize: 14, color: OffroColors.text),
               decoration: const InputDecoration(
                 hintText: "Search categories...",
-                hintStyle: TextStyle(color: kMuted, fontSize: 13),
-                prefixIcon: Icon(Icons.search_rounded, color: kMuted, size: 20),
+                hintStyle: TextStyle(color: OffroColors.textMuted, fontSize: 13),
+                prefixIcon: Icon(Icons.search_rounded, color: OffroColors.textMuted, size: 20),
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
@@ -3434,7 +3418,7 @@ class _CategoryListScreenState extends State<_CategoryListScreen> {
         // Pinterest grid
         Expanded(
           child: cats.isEmpty
-            ? const Center(child: Text("No categories found", style: TextStyle(color: kMuted)))
+            ? const Center(child: Text("No categories found", style: TextStyle(color: OffroColors.textMuted)))
             : SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(14, 8, 14, 32),
                 physics: const BouncingScrollPhysics(),
@@ -4237,14 +4221,14 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
           (a["name"] as String).toLowerCase().contains(_q.toLowerCase())).toList();
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
+        backgroundColor: OffroColors.background,
+        foregroundColor: OffroColors.text,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Text("All Areas",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: kText)),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: OffroColors.text)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(58),
           child: Container(
@@ -4252,21 +4236,21 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
-              style: const TextStyle(color: kText, fontSize: 14),
+              style: const TextStyle(color: OffroColors.text, fontSize: 14),
               cursorColor: kPrimary,
               decoration: InputDecoration(
                 hintText: "Search areas...",
-                hintStyle: const TextStyle(color: kMuted, fontSize: 13),
+                hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
                 prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 18),
                 filled: true,
                 fillColor: const Color(0xFFF2FAF5),
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kBorder)),
+                  borderSide: BorderSide(color: OffroColors.border)),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: kBorder)),
+                  borderSide: BorderSide(color: OffroColors.border)),
               ),
             ),
           ),
@@ -4275,7 +4259,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
       body: filtered.isEmpty
         ? Center(child: Text(
             _q.isEmpty ? "No areas available" : "No results for \"$_q\"",
-            style: const TextStyle(color: kMuted, fontSize: 15)))
+            style: const TextStyle(color: OffroColors.textMuted, fontSize: 15)))
         : ListView.separated(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 32),
             itemCount: filtered.length,
@@ -4296,7 +4280,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kBorder, width: 1),
+                    border: Border.all(color: OffroColors.border, width: 1),
                     boxShadow: [BoxShadow(
                       color: Colors.black.withValues(alpha:.06),
                       blurRadius: 10, offset: const Offset(0,3))],
@@ -4321,15 +4305,15 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
                       children: [
                         Text(name,
                           style: const TextStyle(
-                            color: kText, fontSize: 15, fontWeight: FontWeight.w700)),
+                            color: OffroColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 4),
                         Text("$count Store${count == 1 ? "" : "s"}",
-                          style: const TextStyle(color: kMuted, fontSize: 12)),
+                          style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
                       ],
                     )),
                     const Padding(
                       padding: EdgeInsets.only(right: 14),
-                      child: Icon(Icons.chevron_right_rounded, color: kMuted, size: 20)),
+                      child: Icon(Icons.chevron_right_rounded, color: OffroColors.textMuted, size: 20)),
                   ]),
                 ),
               );
@@ -4377,23 +4361,23 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
   @override Widget build(BuildContext context) {
     final filtered = _filtered;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       body: CustomScrollView(physics: const BouncingScrollPhysics(), slivers: [
         // App bar
         SliverAppBar(
           pinned: true,
-          backgroundColor: Colors.white,
-          foregroundColor: kText,
+          backgroundColor: OffroColors.background,
+          foregroundColor: OffroColors.text,
           elevation: 0,
           shadowColor: Colors.black12,
           expandedHeight: 0,
           toolbarHeight: 52,
           title: Text(widget.areaName,
-            style: const TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
+            style: const TextStyle(color: OffroColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
           centerTitle: false,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(1),
-            child: Divider(height: 1, color: kBorder),
+            child: Divider(height: 1, color: OffroColors.border),
           ),
         ),
         // Search
@@ -4403,17 +4387,17 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder),
+              border: Border.all(color: OffroColors.border),
               boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0,2))],
             ),
             child: TextField(
               controller: _ctrl,
               onChanged: (v) => setState(() => _search = v),
-              style: const TextStyle(fontSize: 14, color: kText),
+              style: const TextStyle(fontSize: 14, color: OffroColors.text),
               decoration: InputDecoration(
                 hintText: "Search in ${widget.areaName}...",
-                hintStyle: const TextStyle(color: kMuted, fontSize: 13),
-                prefixIcon: const Icon(Icons.search_rounded, color: kMuted, size: 20),
+                hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
+                prefixIcon: const Icon(Icons.search_rounded, color: OffroColors.textMuted, size: 20),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               ),
@@ -4424,7 +4408,7 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
         SliverToBoxAdapter(child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
           child: Text("${filtered.length} store${filtered.length == 1 ? "" : "s"} in ${widget.areaName}",
-            style: const TextStyle(color: kMuted, fontSize: 12)),
+            style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         )),
         // Store list
         filtered.isEmpty
@@ -4433,7 +4417,7 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
               children: [
                 Icon(Icons.store_mall_directory_outlined, color: kAccent, size: 48),
                 SizedBox(height: 12),
-                Text("No stores found", style: TextStyle(color: kMuted, fontSize: 14)),
+                Text("No stores found", style: TextStyle(color: OffroColors.textMuted, fontSize: 14)),
               ])))
           : SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -5984,7 +5968,7 @@ class _ExploreAreasSection extends StatelessWidget {
         Row(children: [
           const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text("Explore Areas",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
+              style: TextStyle(color: OffroColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
             Text("Discover great places nearby",
               style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
           ]),
@@ -6199,10 +6183,10 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
 
   @override Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF2c3e35),
+        backgroundColor: OffroColors.background,
+        foregroundColor: OffroColors.text,
         elevation: 0,
         title: const Text("All Categories", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
         surfaceTintColor: Colors.white,
@@ -6210,7 +6194,7 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
       body: _loading
         ? const Center(child: CircularProgressIndicator(color: kPrimary))
         : _cats.isEmpty
-          ? const Center(child: Text("No categories found", style: TextStyle(color: kMuted)))
+          ? const Center(child: Text("No categories found", style: TextStyle(color: OffroColors.textMuted)))
           : GridView.builder(
               padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -6235,7 +6219,7 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
                     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                       Text(_emoji(name), style: const TextStyle(fontSize: 28)),
                       const SizedBox(height: 6),
-                      Text(name, style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 12, fontWeight: FontWeight.w700),
+                      Text(name, style: const TextStyle(color: OffroColors.text, fontSize: 12, fontWeight: FontWeight.w700),
                         textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
                     ]),
                   ),
@@ -6711,7 +6695,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
 
   Widget _ratingChip(double rating, int revCount) =>
     Row(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 16),
+      const Icon(Icons.star_rounded, color: OffroColors.amber, size: 16),
       const SizedBox(width: 2),
       Text(rating.toStringAsFixed(1),
         style: const TextStyle(color: Color(0xFF1a2e27), fontSize: 13.5, fontWeight: FontWeight.w800)),
@@ -7730,7 +7714,7 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
           expandedHeight: 100,
           pinned: true,
           backgroundColor: const Color(0xFFFDFBF6),
-          foregroundColor: kText,
+          foregroundColor: OffroColors.text,
           elevation: 0,
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(52),
@@ -7738,7 +7722,7 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
           ),
           flexibleSpace: FlexibleSpaceBar(
             title: const Text("See All Products",
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: kText)),
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: OffroColors.text)),
             background: Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
@@ -7776,13 +7760,13 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
                 decoration: BoxDecoration(
                   color: _cat == cat ? kPrimary : Colors.white,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: _cat == cat ? kPrimary : kBorder, width: 1.2),
+                  border: Border.all(color: _cat == cat ? kPrimary : OffroColors.border, width: 1.2),
                   boxShadow: _cat == cat
                     ? [BoxShadow(color: kPrimary.withValues(alpha: .25), blurRadius: 8, offset: const Offset(0,2))]
                     : [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 4)],
                 ),
                 child: Text(cat, style: TextStyle(
-                  color: _cat == cat ? Colors.white : kMuted,
+                  color: _cat == cat ? Colors.white : OffroColors.textMuted,
                   fontSize: 12, fontWeight: FontWeight.w700)),
               ),
             )).toList()),
@@ -7804,7 +7788,7 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
                 child: const Icon(Icons.storefront_outlined, color: Color(0xFFB8A090), size: 40)),
               const SizedBox(height: 16),
               const Text("No products found",
-                style: TextStyle(color: kText, fontSize: 16, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: OffroColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
             ])))
         else
           SliverPadding(
@@ -7961,7 +7945,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
           const SizedBox(height: 14),
           if (text.isNotEmpty) Text(text,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 16, fontWeight: FontWeight.w700, height: 1.4)),
+            style: const TextStyle(color: OffroColors.text, fontSize: 16, fontWeight: FontWeight.w700, height: 1.4)),
           if (storeName.isNotEmpty) ...[
             const SizedBox(height: 10),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -8167,7 +8151,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               if (title.isNotEmpty)
                 Text(title,
                   style: const TextStyle(
-                    color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800,
+                    color: OffroColors.text, fontSize: 14, fontWeight: FontWeight.w800,
                     height: 1.25),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               // Seller line — rating pill now on image, just show store name
@@ -8187,7 +8171,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                       decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(7)),
                       child: Text("₹$priceRaw",
                         style: const TextStyle(
-                          color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w900)),
+                          color: OffroColors.text, fontSize: 14, fontWeight: FontWeight.w900)),
                     ),
                     if (origRaw.isNotEmpty && origRaw != "0") ...[
                       const SizedBox(width: 5),
@@ -8224,21 +8208,21 @@ class _VapSearchBarState extends State<_VapSearchBar> {
         onChanged: (v) {
           pageState?.setState(() => pageState._query = v);
         },
-        style: const TextStyle(color: kText, fontSize: 13),
+        style: const TextStyle(color: OffroColors.text, fontSize: 13),
         cursorColor: kPrimary,
         decoration: InputDecoration(
           hintText: "Search products...",
-          hintStyle: const TextStyle(color: kMuted, fontSize: 13),
+          hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
           prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 18),
           filled: true,
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(vertical: 8),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorder)),
+            borderSide: const BorderSide(color: OffroColors.border)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kBorder)),
+            borderSide: const BorderSide(color: OffroColors.border)),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: kPrimary)),

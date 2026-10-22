@@ -23,6 +23,7 @@ import '../../core/services/api_service.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/location_store.dart';
 import 'location_access_card.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 
 class LocationScreen extends StatefulWidget {
   final LocationMode mode;
@@ -311,12 +312,12 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
               child: Row(children: [
                 if (!widget.mandatory)
                   IconButton(
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30, color: kText),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 30, color: OffroColors.text),
                     onPressed: () => Navigator.pop(context),
                   )
                 else
                   const SizedBox(width: 16, height: 48),
-                const Text('Location', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kText)),
+                const Text('Location', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OffroColors.text)),
               ]),
             ),
             Padding(
@@ -330,12 +331,12 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
                 },
                 decoration: InputDecoration(
                   hintText: 'Search city, area or locality',
-                  hintStyle: const TextStyle(color: kMuted),
-                  prefixIcon: const Icon(Icons.search_rounded, color: kMuted),
+                  hintStyle: const TextStyle(color: OffroColors.textMuted),
+                  prefixIcon: const Icon(Icons.search_rounded, color: OffroColors.textMuted),
                   suffixIcon: _query.isEmpty
                       ? null
                       : IconButton(
-                          icon: const Icon(Icons.close_rounded, color: kMuted),
+                          icon: const Icon(Icons.close_rounded, color: OffroColors.textMuted),
                           onPressed: () { _search.clear(); setState(() => _query = ''); },
                         ),
                   filled: true,
@@ -343,10 +344,10 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
                   contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(28),
-                      borderSide: const BorderSide(color: kBorder)),
+                      borderSide: const BorderSide(color: OffroColors.border)),
                   enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(28),
-                      borderSide: const BorderSide(color: kBorder)),
+                      borderSide: const BorderSide(color: OffroColors.border)),
                   focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(28),
                       borderSide: const BorderSide(color: kPrimary, width: 1.6)),
@@ -368,7 +369,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
                   if (_note.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Text(_note, style: const TextStyle(fontSize: 12.5, color: kMuted, height: 1.35)),
+                      child: Text(_note, style: const TextStyle(fontSize: 12.5, color: OffroColors.textMuted, height: 1.35)),
                     ),
                   const SizedBox(height: 20),
                   if (_query.isEmpty) ..._browseSections() else ..._searchResults(),
@@ -399,7 +400,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         padding: const EdgeInsets.symmetric(vertical: 24),
         child: Column(children: [
           const Text("Couldn't load cities. Check your connection and try again.",
-              textAlign: TextAlign.center, style: TextStyle(color: kMuted, fontSize: 13.5)),
+              textAlign: TextAlign.center, style: TextStyle(color: OffroColors.textMuted, fontSize: 13.5)),
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: () { _citiesFuture = _loadCities(); },
@@ -438,7 +439,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     final popular = _popular();
     final all = [..._cities]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return [
-      const Text('Popular cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kText)),
+      const Text('Popular cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
       const SizedBox(height: 12),
       LayoutBuilder(builder: (ctx, c) {
         final w = (c.maxWidth - 20) / 3;
@@ -452,7 +453,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         ]);
       }),
       const SizedBox(height: 24),
-      const Text('All cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kText)),
+      const Text('All cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
       const SizedBox(height: 4),
       for (final c in all) _CityRow(
         title: c.name,
@@ -478,14 +479,14 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     }
     final out = <Widget>[];
     if (cityHits.isNotEmpty) {
-      out.add(const Text('Cities', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)));
+      out.add(const Text('Cities', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: OffroColors.text)));
       for (final c in cityHits) {
         out.add(_CityRow(title: c.name, subtitle: c.state, selected: _isCurrentCity(c.name, c.state), onTap: () => _selectCity(c)));
       }
     }
     if (areaHits.isNotEmpty) {
       out.add(const SizedBox(height: 16));
-      out.add(const Text('Areas', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)));
+      out.add(const Text('Areas', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: OffroColors.text)));
       for (final h in areaHits.take(40)) {
         out.add(_CityRow(
           title: h.key,
@@ -506,7 +507,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       out.add(const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(child: Text('No matching places found.',
-            style: TextStyle(color: kMuted, fontSize: 13.5))),
+            style: TextStyle(color: OffroColors.textMuted, fontSize: 13.5))),
       ));
     }
     return out;
@@ -525,13 +526,13 @@ class _CityTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? kLight.withValues(alpha: .5) : Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: selected ? kPrimary : kBorder, width: selected ? 1.6 : 1),
+            border: Border.all(color: selected ? kPrimary : OffroColors.border, width: selected ? 1.6 : 1),
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.location_city_rounded, color: kPrimary, size: 26),
             const SizedBox(height: 8),
             Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kText)),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: OffroColors.text)),
           ]),
         ),
       );
@@ -545,14 +546,14 @@ class _CityRow extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: kBorder))),
+          decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: OffroColors.border))),
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: kText)),
+              Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, color: OffroColors.text)),
               if (subtitle.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
-                  child: Text(subtitle, style: const TextStyle(fontSize: 12, color: kMuted)),
+                  child: Text(subtitle, style: const TextStyle(fontSize: 12, color: OffroColors.textMuted)),
                 ),
             ])),
             if (selected) const Icon(Icons.check_circle_rounded, color: kPrimary, size: 20),

@@ -71,7 +71,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                         else ...[
                           Text(
                             _expanded ? _content : (_content.length > 280 ? _content.substring(0, 280) + "..." : _content),
-                            style: OffroText.body.copyWith(fontSize: 14, height: 1.65),
+                            style: OffroText.body.copyWith(fontSize: 14, height: 1.65, color: const Color(0x80000000)),
                           ),
                           if (_content.length > 280) ...[
                             const SizedBox(height: 12),
@@ -247,15 +247,15 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Delete Account?", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: kText)),
+        title: Text("Delete Account?", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: OffroColors.text)),
         content: Text(
           "Your account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your data cannot be retrieved. Are you absolutely sure?",
-          style: TextStyle(fontFamily: OffroFonts.sans, fontSize: 14, color: kText, height: 1.5),
+          style: TextStyle(fontFamily: OffroFonts.sans, fontSize: 14, color: OffroColors.text, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text("Cancel", style: TextStyle(fontFamily: OffroFonts.sans, color: kMuted, fontWeight: FontWeight.w600)),
+            child: Text("Cancel", style: TextStyle(fontFamily: OffroFonts.sans, color: OffroColors.textMuted, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -283,10 +283,10 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text("Deletion Requested", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: kText)),
+          title: Text("Deletion Requested", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: OffroColors.text)),
           content: Text(
             "Your account deletion request has been submitted. You have been logged out.",
-            style: TextStyle(fontFamily: OffroFonts.sans, fontSize: 14, color: kText),
+            style: TextStyle(fontFamily: OffroFonts.sans, fontSize: 14, color: OffroColors.text),
           ),
           actions: [
             ElevatedButton(

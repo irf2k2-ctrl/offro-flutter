@@ -13,6 +13,7 @@ import '../../core/models/offro_location.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/location_store.dart';
 import 'location_screen.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 
 class LocationAccessGate extends StatefulWidget {
   final LocationMode mode;
@@ -73,11 +74,11 @@ class _LocationAccessGateState extends State<LocationAccessGate> {
             ),
             const SizedBox(height: 24),
             const Text('Allow location access',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kText)),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OffroColors.text)),
             const SizedBox(height: 10),
             const Text('OffrO needs your location to show nearby and relevant content.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14.5, color: kMuted, height: 1.4)),
+                style: TextStyle(fontSize: 14.5, color: OffroColors.textMuted, height: 1.4)),
             if (_msg.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(_msg, textAlign: TextAlign.center,

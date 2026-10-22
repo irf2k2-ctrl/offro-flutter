@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/widgets/brand_logo.dart';
 import '../auth/login_screen.dart';
 import '../../core/utils/navigation.dart';
@@ -85,7 +86,7 @@ class _OnboardingState extends State<OnboardingScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: OffroColors.background,
         extendBodyBehindAppBar: true,
         body: Stack(children: [
 

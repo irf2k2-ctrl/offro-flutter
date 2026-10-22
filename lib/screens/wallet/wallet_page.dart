@@ -367,7 +367,7 @@ class _HistoryState extends State<HistoryPage>{
   @override Widget build(BuildContext ctx)=>Scaffold(
     appBar:AppBar(title:const Text("Scan History"),backgroundColor:kPrimary,foregroundColor:Colors.white),backgroundColor:kBg,
     body:_l?const Center(child:CircularProgressIndicator(color:kPrimary)):
-    _h.isEmpty?Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[buildLogo(44,kAccent),const SizedBox(height:12),const Text("No scans yet",style:TextStyle(color:kMuted,fontSize:16))])):
+    _h.isEmpty?Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[buildLogo(44,kAccent),const SizedBox(height:12),const Text("No scans yet",style:TextStyle(color:OffroColors.textMuted,fontSize:16))])):
     ListView.separated(padding:const EdgeInsets.all(16),itemCount:_h.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
       itemBuilder:(_,i){
         final h=_h[i] as Map;
@@ -380,7 +380,7 @@ class _HistoryState extends State<HistoryPage>{
           final months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
           dateLabel = "${dt.day} ${months[dt.month-1]} ${dt.year}  ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}";
         } catch(_) {}
-        return Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:kBorder)),
+        return Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:OffroColors.border)),
           child:Row(children:[
             // store image or fallback icon
             ClipRRect(borderRadius:BorderRadius.circular(10),
@@ -390,11 +390,11 @@ class _HistoryState extends State<HistoryPage>{
                   : Container(color:kLight,child:const Icon(Icons.store_rounded,color:kPrimary,size:22)))),
             const SizedBox(width:12),
             Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-              Text(h["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:13)),
+              Text(h["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:OffroColors.text,fontSize:13)),
               const SizedBox(height:3),
               Row(children:[
-                const Icon(Icons.calendar_today_rounded,color:kMuted,size:11),const SizedBox(width:4),
-                Text(dateLabel,style:const TextStyle(color:kMuted,fontSize:11)),
+                const Icon(Icons.calendar_today_rounded,color:OffroColors.textMuted,size:11),const SizedBox(width:4),
+                Text(dateLabel,style:const TextStyle(color:OffroColors.textMuted,fontSize:11)),
               ]),
             ])),
             Container(

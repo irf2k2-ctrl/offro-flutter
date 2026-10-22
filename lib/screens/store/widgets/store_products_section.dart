@@ -6,6 +6,7 @@ import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
 import 'store_header.dart' show FullScreenImageViewer;
+import '../../../core/design/offro_tokens.dart' show OffroColors;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Round 10 — shared pricing/discount resolution, used by both the card and
@@ -161,7 +162,7 @@ class StoreProductsSection extends StatelessWidget {
           Row(children: [
             const Text('Featured Products',
                 style: TextStyle(
-                    color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
+                    color: OffroColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(width: 4),
             // FOLLOW-UP: single tap now opens the full-screen gallery, and
             // the older "view full details + leave a review" flow moved to
@@ -181,13 +182,13 @@ class StoreProductsSection extends StatelessWidget {
               },
               child: const Padding(
                 padding: EdgeInsets.all(2),
-                child: Icon(Icons.info_outline, size: 15, color: kMuted),
+                child: Icon(Icons.info_outline, size: 15, color: OffroColors.textMuted),
               ),
             ),
           ]),
           const SizedBox(height: 2),
           const Text('Products available at this store',
-              style: TextStyle(color: kMuted, fontSize: 12)),
+              style: TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         ]),
       ),
       // Round 12 (Task 1): 210 now matches Today's Offers' deal-card
@@ -383,7 +384,7 @@ class _ProductCardState extends State<_ProductCard> {
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kBorder, width: 1),
+          border: Border.all(color: OffroColors.border, width: 1),
           boxShadow: [BoxShadow(color: kPrimary.withValues(alpha: .08), blurRadius: 16, offset: const Offset(0, 4))],
         ),
         child: ClipRRect(
@@ -599,7 +600,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
           // Title
           Text(title,
               style: const TextStyle(
-                  color: kText,
+                  color: OffroColors.text,
                   fontSize: 18,
                   fontWeight: FontWeight.w900)),
 
@@ -611,13 +612,13 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                     i < avgRating.round()
                         ? Icons.star_rounded
                         : Icons.star_outline_rounded,
-                    color: const Color(0xFFFFD700),
+                    color: OffroColors.amber,
                     size: 16,
                   )),
               const SizedBox(width: 6),
               Text(avgRating.toStringAsFixed(1),
                   style: const TextStyle(
-                      color: kMuted,
+                      color: OffroColors.textMuted,
                       fontSize: 13,
                       fontWeight: FontWeight.w600)),
             ]),
@@ -628,7 +629,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
             Text(offerText,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                    color: kMuted, fontSize: 14, height: 1.5)),
+                    color: OffroColors.textMuted, fontSize: 14, height: 1.5)),
           ],
 
           if (price.isNotEmpty) ...[
@@ -643,7 +644,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 const SizedBox(width: 8),
                 Text('₹$origPrice',
                     style: TextStyle(
-                        color: kMuted.withValues(alpha: .7),
+                        color: OffroColors.textMuted.withValues(alpha: .7),
                         fontSize: 16,
                         decoration: TextDecoration.lineThrough)),
               ],
@@ -654,10 +655,10 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Icon(Icons.calendar_today_rounded,
-                  color: kMuted, size: 13),
+                  color: OffroColors.textMuted, size: 13),
               const SizedBox(width: 5),
               Text('Valid till $validity',
-                  style: const TextStyle(color: kMuted, fontSize: 12)),
+                  style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
             ]),
           ],
 
@@ -669,7 +670,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
             Text(
               _submitted ? 'Your Rating' : 'Rate this Product',
               style: const TextStyle(
-                  color: kText,
+                  color: OffroColors.text,
                   fontSize: 14,
                   fontWeight: FontWeight.w700),
             ),
@@ -687,7 +688,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       i < _userRating
                           ? Icons.star_rounded
                           : Icons.star_outline_rounded,
-                      color: const Color(0xFFFFD700),
+                      color: OffroColors.amber,
                       size: 34,
                     ),
                   ),
@@ -702,7 +703,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 decoration: InputDecoration(
                   hintText: 'Write a short review (optional)',
                   hintStyle: TextStyle(
-                      color: kMuted.withValues(alpha: .6), fontSize: 13),
+                      color: OffroColors.textMuted.withValues(alpha: .6), fontSize: 13),
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   focusedBorder: OutlineInputBorder(

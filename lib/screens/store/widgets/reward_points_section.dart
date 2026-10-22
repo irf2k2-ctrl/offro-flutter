@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../qr/qr_page.dart';
+import '../../../core/design/offro_tokens.dart' show OffroColors;
 
 class RewardPointsSection extends StatelessWidget {
   final int visitPoints;
@@ -28,7 +29,7 @@ class RewardPointsSection extends StatelessWidget {
           decoration: BoxDecoration(
             color: kLight.withValues(alpha: .45),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kBorder, width: 1),
+            border: Border.all(color: OffroColors.border, width: 1),
           ),
           child: Column(children: [
             Icon(Icons.card_giftcard_outlined,
@@ -37,7 +38,7 @@ class RewardPointsSection extends StatelessWidget {
             const Text(
               'Rewards coming soon',
               style: TextStyle(
-                  color: kMuted,
+                  color: OffroColors.textMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w600),
             ),

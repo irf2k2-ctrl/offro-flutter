@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../core/design/offro_tokens.dart' show OffroColors;
 
 const String _kNotifLog = 'offro_notif_event_log';
 const int _kMaxLogEntries = 100;
@@ -103,9 +104,9 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
 
   static const Color kPrimary = Color(0xFF3E5F55);
   static const Color kBg = Color(0xFFFDFBF6);
-  static const Color kText = Color(0xFF2c3e35);
-  static const Color kMuted = Color(0xFF6b8c7e);
-  static const Color kBorder = Color(0xFFd4e8de);
+  static const Color kText = OffroColors.text;
+  static const Color kMuted = OffroColors.textMuted;
+  static const Color kBorder = OffroColors.border;
   static const Color kGreen = Color(0xFF2E7D32);
   static const Color kRed = Color(0xFFC62828);
   static const Color kOrange = Color(0xFFE65100);

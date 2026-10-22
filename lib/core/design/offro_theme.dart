@@ -2,9 +2,7 @@
 //
 // OffrO ThemeData (Figma redesign, Phase 1).
 //
-// NOTE: this theme is defined but NOT yet applied to MaterialApp - applying it
-// switches the default font app-wide, which belongs with the first screen
-// redesign (Phase 2) so existing layouts are not changed in Phase 1.
+// Applied app-wide by MaterialApp in lib/main.dart (single source of truth).
 // It deliberately sets only long-stable theme pieces (no dialog/card/tab/
 // input-decoration themes, whose types changed across recent Flutter
 // releases); OffroTextField, OffroCard etc. style themselves.
@@ -29,6 +27,21 @@ class OffroTheme {
       surface: OffroColors.surface,
       onSurface: OffroColors.text,
       error: OffroColors.error,
+      // Pin every colour that fromSeed would otherwise derive (cool mint-grey
+      // surfaces, #246959-ish containers) to the Figma palette, and keep the
+      // Material surface tint off.
+      onError: Colors.white,
+      primaryContainer: OffroColors.mint,
+      onPrimaryContainer: OffroColors.textDark,
+      secondaryContainer: OffroColors.mint,
+      onSecondaryContainer: OffroColors.textDark,
+      surfaceTint: Colors.transparent,
+      outline: OffroColors.borderStrong,
+      outlineVariant: OffroColors.border,
+      // ignore: deprecated_member_use
+      background: OffroColors.background,
+      // ignore: deprecated_member_use
+      onBackground: OffroColors.text,
     );
 
     return ThemeData(
@@ -38,6 +51,9 @@ class OffroTheme {
       primaryColor: OffroColors.primary,
       scaffoldBackgroundColor: OffroColors.background,
       canvasColor: OffroColors.background,
+      cardColor: OffroColors.surface,
+      // ignore: deprecated_member_use
+      dialogBackgroundColor: OffroColors.background,
       dividerColor: OffroColors.borderSoft,
       splashColor: OffroColors.primary.withValues(alpha: .06),
       highlightColor: OffroColors.primary.withValues(alpha: .04),

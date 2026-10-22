@@ -119,10 +119,10 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                         if (sub.isNotEmpty) ...[
                           const Text(' · ',
                             style: TextStyle(
-                                color: kMuted, fontSize: 13)),
+                                color: OffroColors.textMuted, fontSize: 13)),
                           Text(sub,
                             style: const TextStyle(
-                                color: kMuted,
+                                color: OffroColors.textMuted,
                                 fontSize: 13)),
                         ],
                       ]),

@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import 'store_header.dart' show FullScreenImageViewer;
+import '../../../core/design/offro_tokens.dart' show OffroColors;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Round 12 (Task 5): shared full-screen deal-gallery opener. Previously
@@ -111,7 +112,7 @@ class StoreOffersSection extends StatelessWidget {
           child: Row(children: [
             const Text("Today's Offers",
                 style: TextStyle(
-                    color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
+                    color: OffroColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
             const Spacer(),
             if (deals.isNotEmpty && !loading)
               Container(
@@ -162,7 +163,7 @@ class StoreOffersSection extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: kLight.withValues(alpha: .55),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: kBorder, width: 1),
+                        border: Border.all(color: OffroColors.border, width: 1),
                       ),
                     ),
                   ),
@@ -181,14 +182,14 @@ class StoreOffersSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: kLight.withValues(alpha: .45),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kBorder, width: 1),
+                border: Border.all(color: OffroColors.border, width: 1),
               ),
               child: Column(children: [
                 Icon(Icons.local_offer_outlined, color: kAccent, size: 32),
                 const SizedBox(height: 8),
                 const Text('Offers coming soon',
                     style: TextStyle(
-                        color: kMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                        color: OffroColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
               ]),
             ),
           )
@@ -229,7 +230,7 @@ class StoreOffersSection extends StatelessWidget {
                       margin: EdgeInsets.only(right: idx < deals.length - 1 ? 12 : 0),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: kBorder, width: 1),
+                        border: Border.all(color: OffroColors.border, width: 1),
                         boxShadow: [
                           BoxShadow(
                               color: kPrimary.withValues(alpha: .08),
@@ -258,7 +259,7 @@ class StoreOffersSection extends StatelessWidget {
                                     fit: BoxFit.cover,
                                     placeholder: (_, __) => Container(color: kLight),
                                     errorWidget: (_, __, ___) => Container(color: kLight,
-                                        child: const Icon(Icons.broken_image_outlined, color: kMuted, size: 32)),
+                                        child: const Icon(Icons.broken_image_outlined, color: OffroColors.textMuted, size: 32)),
                                   ),
                             // ── Bottom scrim for text readability ──
                             Positioned(
@@ -309,7 +310,7 @@ class StoreOffersSection extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: kBorder, width: 1),
+                    border: Border.all(color: OffroColors.border, width: 1),
                     boxShadow: [
                       BoxShadow(
                           color: kPrimary.withValues(alpha: .08),
@@ -423,7 +424,7 @@ class StoreOffersSection extends StatelessWidget {
                               Text(
                                 title,
                                 style: const TextStyle(
-                                  color: kText,
+                                  color: OffroColors.text,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
                                   height: 1.3,
@@ -440,7 +441,7 @@ class StoreOffersSection extends StatelessWidget {
                                 child: Text(
                                   desc,
                                   style: const TextStyle(
-                                      color: kMuted, fontSize: 11, height: 1.4),
+                                      color: OffroColors.textMuted, fontSize: 11, height: 1.4),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   textAlign: TextAlign.center,

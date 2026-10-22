@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
@@ -130,7 +131,7 @@ class _SplashState extends State<SplashScreen> with SingleTickerProviderStateMix
     ));
     return Scaffold(
       // ── Original OFFRO splash: white background + centered green logo ──
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       body: FadeTransition(
         opacity: _fade,
         child: Center(
@@ -143,7 +144,7 @@ class _SplashState extends State<SplashScreen> with SingleTickerProviderStateMix
               const Text(
                 "Discover · Save · Earn",
                 style: TextStyle(
-                  color: kMuted,
+                  color: OffroColors.textMuted,
                   fontSize: 12,
                   letterSpacing: 1.8,
                   fontWeight: FontWeight.w500,

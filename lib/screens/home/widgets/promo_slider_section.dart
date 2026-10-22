@@ -5,8 +5,8 @@
 // _PromoSliderSection and only its name became public.
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/store_cards.dart' show PromoSliderCard;
+import '../../../core/design/offro_tokens.dart' show OffroColors;
 
 // ═══════════════════════════════════════════════════════════════
 // 3. PROMO SLIDER SECTION — merchant banners, compact (160px)
@@ -33,8 +33,8 @@ class PromoSliderSection extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text("Featured Banners",
-              style: TextStyle(color: Color(0xFF2c3e35), fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Latest offers from our stores", style: TextStyle(color: kMuted, fontSize: 12)),
+              style: TextStyle(color: OffroColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
+            Text("Latest offers from our stores", style: TextStyle(color: OffroColors.textMuted, fontSize: 12)),
           ]),
         ),
         LayoutBuilder(

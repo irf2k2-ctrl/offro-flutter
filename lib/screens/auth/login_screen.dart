@@ -337,6 +337,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: OffroColors.background,
       body: Stack(children: [
         Container(decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -689,6 +690,7 @@ class _MerchantLoadingState extends State<MerchantLoadingScreen>
   Widget build(BuildContext context) {
     final dots = '.' * _dot;
     return Scaffold(
+      backgroundColor: OffroColors.background,
       body: Stack(children: [
         Container(decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -1638,7 +1640,7 @@ class _MerchantTermsDialogState extends State<_MerchantTermsDialog> {
                   decoration: BoxDecoration(
                     color: _agreed ? kPrimary : Colors.transparent,
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: _agreed ? kPrimary : kBorder, width: 1.6)),
+                    border: Border.all(color: _agreed ? kPrimary : OffroColors.border, width: 1.6)),
                   child: _agreed
                     ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
                     : null,

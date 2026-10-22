@@ -15,6 +15,7 @@ import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:offro_user/screens/store/store_detail_page.dart';
 import 'package:offro_user/core/utils/navigation.dart';
+import '../design/offro_tokens.dart' show OffroColors;
 
 // ── Open/close status helper ──────────────────────────────────────────────────
 ({bool? isOpen, String label, String sub}) _getStoreStatus(Map store) {
@@ -323,7 +324,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
             const SizedBox(height:2),
             Row(children:[
               if(rating>0)...[
-                const Icon(Icons.star_rounded,color:Color(0xFFFFD700),size:10),
+                const Icon(Icons.star_rounded,color:OffroColors.amber,size:10),
                 const SizedBox(width:2),
                 Text(rating.toStringAsFixed(1),style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.w700)),
                 const SizedBox(width:4),
@@ -489,7 +490,7 @@ class TopStoreCard extends StatelessWidget {
               // Name + badge chip
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: Text(name,
-                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
+                  style: const TextStyle(color: OffroColors.text, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
                   maxLines: 1, overflow: TextOverflow.ellipsis)),
                 if (badgeLabel != null) ...[
                   const SizedBox(width: 6),

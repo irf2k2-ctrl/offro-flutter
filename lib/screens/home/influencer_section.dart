@@ -119,11 +119,11 @@ Widget _ratingRow(Map influencer, {double fontSize = 11}) {
   final rating = (influencer["rating"] as num?)?.toStringAsFixed(1) ?? "-";
   final reviews = influencer["review_count"]?.toString() ?? "0";
   return Row(mainAxisSize: MainAxisSize.min, children: [
-    Icon(Icons.star_rounded, color: const Color(0xFFFFB800), size: fontSize + 2),
+    Icon(Icons.star_rounded, color: OffroColors.amber, size: fontSize + 2),
     const SizedBox(width: 2),
-    Text(rating, style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w700, color: kText)),
+    Text(rating, style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w700, color: OffroColors.text)),
     const SizedBox(width: 3),
-    Text("($reviews)", style: TextStyle(fontSize: fontSize, color: kMuted)),
+    Text("($reviews)", style: TextStyle(fontSize: fontSize, color: OffroColors.textMuted)),
   ]);
 }
 
@@ -137,7 +137,7 @@ Widget _avatar(Map influencer, double size) {
     // Image.network, which behaves differently in this app's environment.
     return Container(
       width: size, height: size,
-      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kBorder, width: 1)),
+      decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: OffroColors.border, width: 1)),
       child: ClipOval(
         child: CachedNetworkImage(
           imageUrl: photoUrl, width: size, height: size, fit: BoxFit.cover,
@@ -152,7 +152,7 @@ Widget _avatar(Map influencer, double size) {
       final b64 = photoUrl.split(",").last;
       return Container(
         width: size, height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kBorder, width: 1)),
+        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: OffroColors.border, width: 1)),
         child: ClipOval(
           child: Image.memory(base64Decode(b64), width: size, height: size, fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _avatarFallback(name, size, bordered: false)),
@@ -181,7 +181,7 @@ Widget _squareAvatar(Map influencer, double size) {
       width: size, height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: kBorder, width: 1)),
+        border: Border.all(color: OffroColors.border, width: 1)),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(13),
         child: CachedNetworkImage(
@@ -199,7 +199,7 @@ Widget _squareAvatar(Map influencer, double size) {
         width: size, height: size,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder, width: 1)),
+          border: Border.all(color: OffroColors.border, width: 1)),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(13),
           child: Image.memory(base64Decode(b64), width: size, height: size, fit: BoxFit.cover,
@@ -219,7 +219,7 @@ Widget _squareAvatarFallback(String name, double size, {bool bordered = true}) {
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(14),
       color: _avatarColor(name),
-      border: bordered ? Border.all(color: kBorder, width: 1) : null,
+      border: bordered ? Border.all(color: OffroColors.border, width: 1) : null,
     ),
     alignment: Alignment.center,
     child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?",
@@ -234,11 +234,11 @@ Widget _avatarFallback(String name, double size, {bool bordered = true}) {
       shape: BoxShape.circle,
       color: _avatarColor(name),
       // Item 1: same thin border treatment as uploaded photos, using the
-      // existing app-wide kBorder color — no new color introduced. Skipped
+      // existing app-wide OffroColors.border color — no new color introduced. Skipped
       // only when already nested inside a bordered Container above (the
       // placeholder/error states of the photo paths), to avoid a doubled
       // border in those transient cases.
-      border: bordered ? Border.all(color: kBorder, width: 1) : null,
+      border: bordered ? Border.all(color: OffroColors.border, width: 1) : null,
     ),
     alignment: Alignment.center,
     child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?",
@@ -283,7 +283,7 @@ class _InfluencerCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: OffroColors.border),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _squareAvatar(influencer, 168),
@@ -293,7 +293,7 @@ class _InfluencerCard extends StatelessWidget {
             child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
               Expanded(
                 child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: kText)),
+                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: OffroColors.text)),
               ),
               const SizedBox(width: 6),
               _ratingRow(influencer, fontSize: 11.5),
@@ -311,7 +311,7 @@ class _InfluencerCard extends StatelessWidget {
 /// section — shown ONLY when the API has genuinely returned an empty list
 /// for the current city (never while still loading, and never a fake
 /// influencer or a literal "0 influencers" message). Matches the existing
-/// OffrO card style (white, kBorder, 16px radius) used elsewhere on Home,
+/// OffrO card style (white, OffroColors.border, 16px radius) used elsewhere on Home,
 /// so it reads as an intentional, premium placeholder rather than an
 /// error or missing-data state.
 Widget _influencerComingSoonCard() {
@@ -323,7 +323,7 @@ Widget _influencerComingSoonCard() {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kBorder),
+        border: Border.all(color: OffroColors.border),
       ),
       child: Column(children: [
         Container(
@@ -335,11 +335,11 @@ Widget _influencerComingSoonCard() {
         const SizedBox(height: 14),
         const Text("Influencers are coming soon ✨",
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: kText)),
+          style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: OffroColors.text)),
         const SizedBox(height: 6),
         const Text("We're bringing local creators and their recommendations to OffrO. Stay tuned!",
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12.5, color: kMuted, height: 1.4)),
+          style: TextStyle(fontSize: 12.5, color: OffroColors.textMuted, height: 1.4)),
       ]),
     ),
   );
@@ -405,7 +405,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kBorder),
+                  border: Border.all(color: OffroColors.border),
                 ),
               )),
             ),
@@ -526,8 +526,8 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        iconTheme: const IconThemeData(color: kText),
-        title: const Text("Local Voices", style: TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 17)),
+        iconTheme: const IconThemeData(color: OffroColors.text),
+        title: const Text("Local Voices", style: TextStyle(color: OffroColors.text, fontWeight: FontWeight.w800, fontSize: 17)),
       ),
       body: influencers == null
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
@@ -536,11 +536,11 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Icon(Icons.person_search_rounded, size: 40, color: kMuted),
+                      const Icon(Icons.person_search_rounded, size: 40, color: OffroColors.textMuted),
                       const SizedBox(height: 10),
                       Text("No influencers available in ${widget.city} yet",
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                        style: const TextStyle(color: OffroColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                     ]),
                   ),
                 )
@@ -555,18 +555,18 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 10),
                         padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: OffroColors.border)),
                         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           _avatar(inf, 56),
                           const SizedBox(width: 12),
                           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
                               Expanded(child: Text(inf["name"]?.toString() ?? "",
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText))),
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: OffroColors.text))),
                             ]),
                             const SizedBox(height: 2),
                             Text("${inf["city"] ?? ""} · ${inf["category"] ?? ""}",
-                              style: const TextStyle(fontSize: 11, color: kMuted)),
+                              style: const TextStyle(fontSize: 11, color: OffroColors.textMuted)),
                             const SizedBox(height: 6),
                             _ratingRow(inf),
                             const SizedBox(height: 8),
@@ -1054,7 +1054,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                     ),
                   const SizedBox(height: 10),
                   Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 18),
+                    const Icon(Icons.star_rounded, color: OffroColors.amber, size: 18),
                     const SizedBox(width: 4),
                     Text(_displayRating.toStringAsFixed(1),
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
@@ -1116,8 +1116,8 @@ class _InfluencerReviewsScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
-        iconTheme: const IconThemeData(color: kText),
-        title: Text("Reviews for $name", style: const TextStyle(color: kText, fontWeight: FontWeight.w800, fontSize: 16)),
+        iconTheme: const IconThemeData(color: OffroColors.text),
+        title: Text("Reviews for $name", style: const TextStyle(color: OffroColors.text, fontWeight: FontWeight.w800, fontSize: 16)),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),

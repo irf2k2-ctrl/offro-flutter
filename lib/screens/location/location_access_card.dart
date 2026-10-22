@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/models/offro_location.dart';
 import '../../core/services/location_service.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 
 const Color _kRed = Color(0xFFD64545);
 const Color _kRedBg = Color(0xFFFDECEC);
@@ -30,7 +31,7 @@ class LocationAccessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = access;
-    Color border = kBorder;
+    Color border = OffroColors.border;
     Color bg = Colors.white;
     Color iconColor = kPrimary;
     IconData icon = Icons.my_location_rounded;
@@ -73,7 +74,7 @@ class LocationAccessCard extends StatelessWidget {
       }
     } else {
       trailing = const SizedBox(width: 18, height: 18,
-          child: CircularProgressIndicator(strokeWidth: 2, color: kMuted));
+          child: CircularProgressIndicator(strokeWidth: 2, color: OffroColors.textMuted));
     }
 
     return Material(
@@ -94,10 +95,10 @@ class LocationAccessCard extends StatelessWidget {
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(title, style: TextStyle(
                   fontSize: 15.5, fontWeight: FontWeight.w800,
-                  color: a == null || a == LocationAccess.ready ? kText : _kRed)),
+                  color: a == null || a == LocationAccess.ready ? OffroColors.text : _kRed)),
               if (subtitle.isNotEmpty) ...[
                 const SizedBox(height: 3),
-                Text(subtitle, style: const TextStyle(fontSize: 12.5, color: kMuted, height: 1.3)),
+                Text(subtitle, style: const TextStyle(fontSize: 12.5, color: OffroColors.textMuted, height: 1.3)),
               ],
             ])),
             if (trailing != null) ...[const SizedBox(width: 10), trailing],

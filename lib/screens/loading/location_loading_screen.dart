@@ -13,6 +13,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/utils/geo.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/location_service.dart';
@@ -256,7 +257,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
       statusBarIconBrightness: Brightness.dark,
     ));
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: OffroColors.background,
       body: FadeTransition(
         opacity: _screenFade,
         child: SafeArea(

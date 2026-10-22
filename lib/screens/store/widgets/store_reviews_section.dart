@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
+import '../../../core/design/offro_tokens.dart' show OffroColors;
 
 class StoreReviewsSection extends StatefulWidget {
   final String storeId;
@@ -161,7 +162,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
         child: Text('Store information unavailable.',
-            style: const TextStyle(color: kMuted, fontSize: 13)),
+            style: const TextStyle(color: OffroColors.textMuted, fontSize: 13)),
       );
     }
 
@@ -174,7 +175,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
         Row(children: [
           const Text('Reviews',
               style: TextStyle(
-                  color: kText,
+                  color: OffroColors.text,
                   fontSize: 17,
                   fontWeight: FontWeight.w800)),
           const Spacer(),
@@ -184,7 +185,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
             const SizedBox(width: 3),
             Text(_avgRating.toStringAsFixed(1),
                 style: const TextStyle(
-                    color: kText,
+                    color: OffroColors.text,
                     fontSize: 13,
                     fontWeight: FontWeight.w700)),
             const SizedBox(width: 6),
@@ -193,17 +194,17 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
             Text(
               '($_total review${_total == 1 ? "" : "s"})',
               style: const TextStyle(
-                  color: kMuted, fontSize: 12),
+                  color: OffroColors.textMuted, fontSize: 12),
             ),
           if (_total == 0 && !_loading)
             const Text('No reviews yet',
                 style:
-                    TextStyle(color: kMuted, fontSize: 12)),
+                    TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         ]),
         const SizedBox(height: 4),
         const Text('What customers are saying',
             style:
-                TextStyle(color: kMuted, fontSize: 12)),
+                TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         const SizedBox(height: 14),
 
         // ── FIX4: Smart write / edit review UI ──
@@ -222,7 +223,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                   const Icon(Icons.person_rounded, color: kPrimary, size: 15),
                   const SizedBox(width: 6),
                   const Text("Your Review",
-                      style: TextStyle(color: kText, fontSize: 13, fontWeight: FontWeight.w800)),
+                      style: TextStyle(color: OffroColors.text, fontSize: 13, fontWeight: FontWeight.w800)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => setState(() => _showForm = true),
@@ -244,11 +245,11 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                   i < (_userReview!['rating'] as num? ?? 0).toInt()
                       ? Icons.star_rounded : Icons.star_outline_rounded,
                   color: i < (_userReview!['rating'] as num? ?? 0).toInt()
-                      ? const Color(0xFFFFD700) : kMuted,
+                      ? OffroColors.amber : OffroColors.textMuted,
                   size: 16))),
                 const SizedBox(height: 6),
                 Text(_userReview!['text']?.toString() ?? '',
-                    style: const TextStyle(color: kText, fontSize: 13, height: 1.4),
+                    style: const TextStyle(color: OffroColors.text, fontSize: 13, height: 1.4),
                     maxLines: 3, overflow: TextOverflow.ellipsis),
               ]),
             ),
@@ -267,7 +268,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                   Icon(Icons.rate_review_rounded, color: kPrimary, size: 18),
                   SizedBox(width: 10),
                   Text('Write a review…',
-                      style: TextStyle(color: kMuted, fontSize: 13)),
+                      style: TextStyle(color: OffroColors.textMuted, fontSize: 13)),
                 ]),
               ),
             ),
@@ -294,7 +295,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 children: [
               const Text('Your Rating',
                   style: TextStyle(
-                      color: kText,
+                      color: OffroColors.text,
                       fontSize: 13,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
@@ -312,8 +313,8 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                             ? Icons.star_rounded
                             : Icons.star_outline_rounded,
                         color: i < _draftRating
-                            ? const Color(0xFFFFD700)
-                            : kMuted,
+                            ? OffroColors.amber
+                            : OffroColors.textMuted,
                         size: 28,
                       ),
                     ),
@@ -327,7 +328,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 decoration: InputDecoration(
                   hintText: 'Share your experience…',
                   hintStyle: const TextStyle(
-                      color: kMuted, fontSize: 13),
+                      color: OffroColors.textMuted, fontSize: 13),
                   filled: true,
                   fillColor: const Color(0xFFFDFBF6),
                   isDense: true,
@@ -336,12 +337,12 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                       borderRadius:
                           BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                          color: kBorder)),
+                          color: OffroColors.border)),
                   enabledBorder: OutlineInputBorder(
                       borderRadius:
                           BorderRadius.circular(12),
                       borderSide: const BorderSide(
-                          color: kBorder)),
+                          color: OffroColors.border)),
                   focusedBorder: OutlineInputBorder(
                       borderRadius:
                           BorderRadius.circular(12),
@@ -364,8 +365,8 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                       _msg = '';
                     }),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: kMuted,
-                      side: const BorderSide(color: kBorder),
+                      foregroundColor: OffroColors.textMuted,
+                      side: const BorderSide(color: OffroColors.border),
                       padding: const EdgeInsets.symmetric(
                           vertical: 11),
                       shape: RoundedRectangleBorder(
@@ -429,7 +430,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
               const Text(
                 'No reviews yet.',
                 style: TextStyle(
-                    color: kText,
+                    color: OffroColors.text,
                     fontSize: 14,
                     fontWeight: FontWeight.w700),
               ),
@@ -437,7 +438,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
               const Text(
                 'Be the first to review.',
                 style: TextStyle(
-                    color: kMuted, fontSize: 13),
+                    color: OffroColors.textMuted, fontSize: 13),
               ),
             ]),
           )
@@ -496,7 +497,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
               child: Text('All Reviews',
                   style: TextStyle(
-                      color: kText,
+                      color: OffroColors.text,
                       fontSize: 17,
                       fontWeight: FontWeight.w800)),
             ),
@@ -548,7 +549,7 @@ class _ReviewCard extends StatelessWidget {
               offset: const Offset(0, 3)),
         ],
         border:
-            Border.all(color: kBorder.withValues(alpha: .5)),
+            Border.all(color: OffroColors.border.withValues(alpha: .5)),
       ),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,13 +576,13 @@ class _ReviewCard extends StatelessWidget {
                 children: [
               Text(name,
                   style: const TextStyle(
-                      color: kText,
+                      color: OffroColors.text,
                       fontSize: 13,
                       fontWeight: FontWeight.w700)),
               if (dateLabel.isNotEmpty)
                 Text(dateLabel,
                     style: const TextStyle(
-                        color: kMuted, fontSize: 10)),
+                        color: OffroColors.textMuted, fontSize: 10)),
             ]),
           ),
           Row(
@@ -591,7 +592,7 @@ class _ReviewCard extends StatelessWidget {
                 i < rating.round()
                     ? Icons.star_rounded
                     : Icons.star_outline_rounded,
-                color: const Color(0xFFFFD700),
+                color: OffroColors.amber,
                 size: 14,
               ),
             ),
@@ -601,7 +602,7 @@ class _ReviewCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(text,
               style: const TextStyle(
-                  color: kMuted, fontSize: 12, height: 1.6)),
+                  color: OffroColors.textMuted, fontSize: 12, height: 1.6)),
         ],
       ]),
     );
@@ -661,7 +662,7 @@ class _AllReviewsListState extends State<_AllReviewsList> {
     if (_all.isEmpty) {
       return const Center(
           child: Text('No reviews yet',
-              style: TextStyle(color: kMuted)));
+              style: TextStyle(color: OffroColors.textMuted)));
     }
     return ListView.builder(
       controller: widget.controller,
