@@ -49,6 +49,8 @@ import 'screens/home/popup_campaign_overlay.dart';
 import 'screens/home/influencer_section.dart';
 import 'screens/influencer/my_influencer_profile.dart';
 import 'screens/wallet/wallet_page.dart';
+import 'screens/home/explore_tab.dart';
+import 'screens/home/profile_tab.dart';
 import 'screens/payment/payment_success_screen.dart';
 import 'core/widgets/store_cards.dart';
 import 'core/widgets/product_share_card.dart';
@@ -832,6 +834,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // FIX 1: FAB scroll-aware visibility
   final ScrollController _scrollCtrl = ScrollController();
   final ValueNotifier<bool> _fabVisible = ValueNotifier<bool>(false);
+  final Set<int> _builtTabs = {0}; // tabs shown at least once (lazy IndexedStack)
   final ValueNotifier<bool> _navVisible = ValueNotifier<bool>(true); // FIX 3: hide nav on scroll down
   List<Map<String,dynamic>> _sliders=[];
   String _cityImageUrl = ""; // fetched from /cities backend
@@ -840,7 +843,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
   List<String> _defaultProductImageUrls = []; // default product images from /admin/default-images (all configured)
   List<Map<String,dynamic>> _mbFallbackSliders = []; // default merchant banners (may be multiple, images OR videos)
-  final PageController _sliderPc = PageController(initialPage: 49999); // FIX 5: start at midpoint for infinite scroll
   Timer? _sliderTimer;
   // FIX 2: ValueNotifier for slider page — avoids full-tree rebuild on swipe
   final ValueNotifier<int> _sliderPageNotifier = ValueNotifier<int>(0);
@@ -1613,14 +1615,18 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  // The hero is ONE fixed card; only its media layer changes (crossfade).
+  void _advanceHeroSlide(){
+    if(!mounted || _sliders.length < 2) return;
+    _sliderPageNotifier.value = (_sliderPageNotifier.value + 1) % _sliders.length;
+  }
+
   void _startSliderAutoPlay(){
     _sliderTimer?.cancel();
     // Auto-play even for 1 item (will loop to same) — only skip if empty
     if(_sliders.isNotEmpty){
       _sliderTimer=Timer.periodic(const Duration(seconds:10),(_){
-        if(_sliderPc.hasClients){
-          _sliderPc.nextPage(duration:const Duration(milliseconds:500),curve:Curves.easeInOut);
-        }
+        _advanceHeroSlide();
       });
     }
   }
@@ -1773,7 +1779,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     FavState.instance.productRevision.removeListener(_onFavChanged);
     _unreadNotifier.removeListener(_onUnreadChanged);
     WidgetsBinding.instance.removeObserver(this);
-    _catTimer?.cancel(); _sliderTimer?.cancel(); _heroRotateTimer?.cancel(); _sliderPc.dispose();
+    _catTimer?.cancel(); _sliderTimer?.cancel(); _heroRotateTimer?.cancel();
     _scrollCtrl.dispose(); // FIX 1: FAB scroll controller
     _fabVisible.dispose(); // FIX 1: FAB notifier
     _navVisible.dispose(); // FIX 3: nav visible notifier
@@ -1800,10 +1806,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         statusBarIconBrightness: Brightness.dark,
         systemNavigationBarColor: OffroColors.background,
       ),
-      child: Scaffold(
+      child: PopScope(
+       canPop: _navIdx == 0,
+       onPopInvokedWithResult: (didPop, _) { if (!didPop) setState(() => _navIdx = 0); },
+       child: Scaffold(
         extendBodyBehindAppBar: true,
         backgroundColor: OffroColors.background,
         body: Stack(children: [
+              IndexedStack(index: _navIdx, children: [
               _loading
               ? LayoutBuilder(builder: (ctx, bc) => SizedBox(
                   width: bc.maxWidth,
@@ -1842,12 +1852,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         imageLoading: _heroImageLoading,
                         onCtaTap: () => _searchStores(context),
                         sliders: _sliders,
-                        sliderPc: _sliderPc,
                         sliderPageNotifier: _sliderPageNotifier,
                         token: widget.token,
-                        onSliderPageChanged: (i) {
-                          _sliderPageNotifier.value = i % (_sliders.isEmpty ? 1 : _sliders.length);
-                        },
+                        onAdvance: _advanceHeroSlide,
                       ),
                     )),
 
@@ -1919,9 +1926,27 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   ]),
                 )),
                 ]),
+              // ── Tabs 1–4 (built lazily, state kept while switching) ──
+              _builtTabs.contains(1)
+                  ? ExploreTab(
+                      stores: _cityFiltered,
+                      city: city,
+                      token: widget.token,
+                      onStoreTap: (s) => Navigator.push(context, appRoute(
+                        StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
+                    )
+                  : const SizedBox.shrink(),
+              _builtTabs.contains(2)
+                  ? _AllDealsScreen(key: ValueKey("tab_deals_${city}_$_dealsNonce"), token: widget.token, city: city, embedded: true)
+                  : const SizedBox.shrink(),
+              _builtTabs.contains(3)
+                  ? WalletPage(token: widget.token, embedded: true)
+                  : const SizedBox.shrink(),
+              _builtTabs.contains(4) ? _profileTab() : const SizedBox.shrink(),
+              ]),
 
-            // Scroll-to-top FAB
-            Positioned(
+            // Scroll-to-top FAB (Home tab only)
+            if (_navIdx == 0) Positioned(
               bottom: 104, right: 16,
               child: ValueListenableBuilder<bool>(
                 valueListenable: _fabVisible,
@@ -1957,7 +1982,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               builder: (_, visible, child) => AnimatedPositioned(
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeInOut,
-                bottom: (visible && (_cityFiltered.isNotEmpty || _loading)) ? 0 : -140,
+                bottom: (visible && (_navIdx != 0 || _cityFiltered.isNotEmpty || _loading)) ? 0 : -140,
                 left: 0, right: 0,
                 child: child!,
               ),
@@ -1969,6 +1994,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ]),
       ),
+     ),
     );
   }
 
@@ -2256,137 +2282,101 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     ];
   }
 
-  // Same destinations as the old nav: Home stays, Explore = store search,
-  // Deals = all deals, Rewards = wallet (login-gated), Profile = sheet.
+  // Bottom nav: Home | Explore | Deals | Rewards | Profile. Each tab now
+  // renders in place (the floating nav stays visible); Rewards is still
+  // login-gated exactly as before.
   void _onNavTap(int i) {
-    switch (i) {
-      case 0:
-        setState(() => _navIdx = 0);
-        return;
-      case 1:
-        setState(() => _navIdx = 1);
-        _searchStores(context);
-        return;
-      case 2:
-        setState(() => _navIdx = 2);
-        Navigator.push(context, appRoute(_AllDealsScreen(token: widget.token, city: city)))
-            .then((_) { if (mounted) setState(() => _navIdx = 0); });
-        return;
-      case 3:
-        if (!_requireLogin(context, 'My Rewards')) return;
-        setState(() => _navIdx = 3);
-        Navigator.push(context, appRoute(WalletPage(token: widget.token)))
-            .then((_) { if (mounted) setState(() => _navIdx = 0); });
-        return;
-      case 4:
-        setState(() => _navIdx = 4);
-        _showProfile(context);
-        return;
-    }
+    if (i == 3 && !_requireLogin(context, 'My Rewards')) return;
+    setState(() { _navIdx = i; _builtTabs.add(i); });
   }
 
-  void _searchStores(BuildContext ctx) {
-    Navigator.push(ctx, appRoute(_SearchPage(token:widget.token, city:city)))
-        .then((_) { if (mounted) setState(() => _navIdx = 0); });
+  // Home search bar / hero CTA → Explore tab (store search lives there).
+  void _searchStores(BuildContext ctx) => _onNavTap(1);
+
+  Future<void> _showInfoDialog(String title, Future<String> Function() load, {String fallback = ""}) async {
+    final c = await load();
+    if (!mounted) return;
+    showDialog(context: context, builder: (_) => OffroDialog(title: title, body: c.isEmpty ? fallback : c));
   }
 
-  // Profile sheet (replaces _more) — all options inside
-  Future<void> _showProfile(BuildContext ctx) => showModalBottomSheet(
-    context:ctx,
-    isScrollControlled:true,
-    backgroundColor:Colors.transparent,
-    builder:(ctx2)=>DraggableScrollableSheet(
-      initialChildSize:0.72,
-      minChildSize:0.45,
-      maxChildSize:0.92,
-      expand:false,
-      builder:(_,sc)=>Container(
-        decoration:const BoxDecoration(color:Colors.white,borderRadius:BorderRadius.vertical(top:Radius.circular(24))),
-        child:Column(children:[
-          Container(width:40,height:4,margin:const EdgeInsets.only(top:12,bottom:4),
-            decoration:BoxDecoration(color:Colors.grey.shade300,borderRadius:BorderRadius.circular(2))),
-          UserProfileHeader(token:widget.token,name:widget.name,phone:widget.phone),
-          const Divider(height:1),
-          Expanded(child:ListView(controller:sc,children:[
-            _pItem(ctx,Icons.search_rounded,"Search Stores",()=>_searchStores(ctx)),
-            _pItem(ctx,Icons.card_giftcard_rounded,"My Rewards",(){if(_requireLogin(ctx,"My Rewards"))Navigator.push(ctx,appRoute(WalletPage(token:widget.token)));}),
-            _pItem(ctx,Icons.history_rounded,"Scan History",(){if(_requireLogin(ctx,"Scan History"))Navigator.push(ctx,appRoute(HistoryPage(token:widget.token)));}),
-            _pItem(ctx,Icons.favorite_rounded,"My Favourites",(){if(_requireLogin(ctx,"My Favourites"))Navigator.push(ctx,appRoute(FavoritesPage(token:widget.token)));}),
-            _pItem(ctx,Icons.notifications_rounded,"Notifications",()=>Navigator.push(ctx,appRoute(NotificationsPage()))),
-            const Divider(height:1),
-            _pItem(ctx,Icons.info_outline_rounded,"About Us",()async{final c=await Api.getAboutUs();if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"About Us",body:c.isEmpty?"Offro connects local stores with customers through deals and loyalty points.":c));}),
-            _pItem(ctx,Icons.description_rounded,"Terms & Conditions",()async{final c=await Api.fetchTerms("user");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Terms & Conditions",body:c));}),
-            _pItem(ctx,Icons.privacy_tip_rounded,"Privacy Policy",()=>Navigator.push(ctx,appRoute(PrivacyPolicyPage(token:widget.token)))),
-            _pItem(ctx,Icons.receipt_rounded,"Refund Policy",()async{final c=await Api.fetchPolicy("refund");if(!ctx.mounted)return;showDialog(context:ctx,builder:(_)=>OffroDialog(title:"Refund Policy",body:c));}),
-            const Divider(height:1),
-            // ── Switch Mode ──
-            if (!widget.isGuest) _switchModeItem(ctx),
-            const Divider(height:1),
-            _pItem(ctx,Icons.chat_bubble_rounded,"Contact Offro",()async{
-              final s=await Api.getSocialLinks();
-              final rawWa=s["whatsapp"]??"";
-              if(rawWa.isNotEmpty){
-                final digits=rawWa.replaceAll(RegExp(r'[^0-9]'),'');
-                final waNum=digits.length>=10?(digits.length==10?"91$digits":digits):digits;
-                await launchUrl(Uri.parse("https://wa.me/$waNum"),mode:LaunchMode.externalApplication);
-              }
-            },color:const Color(0xFF25D366)),
-            if (widget.isGuest)
-              _pItem(ctx,Icons.login_rounded,"Login / Register",()async{
+  void _openSwitchMode() {
+    showModalBottomSheet(
+      context: MyApp.navigatorKey.currentContext ?? context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SwitchModeSheet(
+        currentMode: 'user',
+        token: widget.token,
+        phone: widget.phone,
+        onSwitch: (role) => MyApp.goSwitchMode(
+          widget.token, widget.name, widget.phone, widget.userId, role),
+      ),
+    );
+  }
+
+  // Profile tab — same actions the old profile sheet offered.
+  Widget _profileTab() {
+    void gated(String feature, VoidCallback go) { if (_requireLogin(context, feature)) go(); }
+    return ProfileTab(
+      token: widget.token,
+      name: widget.name,
+      phone: widget.phone,
+      isGuest: widget.isGuest,
+      savedCount: _favStoreIds.length,
+      points: _walletPoints,
+      activity: [
+        ProfileEntry(icon: OffroIcons.heart, label: "My Favourites", note: "Stores you saved",
+          onTap: () => gated("My Favourites", () => Navigator.push(context, appRoute(FavoritesPage(token: widget.token))).then((_) => _loadFavStores()))),
+        ProfileEntry(icon: OffroIcons.gift, label: "My Rewards", note: "Reward points and vouchers",
+          onTap: () => _onNavTap(3)),
+        ProfileEntry(icon: OffroIcons.clock, label: "Scan History", note: "Points earned at stores",
+          onTap: () => gated("Scan History", () => Navigator.push(context, appRoute(HistoryPage(token: widget.token))))),
+        ProfileEntry(icon: OffroIcons.bell, label: "Notifications", note: "Offers, rewards and account updates",
+          onTap: () => Navigator.push(context, appRoute(NotificationsPage()))),
+      ],
+      account: [
+        if (!widget.isGuest)
+          ProfileEntry(icon: OffroIcons.sparkles, label: "Switch Mode", note: "Switch between User & Merchant",
+            onTap: _openSwitchMode),
+        ProfileEntry(icon: OffroIcons.message, label: "Contact Offro", note: "Chat with us on WhatsApp",
+          onTap: () async {
+            final s = await Api.getSocialLinks();
+            final rawWa = s["whatsapp"] ?? "";
+            if (rawWa.isNotEmpty) {
+              final digits = rawWa.replaceAll(RegExp(r'[^0-9]'), '');
+              final waNum = digits.length >= 10 ? (digits.length == 10 ? "91$digits" : digits) : digits;
+              await launchUrl(Uri.parse("https://wa.me/$waNum"), mode: LaunchMode.externalApplication);
+            }
+          }),
+      ],
+      legal: [
+        ProfileEntry(icon: OffroIcons.store, label: "About Us",
+          onTap: () => _showInfoDialog("About Us", Api.getAboutUs,
+            fallback: "Offro connects local stores with customers through deals and loyalty points.")),
+        ProfileEntry(icon: OffroIcons.tag, label: "Terms & Conditions",
+          onTap: () => _showInfoDialog("Terms & Conditions", () => Api.fetchTerms("user"))),
+        ProfileEntry(icon: OffroIcons.shield, label: "Privacy Policy", note: "Includes delete account",
+          onTap: () => Navigator.push(context, appRoute(PrivacyPolicyPage(token: widget.token)))),
+        ProfileEntry(icon: OffroIcons.route, label: "Refund Policy",
+          onTap: () => _showInfoDialog("Refund Policy", () => Api.fetchPolicy("refund"))),
+      ],
+      sessionAction: widget.isGuest
+          ? ProfileEntry(icon: OffroIcons.user, label: "Login / Register",
+              onTap: () async {
                 await Prefs.clearGuest();
                 Api.clearCache();
                 MyApp.goLogin();
-              },color:kPrimary)
-            else
-              _pItem(ctx,Icons.logout_rounded,"Logout",()async{
+              })
+          : ProfileEntry(icon: OffroIcons.arrow, label: "Logout", destructive: true,
+              onTap: () async {
                 await Prefs.clear();
                 FcmService.reset();
                 Api.clearCache();
                 // Use navigatorKey so OnboardingScreen gets the goLogin callback
                 MyApp.goOnboarding();
-              },color:Colors.red),
-            const SizedBox(height:28),
-          ])),
-        ]),
-      ),
-    )).whenComplete(() { if (mounted) setState(() => _navIdx = 0); });
-
-  Widget _switchModeItem(BuildContext ctx) => ListTile(
-    leading: Container(
-      width:38, height:38,
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-      child: const Icon(Icons.swap_horiz_rounded, color: kPrimary, size: 20)),
-    title: const Text('Switch Mode', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: kText)),
-    subtitle: const Text('Switch between User & Merchant', style: TextStyle(fontSize: 11, color: kMuted)),
-    trailing: const Icon(Icons.chevron_right, color: kMuted, size: 20),
-    onTap: () {
-      Navigator.pop(ctx); // close bottom sheet first
-      showModalBottomSheet(
-        context: MyApp.navigatorKey.currentContext ?? ctx,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => SwitchModeSheet(
-          currentMode: 'user',
-          token: widget.token,
-          phone: widget.phone,
-          onSwitch: (role) => MyApp.goSwitchMode(
-            widget.token, widget.name, widget.phone, widget.userId, role),
-        ),
-      );
-    },
-  );
-
-  Widget _pItem(BuildContext ctx,IconData icon,String title,VoidCallback onTap,{Color color=kPrimary})=>
-    ListTile(
-      leading:Container(
-        width:38,height:38,
-        decoration:BoxDecoration(
-          color:color==kPrimary?kLight:color.withValues(alpha: .1),
-          borderRadius:BorderRadius.circular(10)),
-        child:Icon(icon,color:color==kPrimary?kPrimary:color,size:18)),
-      title:Text(title,style:TextStyle(color:color==kPrimary?kText:color,fontWeight:FontWeight.w600,fontSize:14)),
-      trailing:color==kPrimary?const Icon(Icons.arrow_forward_ios_rounded,size:13,color:kMuted):null,
-      onTap:(){ Navigator.pop(ctx); onTap(); });
+              }),
+    );
+  }
 
   bool _requireLogin(BuildContext ctx, String featureName) {
     if (!widget.isGuest) return true;
@@ -2457,6 +2447,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 // ─────────────────────── VIEW ALL PAGE ───────────────────────
 
 // ─────────────────────── SEARCH PAGE ───────────────────────
+// Retired: search now lives in the Explore tab (screens/home/explore_tab.dart).
+// ignore: unused_element
 class _SearchPage extends StatefulWidget {
   final String token; final String city;
   const _SearchPage({required this.token, required this.city});
@@ -3775,7 +3767,10 @@ class _PinCard extends StatelessWidget {
 class _AllDealsScreen extends StatefulWidget {
   final String token;
   final String city;
-  const _AllDealsScreen({required this.token, required this.city});
+  // true when shown as the Deals tab inside Home (no own Scaffold / back
+  // button, the floating bottom nav stays visible).
+  final bool embedded;
+  const _AllDealsScreen({required this.token, required this.city, this.embedded = false});
   @override State<_AllDealsScreen> createState() => _AllDealsScreenState();
 }
 
@@ -3783,6 +3778,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
   List<Map<String,dynamic>> _deals = [];
   bool _loading = true;
   String _q = "";
+  String _filter = "All"; // All | Ending soon | <deal category>
 
   @override void initState() { super.initState(); _load(); }
 
@@ -3802,13 +3798,41 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
   }
 
   List<Map<String,dynamic>> get _filtered {
-    if (_q.trim().isEmpty) return _deals;
+    Iterable<Map<String,dynamic>> list = _deals;
+    if (_filter == "Ending soon") {
+      list = list.where((d) {
+        final left = _daysLeft((d["end_date"] ?? "").toString());
+        return left != null && left >= 0 && left <= 3;
+      });
+    } else if (_filter != "All") {
+      list = list.where((d) => (d["category"] ?? "").toString() == _filter);
+    }
+    if (_q.trim().isEmpty) return list.toList();
     final q = _q.toLowerCase();
-    return _deals.where((d) =>
+    return list.where((d) =>
       (d["title"]      ?? "").toString().toLowerCase().contains(q) ||
       (d["store_name"] ?? "").toString().toLowerCase().contains(q) ||
       (d["store_area"] ?? "").toString().toLowerCase().contains(q)
     ).toList();
+  }
+
+  /// Whole days until the deal ends (today = 0); null when there is no usable date.
+  int? _daysLeft(String endRaw) {
+    final dt = _parseDate(endRaw);
+    if (dt == null) return null;
+    final today = DateTime.now();
+    return DateTime(dt.year, dt.month, dt.day)
+        .difference(DateTime(today.year, today.month, today.day)).inDays;
+  }
+
+  /// Filter chips: All, Ending soon, then the categories real deals carry.
+  List<String> get _filterOptions {
+    final cats = <String>[];
+    for (final d in _deals) {
+      final c = (d["category"] ?? "").toString().trim();
+      if (c.isNotEmpty && c != "null" && !cats.contains(c)) cats.add(c);
+    }
+    return ["All", "Ending soon", ...cats.take(4)];
   }
 
   // Round 12 (Task 5): the currently-visible (filtered) deals that have an
@@ -3867,212 +3891,273 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     return DateTime.now().isAfter(dt.add(const Duration(days: 1)));
   }
 
+  void _openDeal(BuildContext ctx, Map<String,dynamic> d) {
+    final imgUrl    = (d["image_url"]  ?? "").toString();
+    final storeId   = (d["store_id"]   ?? "").toString();
+    final storeName = (d["store_name"] ?? "").toString();
+    final storeArea = (d["store_area"] ?? "").toString();
+    // Same behaviour as before: a deal with an image opens the swipeable
+    // full-screen deal gallery; one without goes to Store Detail.
+    if (imgUrl.isNotEmpty) {
+      openDealGallery(ctx, _dealsWithImages, d);
+      return;
+    }
+    final store = <String,dynamic>{
+      "_id":        storeId,
+      "store_name": storeName,
+      "area":       storeArea,
+      "city":       (d["store_city"] ?? "").toString(),
+      "address":    (d["store_address"] ?? "").toString(),
+      "phone":      (d["store_phone"] ?? "").toString(),
+      "image_url":  imgUrl,
+      "category":   (d["category"] ?? "").toString(),
+    };
+    Navigator.push(ctx, appRoute(
+      StoreDetailPage(store: store, token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
+  }
+
+  Widget _dealCard(BuildContext ctx, Map<String,dynamic> d) {
+    final imgUrl    = (d["image_url"]  ?? "").toString();
+    final endDate   = (d["end_date"]   ?? "").toString();
+    final storeName = (d["store_name"] ?? "").toString();
+    final storeArea = (d["store_area"] ?? "").toString();
+    final title     = (d["title"]      ?? "").toString();
+    final category  = (d["category"]   ?? "").toString().trim();
+    final discInt   = int.tryParse((d["discount"] ?? "").toString()) ?? 0;
+    final expired   = _isExpired(endDate);
+    final left      = _daysLeft(endDate);
+    final endsText  = expired
+        ? "Expired"
+        : left == null ? "" : left <= 0 ? "Ends today" : left == 1 ? "Ends in 1 day" : "Ends in $left days";
+    final sub = [if (storeName.isNotEmpty) storeName, if (storeArea.isNotEmpty) storeArea].join(" · ");
+
+    return GestureDetector(
+      onTap: () => _openDeal(ctx, d),
+      child: Container(
+        height: 256,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: OffroColors.text,
+          borderRadius: BorderRadius.circular(27),
+        ),
+        child: Stack(fit: StackFit.expand, children: [
+          OffroNetworkImage(
+            url: imgUrl,
+            errorWidget: const ColoredBox(color: OffroColors.primary),
+          ),
+          if (expired) const ColoredBox(color: Color(0x73000000)),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                colors: [
+                  Colors.black.withValues(alpha: .90),
+                  Colors.black.withValues(alpha: .35),
+                  Colors.black.withValues(alpha: .20),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: .15),
+                    borderRadius: OffroRadii.pillRadius,
+                    border: Border.all(color: Colors.white.withValues(alpha: .25)),
+                  ),
+                  child: Text(category.isNotEmpty && category != "null" ? category.toUpperCase() : "LOCAL DEAL",
+                    style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w600, color: Colors.white)),
+                ),
+              ]),
+              const Spacer(),
+              if (discInt > 0)
+                Text("$discInt%",
+                  style: OffroText.display.copyWith(fontSize: 43, letterSpacing: -2.8, height: 1, color: Colors.white)),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: OffroText.cardTitle.copyWith(fontSize: 18, fontWeight: FontWeight.w500, color: Colors.white)),
+              ),
+              if (sub.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .65))),
+                ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: Colors.white.withValues(alpha: .15))),
+                ),
+                child: Row(children: [
+                  if (endsText.isNotEmpty) ...[
+                    OffroIcon(OffroIcons.clock, size: 12, color: Colors.white.withValues(alpha: .65)),
+                    const SizedBox(width: 4),
+                    Text(endsText,
+                      style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .65))),
+                  ],
+                  const Spacer(),
+                  Text("AVAILABLE IN STORE",
+                    style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: .65))),
+                ]),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override Widget build(BuildContext context) {
     final items = _filtered;
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Hot Deals",
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: kText)),
-            if (widget.city.isNotEmpty)
-              Text(widget.city,
-                style: const TextStyle(fontSize: 11, color: kMuted, fontWeight: FontWeight.w400)),
-          ],
+    final topPad = MediaQuery.of(context).padding.top;
+    final options = _filterOptions;
+
+    final content = ListView(
+      padding: EdgeInsets.only(top: widget.embedded ? topPad : 0, bottom: widget.embedded ? 124 : 32),
+      physics: const BouncingScrollPhysics(),
+      children: [
+        OffroScreenHeader(
+          eyebrow: "Fresh around you",
+          title: "Local deals",
+          description: widget.city.isNotEmpty
+              ? "Member-only prices and limited offers from verified businesses in ${widget.city}."
+              : "Member-only prices and limited offers from verified businesses nearby.",
+          showBack: !widget.embedded,
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
-        ),
-      ),
-      body: Column(children: [
-        // Search bar
+        // Search (kept from the previous Deals screen)
         Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+          padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 20, OffroSpacing.gutter, 0),
           child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: kBorder),
-              boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2))],
+              color: OffroColors.surface,
+              borderRadius: BorderRadius.circular(OffroRadii.input),
+              boxShadow: const [BoxShadow(color: Color(0x0F3E5F55), blurRadius: 30, offset: Offset(0, 8))],
             ),
-            child: TextField(
-              onChanged: (v) => setState(() => _q = v),
-              style: const TextStyle(fontSize: 14, color: kText),
-              decoration: const InputDecoration(
-                hintText: "Search deals...",
-                hintStyle: TextStyle(color: kMuted, fontSize: 13),
-                prefixIcon: Icon(Icons.search_rounded, color: kMuted, size: 20),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              ),
-            ),
-          ),
-        ),
-        // Count label
-        if (!_loading)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "${items.length} active deal${items.length == 1 ? '' : 's'}",
-                style: const TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w500),
-              ),
-            ),
-          ),
-        // List
-        Expanded(
-          child: _loading
-            ? const Center(child: CircularProgressIndicator(color: kPrimary))
-            : items.isEmpty
-              ? Center(child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.local_offer_outlined, size: 56, color: kAccent),
-                    const SizedBox(height: 12),
-                    Text(_q.isEmpty ? "No active deals right now" : "No deals match your search",
-                      style: const TextStyle(color: kMuted, fontSize: 15)),
-                  ],
-                ))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 32),
-                  itemCount: items.length,
-                  itemBuilder: (ctx, i) {
-                    final d = items[i];
-                    final imgUrl  = (d["image_url"]  ?? "").toString();
-                    final endDate = (d["end_date"]   ?? "").toString();
-                    final storeName = (d["store_name"] ?? "").toString();
-                    final storeArea = (d["store_area"] ?? "").toString();
-                    final title   = (d["title"]      ?? "").toString();
-                    final storeId = (d["store_id"]   ?? "").toString();
-                    final expired = _isExpired(endDate);
-                    return GestureDetector(
-                      onTap: () {
-                        // ROUND 12 FIX (Task 5): tapping a Home "Hot Deals"
-                        // row used to always open Store Detail first. Now it
-                        // opens the exact same swipeable full-screen deal
-                        // gallery Today's Offers uses (see openDealGallery
-                        // in store_offers_section.dart) directly, starting
-                        // at this exact deal, without going through Store
-                        // Detail at all.
-                        //
-                        // A deal with no image can't be shown in an image
-                        // gallery — Today's Offers has the same rule (a
-                        // no-image deal there renders a non-tappable
-                        // decorative card). Rather than leaving the tap do
-                        // nothing at all here (this list doesn't have that
-                        // decorative fallback design), it keeps going to
-                        // Store Detail in that one case, so the tap still
-                        // does something useful.
-                        if (imgUrl.isNotEmpty) {
-                          openDealGallery(ctx, _dealsWithImages, d);
-                          return;
-                        }
-                        final store = <String,dynamic>{
-                          "_id":        storeId,
-                          "store_name": storeName,
-                          "area":       storeArea,
-                          "city":       (d["store_city"] ?? "").toString(),
-                          "address":    (d["store_address"] ?? "").toString(),
-                          "phone":      (d["store_phone"] ?? "").toString(),
-                          "image_url":  imgUrl,
-                          "category":   (d["category"] ?? "").toString(),
-                        };
-                        Navigator.push(ctx, appRoute(
-                          StoreDetailPage(store: store, token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk))))));
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: expired ? const Color(0xFFE0E0E0) : kBorder),
-                          boxShadow: const [BoxShadow(color: Color(0x06000000), blurRadius: 8, offset: Offset(0, 2))],
-                        ),
-                        child: Row(children: [
-                          // Store image
-                          ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
-                            child: Stack(children: [
-                              imgUrl.isNotEmpty
-                                ? CachedNetworkImage(
-                                    imageUrl: imgUrl, width: 88, height: 88, fit: BoxFit.cover,
-                                    errorWidget: (_, __, ___) => Container(
-                                      width: 88, height: 88, color: kAccent,
-                                      child: const Icon(Icons.store_rounded, color: kPrimary, size: 28)))
-                                : Container(width: 88, height: 88, color: kAccent,
-                                    child: const Icon(Icons.store_rounded, color: kPrimary, size: 28)),
-                              if (expired)
-                                Container(width: 88, height: 88, color: Colors.black38),
-                            ]),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Padding(
-                            padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              // QA fix: percentage/discount badge removed from
-                              // the Hot Deals LIST card (still shown in the
-                              // deal's own full detail/gallery view — only
-                              // this list presentation was asked to drop it).
-                              if (expired)
-                                Container(
-                                  margin: const EdgeInsets.only(bottom: 5),
-                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.shade100,
-                                    borderRadius: BorderRadius.circular(20)),
-                                  child: const Text("Expired",
-                                    style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w700)),
-                                ),
-                              // Deal title
-                              Text(title,
-                                style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.w700,
-                                  color: expired ? kMuted : kText),
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                              const SizedBox(height: 3),
-                              // Store name
-                              Row(children: [
-                                const Icon(Icons.store_rounded, size: 12, color: kMuted),
-                                const SizedBox(width: 4),
-                                Expanded(child: Text(storeName,
-                                  style: const TextStyle(fontSize: 12, color: kMuted),
-                                  maxLines: 1, overflow: TextOverflow.ellipsis)),
-                              ]),
-                              if (storeArea.isNotEmpty) ...[
-                                const SizedBox(height: 2),
-                                Row(children: [
-                                  const Icon(Icons.location_on_rounded, size: 12, color: kMuted),
-                                  const SizedBox(width: 4),
-                                  Text(storeArea,
-                                    style: const TextStyle(fontSize: 11, color: kMuted)),
-                                ]),
-                              ],
-                              // QA fix: validity/"Valid till" date line removed
-                              // from the Hot Deals LIST card presentation.
-                            ]),
-                          )),
-                          // Chevron
-                          Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: Icon(Icons.arrow_forward_ios_rounded,
-                              size: 14, color: expired ? const Color(0xFFCCCCCC) : kPrimary),
-                          ),
-                        ]),
-                      ),
-                    );
-                  },
+            child: Row(children: [
+              const OffroIcon(OffroIcons.search, size: 18, color: Color(0x803E5F55)),
+              const SizedBox(width: 12),
+              Expanded(child: TextField(
+                onChanged: (v) => setState(() => _q = v),
+                style: OffroText.body.copyWith(fontSize: 13, color: OffroColors.text),
+                cursorColor: OffroColors.primary,
+                decoration: InputDecoration(
+                  hintText: "Search deals, stores or areas",
+                  hintStyle: OffroText.body.copyWith(fontSize: 13, color: const Color(0x4D000000)),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
                 ),
+              )),
+            ]),
+          ),
         ),
-      ]),
+        // Filter chips
+        Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: OffroSpacing.gutterH,
+            child: Row(children: [
+              for (final o in options)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _filter = o),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _filter == o ? OffroColors.primary : OffroColors.surface,
+                        borderRadius: OffroRadii.pillRadius,
+                        border: _filter == o ? null : Border.all(color: OffroColors.border),
+                      ),
+                      child: Text(o,
+                        style: OffroText.caption.copyWith(
+                          fontSize: 12, fontWeight: FontWeight.w500,
+                          color: _filter == o ? Colors.white : OffroColors.text)),
+                    ),
+                  ),
+                ),
+            ]),
+          ),
+        ),
+        // Count banner (real count of active deals)
+        if (!_loading && items.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 20, OffroSpacing.gutter, 0),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: OffroColors.mint,
+                borderRadius: BorderRadius.circular(OffroRadii.input),
+              ),
+              child: Row(children: [
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text("THIS WEEK",
+                    style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: const Color(0xA63E5F55))),
+                  const SizedBox(height: 4),
+                  Text("${items.length} active ${items.length == 1 ? 'deal' : 'deals'} for you",
+                    style: OffroText.titleSm.copyWith(fontSize: 18)),
+                ])),
+                Container(
+                  width: 44, height: 44,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: Color(0xB3FFFFFF), shape: BoxShape.circle),
+                  child: const OffroIcon(OffroIcons.tag, size: 20, color: OffroColors.primary),
+                ),
+              ]),
+            ),
+          ),
+        const SizedBox(height: 24),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 60),
+            child: Center(child: CircularProgressIndicator(color: OffroColors.primary)),
+          )
+        else if (items.isEmpty)
+          Padding(
+            padding: OffroSpacing.gutterH,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: OffroColors.borderStrong),
+              ),
+              child: Column(children: [
+                const OffroIcon(OffroIcons.tag, size: 28, color: OffroColors.accent),
+                const SizedBox(height: 12),
+                Text(_q.isEmpty && _filter == "All" ? "No active deals right now" : "No deals match your search",
+                  style: OffroText.cardTitle.copyWith(fontSize: 13)),
+              ]),
+            ),
+          )
+        else
+          Padding(
+            padding: OffroSpacing.gutterH,
+            child: Column(children: [
+              for (int i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(height: 16),
+                _dealCard(context, items[i]),
+              ],
+            ]),
+          ),
+      ],
+    );
+
+    if (widget.embedded) return content;
+    return Scaffold(
+      backgroundColor: OffroColors.background,
+      body: SafeArea(bottom: false, child: content),
     );
   }
 }
@@ -4488,16 +4573,15 @@ class _CityHeroSection extends StatelessWidget {
   final bool imageLoading;
   final VoidCallback onCtaTap;
   final List<Map<String,dynamic>> sliders;
-  final PageController sliderPc;
   final ValueNotifier<int> sliderPageNotifier;
   final String token;
-  final ValueChanged<int> onSliderPageChanged;
+  final VoidCallback onAdvance; // a promo video finished → show the next slide
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     this.imageLoading = false, required this.onCtaTap,
-    required this.sliders, required this.sliderPc,
+    required this.sliders,
     required this.sliderPageNotifier, required this.token,
-    required this.onSliderPageChanged,
+    required this.onAdvance,
   });
 
   static const double _heroH = 296;
@@ -4509,26 +4593,45 @@ class _CityHeroSection extends StatelessWidget {
         child: _cityCard(),
       );
     }
-    return SizedBox(
-      height: _heroH,
-      child: PageView.builder(
-        controller: sliderPc,
-        itemCount: 99999, // always loop (same as the old banner carousel)
-        onPageChanged: onSliderPageChanged,
-        itemBuilder: (_, i) {
-          final slide = Map<String,dynamic>.from(sliders[i % sliders.length]);
-          return Padding(
-            padding: OffroSpacing.gutterH,
-            child: _slideCard(slide),
-          );
-        },
+    // ONE fixed card (size, position, radius never change). Only the media +
+    // its overlay text cross-fade when the active slide changes.
+    return Padding(
+      padding: OffroSpacing.gutterH,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(OffroRadii.hero),
+        child: SizedBox(
+          height: _heroH,
+          width: double.infinity,
+          child: Stack(fit: StackFit.expand, children: [
+            const ColoredBox(color: OffroColors.text),
+            ValueListenableBuilder<int>(
+              valueListenable: sliderPageNotifier,
+              builder: (_, pg, __) {
+                final idx = pg % sliders.length;
+                return AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 700),
+                  switchInCurve: Curves.easeInOut,
+                  switchOutCurve: Curves.easeInOut,
+                  layoutBuilder: (current, previous) => Stack(
+                    fit: StackFit.expand,
+                    children: [...previous, if (current != null) current],
+                  ),
+                  child: KeyedSubtree(
+                    key: ValueKey<int>(idx),
+                    child: _slideContent(Map<String,dynamic>.from(sliders[idx])),
+                  ),
+                );
+              },
+            ),
+          ]),
+        ),
       ),
     );
   }
 
   // ── One promo slide: real media + Figma overlay. Text/CTA only appear when
   // the slide itself carries a title (never invented). ──
-  Widget _slideCard(Map<String,dynamic> sl) {
+  Widget _slideContent(Map<String,dynamic> sl) {
     final title    = (sl["title"] ?? "").toString().trim();
     final sub      = (sl["subtitle"] ?? sl["text"] ?? "").toString().trim();
     final storeId  = (sl["store_id"] ?? "").toString();
@@ -4538,24 +4641,13 @@ class _CityHeroSection extends StatelessWidget {
     final accent   = words.length > 1 ? words.last : title;
     final before   = words.length > 1 ? "${words.sublist(0, words.length - 1).join(' ')} " : "";
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(OffroRadii.hero),
-      child: SizedBox(
-        height: _heroH,
-        width: double.infinity,
-        child: Stack(fit: StackFit.expand, children: [
-          const ColoredBox(color: OffroColors.text),
+    return Stack(fit: StackFit.expand, children: [
           Positioned.fill(child: PromoSliderCard(
             slider: sl,
             token: token,
             squareCorners: true,
             hideText: true,
-            onVideoComplete: () {
-              if (sliderPc.hasClients) {
-                sliderPc.nextPage(
-                  duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
-              }
-            },
+            onVideoComplete: onAdvance,
           )),
           // Overlay is decoration only — taps fall through to the slide.
           IgnorePointer(child: Stack(fit: StackFit.expand, children: [
@@ -4586,7 +4678,7 @@ class _CityHeroSection extends StatelessWidget {
             ),
             if (hasText)
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 44),
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -4636,26 +4728,6 @@ class _CityHeroSection extends StatelessWidget {
                     ),
                 ]),
               ),
-            // Page dots (Figma: bottom-left, active pill is wider)
-            if (sliders.length > 1)
-              Positioned(
-                left: 24, bottom: 20,
-                child: ValueListenableBuilder<int>(
-                  valueListenable: sliderPageNotifier,
-                  builder: (_, pg, __) => Row(children: [
-                    for (int i = 0; i < sliders.length; i++)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        margin: const EdgeInsets.only(right: 6),
-                        width: pg == i ? 20 : 6, height: 6,
-                        decoration: BoxDecoration(
-                          color: pg == i ? Colors.white : Colors.white.withValues(alpha: .35),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                  ]),
-                ),
-              ),
             if (promoter.isNotEmpty)
               Positioned(
                 right: 16, bottom: 18,
@@ -4663,9 +4735,7 @@ class _CityHeroSection extends StatelessWidget {
                   style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: .65))),
               ),
           ])),
-        ]),
-      ),
-    );
+    ]);
   }
 
   // ── No promo sliders: city artwork hero ("Explore <City>") ──

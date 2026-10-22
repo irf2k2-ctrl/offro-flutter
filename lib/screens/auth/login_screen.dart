@@ -16,6 +16,7 @@ import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/utils/navigation.dart';
+import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii;
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
 const _kWidgetId  = '36656f6a786e313430373338';
@@ -161,56 +162,55 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Figma verification screen: light background, outlined 4-box code entry.
+    // OTP controllers, autofill, _handleOtpChange, _verify and _resend are unchanged.
     return Scaffold(
-      body: Stack(children: [
-        Container(decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0d2b24), Color(0xFF1e4a3f), Color(0xFF3E5F55)],
-            begin: Alignment.topLeft, end: Alignment.bottomRight))),
-        SafeArea(child: Column(children: [
-          Align(
-            alignment: Alignment.centerLeft,
+      backgroundColor: OffroColors.background,
+      body: SafeArea(child: Column(children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
             child: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: OffroColors.primary, size: 18),
               onPressed: () => Navigator.pop(context),
             ),
           ),
-          Expanded(child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.center, children: [
-              const SizedBox(height: 20),
-              buildImageLogo(height: 90, white: true),
-              const SizedBox(height: 32),
-              Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(
-                  color: kLight.withValues(alpha: .15),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: kLight.withValues(alpha: .3), width: 2),
-                ),
-                child: const Icon(Icons.lock_outline_rounded, color: kLight, size: 34),
-              ),
-              const SizedBox(height: 20),
-              const Text('Verify Your Number',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              Text('We sent a 4-digit OTP to\n${widget.phone}',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withValues(alpha: .65), fontSize: 13, height: 1.5)),
-              const SizedBox(height: 32),
-              // OTP boxes
-              AutofillGroup(
-                child: Row(
+        ),
+        Expanded(child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            buildImageLogo(height: 36),
+            const SizedBox(height: 36),
+            Container(
+              width: 56, height: 56,
+              decoration: const BoxDecoration(color: OffroColors.mint, shape: BoxShape.circle),
+              child: const Icon(Icons.lock_outline_rounded, color: OffroColors.primary, size: 26),
+            ),
+            const SizedBox(height: 20),
+            Text('VERIFICATION', style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 2.0, color: OffroColors.sage)),
+            const SizedBox(height: 8),
+            Text.rich(TextSpan(children: [
+              TextSpan(text: 'Verify your ', style: OffroText.display.copyWith(fontSize: 32, letterSpacing: -1.9)),
+              TextSpan(text: 'number', style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 32, letterSpacing: -0.8))),
+            ])),
+            const SizedBox(height: 10),
+            Text('We sent a 4-digit OTP to\n${widget.phone}',
+              style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.5, color: OffroColors.textMuted)),
+            const SizedBox(height: 32),
+            // OTP boxes
+            AutofillGroup(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(4, (i) => Container(
-                  width: 60, height: 64,
+                  width: 62, height: 66,
                   margin: const EdgeInsets.symmetric(horizontal: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .1),
-                    borderRadius: BorderRadius.circular(16),
+                    color: Colors.white,
+                    borderRadius: OffroRadii.inputRadius,
                     border: Border.all(
-                      color: _ctls[i].text.isNotEmpty ? kLight : Colors.white.withValues(alpha: .25),
-                      width: _ctls[i].text.isNotEmpty ? 2 : 1.5),
+                      color: _ctls[i].text.isNotEmpty ? OffroColors.primary : OffroColors.border,
+                      width: _ctls[i].text.isNotEmpty ? 1.8 : 1.2),
                   ),
                   child: TextField(
                     controller: _ctls[i], focusNode: _foci[i],
@@ -224,59 +224,57 @@ class _OtpScreenState extends State<OtpScreen> {
                     // value across all 4 boxes; a single keystroke behaves
                     // exactly as before (unchanged auto-advance behavior).
                     autofillHints: const [AutofillHints.oneTimeCode],
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900),
+                    style: OffroText.headline.copyWith(fontSize: 24),
                     decoration: const InputDecoration(counterText: '', border: InputBorder.none),
                     onChanged: (v) => _handleOtpChange(i, v),
                   ),
                 )),
+              ),
+            ),
+            if (_msg.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Center(child: Text(_msg, textAlign: TextAlign.center,
+                style: OffroText.bodySmall.copyWith(
+                  fontSize: 13, fontWeight: FontWeight.w600,
+                  color: _msgOk ? OffroColors.primary : OffroColors.error))),
+            ],
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity, height: 52,
+              child: ElevatedButton(
+                onPressed: _loading ? null : _verify,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: OffroColors.primary,
+                  disabledBackgroundColor: OffroColors.primary.withValues(alpha: .45),
+                  shape: const StadiumBorder(),
+                  elevation: 0,
                 ),
+                child: _loading
+                  ? const SizedBox(width: 22, height: 22,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                  : Text('Verify OTP', style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
               ),
-              if (_msg.isNotEmpty) ...[
-                const SizedBox(height: 14),
-                Text(_msg, textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _msgOk ? kLight : const Color(0xFFFF6B6B),
-                    fontSize: 13, fontWeight: FontWeight.w600)),
-              ],
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _verify,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kLight, foregroundColor: kPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  child: _loading
-                    ? const SizedBox(width: 22, height: 22,
-                        child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2.5))
-                    : const Text('Verify OTP',
-                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                ),
-              ),
-              const SizedBox(height: 18),
-              GestureDetector(
-                onTap: _resendSecs == 0 ? _resend : null,
-                child: _resending
-                  ? const SizedBox(height: 20, width: 20,
-                      child: CircularProgressIndicator(color: kLight, strokeWidth: 2))
-                  : RichText(text: TextSpan(children: [
-                      TextSpan(text: "Didn't receive OTP? ",
-                        style: TextStyle(color: Colors.white.withValues(alpha: .6), fontSize: 13)),
-                      TextSpan(
-                        text: _resendSecs > 0 ? 'Resend in ${_resendSecs}s' : 'Resend OTP',
-                        style: TextStyle(
-                          color: _resendSecs > 0 ? Colors.white38 : kLight,
-                          fontWeight: FontWeight.w700, fontSize: 13)),
-                    ])),
-              ),
-              const SizedBox(height: 24),
-            ]),
-          )),
-        ])),
-      ]),
+            ),
+            const SizedBox(height: 20),
+            Center(child: GestureDetector(
+              onTap: _resendSecs == 0 ? _resend : null,
+              child: _resending
+                ? const SizedBox(height: 20, width: 20,
+                    child: CircularProgressIndicator(color: OffroColors.primary, strokeWidth: 2))
+                : RichText(text: TextSpan(children: [
+                    TextSpan(text: "Didn't receive OTP? ",
+                      style: OffroText.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+                    TextSpan(
+                      text: _resendSecs > 0 ? 'Resend in ${_resendSecs}s' : 'Resend OTP',
+                      style: OffroText.caption.copyWith(
+                        fontSize: 13, fontWeight: FontWeight.w700,
+                        color: _resendSecs > 0 ? OffroColors.textFaint : OffroColors.primary)),
+                  ])),
+            )),
+            const SizedBox(height: 24),
+          ]),
+        )),
+      ])),
     );
   }
 }
@@ -1199,193 +1197,228 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Figma auth layout: mint hero with logo + headline, rounded form sheet
+    // below it. Logic (controllers, _sendOtp, _continueAsGuest, tabs) is unchanged.
     return Scaffold(
-      body: Stack(children: [
-        // ── Full-screen gradient background ──
-        Container(decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF0b2218), Color(0xFF1a3d33), Color(0xFF2d5548), Color(0xFF3E5F55)],
-            begin: Alignment.topCenter, end: Alignment.bottomCenter))),
+      backgroundColor: OffroColors.background,
+      body: FadeTransition(
+        opacity: _fadeAnim,
+        child: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: MediaQuery.of(context).size.height),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              // ── Hero ──
+              Container(
+                color: OffroColors.mint,
+                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 28, 24, 64),
+                child: Stack(clipBehavior: Clip.hardEdge, children: [
+                  Positioned(right: -72, top: -90, child: Container(
+                    width: 192, height: 192,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white.withValues(alpha: .25), width: 34)))),
+                  Positioned(left: -90, bottom: -110, child: Container(
+                    width: 192, height: 192,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: OffroColors.accent.withValues(alpha: .45)))),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      buildImageLogo(height: 36),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: .55),
+                          borderRadius: OffroRadii.pillRadius),
+                        child: Text('LOCAL, MADE EASY',
+                          style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
+                      ),
+                    ]),
+                    const SizedBox(height: 40),
+                    Text('WELCOME TO YOUR NEIGHBOURHOOD',
+                      style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 2.0, color: OffroColors.primary.withValues(alpha: .6))),
+                    const SizedBox(height: 12),
+                    Text.rich(TextSpan(children: [
+                      TextSpan(text: 'Find more to ', style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
+                      TextSpan(text: 'love', style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -1))),
+                      TextSpan(text: ', nearby.', style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
+                    ])),
+                    const SizedBox(height: 16),
+                    Text('Local stores, thoughtful offers and people worth discovering—all in one place.',
+                      style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.5, color: OffroColors.primary.withValues(alpha: .65))),
+                  ]),
+                ]),
+              ),
 
-        // ── Decorative circles (top-right) ──
-        Positioned(top: -60, right: -60, child: Container(
-          width: 220, height: 220,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: kLight.withValues(alpha: .07)))),
-        Positioned(top: 40, right: -20, child: Container(
-          width: 120, height: 120,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: kAccent.withValues(alpha: .1)))),
-
-        SafeArea(child: FadeTransition(
-          opacity: _fadeAnim,
-          child: Column(children: [
-            // ── TOP: Logo area ──
-            const SizedBox(height: 36),
-            buildImageLogo(height: 90, white: true),
-            const SizedBox(height: 8),
-            const Text('Discover · Save · Earn',
-              style: TextStyle(color: Colors.white38, fontSize: 11.5, letterSpacing: 1.6)),
-
-            const Spacer(flex: 1),
-
-            // ── BOTTOM CARD: slide-up form ──
-            SlideTransition(
-              position: _slideAnim,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 0),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                ),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-
-                    // ── Tab: Login | Register ──
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F4F2),
-                        borderRadius: BorderRadius.circular(14)),
-                      child: Row(children: [
-                        _tabBtn('Login', !_isReg, () => setState(() { _isReg = false; _msg = ''; })),
-                        _tabBtn('Register', _isReg,  () {
-                          FocusScope.of(context).unfocus();
-                          setState(() { _isReg = true;  _msg = ''; });
-                          Future.delayed(const Duration(milliseconds: 300), () {
-                            if (mounted && _isReg) FocusScope.of(context).requestFocus(_nameFocus);
-                          });
-                        }),
-                      ]),
+              // ── Form sheet ──
+              Transform.translate(
+                offset: const Offset(0, -28),
+                child: SlideTransition(
+                  position: _slideAnim,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                    decoration: const BoxDecoration(
+                      color: OffroColors.background,
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                     ),
-                    const SizedBox(height: 24),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-                    // Name field (register only)
-                    if (_isReg) ...[
-                      _label('Your Name'),
-                      _field(_nameC, 'e.g. Rahul Kumar', Icons.person_outline_rounded,
-                        keyboardType: TextInputType.text,
-                        focusNode: _nameFocus,
-                        textCapitalization: TextCapitalization.words,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
-                          LengthLimitingTextInputFormatter(40),
+                      // ── Tab: Login | Register ──
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: OffroColors.beige.withValues(alpha: .35),
+                          borderRadius: OffroRadii.pillRadius),
+                        child: Row(children: [
+                          _tabBtn('Login', !_isReg, () => setState(() { _isReg = false; _msg = ''; })),
+                          _tabBtn('Register', _isReg, () {
+                            FocusScope.of(context).unfocus();
+                            setState(() { _isReg = true; _msg = ''; });
+                            Future.delayed(const Duration(milliseconds: 300), () {
+                              if (mounted && _isReg) FocusScope.of(context).requestFocus(_nameFocus);
+                            });
+                          }),
                         ]),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Name field (register only)
+                      if (_isReg) ...[
+                        _label('Your name'),
+                        _field(_nameC, 'Enter your full name', Icons.person_outline_rounded,
+                          keyboardType: TextInputType.text,
+                          focusNode: _nameFocus,
+                          textCapitalization: TextCapitalization.words,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                            LengthLimitingTextInputFormatter(40),
+                          ]),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Phone field
+                      _label('Mobile number'),
+                      _phoneField(),
                       const SizedBox(height: 16),
-                    ],
 
-                    // Phone field
-                    _label('Mobile Number'),
-                    _phoneField(),
-                    const SizedBox(height: 20),
+                      // Terms (register only)
+                      if (_isReg) ...[
+                        GestureDetector(
+                          onTap: () => setState(() => _agreed = !_agreed),
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              width: 18, height: 18, margin: const EdgeInsets.only(top: 1),
+                              decoration: BoxDecoration(
+                                color: _agreed ? OffroColors.primary : Colors.transparent,
+                                borderRadius: BorderRadius.circular(5),
+                                border: Border.all(color: _agreed ? OffroColors.primary : OffroColors.borderStrong, width: 1.6)),
+                              child: _agreed
+                                ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
+                                : null,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(child: Wrap(children: [
+                              Text('I agree to the ', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
+                              _legalLink('User Terms', () => _showPolicy('User Terms', Api.fetchTerms('user'))),
+                              Text(' | ', style: OffroText.caption.copyWith(fontSize: 11, color: OffroColors.textMuted)),
+                              _legalLink('Merchant Terms', () => _showPolicy('Merchant Terms', Api.getMerchantTerms())),
+                              Text(' | ', style: OffroText.caption.copyWith(fontSize: 11, color: OffroColors.textMuted)),
+                              _legalLink('Privacy Policy', () => _showPolicy('Privacy Policy', Api.fetchPolicy('privacy'))),
+                            ])),
+                          ]),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
-                    // Terms (register only)
-                    if (_isReg) ...[
-                      GestureDetector(
-                        onTap: () => setState(() => _agreed = !_agreed),
-                        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 160),
-                            width: 20, height: 20, margin: const EdgeInsets.only(top: 1),
-                            decoration: BoxDecoration(
-                              color: _agreed ? kPrimary : Colors.transparent,
-                              borderRadius: BorderRadius.circular(5),
-                              border: Border.all(color: _agreed ? kPrimary : kBorder, width: 1.6)),
-                            child: _agreed
-                              ? const Icon(Icons.check_rounded, size: 13, color: Colors.white)
-                              : null,
+                      // Error/Success message
+                      if (_msg.isNotEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          margin: const EdgeInsets.only(bottom: 14),
+                          decoration: BoxDecoration(
+                            color: _msgOk ? OffroColors.mint : OffroColors.error.withValues(alpha: .10),
+                            borderRadius: BorderRadius.circular(14)),
+                          child: Text(_msg, textAlign: TextAlign.center,
+                            style: OffroText.bodySmall.copyWith(
+                              fontSize: 12.5,
+                              color: _msgOk ? OffroColors.primary : OffroColors.error)),
+                        ),
+                      ],
+
+                      // Send OTP button
+                      SizedBox(
+                        width: double.infinity, height: 52,
+                        child: ElevatedButton(
+                          onPressed: _loading ? null : _sendOtp,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: OffroColors.primary,
+                            disabledBackgroundColor: OffroColors.primary.withValues(alpha: .45),
+                            shape: const StadiumBorder(),
+                            elevation: 0,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(child: Wrap(children: [
-                            const Text('I agree to the ', style: TextStyle(fontSize: 12, color: kMuted)),
-                            GestureDetector(
-                              onTap: () => _showPolicy('User Terms', Api.fetchTerms('user')),
-                              child: const Text('User Terms', style: TextStyle(fontSize: 12, color: kPrimary, decoration: TextDecoration.underline, fontWeight: FontWeight.bold))),
-                            const Text(' | ', style: TextStyle(fontSize: 12, color: kMuted)),
-                            GestureDetector(
-                              onTap: () => _showPolicy('Merchant Terms', Api.getMerchantTerms()),
-                              child: const Text('Merchant Terms', style: TextStyle(fontSize: 12, color: kPrimary, decoration: TextDecoration.underline, fontWeight: FontWeight.bold))),
-                            const Text(' | ', style: TextStyle(fontSize: 12, color: kMuted)),
-                            GestureDetector(
-                              onTap: () => _showPolicy('Privacy Policy', Api.fetchPolicy('privacy')),
-                              child: const Text('Privacy Policy', style: TextStyle(fontSize: 12, color: kPrimary, decoration: TextDecoration.underline, fontWeight: FontWeight.bold))),
-                          ])),
-                        ]),
+                          child: _loading
+                            ? const SizedBox(width: 22, height: 22,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                            : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                Text(_isReg ? 'Register & get verification code' : 'Get verification code',
+                                  style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
+                              ]),
+                        ),
                       ),
                       const SizedBox(height: 20),
-                    ],
 
-                    // Error/Success message
-                    if (_msg.isNotEmpty) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        margin: const EdgeInsets.only(bottom: 14),
-                        decoration: BoxDecoration(
-                          color: _msgOk ? const Color(0xFFd1f0e0) : const Color(0xFFfde8e6),
-                          borderRadius: BorderRadius.circular(10)),
-                        child: Text(_msg, textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _msgOk ? const Color(0xFF1a6640) : Colors.red.shade700,
-                            fontSize: 12.5)),
-                      ),
-                    ],
-
-                    // Send OTP button
-                    SizedBox(
-                      width: double.infinity, height: 52,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _sendOtp,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimary,
-                          disabledBackgroundColor: kAccent.withValues(alpha: .4),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
+                      // "or" divider
+                      Row(children: [
+                        Expanded(child: Container(height: 1, color: const Color(0x14000000))),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('OR', style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.4, color: const Color(0x4D000000))),
                         ),
-                        child: _loading
-                          ? const SizedBox(width: 22, height: 22,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                          : Text(_isReg ? 'Register & Get OTP' : 'Get OTP',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                        Expanded(child: Container(height: 1, color: const Color(0x14000000))),
+                      ]),
+                      const SizedBox(height: 20),
 
-                    // Social bar
-                    _socialBar(),
-                    const SizedBox(height: 16),
-                    // Continue as Guest
-                    Divider(height: 1, color: kBorder),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity, height: 46,
-                      child: OutlinedButton(
-                        onPressed: _continueAsGuest,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: kPrimary, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      // Continue as Guest
+                      SizedBox(
+                        width: double.infinity, height: 48,
+                        child: OutlinedButton(
+                          onPressed: _continueAsGuest,
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            side: BorderSide(color: OffroColors.primary.withValues(alpha: .18)),
+                            shape: const StadiumBorder(),
+                          ),
+                          child: Text('Continue as guest',
+                            style: OffroText.button.copyWith(color: OffroColors.primary, fontSize: 12.5)),
                         ),
-                        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Icon(Icons.person_outline_rounded, color: kPrimary, size: 20),
-                          SizedBox(width: 8),
-                          Text('Continue as Guest',
-                            style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
-                        ]),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                  ]),
+                      const SizedBox(height: 24),
+
+                      // Social bar (admin-configured links)
+                      Center(child: Text('FOLLOW THE LOCAL STORY',
+                        style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: const Color(0x4D000000)))),
+                      const SizedBox(height: 10),
+                      _socialBar(),
+                    ]),
+                  ),
                 ),
               ),
-            ),
-          ]),
-        )),
-      ]),
+            ]),
+          ),
+        ),
+      ),
     );
   }
+
+  Widget _legalLink(String text, VoidCallback onTap) => GestureDetector(
+    onTap: onTap,
+    child: Text(text, style: OffroText.caption.copyWith(
+      fontSize: 11, fontWeight: FontWeight.w700, color: OffroColors.primary,
+      decoration: TextDecoration.underline)));
 
   Widget _tabBtn(String label, bool active, VoidCallback onTap) =>
     Expanded(child: GestureDetector(
@@ -1395,20 +1428,34 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
           color: active ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(11),
-          boxShadow: active ? [BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 6, offset: const Offset(0, 2))] : null,
+          borderRadius: OffroRadii.pillRadius,
+          boxShadow: active ? [BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 6, offset: const Offset(0, 2))] : null,
         ),
         child: Text(label, textAlign: TextAlign.center,
-          style: TextStyle(
-            color: active ? kPrimary : kMuted,
-            fontWeight: active ? FontWeight.w800 : FontWeight.w500,
-            fontSize: 14)),
+          style: OffroText.button.copyWith(
+            fontSize: 12,
+            color: active ? OffroColors.primary : const Color(0x66000000))),
       ),
     ));
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Text(text, style: const TextStyle(color: kText, fontWeight: FontWeight.w700, fontSize: 13.5)));
+    child: Text(text, style: OffroText.caption.copyWith(
+      fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary.withValues(alpha: .7))));
+
+  InputDecoration _decoration({required String hint, Widget? prefix, BoxConstraints? prefixConstraints}) =>
+    InputDecoration(
+      hintText: hint,
+      hintStyle: OffroText.body.copyWith(fontSize: 14, color: OffroColors.textPlaceholder),
+      counterText: '',
+      prefixIcon: prefix,
+      prefixIconConstraints: prefixConstraints,
+      filled: true, fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+      border: OutlineInputBorder(borderRadius: OffroRadii.inputRadius, borderSide: const BorderSide(color: OffroColors.border)),
+      enabledBorder: OutlineInputBorder(borderRadius: OffroRadii.inputRadius, borderSide: const BorderSide(color: OffroColors.border)),
+      focusedBorder: OutlineInputBorder(borderRadius: OffroRadii.inputRadius, borderSide: const BorderSide(color: OffroColors.primary, width: 1.5)),
+    );
 
   Widget _field(TextEditingController c, String hint, IconData icon,
       {TextInputType keyboardType = TextInputType.text,
@@ -1421,16 +1468,10 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       focusNode: focusNode,
       textCapitalization: textCapitalization,
       inputFormatters: inputFormatters,
-      style: const TextStyle(fontSize: 14, color: kText),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFFb0c9c0)),
-        prefixIcon: Icon(icon, color: kMuted, size: 20),
-        filled: true, fillColor: const Color(0xFFF7FAF8),
-        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: kBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: kBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: kPrimary, width: 2)),
+      style: OffroText.body.copyWith(fontSize: 14),
+      decoration: _decoration(
+        hint: hint,
+        prefix: Icon(icon, color: OffroColors.sage, size: 18),
       ),
     );
 
@@ -1439,26 +1480,17 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       controller: _phoneC,
       keyboardType: TextInputType.phone,
       maxLength: 10,
-      style: const TextStyle(fontSize: 15, color: kText, letterSpacing: 0.5),
-      decoration: InputDecoration(
-        hintText: '10-digit mobile number',
-        hintStyle: const TextStyle(color: Color(0xFFb0c9c0), fontSize: 14),
-        counterText: '',
-        prefixIcon: Container(
-          margin: const EdgeInsets.only(left: 12, right: 8),
+      style: OffroText.body.copyWith(fontSize: 14, letterSpacing: 0.5),
+      decoration: _decoration(
+        hint: '98765 43210',
+        prefix: Container(
+          margin: const EdgeInsets.only(left: 16, right: 12),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Text('🇮🇳', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 6),
-            const Text('+91', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14)),
-            Container(width: 1, height: 18, color: kBorder, margin: const EdgeInsets.only(left: 8)),
+            Text('+91', style: OffroText.cardTitle.copyWith(fontSize: 14)),
+            Container(width: 1, height: 18, color: const Color(0x1A000000), margin: const EdgeInsets.only(left: 12)),
           ]),
         ),
-        prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-        filled: true, fillColor: const Color(0xFFF7FAF8),
-        contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: kBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: kBorder)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(13), borderSide: const BorderSide(color: kPrimary, width: 2)),
+        prefixConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
       ),
     );
 
