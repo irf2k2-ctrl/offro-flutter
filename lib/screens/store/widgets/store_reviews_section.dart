@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
-import '../../../core/design/offro_tokens.dart' show OffroColors;
+import '../../../core/design/design.dart';
 
 class StoreReviewsSection extends StatefulWidget {
   final String storeId;
@@ -172,12 +172,13 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
         // ── Header ──
-        Row(children: [
-          const Text('Reviews',
-              style: TextStyle(
-                  color: OffroColors.text,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800)),
+        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('WHAT CUSTOMERS ARE SAYING',
+                style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+            const SizedBox(height: 4),
+            Text('Reviews', style: OffroText.title),
+          ]),
           const Spacer(),
           if (_avgRating > 0) ...[
             const Icon(Icons.star_rounded,
@@ -201,10 +202,6 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 style:
                     TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         ]),
-        const SizedBox(height: 4),
-        const Text('What customers are saying',
-            style:
-                TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         const SizedBox(height: 14),
 
         // ── FIX4: Smart write / edit review UI ──
@@ -330,7 +327,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                   hintStyle: const TextStyle(
                       color: OffroColors.textMuted, fontSize: 13),
                   filled: true,
-                  fillColor: const Color(0xFFFDFBF6),
+                  fillColor: OffroColors.background,
                   isDense: true,
                   contentPadding: const EdgeInsets.all(12),
                   border: OutlineInputBorder(

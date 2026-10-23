@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../qr/qr_page.dart';
-import '../../../core/design/offro_tokens.dart' show OffroColors;
+import '../../../core/design/design.dart';
 
 class RewardPointsSection extends StatelessWidget {
   final int visitPoints;
@@ -27,8 +27,8 @@ class RewardPointsSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               vertical: 28, horizontal: 16),
           decoration: BoxDecoration(
-            color: OffroColors.mintFill,
-            borderRadius: BorderRadius.circular(16),
+            color: OffroColors.mint,
+            borderRadius: BorderRadius.circular(OffroRadii.card),
             border: Border.all(color: OffroColors.border, width: 1),
           ),
           child: Column(children: [

@@ -522,7 +522,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
   Widget build(BuildContext context) {
     final influencers = _influencers;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -1112,7 +1112,7 @@ class _InfluencerReviewsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: OffroColors.background,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,

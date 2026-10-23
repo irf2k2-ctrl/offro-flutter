@@ -6,7 +6,7 @@ import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
 import 'store_header.dart' show FullScreenImageViewer;
-import '../../../core/design/offro_tokens.dart' show OffroColors;
+import '../../../core/design/design.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Round 10 — shared pricing/discount resolution, used by both the card and
@@ -157,13 +157,14 @@ class StoreProductsSection extends StatelessWidget {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+        padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 28, OffroSpacing.gutter, 14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('PRODUCTS AVAILABLE AT THIS STORE',
+              style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+          const SizedBox(height: 4),
           Row(children: [
-            const Text('Featured Products',
-                style: TextStyle(
-                    color: OffroColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
-            const SizedBox(width: 4),
+            Text('Featured Products', style: OffroText.title),
+            const SizedBox(width: 6),
             // FOLLOW-UP: single tap now opens the full-screen gallery, and
             // the older "view full details + leave a review" flow moved to
             // long-press — a change that isn't otherwise visible anywhere
@@ -186,9 +187,6 @@ class StoreProductsSection extends StatelessWidget {
               ),
             ),
           ]),
-          const SizedBox(height: 2),
-          const Text('Products available at this store',
-              style: TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         ]),
       ),
       // Round 12 (Task 1): 210 now matches Today's Offers' deal-card

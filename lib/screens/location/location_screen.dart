@@ -304,7 +304,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     return PopScope(
       canPop: !widget.mandatory,
       child: Scaffold(
-        backgroundColor: kBg,
+        backgroundColor: OffroColors.background,
         body: SafeArea(
           child: Column(children: [
             Padding(

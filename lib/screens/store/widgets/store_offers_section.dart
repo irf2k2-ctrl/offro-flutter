@@ -4,7 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import 'store_header.dart' show FullScreenImageViewer;
-import '../../../core/design/offro_tokens.dart' show OffroColors;
+import '../../../core/design/design.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Round 12 (Task 5): shared full-screen deal-gallery opener. Previously
@@ -106,28 +106,16 @@ class StoreOffersSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 24, 0, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Section header ──
+        // ── Section header (Figma: eyebrow + title; real deal count) ──
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-          child: Row(children: [
-            const Text("Today's Offers",
-                style: TextStyle(
-                    color: OffroColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
-            const Spacer(),
-            if (deals.isNotEmpty && !loading)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: kPrimary.withValues(alpha: .08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${deals.length} deal${deals.length == 1 ? "" : "s"}',
-                  style: const TextStyle(
-                      color: kPrimary, fontSize: 11.5, fontWeight: FontWeight.w700),
-                ),
-              ),
-          ]),
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 14),
+          child: OffroSectionTitle(
+            eyebrow: (deals.isNotEmpty && !loading)
+                ? 'Exclusive on OffrO · ${deals.length} deal${deals.length == 1 ? "" : "s"}'
+                : 'Exclusive on OffrO',
+            eyebrowColor: OffroColors.sageStrong,
+            title: "Deals from this store",
+          ),
         ),
 
         // ── Loading skeleton (Round 7, Issue 4) ──
@@ -162,7 +150,7 @@ class StoreOffersSection extends StatelessWidget {
                     child: Container(
                       decoration: BoxDecoration(
                         color: kLight,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(OffroRadii.card),
                         border: Border.all(color: OffroColors.border, width: 1),
                       ),
                     ),
@@ -180,16 +168,16 @@ class StoreOffersSection extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
               decoration: BoxDecoration(
-                color: OffroColors.mintSoft,
-                borderRadius: BorderRadius.circular(16),
+                color: OffroColors.mint,
+                borderRadius: BorderRadius.circular(OffroRadii.card),
                 border: Border.all(color: OffroColors.border, width: 1),
               ),
               child: Column(children: [
-                Icon(Icons.local_offer_outlined, color: kAccent, size: 32),
+                const Icon(Icons.local_offer_outlined, color: OffroColors.primary, size: 32),
                 const SizedBox(height: 8),
-                const Text('Offers coming soon',
-                    style: TextStyle(
-                        color: OffroColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Offers coming soon',
+                    style: OffroText.caption.copyWith(
+                        color: OffroColors.secondarySolid, fontSize: 13, fontWeight: FontWeight.w600)),
               ]),
             ),
           )
@@ -229,14 +217,9 @@ class StoreOffersSection extends StatelessWidget {
                       height: 210,
                       margin: EdgeInsets.only(right: idx < deals.length - 1 ? 12 : 0),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(OffroRadii.card),
                         border: Border.all(color: OffroColors.border, width: 1),
-                        boxShadow: [
-                          BoxShadow(
-                              color: kPrimary.withValues(alpha: .08),
-                              blurRadius: 16,
-                              offset: const Offset(0, 4)),
-                        ],
+                        boxShadow: OffroShadows.card,
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(19),

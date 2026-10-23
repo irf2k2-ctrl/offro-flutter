@@ -19,7 +19,7 @@ class PaymentSuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: OffroColors.background,
       body: SafeArea(
         child: Center(
           child: Padding(

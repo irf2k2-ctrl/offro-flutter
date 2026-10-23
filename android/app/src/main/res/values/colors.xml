@@ -3,5 +3,5 @@
 <resources>
     <!-- FIX 5: OFFRO cream background — matches Flutter kBg color -->
     <!-- NOTE: ic_launcher_background is defined in ic_launcher_background.xml — do NOT add it here -->
-    <color name="splash_bg">#FDFBF6</color>
+    <color name="splash_bg">#F3EBDD</color>
 </resources>

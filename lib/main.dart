@@ -63,12 +63,6 @@ import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 // ─────────────────────── CONFIG ───────────────────────
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
-// ── TEMPORARY visual test (remove after evaluation) ──
-// Build with --dart-define=HOME_BG_TEST=true to render the Home background as
-// #F7F3EA instead of OffroColors.background (#FDFBF6). Default: false = the
-// current design, unchanged. Does not alter any design token.
-const bool kHomeBgTest = bool.fromEnvironment('HOME_BG_TEST', defaultValue: false);
-const Color kHomeBg = kHomeBgTest ? Color(0xFFF7F3EA) : OffroColors.background;
 
 // Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, OffroColors.text, OffroColors.textMuted, OffroColors.border)
 // now live only in core/constants/app_constants.dart.
@@ -1803,14 +1797,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: kHomeBg,
+        systemNavigationBarColor: OffroColors.background,
       ),
       child: PopScope(
        canPop: _navIdx == 0,
        onPopInvokedWithResult: (didPop, _) { if (!didPop) setState(() => _navIdx = 0); },
        child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: kHomeBg,
+        backgroundColor: OffroColors.background,
         body: Stack(children: [
               IndexedStack(index: _navIdx, children: [
               _loading
@@ -1818,7 +1812,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   width: bc.maxWidth,
                   height: bc.maxHeight.isFinite ? bc.maxHeight : MediaQuery.sizeOf(ctx).height,
                   child: ColoredBox(
-                    color: kHomeBg,
+                    color: OffroColors.background,
                     child: _buildLoadingSkeleton(),
                   ),
                 ))
@@ -4475,7 +4469,7 @@ class _HomeHeader extends StatelessWidget {
   @override Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     return Container(
-      color: kHomeBg,
+      color: OffroColors.background,
       padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, topPad + 14, OffroSpacing.gutter, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
@@ -4597,6 +4591,14 @@ class _CityHeroSection extends StatelessWidget {
     }
     // ONE fixed card (size, position, radius never change). Only the media +
     // its overlay text cross-fade when the active slide changes.
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _heroCard(),
+      _featuredStoreCta(context),
+    ]);
+  }
+
+  // The single fixed hero card (unchanged structure).
+  Widget _heroCard() {
     return Padding(
       padding: OffroSpacing.gutterH,
       child: ClipRRect(
@@ -4631,12 +4633,43 @@ class _CityHeroSection extends StatelessWidget {
     );
   }
 
+  // "View featured store": opens the Store Detail of the store attached to the
+  // hero slide currently shown (slide["store_id"]). Hidden when the current
+  // slide has no store reference. Same lookup the banner tap already uses.
+  Widget _featuredStoreCta(BuildContext context) {
+    return ValueListenableBuilder<int>(
+      valueListenable: sliderPageNotifier,
+      builder: (ctx, pg, _) {
+        if (sliders.isEmpty) return const SizedBox.shrink();
+        final sl = sliders[pg % sliders.length];
+        final storeId = (sl["store_id"] ?? "").toString();
+        if (storeId.isEmpty || storeId == "null") return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 14, OffroSpacing.gutter, 0),
+          child: OffroButton.small(
+            label: "View featured store",
+            trailingIcon: OffroIcons.arrow,
+            onPressed: () => _openFeaturedStore(ctx, storeId),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openFeaturedStore(BuildContext context, String storeId) async {
+    try {
+      final store = await Api.fetchStoreDetail(storeId);
+      if (!context.mounted) return;
+      Navigator.push(context, appRoute(
+        StoreDetailPage(store: Map<String, dynamic>.from(store as Map), token: token, userName: "")));
+    } catch (_) { if (kDebugMode) debugPrint("[Offro] featured store open failed"); }
+  }
+
   // ── One promo slide: real media + Figma overlay. Text/CTA only appear when
   // the slide itself carries a title (never invented). ──
   Widget _slideContent(Map<String,dynamic> sl) {
     final title    = (sl["title"] ?? "").toString().trim();
     final sub      = (sl["subtitle"] ?? sl["text"] ?? "").toString().trim();
-    final storeId  = (sl["store_id"] ?? "").toString();
     final promoter = (sl["store_name"] ?? sl["merchant_name"] ?? "").toString().trim();
     final hasText  = title.isNotEmpty;
     final words    = title.split(RegExp(r'\s+'));
@@ -4660,21 +4693,6 @@ class _CityHeroSection extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: .15),
-                      borderRadius: OffroRadii.pillRadius,
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Container(width: 6, height: 6,
-                        decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle)),
-                      const SizedBox(width: 6),
-                      Text("PROMOTED NEARBY",
-                        style: OffroText.eyebrow.copyWith(color: Colors.white, fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w600)),
-                    ]),
-                  ),
-                  const SizedBox(height: 18),
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 285),
                     child: OffroAccentText(
@@ -4691,39 +4709,28 @@ class _CityHeroSection extends StatelessWidget {
                         style: OffroText.bodySmall.copyWith(fontSize: 12, height: 1.6, color: Colors.white.withValues(alpha: .70))),
                     ),
                   ],
-                  const Spacer(),
-                  if (storeId.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: .95),
-                        borderRadius: OffroRadii.pillRadius,
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        Text("View store",
-                          style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: OffroColors.primary)),
-                        const SizedBox(width: 6),
-                        const OffroIcon(OffroIcons.arrow, size: 12, color: OffroColors.primary),
-                      ]),
-                    ),
                 ]),
               ),
-            // Store name at the bottom of the hero: small solid dark pill, white text.
+            // Store title at the bottom of the hero. The dark gradient is LOCAL to
+            // the bottom ~104px (fades up into the untouched image); nothing else
+            // on the hero is darkened.
             if (promoter.isNotEmpty)
               Positioned(
-                right: 16, bottom: 16,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 190),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: OffroColors.textDark,
-                      borderRadius: OffroRadii.pillRadius,
+                left: 0, right: 0, bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(24, 44, 24, 20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: .72),
+                        Colors.black.withValues(alpha: .0),
+                      ],
                     ),
-                    child: Text(promoter,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
                   ),
+                  child: Text(promoter,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: OffroText.cardTitle.copyWith(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
                 ),
               ),
           ])),
@@ -5150,7 +5157,6 @@ class _CategoryChipsRow extends StatelessWidget {
     for (final cat in cats) {
       final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
       if (name.isNotEmpty) names.add(name);
-      if (names.length == 4) break;
     }
     if (names.isEmpty) return const SizedBox.shrink();
 
@@ -5163,15 +5169,18 @@ class _CategoryChipsRow extends StatelessWidget {
         onAction: onMoreTap,
       ),
       const SizedBox(height: 16),
-      Padding(
-        padding: OffroSpacing.gutterH,
-        child: Row(children: [
-          for (var i = 0; i < 4; i++)
-            Expanded(child: Padding(
-              padding: EdgeInsets.only(right: i < 3 ? 12 : 0),
-              child: i < names.length ? _tile(context, names[i]) : const SizedBox.shrink(),
-            )),
-        ]),
+      // Every real category, swiped manually left/right (no auto-scroll, no
+      // carousel/page indicator).
+      SizedBox(
+        height: 92,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: OffroSpacing.gutterH,
+          itemCount: names.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 14),
+          itemBuilder: (_, i) => SizedBox(width: 72, child: _tile(context, names[i])),
+        ),
       ),
     ]);
   }

@@ -19,7 +19,7 @@ class OffroColors {
   static const Color sage       = Color(0xFF759A89);
   static const Color accent     = Color(0xFFA9CDBA);
   static const Color beige      = Color(0xFFE7D7C8);
-  static const Color background = Color(0xFFFDFBF6);
+  static const Color background = Color(0xFFF3EBDD); // solid darker cream (was #FDFBF6)
   static const Color surface    = Color(0xFFFFFFFF);
 
   // Text
