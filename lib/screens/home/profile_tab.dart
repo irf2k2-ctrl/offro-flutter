@@ -249,7 +249,7 @@ class _ProfileTabState extends State<ProfileTab> {
             ],
           ])),
           if (!e.destructive)
-            const OffroIcon(OffroIcons.chevron, size: 14, color: Color(0x40000000)),
+            const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.sage),
         ]),
       ),
     );

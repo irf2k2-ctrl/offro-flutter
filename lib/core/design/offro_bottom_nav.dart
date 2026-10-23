@@ -115,7 +115,7 @@ class _NavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? OffroColors.primary : const Color(0x4D000000); // black @ 30%
+    final color = active ? OffroColors.primary : OffroColors.secondarySolid; // solid #54776A (Test C)
     return Semantics(
       button: true,
       selected: active,

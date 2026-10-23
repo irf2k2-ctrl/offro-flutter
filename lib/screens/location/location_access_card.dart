@@ -58,7 +58,7 @@ class LocationAccessCard extends StatelessWidget {
       subtitle = 'Allow location for OffrO in app settings';
       trailing = const Icon(Icons.arrow_forward_rounded, color: _kRed, size: 20);
     } else if (a == LocationAccess.ready) {
-      border = kPrimary; bg = kLight.withValues(alpha: .35); iconColor = kPrimary;
+      border = kPrimary; bg = OffroColors.mintFill; iconColor = kPrimary;
       icon = Icons.my_location_rounded;
       title = 'Use current location';
       if (detecting) {

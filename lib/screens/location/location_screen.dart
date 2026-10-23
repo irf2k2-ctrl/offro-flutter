@@ -524,7 +524,7 @@ class _CityTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           decoration: BoxDecoration(
-            color: selected ? kLight.withValues(alpha: .5) : Colors.white,
+            color: selected ? kLight : Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: selected ? kPrimary : OffroColors.border, width: selected ? 1.6 : 1),
           ),

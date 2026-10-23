@@ -63,6 +63,13 @@ import 'screens/store/widgets/store_offers_section.dart' show openDealGallery;
 // ─────────────────────── CONFIG ───────────────────────
 const kRazorpayKey = "rzp_live_SdiI6kcuZzZjsl";
 
+// ── TEMPORARY visual test (remove after evaluation) ──
+// Build with --dart-define=HOME_BG_TEST=true to render the Home background as
+// #F7F3EA instead of OffroColors.background (#FDFBF6). Default: false = the
+// current design, unchanged. Does not alter any design token.
+const bool kHomeBgTest = bool.fromEnvironment('HOME_BG_TEST', defaultValue: false);
+const Color kHomeBg = kHomeBgTest ? Color(0xFFF7F3EA) : OffroColors.background;
+
 // Brand colours (kPrimary, kLight, kAccent, kBeige, kBg, OffroColors.text, OffroColors.textMuted, OffroColors.border)
 // now live only in core/constants/app_constants.dart.
 
@@ -1605,6 +1612,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _sliderPageNotifier.value = (_sliderPageNotifier.value + 1) % _sliders.length;
   }
 
+  // Hero video is tap-to-play: once the customer starts one, stop the timed
+  // rotation until it finishes, then resume (finish -> next slide).
+  void _onHeroVideoPlayStarted(){ _sliderTimer?.cancel(); }
+  void _heroVideoDone(){
+    _advanceHeroSlide();
+    _startSliderAutoPlay();
+  }
+
   void _startSliderAutoPlay(){
     _sliderTimer?.cancel();
     // Auto-play even for 1 item (will loop to same) — only skip if empty
@@ -1788,14 +1803,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: OffroColors.background,
+        systemNavigationBarColor: kHomeBg,
       ),
       child: PopScope(
        canPop: _navIdx == 0,
        onPopInvokedWithResult: (didPop, _) { if (!didPop) setState(() => _navIdx = 0); },
        child: Scaffold(
         extendBodyBehindAppBar: true,
-        backgroundColor: OffroColors.background,
+        backgroundColor: kHomeBg,
         body: Stack(children: [
               IndexedStack(index: _navIdx, children: [
               _loading
@@ -1803,7 +1818,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                   width: bc.maxWidth,
                   height: bc.maxHeight.isFinite ? bc.maxHeight : MediaQuery.sizeOf(ctx).height,
                   child: ColoredBox(
-                    color: OffroColors.background,
+                    color: kHomeBg,
                     child: _buildLoadingSkeleton(),
                   ),
                 ))
@@ -1838,7 +1853,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         sliders: _sliders,
                         sliderPageNotifier: _sliderPageNotifier,
                         token: widget.token,
-                        onAdvance: _advanceHeroSlide,
+                        onAdvance: _heroVideoDone,
+                        onVideoPlayStarted: _onHeroVideoPlayStarted,
                       ),
                     )),
 
@@ -2053,7 +2069,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // ── Shared footer: two full-width pill buttons on white background ──
     final footer = Container(
-      color: Colors.white,
+      color: OffroColors.background,
       padding: EdgeInsets.fromLTRB(20, 16, 20, 28 + bottomPad),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         // Button 1 — Back to Home (primary: kPrimary bg, white icon + text)
@@ -2245,7 +2261,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }
           if (img == null) {
             return OffroIcon(OffroIcons.user, size: 19,
-                color: active ? OffroColors.primary : const Color(0x4D000000));
+                color: active ? OffroColors.primary : OffroColors.secondarySolid);
           }
           return Container(
             padding: const EdgeInsets.all(1.5),
@@ -2370,7 +2386,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       isScrollControlled: true,
       builder: (_) => Container(
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: OffroColors.background,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
@@ -2828,7 +2844,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         ),
                       ),
                       child: Container(
-                      color: Colors.white,
+                      color: OffroColors.background,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         // Notification icon or image
@@ -3400,7 +3416,7 @@ class _CategoryListScreenState extends State<_CategoryListScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: OffroColors.border),
-              boxShadow: const [BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0,2))],
+              boxShadow: OffroShadows.card,
             ),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
@@ -4033,7 +4049,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                 cursorColor: OffroColors.primary,
                 decoration: InputDecoration(
                   hintText: "Search deals, stores or areas",
-                  hintStyle: OffroText.body.copyWith(fontSize: 13, color: const Color(0x4D000000)),
+                  hintStyle: OffroText.body.copyWith(fontSize: 13, color: OffroColors.secondarySolid),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -4232,7 +4248,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(58),
           child: Container(
-            color: Colors.white,
+            color: OffroColors.background,
             padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
@@ -4388,7 +4404,7 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: OffroColors.border),
-              boxShadow: const [BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0,2))],
+              boxShadow: OffroShadows.card,
             ),
             child: TextField(
               controller: _ctrl,
@@ -4459,7 +4475,7 @@ class _HomeHeader extends StatelessWidget {
   @override Widget build(BuildContext context) {
     final topPad = MediaQuery.of(context).padding.top;
     return Container(
-      color: OffroColors.background,
+      color: kHomeBg,
       padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, topPad + 14, OffroSpacing.gutter, 12),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
         Row(children: [
@@ -4495,17 +4511,17 @@ class _HomeHeader extends StatelessWidget {
             const OffroIcon(OffroIcons.pin, size: 14, color: Color(0xFF61917A), filled: true),
             const SizedBox(width: 8),
             Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text("Exploring", style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+              Text("Exploring", style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
               Text(locationTitle.isNotEmpty ? locationTitle : "Select location",
                 maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.text)),
               if (locationSubtitle.isNotEmpty)
                 Text(locationSubtitle,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
             ])),
             const SizedBox(width: 6),
-            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: OffroColors.textFaint),
+            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: OffroColors.secondarySolid),
           ]),
         ),
       ]),
@@ -4532,11 +4548,11 @@ class _HomeSearchBar extends StatelessWidget {
             boxShadow: const [BoxShadow(color: Color(0x0F3E5F55), blurRadius: 32, offset: Offset(0, 8))],
           ),
           child: Row(children: [
-            const OffroIcon(OffroIcons.search, size: 18, color: Color(0x8C3E5F55)),
+            const OffroIcon(OffroIcons.search, size: 18, color: OffroColors.secondarySolid),
             const SizedBox(width: 12),
             Expanded(child: Text("Search stores, products or services",
               maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: OffroText.body.copyWith(fontSize: 14, color: const Color(0x59000000)))),
+              style: OffroText.body.copyWith(fontSize: 14, color: OffroColors.secondarySolid))),
             const SizedBox(width: 8),
             const OffroIcon(OffroIcons.sliders, size: 18, color: OffroColors.primary),
           ]),
@@ -4560,12 +4576,14 @@ class _CityHeroSection extends StatelessWidget {
   final ValueNotifier<int> sliderPageNotifier;
   final String token;
   final VoidCallback onAdvance; // a promo video finished → show the next slide
+  final VoidCallback? onVideoPlayStarted; // customer tapped play on a hero video
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     this.imageLoading = false, required this.onCtaTap,
     required this.sliders,
     required this.sliderPageNotifier, required this.token,
     required this.onAdvance,
+    this.onVideoPlayStarted,
   });
 
   static const double _heroH = 296;
@@ -4632,34 +4650,12 @@ class _CityHeroSection extends StatelessWidget {
             squareCorners: true,
             hideText: true,
             onVideoComplete: onAdvance,
+            tapToPlay: true,
+            onPlayStarted: onVideoPlayStarted,
           )),
           // Overlay is decoration only — taps fall through to the slide.
           IgnorePointer(child: Stack(fit: StackFit.expand, children: [
-            if (hasText)
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft, end: Alignment.centerRight,
-                    colors: [
-                      OffroColors.textDark.withValues(alpha: .90),
-                      OffroColors.textDark.withValues(alpha: .55),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: hasText ? .55 : .35),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: .10),
-                  ],
-                ),
-              ),
-            ),
+            // TEST C: hero dark gradients (left #17231F 90/55/0, bottom black 55/0/10) removed.
             if (hasText)
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
@@ -4712,11 +4708,23 @@ class _CityHeroSection extends StatelessWidget {
                     ),
                 ]),
               ),
+            // Store name at the bottom of the hero: small solid dark pill, white text.
             if (promoter.isNotEmpty)
               Positioned(
-                right: 16, bottom: 18,
-                child: Text("Promoted by $promoter",
-                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: .65))),
+                right: 16, bottom: 16,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 190),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: OffroColors.textDark,
+                      borderRadius: OffroRadii.pillRadius,
+                    ),
+                    child: Text(promoter,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
+                  ),
+                ),
               ),
           ])),
     ]);
@@ -4767,30 +4775,7 @@ class _CityHeroSection extends StatelessWidget {
         child: Stack(fit: StackFit.expand, children: [
           const ColoredBox(color: OffroColors.text),
           background,
-          Positioned.fill(child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft, end: Alignment.centerRight,
-                colors: [
-                  OffroColors.textDark.withValues(alpha: .90),
-                  OffroColors.textDark.withValues(alpha: .55),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          )),
-          Positioned.fill(child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter, end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withValues(alpha: .55),
-                  Colors.transparent,
-                  Colors.black.withValues(alpha: .10),
-                ],
-              ),
-            ),
-          )),
+          // TEST C: city-hero dark gradients removed (same values as the slide hero).
           Padding(
             padding: const EdgeInsets.all(24),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -4943,6 +4928,7 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
           eyebrow: "Made for OffrO members",
+        eyebrowColor: OffroColors.sageStrong,
           title: "Exclusive deals",
           actionLabel: "View all",
           onAction: widget.onViewAll,
@@ -5053,13 +5039,13 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
                 Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: OffroText.cardTitle),
                 const SizedBox(height: 4),
                 Text(storeName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+                  style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
               ])),
               const SizedBox(width: 12),
               Container(
                 width: 36, height: 36,
                 alignment: Alignment.center,
-                decoration: const BoxDecoration(color: Color(0xA6CDEBD6), shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: OffroColors.mint, shape: BoxShape.circle),
                 child: const OffroIcon(OffroIcons.chevron, size: 16, color: OffroColors.primary),
               ),
             ]),
@@ -5116,11 +5102,11 @@ class _HomeRewardsCard extends StatelessWidget {
                   Text.rich(TextSpan(children: [
                     TextSpan(text: _fmt(points), style: OffroText.titleSm),
                     TextSpan(text: "  points",
-                      style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+                      style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
                   ])),
                   const SizedBox(height: 4),
                   Text(points > 0 ? "Tap to view and redeem your rewards" : "Visit stores to start earning points",
-                    style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+                    style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
                 ])),
                 const SizedBox(width: 12),
                 Container(
@@ -5140,6 +5126,16 @@ class _HomeRewardsCard extends StatelessWidget {
 
 
 // ─── 2. Category Chips Row — single row with "More" button ──────
+/// Category tile colours (solid): the Figma pastel fill pulled 18% toward its own
+/// foreground (same colour family), icon pulled 15% toward the darkest text.
+OffroTone _categoryTone(String name) {
+  final t = OffroIcons.toneForCategory(name);
+  return OffroTone(
+    Color.lerp(t.background, t.foreground, .18)!,
+    Color.lerp(t.foreground, OffroColors.textDark, .15)!,
+  );
+}
+
 class _CategoryChipsRow extends StatelessWidget {
   final List<Map<String,dynamic>> cats;
   final String token;
@@ -5161,6 +5157,7 @@ class _CategoryChipsRow extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       OffroSectionTitle(
         eyebrow: "Find what you need",
+        eyebrowColor: OffroColors.sageStrong,
         title: "Explore categories",
         actionLabel: "See all",
         onAction: onMoreTap,
@@ -5180,7 +5177,7 @@ class _CategoryChipsRow extends StatelessWidget {
   }
 
   Widget _tile(BuildContext context, String name) {
-    final tone = OffroIcons.toneForCategory(name);
+    final tone = _categoryTone(name);
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
         builder: (_) => _CategoryStoresScreen(
@@ -5235,6 +5232,7 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
           eyebrow: "Across local stores",
+        eyebrowColor: OffroColors.sageStrong,
           title: "Products near you",
           actionLabel: "Browse all",
           onAction: onViewAll,
@@ -5337,6 +5335,7 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
           eyebrow: "Across local stores",
+        eyebrowColor: OffroColors.sageStrong,
           title: "Products near you",
           actionLabel: "Browse all",
           onAction: onViewAll,
@@ -5498,7 +5497,7 @@ class _DiscoverProductsSection extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
+              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
           ),
         if (rating > 0)
           Padding(
@@ -5510,7 +5509,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                 style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.amber)),
               if (count > 0)
                 Text(" ($count)",
-                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: const Color(0x4D000000))),
+                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
             ]),
           ),
         if (saleP != null && saleP > 0)
@@ -5526,7 +5525,7 @@ class _DiscoverProductsSection extends StatelessWidget {
                   Text("₹${origP.toStringAsFixed(0)}",
                     style: OffroText.caption.copyWith(
                       fontSize: 10, fontWeight: FontWeight.w400,
-                      color: const Color(0x4D000000),
+                      color: OffroColors.sage,
                       decoration: TextDecoration.lineThrough)),
               ],
             ),
@@ -5613,6 +5612,7 @@ class _DiscoverProductsSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
           eyebrow: "Across local stores",
+        eyebrowColor: OffroColors.sageStrong,
           title: "Products near you",
           actionLabel: "Browse all",
           onAction: onViewAll,
@@ -5748,7 +5748,7 @@ class _NearbyStoresSection extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: OffroColors.background.withValues(alpha: .90),
+                        color: OffroColors.background,
                         borderRadius: OffroRadii.pillRadius,
                       ),
                       child: Text("Offer · $offer",
@@ -5761,7 +5761,7 @@ class _NearbyStoresSection extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: OffroColors.text.withValues(alpha: .80),
+                      color: OffroColors.text,
                       borderRadius: OffroRadii.pillRadius,
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -5786,7 +5786,7 @@ class _NearbyStoresSection extends StatelessWidget {
                     if (category.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(color: OffroColors.mintSoft, borderRadius: OffroRadii.pillRadius),
+                        decoration: BoxDecoration(color: OffroColors.mint, borderRadius: OffroRadii.pillRadius),
                         child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis,
                           style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                       ),
@@ -5803,10 +5803,10 @@ class _NearbyStoresSection extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Row(children: [
-                        const OffroIcon(OffroIcons.pin, size: 10, color: OffroColors.textSubtle),
+                        const OffroIcon(OffroIcons.pin, size: 10, color: OffroColors.secondarySolid),
                         const SizedBox(width: 4),
                         Expanded(child: Text(area, maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.textSubtle))),
+                          style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid))),
                       ]),
                     ),
                 ])),
@@ -5814,7 +5814,7 @@ class _NearbyStoresSection extends StatelessWidget {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: OffroColors.mintFill, borderRadius: OffroRadii.pillRadius),
+                    decoration: BoxDecoration(color: OffroColors.mint, borderRadius: OffroRadii.pillRadius),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       const OffroIcon(OffroIcons.star, size: 10, color: OffroColors.amber, filled: true),
                       const SizedBox(width: 4),
@@ -5830,7 +5830,7 @@ class _NearbyStoresSection extends StatelessWidget {
                   child: Row(children: [
                     Container(width: 6, height: 6,
                       decoration: BoxDecoration(
-                        color: status.isOpen ? OffroColors.open : OffroColors.textFaint,
+                        color: status.isOpen ? OffroColors.open : OffroColors.secondarySolid,
                         shape: BoxShape.circle)),
                     const SizedBox(width: 6),
                     Expanded(child: Text(
@@ -5838,7 +5838,7 @@ class _NearbyStoresSection extends StatelessWidget {
                           ? "${status.isOpen ? 'Open now' : 'Closed'} · ${status.subLabel}"
                           : (status.isOpen ? "Open now" : "Closed"),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textMuted))),
+                      style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid))),
                   ]),
                 ),
             ]),
@@ -5877,6 +5877,7 @@ class _NearbyStoresSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
           eyebrow: "Around your neighbourhood",
+        eyebrowColor: OffroColors.sageStrong,
           title: "Stores near you",
           actionLabel: "See all",
           onAction: onViewAll,
@@ -5902,7 +5903,7 @@ class _NearbyStoresSection extends StatelessWidget {
                 child: Text(c["label"] as String,
                   style: OffroText.caption.copyWith(
                     fontSize: 11, fontWeight: FontWeight.w600,
-                    color: isActive ? Colors.white : const Color(0xA63E5F55))),
+                    color: isActive ? Colors.white : OffroColors.secondarySolid)),
               ),
             );
           }).toList()),
@@ -5920,10 +5921,10 @@ class _NearbyStoresSection extends StatelessWidget {
               ),
               child: Column(children: [
                 Text("No stores within ${radiusKm.toInt()} km",
-                  style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.textMuted)),
+                  style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.secondarySolid)),
                 const SizedBox(height: 4),
                 Text("Try a larger radius or tap Any distance",
-                  style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+                  style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
               ]),
             ),
           )
@@ -5970,7 +5971,7 @@ class _ExploreAreasSection extends StatelessWidget {
             Text("Explore Areas",
               style: TextStyle(color: OffroColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
             Text("Discover great places nearby",
-              style: TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
+              style: TextStyle(color: OffroColors.secondarySolid, fontSize: 12)),
           ]),
           const Spacer(),
           GestureDetector(
@@ -6137,29 +6138,6 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
   List<Map<String,dynamic>> _cats = [];
   bool _loading = true;
 
-  static const _catEmojis = <String, String>{
-    'food': '🍔', 'restaurant': '🍽️', 'cafe': '☕', 'fashion': '👗',
-    'electronics': '📱', 'beauty': '💄', 'pharmacy': '💊', 'hospital': '🏥',
-    'education': '📚', 'grocery': '🛒', 'supermarket': '🛒',
-    'gym': '💪', 'salon': '✂️', 'bakery': '🥐', 'hotel': '🏨',
-    'jewellery': '💍', 'hardware': '🔧', 'furniture': '🛋️',
-  };
-
-  String _emoji(String name) {
-    final k = name.toLowerCase().trim();
-    for (final e in _catEmojis.entries) { if (k.contains(e.key)) return e.value; }
-    return '🏪';
-  }
-
-  static const List<List<Color>> _gradients = [
-    [Color(0xFFCDEBD6), Color(0xFFA9CDBA)],
-    [Color(0xFFE7D7C8), Color(0xFFD4B8A0)],
-    [Color(0xFFD6E8F5), Color(0xFFA9C4D8)],
-    [Color(0xFFEBCDEB), Color(0xFFCDA9CD)],
-    [Color(0xFFEBE8CD), Color(0xFFCDC8A9)],
-    [Color(0xFFCDEBE0), Color(0xFFA9CDB8)],
-  ];
-
   @override void initState() { super.initState(); _loadCats(); }
 
   Future<void> _loadCats() async {
@@ -6182,50 +6160,67 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
   }
 
   @override Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: OffroColors.background,
-      appBar: AppBar(
+    // Figma "all categories": cream page, Manrope header, 4-column grid of solid
+    // pastel tiles with the OffrO category icon. Real categories from the API.
+    return OffroFontScope(
+      child: Scaffold(
         backgroundColor: OffroColors.background,
-        foregroundColor: OffroColors.text,
-        elevation: 0,
-        title: const Text("All Categories", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
-        surfaceTintColor: Colors.white,
-      ),
-      body: _loading
-        ? const Center(child: CircularProgressIndicator(color: kPrimary))
-        : _cats.isEmpty
-          ? const Center(child: Text("No categories found", style: TextStyle(color: OffroColors.textMuted)))
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.95),
-              itemCount: _cats.length,
-              itemBuilder: (ctx, i) {
-                final cat = _cats[i];
-                final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
-                final grad = _gradients[i % _gradients.length];
-                return GestureDetector(
-                  onTap: () => Navigator.push(ctx, MaterialPageRoute(
-                    builder: (_) => _CategoryStoresScreen(
-                      categoryName: name, token: widget.token,
-                      userLat: widget.userLat, userLng: widget.userLng,
-                      selectedCity: widget.selectedCity))),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: grad),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.06), blurRadius: 10, offset: const Offset(0,3))],
-                    ),
-                    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Text(_emoji(name), style: const TextStyle(fontSize: 28)),
-                      const SizedBox(height: 6),
-                      Text(name, style: const TextStyle(color: OffroColors.text, fontSize: 12, fontWeight: FontWeight.w700),
-                        textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
-                    ]),
-                  ),
-                );
-              },
+        body: SafeArea(
+          bottom: false,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            OffroScreenHeader(
+              eyebrow: "Find what you need",
+              title: "All categories",
+              showBack: true,
+              onBack: () => Navigator.maybePop(context),
             ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: _loading
+                ? const Center(child: CircularProgressIndicator(color: OffroColors.primary))
+                : _cats.isEmpty
+                  ? Center(child: Text("No categories found",
+                      style: OffroText.body.copyWith(color: OffroColors.secondarySolid)))
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 4, OffroSpacing.gutter, 32),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4, crossAxisSpacing: 12, mainAxisSpacing: 20, childAspectRatio: 0.78),
+                      itemCount: _cats.length,
+                      itemBuilder: (ctx, i) {
+                        final cat = _cats[i];
+                        final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
+                        final tone = _categoryTone(name);
+                        return GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => Navigator.push(ctx, MaterialPageRoute(
+                            builder: (_) => _CategoryStoresScreen(
+                              categoryName: name, token: widget.token,
+                              userLat: widget.userLat, userLng: widget.userLng,
+                              selectedCity: widget.selectedCity))),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            AspectRatio(
+                              aspectRatio: 1,
+                              child: Container(
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: tone.background,
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                child: OffroIcon(OffroIcons.forCategory(name), size: 24, color: tone.foreground),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(name,
+                              maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                              style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: OffroColors.text)),
+                          ]),
+                        );
+                      },
+                    ),
+            ),
+          ]),
+        ),
+      ),
     );
   }
 }
@@ -6780,7 +6775,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFe0ece6), width: 1.0),
+          border: Border.all(color: OffroColors.border, width: 1.0),
           boxShadow: [BoxShadow(
             color: Colors.black.withValues(alpha: .09),
             blurRadius: 16, offset: const Offset(0, 5))],
@@ -7426,7 +7421,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     if (_avgRating > 0 || _ratingCount > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(color: OffroColors.beige.withValues(alpha: .45), borderRadius: OffroRadii.pillRadius),
+                        decoration: BoxDecoration(color: OffroColors.beige, borderRadius: OffroRadii.pillRadius),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           const OffroIcon(OffroIcons.star, size: 12, color: OffroColors.amber, filled: true),
                           const SizedBox(width: 4),
@@ -7557,7 +7552,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     const SizedBox(width: 8),
                     Text(_userRating == 0 ? "Tap to rate" : ["","Poor","Fair","Good","Great","Excellent"][_userRating.toInt()],
                       style: OffroText.caption.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600,
-                        color: _userRating == 0 ? OffroColors.textFaint : OffroColors.primary)),
+                        color: _userRating == 0 ? OffroColors.textMuted : OffroColors.primary)),
                   ])),
                 const SizedBox(height: 14),
                 if (!_reviewSubmitted) ...[
@@ -7706,72 +7701,54 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
   }
 
   @override Widget build(BuildContext context){
-    return Scaffold(
-      backgroundColor: kBg,
+    // Figma "all products": cream page, Manrope header, search field, real
+    // category chips (no "All" chip - tap the active chip again to clear it),
+    // 2-column grid of OffrO product cards. Real data via the existing fetch.
+    final realCats = _cats.where((c) => c != "All").toList();
+    return OffroFontScope(child: Scaffold(
+      backgroundColor: OffroColors.background,
       body: CustomScrollView(slivers: [
-        // Glossy warm-tone SliverAppBar
-        SliverAppBar(
-          expandedHeight: 100,
-          pinned: true,
-          backgroundColor: const Color(0xFFFDFBF6),
-          foregroundColor: OffroColors.text,
-          elevation: 0,
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(52),
-            child: _VapSearchBar(),
-          ),
-          flexibleSpace: FlexibleSpaceBar(
-            title: const Text("See All Products",
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: OffroColors.text)),
-            background: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft, end: Alignment.bottomRight,
-                  colors: [Color(0xFFFDFBF6), Color(0xFFE7D7C8), Color(0xFFFDFBF6)],
-                ),
-              ),
-              child: Stack(children: [
-                Positioned(top: 0, left: 0, right: 0, child: Container(
-                  height: 55,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.white.withValues(alpha: .4), Colors.transparent],
-                    ),
-                  ),
-                )),
-              ]),
+        SliverToBoxAdapter(child: SafeArea(
+          bottom: false,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            OffroScreenHeader(
+              eyebrow: "Across local stores",
+              title: "All products",
+              showBack: true,
+              onBack: () => Navigator.maybePop(context),
             ),
-          ),
-        ),
-        // Category filter chips row
-        SliverToBoxAdapter(child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-          color: Colors.white,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(children: _cats.map((cat) => GestureDetector(
-              onTap: () => setState(() => _cat = cat),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: _cat == cat ? kPrimary : Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: _cat == cat ? kPrimary : OffroColors.border, width: 1.2),
-                  boxShadow: _cat == cat
-                    ? [BoxShadow(color: kPrimary.withValues(alpha: .25), blurRadius: 8, offset: const Offset(0,2))]
-                    : [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 4)],
-                ),
-                child: Text(cat, style: TextStyle(
-                  color: _cat == cat ? Colors.white : OffroColors.textMuted,
-                  fontSize: 12, fontWeight: FontWeight.w700)),
-              ),
-            )).toList()),
-          ),
+            const SizedBox(height: 14),
+            const _VapSearchBar(),
+          ]),
         )),
+        if (realCats.isNotEmpty)
+          SliverToBoxAdapter(child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 8),
+            color: OffroColors.background,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Row(children: realCats.map((cat) {
+                final active = _cat == cat;
+                return GestureDetector(
+                  onTap: () => setState(() => _cat = active ? "All" : cat),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: active ? OffroColors.primary : OffroColors.surface,
+                      borderRadius: OffroRadii.pillRadius,
+                      border: active ? null : Border.all(color: OffroColors.border),
+                    ),
+                    child: Text(cat, style: OffroText.caption.copyWith(
+                      fontSize: 11, fontWeight: FontWeight.w600,
+                      color: active ? Colors.white : OffroColors.secondarySolid)),
+                  ),
+                );
+              }).toList()),
+            ),
+          )),
         // Content
         if (_fetching && _all.isEmpty)
           const SliverFillRemaining(
@@ -7781,14 +7758,11 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
             child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               Container(
                 width: 80, height: 80,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(colors: [Color(0xFFE7D7C8), Color(0xFFFDFBF6)]),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.storefront_outlined, color: Color(0xFFB8A090), size: 40)),
+                decoration: const BoxDecoration(color: OffroColors.beige, shape: BoxShape.circle),
+                child: const Icon(Icons.storefront_outlined, color: OffroColors.secondarySolid, size: 40)),
               const SizedBox(height: 16),
-              const Text("No products found",
-                style: TextStyle(color: OffroColors.text, fontSize: 16, fontWeight: FontWeight.w700)),
+              Text("No products found",
+                style: OffroText.cardTitle.copyWith(fontSize: 16)),
             ])))
         else
           SliverPadding(
@@ -7811,7 +7785,7 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
             ),
           ),
       ]),
-    );
+    ));
   }
 }
 
@@ -7919,7 +7893,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       builder: (_) => Container(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
         decoration: const BoxDecoration(
-          color: Colors.white,
+          color: OffroColors.background,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -7936,7 +7910,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: pal, begin: Alignment.topLeft, end: Alignment.bottomRight),
+              color: pal[0],
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(title.isNotEmpty ? title : "Special Offer",
@@ -8040,34 +8014,31 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
 
     // Badge label + color (text-only badge removed to keep cards clean)
     String badgeLabel = "";
-    Color  badgeColor = const Color(0xFFFF6B35);
+    Color  badgeColor = OffroColors.terracotta;
     if (isBestSeller) {
       badgeLabel = "BEST SELLER";
-      badgeColor = const Color(0xFFFFBF00);
+      badgeColor = OffroColors.amber;
     } else if (discount.isNotEmpty && discount != "0") {
       badgeLabel = discount.contains("%") ? discount.replaceAll(RegExp(r'\s*OFF\s*', caseSensitive: false), "") : "$discount%";
-      badgeColor = const Color(0xFFFF6B35);
+      badgeColor = OffroColors.terracotta;
     }
 
     return GestureDetector(
       onTap: () => _openDetail(context),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFd4e8de), width: 1),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha:.08), blurRadius:12, offset: const Offset(0,4)),
-            BoxShadow(color: Colors.white.withValues(alpha:.9),  blurRadius:1,  offset: const Offset(0,-1)),
-          ],
+          color: OffroColors.surface,
+          borderRadius: BorderRadius.circular(OffroRadii.card),
+          border: Border.all(color: OffroColors.border, width: 1),
+          boxShadow: OffroShadows.card,
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // ── Top: Product image with badge overlay ──
           Stack(children: [
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(OffroRadii.card - 1)),
               child: SizedBox(
-                height: 110,
+                height: 118,
                 width: double.infinity,
                 child: _imgWidget(),
               ),
@@ -8078,11 +8049,10 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeColor,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [BoxShadow(color: badgeColor.withValues(alpha:.4), blurRadius:6)],
+                  borderRadius: OffroRadii.pillRadius,
                 ),
                 child: Text(badgeLabel,
-                  style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900),
+                  style: OffroText.caption.copyWith(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
                   maxLines: 1),
               )),
             // Heart icon top-right — live toggle via FavState
@@ -8108,15 +8078,13 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               child: Container(
                 width: 26, height: 26,
                 decoration: BoxDecoration(
-                  color: _isFav
-                    ? const Color(0xFFe74c3c).withValues(alpha:.90)
-                    : Colors.white.withValues(alpha:.85),
+                  color: _isFav ? OffroColors.terracotta : OffroColors.surface,
                   shape: BoxShape.circle,
                   boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.12), blurRadius:4)],
                 ),
                 child: Icon(
                   _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                  color: _isFav ? Colors.white : const Color(0xFF3E5F55),
+                  color: _isFav ? Colors.white : OffroColors.primary,
                   size: 14),
               ),
             )),
@@ -8128,15 +8096,14 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               return Positioned(bottom: 6, right: 7,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                  decoration: BoxDecoration(color: const Color(0xFF3E5F55), borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:.15), blurRadius: 4)]),
+                  decoration: BoxDecoration(color: OffroColors.primary, borderRadius: OffroRadii.pillRadius),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFD966), size: 10),
-                    const SizedBox(width: 1),
+                    const Icon(Icons.star_rounded, color: OffroColors.amber, size: 10),
+                    const SizedBox(width: 2),
                     Text(_pr.toStringAsFixed(1),
-                      style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                      style: OffroText.caption.copyWith(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
                     if (_pc > 0) Text(" ($_pc)",
-                      style: const TextStyle(color: Colors.white70, fontSize: 8)),
+                      style: OffroText.caption.copyWith(color: OffroColors.accent, fontSize: 9, fontWeight: FontWeight.w400)),
                   ]),
                 ),
               );
@@ -8150,34 +8117,28 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               // Product title — single line only, ellipsis if long (offer/description text removed from card; still shown on detail page)
               if (title.isNotEmpty)
                 Text(title,
-                  style: const TextStyle(
-                    color: OffroColors.text, fontSize: 14, fontWeight: FontWeight.w800,
-                    height: 1.25),
+                  style: OffroText.cardTitle.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               // Seller line — rating pill now on image, just show store name
               if (storeName.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text("Seller: " + storeName,
-                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                    style: OffroText.caption.copyWith(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w400),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               if (priceRaw.isNotEmpty && priceRaw != "0") ...[
                 Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(color: const Color(0xFFFFC94A), borderRadius: BorderRadius.circular(7)),
-                      child: Text("₹$priceRaw",
-                        style: const TextStyle(
-                          color: OffroColors.text, fontSize: 14, fontWeight: FontWeight.w900)),
-                    ),
+                    Text("₹$priceRaw",
+                      style: OffroText.caption.copyWith(
+                        color: OffroColors.primary, fontSize: 14, fontWeight: FontWeight.w600)),
                     if (origRaw.isNotEmpty && origRaw != "0") ...[
-                      const SizedBox(width: 5),
+                      const SizedBox(width: 6),
                       Text("₹$origRaw",
-                        style: const TextStyle(
-                          color: Color(0xFF9aada8), fontSize: 11,
+                        style: OffroText.caption.copyWith(
+                          color: OffroColors.sage, fontSize: 11, fontWeight: FontWeight.w400,
                           decoration: TextDecoration.lineThrough)),
                     ],
                   ]),
@@ -8202,30 +8163,30 @@ class _VapSearchBarState extends State<_VapSearchBar> {
     // Find parent _ProductViewAllPageState via context
     final pageState = context.findAncestorStateOfType<_ProductViewAllPageState>();
     return Container(
-      color: const Color(0xFFFDFBF6),
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      color: OffroColors.background,
+      padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
       child: TextField(
         onChanged: (v) {
           pageState?.setState(() => pageState._query = v);
         },
-        style: const TextStyle(color: OffroColors.text, fontSize: 13),
-        cursorColor: kPrimary,
+        style: OffroText.body.copyWith(color: OffroColors.text, fontSize: 14),
+        cursorColor: OffroColors.primary,
         decoration: InputDecoration(
           hintText: "Search products...",
-          hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
-          prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 18),
+          hintStyle: OffroText.body.copyWith(color: OffroColors.secondarySolid, fontSize: 14),
+          prefixIcon: const Icon(Icons.search_rounded, color: OffroColors.secondarySolid, size: 18),
           filled: true,
-          fillColor: Colors.white,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          fillColor: OffroColors.surface,
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             borderSide: const BorderSide(color: OffroColors.border)),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             borderSide: const BorderSide(color: OffroColors.border)),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: kPrimary)),
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: OffroColors.primary)),
         ),
       ),
     );

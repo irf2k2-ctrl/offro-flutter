@@ -71,7 +71,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                         else ...[
                           Text(
                             _expanded ? _content : (_content.length > 280 ? _content.substring(0, 280) + "..." : _content),
-                            style: OffroText.body.copyWith(fontSize: 14, height: 1.65, color: const Color(0x80000000)),
+                            style: OffroText.body.copyWith(fontSize: 14, height: 1.65, color: OffroColors.secondarySolid),
                           ),
                           if (_content.length > 280) ...[
                             const SizedBox(height: 12),
@@ -120,7 +120,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                                 style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
                             ],
                           )),
-                          const OffroIcon(OffroIcons.chevron, size: 14, color: Color(0x40000000)),
+                          const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.sage),
                         ]),
                       ),
                     ),

@@ -69,7 +69,7 @@ class _LocationAccessGateState extends State<LocationAccessGate> {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Container(
               width: 96, height: 96,
-              decoration: BoxDecoration(color: kLight.withValues(alpha: .5), shape: BoxShape.circle),
+              decoration: BoxDecoration(color: kLight, shape: BoxShape.circle),
               child: const Icon(Icons.location_on_rounded, color: kPrimary, size: 48),
             ),
             const SizedBox(height: 24),

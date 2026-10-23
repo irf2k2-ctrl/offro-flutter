@@ -199,13 +199,13 @@ class StoreHeader extends StatelessWidget {
               if (category.isNotEmpty) pill(category, bg: OffroColors.mintSoft),
               if (badge != null) ...[
                 const SizedBox(width: 8),
-                pill(badge, bg: OffroColors.beige.withValues(alpha: .6), fg: OffroColors.text),
+                pill(badge, bg: OffroColors.beige, fg: OffroColors.text),
               ],
               const Spacer(),
               if (rating > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(color: OffroColors.beige.withValues(alpha: .45), borderRadius: OffroRadii.pillRadius),
+                  decoration: BoxDecoration(color: OffroColors.beige, borderRadius: OffroRadii.pillRadius),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     const OffroIcon(OffroIcons.star, size: 12, color: OffroColors.amber, filled: true),
                     const SizedBox(width: 4),

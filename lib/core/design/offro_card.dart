@@ -57,7 +57,7 @@ class OffroCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: r,
-          side: bordered ? const BorderSide(color: OffroColors.borderSoft) : BorderSide.none,
+          side: bordered ? const BorderSide(color: OffroColors.border) : BorderSide.none,
         ),
         child: InkWell(
           onTap: onTap,

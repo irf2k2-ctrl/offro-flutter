@@ -34,10 +34,18 @@ class OffroColors {
   static const Color error      = Color(0xFFA95F4A);
 
   // Muted text = black at a given opacity (as in the design).
-  static const Color textMuted     = Color(0x73000000); // 45%
-  static const Color textSubtle    = Color(0x66000000); // 40%
-  static const Color textFaint     = Color(0x59000000); // 35%
-  static const Color textPlaceholder = Color(0x40000000); // 25%
+  static const Color textMuted     = Color(0xFF54776A); // solid secondary (was black 45%)
+  static const Color textSubtle    = Color(0xFF54776A); // solid secondary (was black 40%)
+  static const Color textFaint     = Color(0xFF759A89); // solid sage tertiary (was black 35%)
+  static const Color textPlaceholder = Color(0xFF759A89); // solid sage (was black 25%)
+  /// Readable secondary: black 55%. Only for functional secondary text/icons
+  /// that must stay legible on device (inactive nav, location info, search
+  /// placeholder). Not a replacement for textMuted/textSubtle/textFaint.
+  static const Color textReadableSecondary = Color(0xFF54776A); // alias of secondarySolid
+  /// Home eyebrow: sage deepened ~60% toward primary (#759A89 -> #54776A).
+  static const Color sageStrong = Color(0xFF54776A);
+  /// Solid secondary text/icon colour (Test C: replaces black-alpha secondary on Home). Same value as sageStrong.
+  static const Color secondarySolid = Color(0xFF54776A);
 
   // Hairlines: primary at low opacity.
   static const Color border      = Color(0x1A3E5F55); // 10%
@@ -45,8 +53,8 @@ class OffroColors {
   static const Color borderStrong = Color(0x2E3E5F55); // 18%
 
   // Soft fills
-  static const Color mintSoft = Color(0x8CCDEBD6); // mint @ 55%
-  static const Color mintFill = Color(0xA6CDEBD6); // mint @ 65%
+  static const Color mintSoft = Color(0xFFCDEBD6); // solid mint (was mint @ 55%)
+  static const Color mintFill = Color(0xFFCDEBD6); // solid mint (was mint @ 65%)
 }
 
 /// A pastel category tile colour pair (background + icon colour).

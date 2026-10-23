@@ -161,7 +161,7 @@ class StoreOffersSection extends StatelessWidget {
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: kLight.withValues(alpha: .55),
+                        color: kLight,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: OffroColors.border, width: 1),
                       ),
@@ -180,7 +180,7 @@ class StoreOffersSection extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
               decoration: BoxDecoration(
-                color: kLight.withValues(alpha: .45),
+                color: OffroColors.mintSoft,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: OffroColors.border, width: 1),
               ),
@@ -357,7 +357,7 @@ class StoreOffersSection extends StatelessWidget {
                           width: 36, height: 36,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: kLight.withValues(alpha: .6),
+                            color: kLight,
                           ),
                         ),
                       ),

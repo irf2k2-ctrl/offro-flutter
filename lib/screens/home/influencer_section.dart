@@ -328,7 +328,7 @@ Widget _influencerComingSoonCard() {
       child: Column(children: [
         Container(
           width: 56, height: 56,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
+          decoration: BoxDecoration(shape: BoxShape.circle, color: kLight),
           alignment: Alignment.center,
           child: const Icon(Icons.auto_awesome_rounded, size: 26, color: kPrimary),
         ),

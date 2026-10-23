@@ -11,6 +11,8 @@ import 'offro_typography.dart';
 /// "EYEBROW" + large title on the left, "See all >" action on the right.
 class OffroSectionTitle extends StatelessWidget {
   final String? eyebrow;
+  /// Optional override of the eyebrow colour (default: OffroText.eyebrow sage).
+  final Color? eyebrowColor;
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
@@ -19,6 +21,7 @@ class OffroSectionTitle extends StatelessWidget {
   const OffroSectionTitle({
     super.key,
     this.eyebrow,
+    this.eyebrowColor,
     required this.title,
     this.actionLabel,
     this.onAction,
@@ -37,7 +40,8 @@ class OffroSectionTitle extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (eyebrow != null)
-                  Text(eyebrow!.toUpperCase(), style: OffroText.eyebrow),
+                  Text(eyebrow!.toUpperCase(),
+                    style: eyebrowColor == null ? OffroText.eyebrow : OffroText.eyebrow.copyWith(color: eyebrowColor)),
                 if (eyebrow != null) const SizedBox(height: 4),
                 Text(title, style: OffroText.title),
               ],

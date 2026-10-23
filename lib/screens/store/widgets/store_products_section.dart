@@ -82,7 +82,7 @@ Widget _productGalleryOverlay(Map<String, dynamic> p) {
         if (pricing.discLabel.isNotEmpty) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(20)),
+            decoration: BoxDecoration(color: OffroColors.terracotta, borderRadius: BorderRadius.circular(20)),
             child: Text(pricing.discLabel,
                 style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
           ),
@@ -288,7 +288,7 @@ class _ProductCardState extends State<_ProductCard> {
         setState(() => _isFav = prev);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text("Couldn't save favorite: ${friendlyError(e)}"),
-          backgroundColor: const Color(0xFFc0392b),
+          backgroundColor: OffroColors.error,
           duration: const Duration(seconds: 12),
           showCloseIcon: true));
       }
@@ -319,7 +319,7 @@ class _ProductCardState extends State<_ProductCard> {
   }
 
   Widget _bgGrad() {
-    return Container(color: const Color(0xFFF5F5F5));
+    return Container(color: OffroColors.beige);
   }
 
   void _handleTap(BuildContext context) {
@@ -449,7 +449,7 @@ class _ProductCardState extends State<_ProductCard> {
               Positioned(top: 8, left: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: const Color(0xFFe74c3c), borderRadius: BorderRadius.circular(20)),
+                  decoration: BoxDecoration(color: OffroColors.terracotta, borderRadius: BorderRadius.circular(20)),
                   child: Text(discLabel, style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
                 )),
 
@@ -467,7 +467,7 @@ class _ProductCardState extends State<_ProductCard> {
                     ),
                     child: Icon(
                       _isFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                      color: _isFav ? const Color(0xFFe74c3c) : const Color(0xFF9e9e9e),
+                      color: _isFav ? OffroColors.terracotta : OffroColors.sage,
                       size: 14),
                   ),
                 )),
@@ -550,7 +550,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
       if (mounted) {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Couldn't submit rating: ${friendlyError(e)}"), backgroundColor: const Color(0xFFc0392b)));
+          SnackBar(content: Text("Couldn't submit rating: ${friendlyError(e)}"), backgroundColor: OffroColors.error));
       }
     }
   }

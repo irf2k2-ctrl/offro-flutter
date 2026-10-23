@@ -16,7 +16,7 @@ import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/utils/navigation.dart';
-import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii, OffroIcon, OffroIcons, OffroIconData;
+import '../../core/design/design.dart' show OffroColors, OffroShadows, OffroText, OffroRadii, OffroIcon, OffroIcons, OffroIconData;
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
 const _kWidgetId  = '36656f6a786e313430373338';
@@ -268,7 +268,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       text: _resendSecs > 0 ? 'Resend in ${_resendSecs}s' : 'Resend OTP',
                       style: OffroText.caption.copyWith(
                         fontSize: 13, fontWeight: FontWeight.w700,
-                        color: _resendSecs > 0 ? OffroColors.textFaint : OffroColors.primary)),
+                        color: _resendSecs > 0 ? OffroColors.textMuted : OffroColors.primary)),
                   ])),
             )),
             const SizedBox(height: 24),
@@ -446,7 +446,7 @@ class _ContinueAsState extends State<ContinueAsScreen>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: OffroColors.mint.withValues(alpha: .6),
+                      color: OffroColors.mint,
                       borderRadius: OffroRadii.pillRadius),
                     child: Text('MAKE OFFRO YOURS',
                       style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
@@ -860,7 +860,7 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: OffroColors.mint.withValues(alpha: .6),
+            color: OffroColors.mint,
             borderRadius: OffroRadii.pillRadius),
           child: Text('MAKE OFFRO YOURS',
             style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
@@ -943,7 +943,7 @@ class _ModeTile extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: active ? OffroColors.primary : Colors.transparent, width: 1.2),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 12, offset: const Offset(0, 4))],
+          boxShadow: OffroShadows.card,
         ),
         child: Row(children: [
           Container(
@@ -1229,7 +1229,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: OffroColors.beige.withValues(alpha: .35),
+                          color: OffroColors.beige,
                           borderRadius: OffroRadii.pillRadius),
                         child: Row(children: [
                           _tabBtn('Login', !_isReg, () => setState(() { _isReg = false; _msg = ''; })),
@@ -1338,7 +1338,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                         Expanded(child: Container(height: 1, color: const Color(0x14000000))),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('OR', style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.4, color: const Color(0x4D000000))),
+                          child: Text('OR', style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.4, color: OffroColors.secondarySolid)),
                         ),
                         Expanded(child: Container(height: 1, color: const Color(0x14000000))),
                       ]),
@@ -1362,7 +1362,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
 
                       // Social bar (admin-configured links)
                       Center(child: Text('FOLLOW THE LOCAL STORY',
-                        style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: const Color(0x4D000000)))),
+                        style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.secondarySolid))),
                       const SizedBox(height: 10),
                       _socialBar(),
                     ]),
@@ -1396,7 +1396,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         child: Text(label, textAlign: TextAlign.center,
           style: OffroText.button.copyWith(
             fontSize: 12,
-            color: active ? OffroColors.primary : const Color(0x66000000))),
+            color: active ? OffroColors.primary : OffroColors.secondarySolid)),
       ),
     ));
 

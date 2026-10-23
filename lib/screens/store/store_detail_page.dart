@@ -317,24 +317,29 @@ class _StoreDetailPageState extends State<StoreDetailPage>
                       controller: _tabCtrl,
                       isScrollable: true,
                       tabAlignment: TabAlignment.start,
-                      labelColor: OffroColors.primary,
-                      unselectedLabelColor: OffroColors.textSubtle,
+                      // Figma pill tabs: selected = solid primary pill, others = text only.
+                      labelColor: Colors.white,
+                      unselectedLabelColor: OffroColors.secondarySolid,
                       labelStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700),
+                          fontFamily: OffroFonts.sans,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
                       unselectedLabelStyle: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500),
-                      indicatorColor: OffroColors.primary,
-                      indicatorWeight: 2.5,
-                      indicatorSize: TabBarIndicatorSize.label,
-                      dividerColor: OffroColors.borderSoft,
+                          fontFamily: OffroFonts.sans,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                      indicator: BoxDecoration(
+                          color: OffroColors.primary,
+                          borderRadius: OffroRadii.pillRadius),
+                      indicatorSize: TabBarIndicatorSize.tab,
+                      dividerColor: Colors.transparent,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16),
                       tabs: _tabs
                           .map((t) => Tab(
                               text: t,
-                              height: 40))
+                              height: 36))
                           .toList(),
                     ),
                   ),
@@ -457,7 +462,7 @@ class _TabContentState extends State<_TabContent> {
         margin: const EdgeInsets.fromLTRB(16, 20, 16, 0),
         height: 80,
         decoration: BoxDecoration(
-          color: const Color(0xFFD1E0DA),
+          color: OffroColors.mint,
           borderRadius: BorderRadius.circular(12),
         ),
       );

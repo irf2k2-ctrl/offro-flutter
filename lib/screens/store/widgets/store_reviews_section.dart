@@ -181,7 +181,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
           const Spacer(),
           if (_avgRating > 0) ...[
             const Icon(Icons.star_rounded,
-                color: Color(0xFFFFB300), size: 16),
+                color: OffroColors.amber, size: 16),
             const SizedBox(width: 3),
             Text(_avgRating.toStringAsFixed(1),
                 style: const TextStyle(
@@ -214,9 +214,9 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: kLight.withValues(alpha: .4),
+                color: OffroColors.mintSoft,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: kAccent.withValues(alpha: .6)),
+                border: Border.all(color: kAccent),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
@@ -260,9 +260,9 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: kLight.withValues(alpha: .5),
+                  color: kLight,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: kAccent.withValues(alpha: .5)),
+                  border: Border.all(color: kAccent),
                 ),
                 child: const Row(children: [
                   Icon(Icons.rate_review_rounded, color: kPrimary, size: 18),

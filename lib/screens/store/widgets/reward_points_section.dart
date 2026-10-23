@@ -27,7 +27,7 @@ class RewardPointsSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               vertical: 28, horizontal: 16),
           decoration: BoxDecoration(
-            color: kLight.withValues(alpha: .45),
+            color: OffroColors.mintFill,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: OffroColors.border, width: 1),
           ),
@@ -59,7 +59,7 @@ class RewardPointsSection extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF3E5F55), Color(0xFF5A8A7A)],
+              colors: [OffroColors.primary, OffroColors.primary],
             ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [

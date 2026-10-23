@@ -162,7 +162,7 @@ class _ExploreTabState extends State<ExploreTab> {
                     cursorColor: OffroColors.primary,
                     decoration: InputDecoration(
                       hintText: 'Search stores, categories or areas',
-                      hintStyle: OffroText.body.copyWith(fontSize: 13, color: const Color(0x4D000000)),
+                      hintStyle: OffroText.body.copyWith(fontSize: 13, color: OffroColors.secondarySolid),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,

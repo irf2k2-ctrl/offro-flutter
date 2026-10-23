@@ -2,6 +2,7 @@
 // "Active Offer" chip REMOVED per requirement (point 5).
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/design/offro_tokens.dart' show OffroColors;
 
 class StoreHighlights extends StatelessWidget {
   final Map<String, dynamic> store;
@@ -24,20 +25,20 @@ class StoreHighlights extends StatelessWidget {
       chips.add(_ChipData(
           'Trending',
           Icons.trending_up_rounded,
-          const Color(0xFFFF6B35),
-          const Color(0xFFFFF0EB)));
+          OffroColors.terracotta,
+          OffroColors.beige));
     if (isNew)
       chips.add(_ChipData(
           'Just Opened',
           Icons.fiber_new_rounded,
-          const Color(0xFF2E7D5E),
-          const Color(0xFFE8F5EE)));
+          const Color(0xFF4F745C),
+          const Color(0xFFDDEEDF)));
     if (isPopular && !isTrending)
       chips.add(_ChipData(
           'Popular',
           Icons.thumb_up_rounded,
-          const Color(0xFF2C4A7A),
-          const Color(0xFFE3ECF7)));
+          const Color(0xFF4A7088),
+          const Color(0xFFE1EBF2)));
 
     if (chips.isEmpty) return const SizedBox.shrink();
 

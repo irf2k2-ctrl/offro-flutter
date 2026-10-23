@@ -15,7 +15,7 @@ import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:offro_user/screens/store/store_detail_page.dart';
 import 'package:offro_user/core/utils/navigation.dart';
-import '../design/offro_tokens.dart' show OffroColors;
+import '../design/offro_tokens.dart' show OffroColors, OffroShadows;
 
 // ── Open/close status helper ──────────────────────────────────────────────────
 ({bool? isOpen, String label, String sub}) _getStoreStatus(Map store) {
@@ -39,12 +39,20 @@ class PromoSliderCard extends StatefulWidget {
   final bool hideText;
   /// Called when a video finishes playing — use to advance to next slide.
   final VoidCallback? onVideoComplete;
+  /// Home hero: video slides do NOT autoplay - they show a play icon and start
+  /// only when the customer taps it. Default false keeps the old autoplay for
+  /// every other user of this widget.
+  final bool tapToPlay;
+  /// Called once when the customer starts a tap-to-play video.
+  final VoidCallback? onPlayStarted;
   const PromoSliderCard({
     required this.slider,
     this.token = "",
     this.squareCorners = false,
     this.hideText = false,
     this.onVideoComplete,
+    this.tapToPlay = false,
+    this.onPlayStarted,
     Key? key,
   }) : super(key: key);
   @override State<PromoSliderCard> createState() => _PromoSliderCardState();
@@ -53,6 +61,8 @@ class PromoSliderCard extends StatefulWidget {
 class _PromoSliderCardState extends State<PromoSliderCard> {
   VideoPlayerController? _vpc;
   bool _videoReady = false;
+  bool _started = false;      // tap-to-play: customer has pressed play
+  bool _playPending = false;  // tapped before the video finished loading
 
   static bool _isVideo(String url) =>
       url.isNotEmpty && (
@@ -97,10 +107,15 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       ..initialize().then((_) {
         if (!mounted) return;
         _vpc!.setLooping(false); // no loop — advance to next slide on complete
-        _vpc!.setVolume(0); // muted for autoplay
-        _vpc!.play();
         _vpc!.addListener(_onVideoPositionChanged);
-        setState(() => _videoReady = true);
+        if (widget.tapToPlay) {
+          setState(() => _videoReady = true);
+          if (_playPending) _startPlayback();
+        } else {
+          _vpc!.setVolume(0); // muted for autoplay
+          _vpc!.play();
+          setState(() => _videoReady = true);
+        }
       }).catchError((e) {
         if (kDebugMode) debugPrint("[Offro] video init error: \$e (url: \$url)");
       });
@@ -117,10 +132,15 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         ..initialize().then((_) {
           if (!mounted) return;
           _vpc!.setLooping(false);
-          _vpc!.setVolume(0);
-          _vpc!.play();
           _vpc!.addListener(_onVideoPositionChanged);
-          setState(() => _videoReady = true);
+          if (widget.tapToPlay) {
+            setState(() => _videoReady = true);
+            if (_playPending) _startPlayback();
+          } else {
+            _vpc!.setVolume(0);
+            _vpc!.play();
+            setState(() => _videoReady = true);
+          }
         }).catchError((e) {
           if (kDebugMode) debugPrint("[Offro] file video init error: \$e");
         });
@@ -130,6 +150,39 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
   }
 
   bool _videoEndFired = false;
+
+  /// Tap-to-play: begin playback (only ever called after the customer taps).
+  void _startPlayback() {
+    if (_started) return;
+    final c = _vpc;
+    if (c == null || !c.value.isInitialized) {
+      _playPending = true; // start as soon as the video is ready
+      if (mounted) setState(() {});
+      return;
+    }
+    _started = true;
+    _playPending = false;
+    c.setVolume(1.0);
+    c.play();
+    widget.onPlayStarted?.call();
+    if (mounted) setState(() {});
+  }
+
+  Widget _playOverlay() => Center(
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _startPlayback,
+      child: Container(
+        width: 56, height: 56,
+        decoration: const BoxDecoration(color: Color(0xFF17231F), shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: _playPending
+            ? const SizedBox(width: 22, height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+      ),
+    ),
+  );
 
   void _onVideoPositionChanged() {
     if (_vpc == null || !_vpc!.value.isInitialized) return;
@@ -158,7 +211,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     // Video
     if (_isVideo(url)) {
       if (_videoReady && _vpc != null && _vpc!.value.isInitialized) {
-        return FittedBox(
+        final video = FittedBox(
           fit: BoxFit.cover,
           child: SizedBox(
             width: _vpc!.value.size.width,
@@ -166,9 +219,17 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
             child: VideoPlayer(_vpc!),
           ),
         );
+        if (widget.tapToPlay && !_started) {
+          return Stack(fit: StackFit.expand, children: [video, _playOverlay()]);
+        }
+        return video;
       }
-      // While video loads → green placeholder
-      return Container(color: const Color(0xFF3E5F55));
+      // While video loads → green placeholder (tap-to-play still shows the icon)
+      final ph = Container(color: const Color(0xFF3E5F55));
+      if (widget.tapToPlay && !_started) {
+        return Stack(fit: StackFit.expand, children: [ph, _playOverlay()]);
+      }
+      return ph;
     }
 
     // base64 image
@@ -456,10 +517,7 @@ class TopStoreCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFd4e8de), width: 1.0),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 16, spreadRadius: 0, offset: const Offset(0,4)),
-          BoxShadow(color: const Color(0xFFA9CDBA).withValues(alpha: .12), blurRadius: 8, offset: const Offset(0,2)),
-        ],
+        boxShadow: OffroShadows.card,
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Left image ──
