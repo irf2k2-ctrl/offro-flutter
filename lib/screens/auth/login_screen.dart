@@ -341,7 +341,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
       body: Stack(children: [
         Container(decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0d2b24), Color(0xFF1e4a3f), Color(0xFF3E5F55)],
+            colors: [Color(0xFF0d2b24), Color(0xFF1e4a3f), OffroColors.primary],
             begin: Alignment.topLeft, end: Alignment.bottomRight))),
         SafeArea(child: Center(child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -694,7 +694,7 @@ class _MerchantLoadingState extends State<MerchantLoadingScreen>
       body: Stack(children: [
         Container(decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0d2b24), Color(0xFF1e4a3f), Color(0xFF3E5F55)],
+            colors: [Color(0xFF0d2b24), Color(0xFF1e4a3f), OffroColors.primary],
             begin: Alignment.topLeft, end: Alignment.bottomRight))),
         SafeArea(child: FadeTransition(
           opacity: _fade,

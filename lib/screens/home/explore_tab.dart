@@ -149,10 +149,10 @@ class _ExploreTabState extends State<ExploreTab> {
               decoration: BoxDecoration(
                 color: OffroColors.surface,
                 borderRadius: BorderRadius.circular(OffroRadii.input),
-                boxShadow: const [BoxShadow(color: Color(0x0F3E5F55), blurRadius: 30, offset: Offset(0, 8))],
+                boxShadow: const [BoxShadow(color: Color(0x0F345148), blurRadius: 30, offset: Offset(0, 8))],
               ),
               child: Row(children: [
-                const OffroIcon(OffroIcons.search, size: 18, color: Color(0x803E5F55)),
+                const OffroIcon(OffroIcons.search, size: 18, color: Color(0x80345148)),
                 const SizedBox(width: 12),
                 Expanded(
                   child: TextField(
@@ -348,7 +348,7 @@ class _ExploreTabState extends State<ExploreTab> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0x99CDEBD6),
+                          color: const Color(0x99B8D9C3),
                           borderRadius: OffroRadii.pillRadius,
                         ),
                         child: Text('Offer · $offer', maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -415,7 +415,7 @@ class _AreaCard extends StatelessWidget {
         constraints: const BoxConstraints(minWidth: 142),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x66CDEBD6) : OffroColors.surface,
+          color: selected ? const Color(0x66B8D9C3) : OffroColors.surface,
           borderRadius: BorderRadius.circular(19),
           border: Border.all(color: selected ? OffroColors.primary : OffroColors.border),
         ),
@@ -423,7 +423,7 @@ class _AreaCard extends StatelessWidget {
           Container(
             width: 32, height: 32,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(color: Color(0xA6CDEBD6), shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: Color(0xA6B8D9C3), shape: BoxShape.circle),
             child: const OffroIcon(OffroIcons.pin, size: 14, color: OffroColors.primary, filled: true),
           ),
           const SizedBox(height: 12),

@@ -51,7 +51,7 @@ Widget offroHeaderAddButton({
   double size = 44,
 }) {
   final btn = Material(
-    color: kPrimary,
+    color: kMerchantPrimary,
     shape: const CircleBorder(),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
@@ -136,14 +136,14 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   bool get _hasActiveStore => !_loadError && _stores.any((s) => s["status"] == "active");
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
+    backgroundColor: kMerchantBg,
     appBar: AppBar(
       title: Row(children:[
         buildImageLogo(height:24, white:true),
         const SizedBox(width:8),
         const Text("Merchant Home", style:TextStyle(fontWeight:FontWeight.w800)),
       ]),
-      backgroundColor: Colors.white, foregroundColor: kText,
+      backgroundColor: Colors.white, foregroundColor: kMerchantText,
       automaticallyImplyLeading:false,
       bottom: widget.onLocationTap == null ? null : PreferredSize(
         preferredSize: const Size.fromHeight(52),
@@ -155,21 +155,21 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       ),
     ),
     body: _loading
-      ? const Center(child:CircularProgressIndicator(color:kPrimary))
+      ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary))
       // FIX7: show retry instead of new-merchant flow when network failed
       : (_loadError && _stores.isEmpty)
           ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.wifi_off_rounded, color: kMuted, size: 48),
+              const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
               const SizedBox(height: 16),
-              const Text("Couldn't load your dashboard", style: TextStyle(color: kText, fontSize: 16, fontWeight: FontWeight.w700)),
+              const Text("Couldn't load your dashboard", style: TextStyle(color: kMerchantText, fontSize: 16, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
-              const Text("Check your connection and try again", style: TextStyle(color: kMuted, fontSize: 13)),
+              const Text("Check your connection and try again", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
               const SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () => _load(),
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text("Retry"),
-                style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, foregroundColor: Colors.white),
               ),
             ]))
       : RefreshIndicator(
@@ -191,7 +191,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
               // ── Section cards ──
               _SectionCard(
                 icon: Icons.store_rounded,
-                color: kPrimary,
+                color: kMerchantPrimary,
                 bgColor: const Color(0xFFe8f4ef),
                 title: "My Store",
                 subtitle: _stores.isEmpty
@@ -204,7 +204,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
               // Banner card — locked until a subscribed+active store exists
               _SectionCard(
                 icon: Icons.view_carousel_rounded,
-                color: _hasActiveStore ? const Color(0xFFc0392b) : kMuted,
+                color: _hasActiveStore ? const Color(0xFFc0392b) : kMerchantMuted,
                 bgColor: _hasActiveStore ? const Color(0xFFfde8e8) : const Color(0xFFf0f0f0),
                 title: "My Banner",
                 locked: !_hasActiveStore,
@@ -229,7 +229,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
               // Product card — locked until a subscribed+active store exists
               _SectionCard(
                 icon: Icons.local_activity_rounded,
-                color: _hasActiveStore ? const Color(0xFF856404) : kMuted,
+                color: _hasActiveStore ? const Color(0xFF856404) : kMerchantMuted,
                 bgColor: _hasActiveStore ? const Color(0xFFfff3cd) : const Color(0xFFf0f0f0),
                 title: "My Products",
                 locked: !_hasActiveStore,
@@ -328,7 +328,7 @@ class _SectionCard extends StatelessWidget {
         const SizedBox(height: 6),
         // ── Subtitle / stats ──
         Text(subtitle,
-          style: const TextStyle(color: kMuted, fontSize: 13, height: 1.4),
+          style: const TextStyle(color: kMerchantMuted, fontSize: 13, height: 1.4),
           maxLines: 2, overflow: TextOverflow.ellipsis),
       ]),
     ),
@@ -371,13 +371,13 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
+    backgroundColor:kMerchantBg,
     appBar:AppBar(
       toolbarHeight:58,
       titleSpacing:16,
       centerTitle:true,
       title:const Text("My Banners",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-      backgroundColor: Colors.white, foregroundColor: kText,
+      backgroundColor: Colors.white, foregroundColor: kMerchantText,
       actions:[
         Padding(
           padding:const EdgeInsets.only(right:18),
@@ -390,24 +390,24 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
       ],
     ),
     body:_loading
-      ? const Center(child:CircularProgressIndicator(color:kPrimary))
+      ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary))
       : _loadError
           ? Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
-              const Icon(Icons.wifi_off_rounded,color:kMuted,size:48),
+              const Icon(Icons.wifi_off_rounded,color:kMerchantMuted,size:48),
               const SizedBox(height:12),
-              const Text("Couldn't load banners",style:TextStyle(color:kText,fontSize:15,fontWeight:FontWeight.w700)),
+              const Text("Couldn't load banners",style:TextStyle(color:kMerchantText,fontSize:15,fontWeight:FontWeight.w700)),
               const SizedBox(height:8),
               ElevatedButton.icon(onPressed:()=>_load(),icon:const Icon(Icons.refresh),label:const Text("Retry"),
-                style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white)),
+                style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,foregroundColor:Colors.white)),
             ]))
       : Column(children:[
           Expanded(child:_banners.isEmpty
             ? const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                Icon(Icons.view_carousel_outlined,size:64,color:kAccent),
+                Icon(Icons.view_carousel_outlined,size:64,color:kMerchantAccent),
                 SizedBox(height:12),
-                Text("No banners yet",style:TextStyle(color:kMuted,fontSize:16)),
+                Text("No banners yet",style:TextStyle(color:kMerchantMuted,fontSize:16)),
                 SizedBox(height:6),
-                Text("Tap + to create your first banner",style:TextStyle(color:kMuted,fontSize:13)),
+                Text("Tap + to create your first banner",style:TextStyle(color:kMerchantMuted,fontSize:13)),
               ]))
             : RefreshIndicator(
                 onRefresh:_load,
@@ -449,7 +449,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                       "removed"   => (Colors.red.shade700, "Removed by Admin", Icons.block_rounded),
                       "off"       => (Colors.grey.shade500, "Turned Off", Icons.pause_circle_outline_rounded),
                       "pending_approval" || "pending" => (const Color(0xFF856404),"Pending Approval", Icons.access_time_rounded),
-                      _ => (kMuted,"Submitted", Icons.hourglass_empty),
+                      _ => (kMerchantMuted,"Submitted", Icons.hourglass_empty),
                     };
                     // FIX 2: prefer from_date/end_date, fallback start_date
                     final fromDate = b["from_date"]?.toString() ?? b["start_date"]?.toString() ?? "";
@@ -477,9 +477,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                           errorBuilder: (_, __, ___) => Container(
                             width: 80,
                             height: 80,
-                            color: kAccent,
+                            color: kMerchantAccent,
                             child: Center(
-                              child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
+                              child: Text(initialStr, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                             ),
                           ),
                         );
@@ -492,9 +492,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                           errorBuilder: (_, __, ___) => Container(
                             width: 80,
                             height: 80,
-                            color: kAccent,
+                            color: kMerchantAccent,
                             child: Center(
-                              child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
+                              child: Text(initialStr, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                             ),
                           ),
                         );
@@ -503,9 +503,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                       _thumb = Container(
                         width: 80,
                         height: 80,
-                        color: kAccent,
+                        color: kMerchantAccent,
                         child: Center(
-                          child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
+                          child: Text(initialStr, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                         ),
                       );
                     }
@@ -515,15 +515,15 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         onPressed:() async {
                           final ctrl = TextEditingController(text:b["title"]??"");
                           final newTitle = await showDialog<String>(context:context,builder:(_)=>AlertDialog(
-                            title:const Text("Edit Banner Title",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                            title:const Text("Edit Banner Title",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
                             content:TextField(controller:ctrl,decoration:InputDecoration(
                               hintText:"Banner title",
                               border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)))),
+                              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)))),
                             actions:[
-                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
                               ElevatedButton(
-                                style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+                                style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
                                 onPressed:()=>Navigator.pop(context,ctrl.text.trim()),
                                 child:const Text("Save",style:TextStyle(color:Colors.white))),
                             ],
@@ -539,10 +539,10 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             }
                           }
                         },
-                        icon:const Icon(Icons.edit_rounded,size:14,color:kPrimary),
-                        label:const Text("Edit Title",style:TextStyle(color:kPrimary,fontSize:12)),
+                        icon:const Icon(Icons.edit_rounded,size:14,color:kMerchantPrimary),
+                        label:const Text("Edit Title",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
                         style:OutlinedButton.styleFrom(
-                          side:const BorderSide(color:kPrimary),
+                          side:const BorderSide(color:kMerchantPrimary),
                           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
                           padding:const EdgeInsets.symmetric(vertical:6),
                           minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
@@ -555,16 +555,16 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             final confirm = await showDialog<bool>(context:context,
                               builder:(_)=>AlertDialog(
                                 title:Text(isOn?"Turn Off Banner?":"Turn On Banner?",
-                                  style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                                  style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
                                 content:Text(isOn
                                   ?"This banner will be hidden from stores until you turn it back on."
                                   :"This banner will go live again in stores."),
                                 actions:[
                                   TextButton(onPressed:()=>Navigator.pop(context,false),
-                                    child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                                    child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
                                   ElevatedButton(
                                     style:ElevatedButton.styleFrom(
-                                      backgroundColor:isOn?Colors.orange:kPrimary),
+                                      backgroundColor:isOn?Colors.orange:kMerchantPrimary),
                                     onPressed:()=>Navigator.pop(context,true),
                                     child:Text(isOn?"Turn Off":"Turn On",
                                       style:const TextStyle(color:Colors.white))),
@@ -582,11 +582,11 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             }
                           },
                           icon:Icon(_bIsActive?Icons.pause_circle_outline:Icons.play_circle_outline,
-                            size:14,color:_bIsActive?Colors.orange:kPrimary),
+                            size:14,color:_bIsActive?Colors.orange:kMerchantPrimary),
                           label:Text(_bIsActive?"Turn Off":"Turn On",
-                            style:TextStyle(color:_bIsActive?Colors.orange:kPrimary,fontSize:12)),
+                            style:TextStyle(color:_bIsActive?Colors.orange:kMerchantPrimary,fontSize:12)),
                           style:OutlinedButton.styleFrom(
-                            side:BorderSide(color:_bIsActive?Colors.orange:kPrimary),
+                            side:BorderSide(color:_bIsActive?Colors.orange:kMerchantPrimary),
                             shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
                             padding:const EdgeInsets.symmetric(vertical:6),
                             minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
@@ -605,7 +605,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         child:Row(
                           crossAxisAlignment:CrossAxisAlignment.start,
                           children:[
-                            Container(width:4,decoration:BoxDecoration(color:kPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
+                            Container(width:4,decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
                             Padding(
                               padding:const EdgeInsets.all(10),
                               child:ClipRRect(borderRadius:BorderRadius.circular(10),child:_thumb),
@@ -615,7 +615,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                               child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                                 // Row 1: Title + status badge
                                 Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                                  Expanded(child:Text(b["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kText),maxLines:1,overflow:TextOverflow.ellipsis)),
+                                  Expanded(child:Text(b["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kMerchantText),maxLines:1,overflow:TextOverflow.ellipsis)),
                                   Container(
                                     padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
                                     decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),
@@ -629,27 +629,27 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 const SizedBox(height:4),
                                 // Duration + Amount row
                                 Row(children:[
-                                  const Icon(Icons.schedule_rounded,size:13,color:kMuted),
+                                  const Icon(Icons.schedule_rounded,size:13,color:kMerchantMuted),
                                   const SizedBox(width:4),
-                                  Text("${b['duration']??b['duration_days']??30} Days",style:const TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                  Text("${b['duration']??b['duration_days']??30} Days",style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
                                   const SizedBox(width:10),
-                                  const Icon(Icons.payments_outlined,size:13,color:kMuted),
+                                  const Icon(Icons.payments_outlined,size:13,color:kMerchantMuted),
                                   const SizedBox(width:4),
-                                  Text("₹${b['amount']??0}",style:const TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                  Text("₹${b['amount']??0}",style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
                                 ]),
                                 if (fromDate.isNotEmpty || endDate.isNotEmpty) ...[
                                   const SizedBox(height:4),
                                   Container(
                                     padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                                    decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(6)),
+                                    decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(6)),
                                     child:Row(children:[
-                                      const Icon(Icons.calendar_month_rounded,size:12,color:kPrimary),
+                                      const Icon(Icons.calendar_month_rounded,size:12,color:kMerchantPrimary),
                                       const SizedBox(width:5),
                                       Expanded(child:Text(
                                         fromDate.isNotEmpty && endDate.isNotEmpty
                                           ? "Start: $fromDate   →   End: $endDate"
                                           : fromDate.isNotEmpty ? "From: $fromDate" : "Until: $endDate",
-                                        style:const TextStyle(color:kPrimary,fontSize:10,fontWeight:FontWeight.w600),
+                                        style:const TextStyle(color:kMerchantPrimary,fontSize:10,fontWeight:FontWeight.w600),
                                         maxLines:1,
                                         overflow:TextOverflow.ellipsis,
                                       )),
@@ -658,7 +658,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 ],
                                 if ((b["invoice_no"]??"").isNotEmpty) ...[
                                   const SizedBox(height:3),
-                                  Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMuted,fontSize:10)),
+                                  Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                                 ],
                                 const SizedBox(height:8),
                                 const Divider(height:1,thickness:.5,color:Color(0xFFd4e8de)),
@@ -681,8 +681,8 @@ class _InfoChip extends StatelessWidget {
   const _InfoChip(this.text);
   @override Widget build(BuildContext context) => Container(
     padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),
-    decoration:BoxDecoration(color:kLight.withValues(alpha:.6),borderRadius:BorderRadius.circular(6)),
-    child:Text(text,style:const TextStyle(fontSize:10,color:kPrimary,fontWeight:FontWeight.w600)),
+    decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.6),borderRadius:BorderRadius.circular(6)),
+    child:Text(text,style:const TextStyle(fontSize:10,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
   );
 }
 
@@ -864,14 +864,14 @@ class _AddBannerState extends State<AddBannerPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: sel ? kPrimary : Colors.white,
+          color: sel ? kMerchantPrimary : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: sel ? kPrimary : kBorder)),
+          border: Border.all(color: sel ? kMerchantPrimary : kMerchantBorder)),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 18, color: sel ? Colors.white : kMuted),
+          Icon(icon, size: 18, color: sel ? Colors.white : kMerchantMuted),
           const SizedBox(width: 6),
           Text(label, style: TextStyle(
-            color: sel ? Colors.white : kText, fontSize: 13, fontWeight: FontWeight.w700)),
+            color: sel ? Colors.white : kMerchantText, fontSize: 13, fontWeight: FontWeight.w700)),
         ]))));
   }
 
@@ -885,10 +885,10 @@ class _AddBannerState extends State<AddBannerPage> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: has ? kPrimary : kBorder, width: has ? 2 : 1)),
+          border: Border.all(color: has ? kMerchantPrimary : kMerchantBorder, width: has ? 2 : 1)),
         child: _videoBusy
           ? const Center(child: SizedBox(width: 24, height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary)))
+              child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary)))
           : has
             ? Stack(children: [
                 ClipRRect(borderRadius: BorderRadius.circular(11),
@@ -903,9 +903,9 @@ class _AddBannerState extends State<AddBannerPage> {
                     child: const Icon(Icons.close, color: Colors.white, size: 14)))),
               ])
             : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.video_library_outlined, size: 36, color: kAccent),
+                const Icon(Icons.video_library_outlined, size: 36, color: kMerchantAccent),
                 const SizedBox(height: 6),
-                const Text("Tap to select banner video", style: TextStyle(color: kMuted, fontSize: 13)),
+                const Text("Tap to select banner video", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
                 const SizedBox(height: 3),
                 _InfoChip("Max 15 seconds · Max 10 MB"),
               ]),
@@ -1099,7 +1099,7 @@ class _AddBannerState extends State<AddBannerPage> {
 
   Future<bool?> _showBannerSummaryDialog(Map order, {required bool manual}) async =>
     showDialog<bool>(context:context, builder:(_)=>AlertDialog(
-      title:const Text("Banner Order Summary",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+      title:const Text("Banner Order Summary",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
         _dRow("Title",    _titleC.text.trim()),
         _dRow("Duration", "${order['days']} Days"),
@@ -1113,16 +1113,16 @@ class _AddBannerState extends State<AddBannerPage> {
         _dRow("Total","₹${order['amount_display']}",bold:true),
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
-          decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+          decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
           child:Text(manual
             ? "Your banner will be submitted for admin review after confirmation."
             : "Razorpay checkout will open. Banner goes live after admin approval.",
-            style:const TextStyle(fontSize:12,color:kPrimary))),
+            style:const TextStyle(fontSize:12,color:kMerchantPrimary))),
       ]),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
-          style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+          style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
           child:Text(manual?"Confirm Submit":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
       ],
@@ -1131,25 +1131,25 @@ class _AddBannerState extends State<AddBannerPage> {
   Widget _dRow(String k,String v,{bool bold=false,Color? color}) => Padding(
     padding:const EdgeInsets.symmetric(vertical:3),
     child:Row(children:[
-      Expanded(child:Text(k,style:const TextStyle(color:kMuted,fontSize:13))),
-      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kPrimary:kText))),
+      Expanded(child:Text(k,style:const TextStyle(color:kMerchantMuted,fontSize:13))),
+      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kMerchantPrimary:kMerchantText))),
     ]));
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(title:const Text("Create Banner"),backgroundColor: Colors.white, foregroundColor: kText),
+    backgroundColor:kMerchantBg,
+    appBar:AppBar(title:const Text("Create Banner"),backgroundColor: Colors.white, foregroundColor: kMerchantText),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
 
       // Title field
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Banner Title *",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Banner Title *",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
           TextField(controller:_titleC,decoration:InputDecoration(
             hintText:"e.g. 50% OFF at Raj Store",isDense:true,
             contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-            border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-            enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
+            border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
+            enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
           )),
         ])),
       const SizedBox(height:12),
@@ -1159,7 +1159,7 @@ class _AddBannerState extends State<AddBannerPage> {
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Center(child: SizedBox(width: 20, height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))),
+            child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary))),
         )
       else
         DropdownButtonFormField<Map<String,dynamic>>(
@@ -1173,10 +1173,10 @@ class _AddBannerState extends State<AddBannerPage> {
           )).toList(),
           onChanged: (s) { if (s != null) _onBannerStoreSelected(s); },
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
+            prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
             filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
 
       // ── City (auto-filled from store) ──
@@ -1184,18 +1184,18 @@ class _AddBannerState extends State<AddBannerPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: const Color(0xFFF4F9F6),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: kMerchantBorder),
           borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
-          const Icon(Icons.location_city, color: kMuted, size: 20),
+          const Icon(Icons.location_city, color: kMerchantMuted, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Text(
             (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
             style: TextStyle(
-              color: (_selCity != null && _selCity!.isNotEmpty) ? kText : kMuted,
+              color: (_selCity != null && _selCity!.isNotEmpty) ? kMerchantText : kMerchantMuted,
               fontSize: 15))),
           if (_selCity != null && _selCity!.isNotEmpty)
-            const Icon(Icons.check_circle, color: kPrimary, size: 18),
+            const Icon(Icons.check_circle, color: kMerchantPrimary, size: 18),
         ]),
       ),
       const SizedBox(height: 12),
@@ -1216,7 +1216,7 @@ class _AddBannerState extends State<AddBannerPage> {
           decoration:BoxDecoration(
             color:Colors.white,
             borderRadius:BorderRadius.circular(12),
-            border:Border.all(color:_imgB64!=null?kPrimary:kBorder,
+            border:Border.all(color:_imgB64!=null?kMerchantPrimary:kMerchantBorder,
               style:_imgB64!=null?BorderStyle.solid:BorderStyle.solid,width:_imgB64!=null?2:1),
           ),
           child:_imgB64!=null
@@ -1230,9 +1230,9 @@ class _AddBannerState extends State<AddBannerPage> {
                     child:const Icon(Icons.close,color:Colors.white,size:14)))),
               ])
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                const Icon(Icons.add_photo_alternate_outlined,size:36,color:kAccent),
+                const Icon(Icons.add_photo_alternate_outlined,size:36,color:kMerchantAccent),
                 const SizedBox(height:6),
-                const Text("Tap to upload banner image",style:TextStyle(color:kMuted,fontSize:13)),
+                const Text("Tap to upload banner image",style:TextStyle(color:kMerchantMuted,fontSize:13)),
                 const SizedBox(height:3),
                 Row(mainAxisAlignment:MainAxisAlignment.center,children:[
                   _InfoChip("📐 1200×400px"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
@@ -1243,9 +1243,9 @@ class _AddBannerState extends State<AddBannerPage> {
       const SizedBox(height:12),
 
       // Duration + From Date
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
             Expanded(child:TextField(
@@ -1254,10 +1254,10 @@ class _AddBannerState extends State<AddBannerPage> {
               onChanged:(_)=>setState((){}),
               decoration:InputDecoration(
                 labelText:"Number of Days",hintText:"e.g. 7",
-                prefixIcon:const Icon(Icons.today_rounded,color:kMuted,size:18),
-                filled:true,fillColor:kBg,isDense:true,
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
+                prefixIcon:const Icon(Icons.today_rounded,color:kMerchantMuted,size:18),
+                filled:true,fillColor:kMerchantBg,isDense:true,
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:10),
@@ -1265,13 +1265,13 @@ class _AddBannerState extends State<AddBannerPage> {
               onTap:_pickFromDate,
               child:Container(
                 padding:const EdgeInsets.symmetric(horizontal:12,vertical:13),
-                decoration:BoxDecoration(color:kBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kBorder)),
+                decoration:BoxDecoration(color:kMerchantBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kMerchantBorder)),
                 child:Row(children:[
-                  const Icon(Icons.event_rounded,size:18,color:kMuted),
+                  const Icon(Icons.event_rounded,size:18,color:kMerchantMuted),
                   const SizedBox(width:8),
                   Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                    const Text("From Date",style:TextStyle(fontSize:11,color:kMuted)),
-                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kText,fontWeight:FontWeight.w600)),
+                    const Text("From Date",style:TextStyle(fontSize:11,color:kMerchantMuted)),
+                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kMerchantText,fontWeight:FontWeight.w600)),
                   ])),
                 ]),
               ),
@@ -1279,21 +1279,21 @@ class _AddBannerState extends State<AddBannerPage> {
           ]),
           if(_days>0) Padding(padding:const EdgeInsets.only(top:10),
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
               child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
-                const Text("Active period:",style:TextStyle(fontSize:12,color:kMuted)),
-                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kPrimary,fontWeight:FontWeight.w600)),
+                const Text("Active period:",style:TextStyle(fontSize:12,color:kMerchantMuted)),
+                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
               ]),
             )),
           if(_pricing!=null && _days>0) Padding(padding:const EdgeInsets.only(top:6),
             child:Text("₹${_pricePerDay.toStringAsFixed(0)}/day × $_days days",
-              style:const TextStyle(fontSize:12,color:kMuted))),
+              style:const TextStyle(fontSize:12,color:kMerchantMuted))),
         ])),
       const SizedBox(height:12),
 
       // Price summary
       if (_pricing!=null && _days>0)
-        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
+        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
             _dRow("Base Price","₹${_basePrice.toStringAsFixed(2)}"),
             _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
@@ -1310,11 +1310,11 @@ class _AddBannerState extends State<AddBannerPage> {
       // Item 6: Discount code field
       Container(
         padding:const EdgeInsets.all(14),
-        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
-          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMuted,fontSize:11)),
+          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMerchantMuted,fontSize:11)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
@@ -1323,16 +1323,16 @@ class _AddBannerState extends State<AddBannerPage> {
               onChanged:(_){ if((_appliedCode ?? "").isNotEmpty) setState((){_appliedCode="";_appliedDiscount=0;_appliedDiscountType=null;_discountMsg="";_discountOk=false;}); },
               decoration:InputDecoration(
                 hintText:"e.g. OFFRO20",isDense:true,
-                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMuted,size:18),
+                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountOk?kPrimary:kBorder)),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountOk?kMerchantPrimary:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_applyingCode?null:_applyDiscountCode,
-              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
+              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
                 padding:const EdgeInsets.symmetric(horizontal:14,vertical:12),
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
               child:_applyingCode
@@ -1347,7 +1347,7 @@ class _AddBannerState extends State<AddBannerPage> {
           if (_appliedDiscount > 0) ...[
             const SizedBox(height:6),
             Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
               child:Row(children:[
                 const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
                 const SizedBox(width:6),
@@ -1366,7 +1366,7 @@ class _AddBannerState extends State<AddBannerPage> {
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
         label:const Text("Proceed to Checkout"),
-        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
+        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
           padding:const EdgeInsets.symmetric(vertical:14)),
         onPressed:_loading?null:_proceed,
@@ -1541,7 +1541,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   // ── Filter bottom sheet ──────────────────────────────────
   void _openFilter() {
     final opts = [
-      ("All",              "All Products",         Icons.grid_view_rounded,         kText),
+      ("All",              "All Products",         Icons.grid_view_rounded,         kMerchantText),
       ("Standard",         "Standard Only",        Icons.inventory_2_rounded,        const Color(0xFF1a6640)),
       ("Premium",          "Premium Only",         Icons.workspace_premium_rounded,  const Color(0xFF6B2FAA)),
       ("approved",         "Live",                 Icons.check_circle_rounded,       const Color(0xFF1a6640)),
@@ -1555,7 +1555,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text("Filter Products", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kText)),
+            const Text("Filter Products", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kMerchantText)),
             const SizedBox(height: 14),
             ...opts.map((o) {
               final selected = _activeFilter == o.$1;
@@ -1564,11 +1564,11 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                 leading: CircleAvatar(
                   radius: 18,
-                  backgroundColor: (selected ? o.$4 : kBorder).withValues(alpha: .15),
-                  child: Icon(o.$3, color: selected ? o.$4 : kMuted, size: 18)),
+                  backgroundColor: (selected ? o.$4 : kMerchantBorder).withValues(alpha: .15),
+                  child: Icon(o.$3, color: selected ? o.$4 : kMerchantMuted, size: 18)),
                 title: Text(o.$2, style: TextStyle(
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected ? o.$4 : kText, fontSize: 14)),
+                  color: selected ? o.$4 : kMerchantText, fontSize: 14)),
                 trailing: selected ? Icon(Icons.check_rounded, color: o.$4, size: 20) : null,
                 onTap: () {
                   setState(() { _activeFilter = o.$1; _applyFilters(); });
@@ -1630,12 +1630,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(v["title"] ?? "Product",
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kMerchantText)),
             const SizedBox(height: 4),
             const Divider(),
             ListTile(
               leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFe8f4ef),
-                child: Icon(Icons.edit_rounded, color: kPrimary, size: 18)),
+                child: Icon(Icons.edit_rounded, color: kMerchantPrimary, size: 18)),
               title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
             // FIX3: Analytics only for Premium
@@ -1662,26 +1662,26 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   Widget build(BuildContext context) {
     final hasFilter = _activeFilter != "All";
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
         toolbarHeight:58,
         titleSpacing:16,
         centerTitle:true,
         title: const Text("My Products", overflow:TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kText,
+        backgroundColor: Colors.white, foregroundColor: kMerchantText,
         actions: [
           // Filter button with active indicator — unchanged, kept before the + button
           Stack(clipBehavior: Clip.none, children: [
             IconButton(
               icon: const Icon(Icons.filter_list_rounded),
-              color: hasFilter ? kPrimary : kMuted,
+              color: hasFilter ? kMerchantPrimary : kMerchantMuted,
               tooltip: "Filter",
               onPressed: _openFilter,
             ),
             if (hasFilter)
               Positioned(top: 8, right: 8,
                 child: Container(width: 8, height: 8,
-                  decoration: const BoxDecoration(color: kPrimary, shape: BoxShape.circle))),
+                  decoration: const BoxDecoration(color: kMerchantPrimary, shape: BoxShape.circle))),
           ]),
           Padding(
             padding:const EdgeInsets.only(right:18),
@@ -1710,18 +1710,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               onChanged: (_) => setState(_applyFilters),
               decoration: InputDecoration(
                 hintText: "Search products…",
-                hintStyle: const TextStyle(color: kMuted, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: kMuted, size: 20),
+                hintStyle: const TextStyle(color: kMerchantMuted, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: kMerchantMuted, size: 20),
                 suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear, size: 18, color: kMuted),
+                    ? IconButton(icon: const Icon(Icons.clear, size: 18, color: kMerchantMuted),
                         onPressed: () { _searchCtrl.clear(); setState(_applyFilters); })
                     : null,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 filled: true, fillColor: Colors.white,
-                border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 1.5)),
+                border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantPrimary, width: 1.5)),
               ),
             )),
           ]),
@@ -1733,52 +1733,52 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             child: Row(children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: kPrimary.withValues(alpha: .1),
+                decoration: BoxDecoration(color: kMerchantPrimary.withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: kPrimary.withValues(alpha: .3))),
+                  border: Border.all(color: kMerchantPrimary.withValues(alpha: .3))),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.filter_list_rounded, size: 13, color: kPrimary),
+                  const Icon(Icons.filter_list_rounded, size: 13, color: kMerchantPrimary),
                   const SizedBox(width: 5),
                   Text(_activeFilter == "approved" ? "Live"
                     : _activeFilter == "pending_approval" ? "Pending"
                     : _activeFilter == "expired" ? "Expired"
                     : _activeFilter,
-                    style: const TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(fontSize: 12, color: kMerchantPrimary, fontWeight: FontWeight.w700)),
                   const SizedBox(width: 6),
                   GestureDetector(
                     onTap: () => setState(() { _activeFilter = "All"; _applyFilters(); }),
-                    child: const Icon(Icons.close_rounded, size: 13, color: kPrimary)),
+                    child: const Icon(Icons.close_rounded, size: 13, color: kMerchantPrimary)),
                 ]),
               ),
               const Spacer(),
               Text("${_filtered.length} result${_filtered.length == 1 ? '' : 's'}",
-                style: const TextStyle(fontSize: 12, color: kMuted)),
+                style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
             ]),
           ),
         const SizedBox(height: 8),
 
         // ── List ──
         Expanded(child: _loading
-          ? const Center(child: CircularProgressIndicator(color: kPrimary))
+          ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
           : _loadError
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.wifi_off_rounded, color: kMuted, size: 48),
+                  const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
                   const SizedBox(height: 12),
-                  const Text("Couldn't load products", style: TextStyle(color: kText, fontSize: 15, fontWeight: FontWeight.w700)),
+                  const Text("Couldn't load products", style: TextStyle(color: kMerchantText, fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(onPressed: ()=>_load(), icon: const Icon(Icons.refresh), label: const Text("Retry"),
-                    style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white)),
+                    style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, foregroundColor: Colors.white)),
                 ]))
           : _filtered.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.local_activity_outlined, size: 64, color: kAccent),
+                  const Icon(Icons.local_activity_outlined, size: 64, color: kMerchantAccent),
                   const SizedBox(height: 12),
                   Text(_products.isEmpty ? "No products yet" : "No matching products",
-                    style: const TextStyle(color: kMuted, fontSize: 16)),
+                    style: const TextStyle(color: kMerchantMuted, fontSize: 16)),
                   if (_products.isEmpty)
                     const Padding(padding: EdgeInsets.only(top: 6),
                       child: Text("Tap + New Product to get started",
-                        style: TextStyle(color: kMuted, fontSize: 13))),
+                        style: TextStyle(color: kMerchantMuted, fontSize: 13))),
                 ]))
               : RefreshIndicator(
                   onRefresh: _load,
@@ -1870,12 +1870,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               ]),
               const SizedBox(height: 6),
               Text(v["title"] ?? "",
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kText),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kMerchantText),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
               if ((v["offer_text"] ?? "").toString().isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(v["offer_text"].toString(),
-                  style: const TextStyle(fontSize: 12, color: kMuted),
+                  style: const TextStyle(fontSize: 12, color: kMerchantMuted),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
               // FIX1: Expiry for both std and premium (if end_date exists)
@@ -1883,12 +1883,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 const SizedBox(height: 3),
                 Row(children: [
                   Icon(Icons.event_rounded, size: 11,
-                    color: isExpired ? Colors.red : kMuted),
+                    color: isExpired ? Colors.red : kMerchantMuted),
                   const SizedBox(width: 3),
                   Text("Expires: $expiryLabel",
                     style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w600,
-                      color: isExpired ? Colors.red : kMuted)),
+                      color: isExpired ? Colors.red : kMerchantMuted)),
                 ]),
               ],
               // Store name + city below expiry
@@ -1902,10 +1902,10 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(children: [
-                    Icon(Icons.store_mall_directory_rounded, size: 11, color: kMuted),
+                    Icon(Icons.store_mall_directory_rounded, size: 11, color: kMerchantMuted),
                     const SizedBox(width: 3),
                     Expanded(child: Text(label,
-                      style: const TextStyle(fontSize: 11, color: kMuted),
+                      style: const TextStyle(fontSize: 11, color: kMerchantMuted),
                       maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                 );
@@ -1920,10 +1920,10 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 child: Container(
                   width: 32, height: 32,
                   decoration: BoxDecoration(
-                    color: kBg,
+                    color: kMerchantBg,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: kBorder)),
-                  child: const Icon(Icons.more_vert_rounded, size: 18, color: kMuted),
+                    border: Border.all(color: kMerchantBorder)),
+                  child: const Icon(Icons.more_vert_rounded, size: 18, color: kMerchantMuted),
                 ),
               ),
               const SizedBox(height: 6),
@@ -1933,14 +1933,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 child: Switch(
                   value: isActive,
                   onChanged: pid.isEmpty ? null : (_) => _toggleActive(v, pid),
-                  activeColor: kPrimary,
+                  activeColor: kMerchantPrimary,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
               Text(isActive ? "On" : "Off",
                 style: TextStyle(
                   fontSize: 9, fontWeight: FontWeight.w700,
-                  color: isActive ? kPrimary : kMuted)),
+                  color: isActive ? kMerchantPrimary : kMerchantMuted)),
             ]),
           ]),
 
@@ -1991,7 +1991,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     final opCtrl = TextEditingController(text: (v["original_price"] ?? v["original_amount"] ?? "").toString());
     final prCtrl = TextEditingController(text: (v["price"] ?? v["offer_price"] ?? v["amount"] ?? "").toString());
     final saved  = await showDialog<Map<String,dynamic>>(context: context, builder: (_) => AlertDialog(
-      title: const Text("Edit Product", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+      title: const Text("Edit Product", style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         _EditField(ctrl: tCtrl,  label: "Title"),
         const SizedBox(height: 10),
@@ -2002,9 +2002,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         _EditField(ctrl: prCtrl, label: "Offer Price",    type: TextInputType.number),
       ])),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: kMuted))),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+          style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary),
           onPressed: () {
             final opVal = double.tryParse(opCtrl.text.trim());
             final prVal = double.tryParse(prCtrl.text.trim());
@@ -2039,7 +2039,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       title: const Text("Delete Product?", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
       content: Text("Delete \"${v['title'] ?? 'this product'}\"? This cannot be undone."),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel", style: TextStyle(color: kMuted))),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
           onPressed: () => Navigator.pop(context, true),
@@ -2115,9 +2115,9 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text("Choose Product Type", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: kText)),
+          const Text("Choose Product Type", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: kMerchantText)),
           const SizedBox(height:6),
-          const Text("Select the type of product you want to create.", style: TextStyle(color: kMuted, fontSize: 13)),
+          const Text("Select the type of product you want to create.", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
           const SizedBox(height: 20),
           // Standard product option
           InkWell(
@@ -2138,11 +2138,11 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
                   child:const Icon(Icons.inventory_2_rounded, color:Colors.white, size:24)),
                 const SizedBox(width: 14),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
+                  const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kMerchantText)),
                   const SizedBox(height:3),
-                  const Text("Free • Linked to your store subscription\nAdmin approval required, no payment needed", style: TextStyle(fontSize: 12, color: kMuted)),
+                  const Text("Free • Linked to your store subscription\nAdmin approval required, no payment needed", style: TextStyle(fontSize: 12, color: kMerchantMuted)),
                 ])),
-                const Icon(Icons.chevron_right_rounded, color: kMuted),
+                const Icon(Icons.chevron_right_rounded, color: kMerchantMuted),
               ]),
             ),
           ),
@@ -2166,11 +2166,11 @@ void _showProductTypeDialog(BuildContext context, String token, VoidCallback onR
                   child:const Icon(Icons.workspace_premium_rounded, color:Colors.white, size:24)),
                 const SizedBox(width: 14),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text("🟣 Premium Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
+                  const Text("🟣 Premium Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kMerchantText)),
                   const SizedBox(height:3),
-                  const Text("Paid • Featured in Discover Products section\nAdmin approval required after payment", style: TextStyle(fontSize: 12, color: kMuted)),
+                  const Text("Paid • Featured in Discover Products section\nAdmin approval required after payment", style: TextStyle(fontSize: 12, color: kMerchantMuted)),
                 ])),
-                const Icon(Icons.chevron_right_rounded, color: kMuted),
+                const Icon(Icons.chevron_right_rounded, color: kMerchantMuted),
               ]),
             ),
           ),
@@ -2192,8 +2192,8 @@ class _EditField extends StatelessWidget {
     decoration: InputDecoration(
       labelText: label, isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
     ));
 }
 
@@ -2204,8 +2204,8 @@ class _ProductThumb extends StatelessWidget {
   @override Widget build(BuildContext context) {
     if (logoUrl.isEmpty) {
       return Container(width:48,height:48,
-        decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
-        child:const Icon(Icons.local_activity,color:kPrimary,size:24));
+        decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
+        child:const Icon(Icons.local_activity,color:kMerchantPrimary,size:24));
     }
     if (logoUrl.startsWith("data:image")) {
       try {
@@ -2213,17 +2213,17 @@ class _ProductThumb extends StatelessWidget {
         return ClipRRect(borderRadius:BorderRadius.circular(10),
           child:Image.memory(bytes,width:48,height:48,fit:BoxFit.cover,
             errorBuilder:(_,__,___) => Container(width:48,height:48,
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
-              child:const Icon(Icons.local_activity,color:kPrimary,size:24))));
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
+              child:const Icon(Icons.local_activity,color:kMerchantPrimary,size:24))));
       } catch (_) {
         return Container(width:48,height:48,
-          decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
-          child:const Icon(Icons.local_activity,color:kPrimary,size:24));
+          decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
+          child:const Icon(Icons.local_activity,color:kMerchantPrimary,size:24));
       }
     }
     return Container(width:48,height:48,
       decoration:BoxDecoration(
-        color:kLight.withValues(alpha:.5),
+        color:kMerchantLight.withValues(alpha:.5),
         borderRadius:BorderRadius.circular(10),
         image:DecorationImage(image:NetworkImage(logoUrl),fit:BoxFit.cover),
       ));
@@ -2349,14 +2349,14 @@ class _StandardProductState extends State<StandardProductPage> {
     final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
     final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
         title: Row(children: [
           buildImageLogo(height: 24, white: true),
           const SizedBox(width: 8),
           const Text("Standard Product", style: TextStyle(fontWeight: FontWeight.w800)),
         ]),
-        backgroundColor: Colors.white, foregroundColor: kText,
+        backgroundColor: Colors.white, foregroundColor: kMerchantText,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -2372,17 +2372,17 @@ class _StandardProductState extends State<StandardProductPage> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1a6640))),
               const SizedBox(height: 4),
-              const Text("• Free — no payment required\n• Linked to your store subscription\n• Admin approval required before going live\n• Paused automatically when subscription expires", style: TextStyle(fontSize: 12, color: kMuted)),
+              const Text("• Free — no payment required\n• Linked to your store subscription\n• Admin approval required before going live\n• Paused automatically when subscription expires", style: TextStyle(fontSize: 12, color: kMerchantMuted)),
               const SizedBox(height: 8),
-              Text("Usage: $count / $limit standard products", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kText)),
+              Text("Usage: $count / $limit standard products", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kMerchantText)),
             ]),
           ),
           const SizedBox(height: 20),
           // Store selector
-          const Text("Select Store *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const Text("Select Store *", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
           const SizedBox(height: 6),
           _storesLoading
-              ? const Center(child: CircularProgressIndicator(color: kPrimary))
+              ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
               : _stores.isEmpty
                   ? const Text("No stores found. Create a store first.", style: TextStyle(color: Colors.red, fontSize: 13))
                   : DropdownButtonFormField<Map<String,dynamic>>(
@@ -2390,8 +2390,8 @@ class _StandardProductState extends State<StandardProductPage> {
                       decoration: InputDecoration(
                         isDense: true,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
                       ),
                       hint: const Text("Select a store"),
                       items: _stores.map((s) => DropdownMenuItem(value: s, child: Text(s["store_name"]?.toString() ?? ""))).toList(),
@@ -2399,7 +2399,7 @@ class _StandardProductState extends State<StandardProductPage> {
                     ),
           const SizedBox(height: 16),
           // Product title
-          const Text("Product Title *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const Text("Product Title *", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
           const SizedBox(height: 6),
           TextField(
             controller: _titleC,
@@ -2407,13 +2407,13 @@ class _StandardProductState extends State<StandardProductPage> {
               hintText: "e.g. Flat 20% Off on All Items",
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
             ),
           ),
           const SizedBox(height: 16),
           // Offer text
-          const Text("Offer Text", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const Text("Offer Text", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
           const SizedBox(height: 6),
           TextField(
             controller: _offerC,
@@ -2421,15 +2421,15 @@ class _StandardProductState extends State<StandardProductPage> {
               hintText: "e.g. Valid on all products",
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
             ),
           ),
           const SizedBox(height: 16),
           // Price row
           Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("Offer Price", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+              const Text("Offer Price", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
               const SizedBox(height: 6),
               TextField(
                 controller: _priceC,
@@ -2438,14 +2438,14 @@ class _StandardProductState extends State<StandardProductPage> {
                   hintText: "₹ 99",
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
                 ),
               ),
             ])),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("Original Price", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+              const Text("Original Price", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
               const SizedBox(height: 6),
               TextField(
                 controller: _origPriceC,
@@ -2454,15 +2454,15 @@ class _StandardProductState extends State<StandardProductPage> {
                   hintText: "₹ 199",
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
                 ),
               ),
             ])),
           ]),
           const SizedBox(height: 16),
           // Logo
-          const Text("Product Image *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
+          const Text("Product Image *", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
           const SizedBox(height: 8),
           GestureDetector(
             onTap: _pickLogo,
@@ -2471,16 +2471,16 @@ class _StandardProductState extends State<StandardProductPage> {
               decoration: BoxDecoration(
                 color: const Color(0xFFf5f5f5),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: kBorder),
+                border: Border.all(color: kMerchantBorder),
               ),
               child: _logoB64 != null
                   ? ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: Image.memory(base64Decode(_logoB64!.split(',').last), fit: BoxFit.cover))
                   : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.add_photo_alternate_outlined, color: kMuted, size: 28),
+                      const Icon(Icons.add_photo_alternate_outlined, color: kMerchantMuted, size: 28),
                       const SizedBox(height: 4),
-                      const Text("Tap to upload", style: TextStyle(color: kMuted, fontSize: 12)),
+                      const Text("Tap to upload", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
                       const SizedBox(height: 4),
                       Row(mainAxisAlignment: MainAxisAlignment.center, children: [_InfoChip("📐 400×400px (1:1)"), SizedBox(width: 6), _InfoChip("📦 Max 1MB")]),
                     ]),
@@ -2765,7 +2765,7 @@ class _AddProductState extends State<AddProductPage> {
 
   Future<bool?> _showProductSummaryDialog(Map order,{required bool manual})=>
     showDialog<bool>(context:context,builder:(_)=>AlertDialog(
-      title:const Text("Product Order Summary",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+      title:const Text("Product Order Summary",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
         _dRow("Title",_titleC.text.trim()),
         _dRow("Offer",_offerC.text.trim()),
@@ -2780,14 +2780,14 @@ class _AddProductState extends State<AddProductPage> {
         _dRow("Total","₹${order['amount_display']}",bold:true),
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
-          decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+          decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
           child:Text(manual?"Product will go to admin review.":"Razorpay opens. Product live after admin approval.",
-            style:const TextStyle(fontSize:12,color:kPrimary))),
+            style:const TextStyle(fontSize:12,color:kMerchantPrimary))),
       ]),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
-          style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+          style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
           child:Text(manual?"Submit":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
       ],
@@ -2796,13 +2796,13 @@ class _AddProductState extends State<AddProductPage> {
   Widget _dRow(String k,String v,{bool bold=false,Color? color})=>Padding(
     padding:const EdgeInsets.symmetric(vertical:3),
     child:Row(children:[
-      Expanded(child:Text(k,style:const TextStyle(color:kMuted,fontSize:13))),
-      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kPrimary:kText))),
+      Expanded(child:Text(k,style:const TextStyle(color:kMerchantMuted,fontSize:13))),
+      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kMerchantPrimary:kMerchantText))),
     ]));
 
   @override Widget build(BuildContext context)=>Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(title:const Text("Create Product"),backgroundColor: Colors.white, foregroundColor: kText),
+    backgroundColor:kMerchantBg,
+    appBar:AppBar(title:const Text("Create Product"),backgroundColor: Colors.white, foregroundColor: kMerchantText),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       // Fields
       _field(_titleC,"Product Title *","e.g. Raj Store ₹50 Off",Icons.confirmation_number),
@@ -2820,7 +2820,7 @@ class _AddProductState extends State<AddProductPage> {
       const Padding(
         padding:EdgeInsets.only(left:4,bottom:8),
         child:Text("Discount is auto-calculated from prices",
-          style:TextStyle(color:kMuted,fontSize:11)),
+          style:TextStyle(color:kMerchantMuted,fontSize:11)),
       ),
 
       // ── Store selection (mandatory, above city) ──
@@ -2828,7 +2828,7 @@ class _AddProductState extends State<AddProductPage> {
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Center(child: SizedBox(width: 20, height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))),
+            child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary))),
         )
       else
         DropdownButtonFormField<Map<String,dynamic>>(
@@ -2842,10 +2842,10 @@ class _AddProductState extends State<AddProductPage> {
           )).toList(),
           onChanged: (s) { if (s != null) _onStoreSelected(s); },
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
+            prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
             filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
 
       // ── City (auto-filled from store, read-only) ──
@@ -2853,18 +2853,18 @@ class _AddProductState extends State<AddProductPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: const Color(0xFFF4F9F6),
-          border: Border.all(color: kBorder),
+          border: Border.all(color: kMerchantBorder),
           borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
-          const Icon(Icons.location_city, color: kMuted, size: 20),
+          const Icon(Icons.location_city, color: kMerchantMuted, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Text(
             (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
             style: TextStyle(
-              color: (_selCity != null && _selCity!.isNotEmpty) ? kText : kMuted,
+              color: (_selCity != null && _selCity!.isNotEmpty) ? kMerchantText : kMerchantMuted,
               fontSize: 15))),
           if (_selCity != null && _selCity!.isNotEmpty)
-            const Icon(Icons.check_circle, color: kPrimary, size: 18),
+            const Icon(Icons.check_circle, color: kMerchantPrimary, size: 18),
         ]),
       ),
       const SizedBox(height: 12),
@@ -2874,7 +2874,7 @@ class _AddProductState extends State<AddProductPage> {
         onTap:_pickLogo,
         child:Container(
           height:90,
-          decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:_logoB64!=null?kPrimary:kBorder,width:_logoB64!=null?2:1)),
+          decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:_logoB64!=null?kMerchantPrimary:kMerchantBorder,width:_logoB64!=null?2:1)),
           child:_logoB64!=null
             ? Stack(children:[
                 Center(child:ClipRRect(borderRadius:BorderRadius.circular(11),
@@ -2884,18 +2884,18 @@ class _AddProductState extends State<AddProductPage> {
                     child:const Icon(Icons.close,color:Colors.white,size:12)))),
               ])
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                const Icon(Icons.image_rounded,size:28,color:kAccent),
+                const Icon(Icons.image_rounded,size:28,color:kMerchantAccent),
                 const SizedBox(height:4),
-                const Text("Upload Image",style:TextStyle(color:kMuted,fontSize:12)),
+                const Text("Upload Image",style:TextStyle(color:kMerchantMuted,fontSize:12)),
                 Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 400×400px"),const SizedBox(width:6),_InfoChip("📦 Max 1MB")]),
               ]),
         )),
       const SizedBox(height:12),
 
       // Duration input + From Date picker
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
             Expanded(child:TextField(
@@ -2903,10 +2903,10 @@ class _AddProductState extends State<AddProductPage> {
               keyboardType:TextInputType.number,
               decoration:InputDecoration(
                 labelText:"Number of Days",hintText:"e.g. 30",
-                prefixIcon:const Icon(Icons.calendar_today_outlined,color:kMuted,size:18),
-                filled:true,fillColor:kBg,isDense:true,
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
+                prefixIcon:const Icon(Icons.calendar_today_outlined,color:kMerchantMuted,size:18),
+                filled:true,fillColor:kMerchantBg,isDense:true,
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:10),
@@ -2914,13 +2914,13 @@ class _AddProductState extends State<AddProductPage> {
               onTap:_pickFromDate,
               child:Container(
                 padding:const EdgeInsets.symmetric(horizontal:12,vertical:13),
-                decoration:BoxDecoration(color:kBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kBorder)),
+                decoration:BoxDecoration(color:kMerchantBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kMerchantBorder)),
                 child:Row(children:[
-                  const Icon(Icons.event_rounded,size:18,color:kMuted),
+                  const Icon(Icons.event_rounded,size:18,color:kMerchantMuted),
                   const SizedBox(width:8),
                   Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                    const Text("From Date",style:TextStyle(fontSize:11,color:kMuted)),
-                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kText,fontWeight:FontWeight.w600)),
+                    const Text("From Date",style:TextStyle(fontSize:11,color:kMerchantMuted)),
+                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kMerchantText,fontWeight:FontWeight.w600)),
                   ])),
                 ]),
               ),
@@ -2928,20 +2928,20 @@ class _AddProductState extends State<AddProductPage> {
           ]),
           if(_days>0) Padding(padding:const EdgeInsets.only(top:10),
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
               child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
-                Text("Active period:",style:const TextStyle(fontSize:12,color:kMuted)),
-                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kPrimary,fontWeight:FontWeight.w600)),
+                Text("Active period:",style:const TextStyle(fontSize:12,color:kMerchantMuted)),
+                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
               ]),
             )),
           if(_pricing!=null && _days>0) Padding(padding:const EdgeInsets.only(top:6),
             child:Text("₹${_pricePerDay.toStringAsFixed(0)}/day × $_days days",
-              style:const TextStyle(fontSize:12,color:kMuted))),
+              style:const TextStyle(fontSize:12,color:kMerchantMuted))),
         ])),
       const SizedBox(height:12),
 
       if (_pricing!=null && _days>0)
-        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
+        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
             _dRow("Base Price","₹${_basePrice.toStringAsFixed(2)}"),
             _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
@@ -2958,11 +2958,11 @@ class _AddProductState extends State<AddProductPage> {
       // Item 6: Discount code field — product
       Container(
         padding:const EdgeInsets.all(14),
-        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
-          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMuted,fontSize:11)),
+          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMerchantMuted,fontSize:11)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
@@ -2971,16 +2971,16 @@ class _AddProductState extends State<AddProductPage> {
               onChanged:(_){ if(_appliedVCode.isNotEmpty) setState((){_appliedVCode="";_appliedVDiscount=0;_appliedVDiscountType=null;_discountVMsg="";_discountVOk=false;}); },
               decoration:InputDecoration(
                 hintText:"e.g. OFFRO20",isDense:true,
-                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMuted,size:18),
+                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountVOk?kPrimary:kBorder)),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountVOk?kMerchantPrimary:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_applyingVCode?null:_applyVDiscountCode,
-              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
+              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
                 padding:const EdgeInsets.symmetric(horizontal:14,vertical:12),
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
               child:_applyingVCode
@@ -2995,7 +2995,7 @@ class _AddProductState extends State<AddProductPage> {
           if (_appliedVDiscount > 0) ...[
             const SizedBox(height:6),
             Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
               child:Row(children:[
                 const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
                 const SizedBox(width:6),
@@ -3012,7 +3012,7 @@ class _AddProductState extends State<AddProductPage> {
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
         label:const Text("Proceed to Checkout"),
-        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
+        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
           shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
           padding:const EdgeInsets.symmetric(vertical:14)),
         onPressed:_loading?null:_proceed,
@@ -3024,10 +3024,10 @@ class _AddProductState extends State<AddProductPage> {
   Widget _field(TextEditingController c,String label,String hint,IconData icon,{TextInputType keyboardType=TextInputType.text})=>TextField(
     controller:c,
     decoration:InputDecoration(
-      labelText:label,hintText:hint,prefixIcon:Icon(icon,color:kMuted,size:20),
+      labelText:label,hintText:hint,prefixIcon:Icon(icon,color:kMerchantMuted,size:20),
       filled:true,fillColor:Colors.white,
-      border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
-      enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
+      border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
+      enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
     ));
 }
 
@@ -3196,8 +3196,8 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
       return const PopScope(
         canPop: false,
         child: Scaffold(
-          backgroundColor: kBg,
-          body: Center(child: CircularProgressIndicator(color: kPrimary)),
+          backgroundColor: kMerchantBg,
+          body: Center(child: CircularProgressIndicator(color: kMerchantPrimary)),
         ),
       );
     }
@@ -3208,7 +3208,7 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
         bottomNavigationBar: BottomNavigationBar(
           currentIndex: _idx,
           onTap: (i) => setState(()=>_idx=i),
-          selectedItemColor: kPrimary, unselectedItemColor: kMuted,
+          selectedItemColor: kMerchantPrimary, unselectedItemColor: kMerchantMuted,
           type: BottomNavigationBarType.fixed,
           items: const [
             BottomNavigationBarItem(icon:Icon(Icons.home_rounded),label:"Home"),
@@ -3234,10 +3234,10 @@ class _MerchantLocationBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: kBorder), bottom: BorderSide(color: kBorder)),
+        border: Border(top: BorderSide(color: kMerchantBorder), bottom: BorderSide(color: kMerchantBorder)),
       ),
       child: Row(children: [
-        const Icon(Icons.location_on_rounded, color: kPrimary, size: 22),
+        const Icon(Icons.location_on_rounded, color: kMerchantPrimary, size: 22),
         const SizedBox(width: 8),
         Expanded(child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -3245,13 +3245,13 @@ class _MerchantLocationBar extends StatelessWidget {
           children: [
             Text(title.isEmpty ? 'Select location' : title,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kMerchantText)),
             if (subtitle.isNotEmpty)
               Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11.5, color: kMuted)),
+                  style: const TextStyle(fontSize: 11.5, color: kMerchantMuted)),
           ],
         )),
-        const Icon(Icons.keyboard_arrow_down_rounded, color: kMuted),
+        const Icon(Icons.keyboard_arrow_down_rounded, color: kMerchantMuted),
       ]),
     ),
   );
@@ -3273,15 +3273,15 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
+    backgroundColor: kMerchantBg,
     appBar: AppBar(
         toolbarHeight:58,
         titleSpacing:16,
         centerTitle:true,
         title:const Text("My Stores",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kText,
+        backgroundColor: Colors.white, foregroundColor: kMerchantText,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kPrimary, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kMerchantPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions:[
@@ -3294,11 +3294,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
             ),
           ),
         ]),
-    body: loading ? const Center(child:CircularProgressIndicator(color:kPrimary)) :
+    body: loading ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary)) :
       stores.isEmpty ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-        buildLogo(44,kAccent), const SizedBox(height:12),
-        const Text("No stores yet",style:TextStyle(color:kMuted,fontSize:16)),
-        const SizedBox(height:8), const Text("Tap + to add your first store",style:TextStyle(color:kMuted,fontSize:13)),
+        buildLogo(44,kMerchantAccent), const SizedBox(height:12),
+        const Text("No stores yet",style:TextStyle(color:kMerchantMuted,fontSize:16)),
+        const SizedBox(height:8), const Text("Tap + to add your first store",style:TextStyle(color:kMerchantMuted,fontSize:13)),
       ])) :
       RefreshIndicator(onRefresh:_load,child:ListView.builder(
         padding:const EdgeInsets.all(14),
@@ -3307,15 +3307,15 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           final s = stores[i] as Map;
           final status = s["status"]??"draft";
           // Status badge config — small, consistent, colored
-          Color sc = kMuted;
+          Color sc = kMerchantMuted;
           String sl = status;
           if (status=="active") { sc=const Color(0xFF1a6640); sl="Active"; }
           else if (status=="expired") { sc=Colors.red.shade700; sl="Expired"; }
           else if (status=="waiting_approval") { sc=const Color(0xFF856404); sl="Pending"; }
           else if (status=="paid") { sc=const Color(0xFF856404); sl="Paid"; }
-          else if (status=="draft") { sc=kMuted; sl="Draft"; }
+          else if (status=="draft") { sc=kMerchantMuted; sl="Draft"; }
           else if (status=="inactive") { sc=Colors.red.shade700; sl="Inactive"; }
-          else if (status=="pending") { sc=kMuted; sl="Pending"; }
+          else if (status=="pending") { sc=kMerchantMuted; sl="Pending"; }
           else if (status=="deleted") { sc=Colors.red.shade400; sl="Deleted"; }
           else if (status=="removed") { sc=Colors.red.shade400; sl="Removed"; }
 
@@ -3324,11 +3324,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           if (storeImg.isNotEmpty) {
             _thumb = storeImg.startsWith("data:")
               ? Image.memory(base64Decode(storeImg.split(",").last),width:80,height:80,fit:BoxFit.cover,
-                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22)))))
+                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kMerchantAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.w900,fontSize:22)))))
               : Image.network(storeImg,width:80,height:80,fit:BoxFit.cover,
-                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22)))));
+                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kMerchantAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.w900,fontSize:22)))));
           } else {
-            _thumb = Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22))));
+            _thumb = Container(width:80,height:80,color:kMerchantAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.w900,fontSize:22))));
           }
 
           // Category icon mapping
@@ -3353,13 +3353,13 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           if (status=="draft"||status=="inactive"||status=="pending_subscription"||status=="expired") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:ElevatedButton.icon(
                 icon:const Icon(Icons.payment,size:15), label:const Text("Subscribe",style:TextStyle(fontSize:12)),
-                style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           } else if (status=="waiting_approval") {
@@ -3367,19 +3367,19 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           } else if (status=="active") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.add_shopping_cart,size:15,color:kPrimary),label:const Text("Deals",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.add_shopping_cart,size:15,color:kMerchantPrimary),label:const Text("Deals",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
-                icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kPrimary),
-                label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kMerchantPrimary),
+                label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:(s["qr_code"]??'').isNotEmpty
                   ?()=>_showQR(context,s["store_name"]??"",s["qr_code"]??'')
                   :() async {
@@ -3394,8 +3394,8 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           } else {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           }
@@ -3412,7 +3412,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                 crossAxisAlignment:CrossAxisAlignment.start,
                 children:[
                   // Green vertical accent line (4px)
-                  Container(width:4,decoration:BoxDecoration(color:kPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
+                  Container(width:4,decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
                   // Thumbnail
                   Padding(
                     padding:const EdgeInsets.all(10),
@@ -3424,7 +3424,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                     child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                       // Row 1: Store name + status badge
                       Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                        Expanded(child:Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:20,color:kText),maxLines:1,overflow:TextOverflow.ellipsis)),
+                        Expanded(child:Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:20,color:kMerchantText),maxLines:1,overflow:TextOverflow.ellipsis)),
                         Container(
                           padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
                           decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),
@@ -3433,13 +3433,13 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                       ]),
                       const SizedBox(height:4),
                       // Location
-                      Text("${s['city']??''}, ${s['area']??''}",style:const TextStyle(color:kMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis),
+                      Text("${s['city']??''}, ${s['area']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis),
                       const SizedBox(height:2),
                       // Category with icon
                       Row(children:[
-                        Icon(catIcon,size:14,color:kMuted),
+                        Icon(catIcon,size:14,color:kMerchantMuted),
                         const SizedBox(width:4),
-                        Flexible(child:Text(s["category"]??"",style:const TextStyle(color:kMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis)),
+                        Flexible(child:Text(s["category"]??"",style:const TextStyle(color:kMerchantMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis)),
                       ]),
                       const SizedBox(height:6),
                       // Compact deal + subscription badges
@@ -3485,12 +3485,12 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
   );
 
   void _showQR(BuildContext ctx, String name, String qr) => showDialog(context:ctx, builder:(_)=>AlertDialog(
-    title:Text(name,style:const TextStyle(fontSize:15,color:kPrimary)),
+    title:Text(name,style:const TextStyle(fontSize:15,color:kMerchantPrimary)),
     content:Column(mainAxisSize:MainAxisSize.min,children:[
       qr.startsWith("data:image") ? Image.memory(base64Decode(qr.split(",").last),width:220,height:220) : const Icon(Icons.qr_code,size:100),
-      const SizedBox(height:8), const Text("Show this to customers to earn points",textAlign:TextAlign.center,style:TextStyle(color:kMuted,fontSize:12)),
+      const SizedBox(height:8), const Text("Show this to customers to earn points",textAlign:TextAlign.center,style:TextStyle(color:kMerchantMuted,fontSize:12)),
     ]),
-    actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text("Close",style:TextStyle(color:kPrimary)))],
+    actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text("Close",style:TextStyle(color:kMerchantPrimary)))],
   ));
 }
 
@@ -3863,12 +3863,12 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
+    backgroundColor: kMerchantBg,
     appBar: AppBar(
         title:Text(_isEdit?"Edit Store":"Add Store"),
-        backgroundColor: Colors.white, foregroundColor: kText,
+        backgroundColor: Colors.white, foregroundColor: kMerchantText,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kMerchantPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -3884,9 +3884,9 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       // GPS location capture
       Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kMerchantBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13)),
+          const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText, fontSize: 13)),
           const SizedBox(height: 10),
           ElevatedButton.icon(
             // The button stays enabled even after a denial — tapping it
@@ -3901,7 +3901,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                 : const Icon(Icons.gps_fixed, size: 18),
             label: const Text("Current Location"),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white, foregroundColor: kText,
+              backgroundColor: Colors.white, foregroundColor: kMerchantText,
               padding: const EdgeInsets.symmetric(vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
@@ -3914,15 +3914,15 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: kLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: kMerchantLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(8)),
               child: const Text("✅ GPS location captured",
-                  style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
+                  style: TextStyle(fontSize: 12, color: kMerchantPrimary, fontWeight: FontWeight.w600)),
             ),
           ],
           const SizedBox(height: 14),
           // ── Blinkit-style Google Maps inline input ──────────────────
           const Text("or paste Google Maps link",
-              style: TextStyle(color: kMuted, fontSize: 11, fontWeight: FontWeight.w500)),
+              style: TextStyle(color: kMerchantMuted, fontSize: 11, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
           Container(
             decoration: BoxDecoration(
@@ -3933,7 +3933,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                     ? const Color(0xFF1a6640)
                     : _msg.contains('resolve') || _msg.contains('Could not')
                         ? const Color(0xFFc0392b)
-                        : kBorder,
+                        : kMerchantBorder,
               ),
             ),
             child: Row(children: [
@@ -3941,7 +3941,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: _mapsResolving
                     ? const SizedBox(width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))
+                        child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary))
                     : Image.asset('assets/images/google_maps_pin.png',
                         width: 22, height: 22,
                         errorBuilder: (_, __, ___) =>
@@ -3950,10 +3950,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               Expanded(
                 child: TextField(
                   controller: _mapsUrlCtrl,
-                  style: const TextStyle(fontSize: 13, color: kText),
+                  style: const TextStyle(fontSize: 13, color: kMerchantText),
                   decoration: const InputDecoration(
                     hintText: 'Paste Google Maps link here',
-                    hintStyle: TextStyle(fontSize: 12, color: kMuted),
+                    hintStyle: TextStyle(fontSize: 12, color: kMerchantMuted),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(vertical: 14),
                   ),
@@ -3973,7 +3973,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                   }),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Icon(Icons.close_rounded, size: 18, color: kMuted),
+                    child: Icon(Icons.close_rounded, size: 18, color: kMerchantMuted),
                   ),
                 ),
             ]),
@@ -3986,7 +3986,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               child: ElevatedButton(
                 onPressed: _mapsResolving ? null : () => _resolveMapsLink(_mapsUrlCtrl.text),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary, foregroundColor: Colors.white,
+                  backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
@@ -4012,15 +4012,15 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                   const Icon(Icons.check_circle_rounded, color: Color(0xFF1a6640), size: 16),
                   const SizedBox(width: 6),
                   const Text("google.com",
-                      style: TextStyle(fontSize: 11, color: kMuted, fontWeight: FontWeight.w500)),
+                      style: TextStyle(fontSize: 11, color: kMerchantMuted, fontWeight: FontWeight.w500)),
                 ]),
                 const SizedBox(height: 6),
                 Text(_resolvedPlaceName,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText)),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kMerchantText)),
                 if (_resolvedAddress.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(_resolvedAddress,
-                      style: const TextStyle(fontSize: 12, color: kMuted)),
+                      style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
                 ],
                 const SizedBox(height: 10),
                 SizedBox(
@@ -4034,7 +4034,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                       _mapsApplied ? "✓ Location Applied" : "Apply Location",
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _mapsApplied ? const Color(0xFF1a6640) : kPrimary,
+                      backgroundColor: _mapsApplied ? const Color(0xFF1a6640) : kMerchantPrimary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -4052,7 +4052,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           ]),
           const SizedBox(height: 4),
           const Text("Auto-filled by GPS or Google Maps, or enter manually.",
-              style: TextStyle(color: kMuted, fontSize: 11)),
+              style: TextStyle(color: kMerchantMuted, fontSize: 11)),
         ]),
       ),
       const SizedBox(height:12),
@@ -4074,7 +4074,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       const SizedBox(height:12),
       // ── Area / Locality Dropdown ──────────────────────────────────────
       if (_areasLoading)
-        const LinearProgressIndicator(minHeight: 2, color: kPrimary)
+        const LinearProgressIndicator(minHeight: 2, color: kMerchantPrimary)
       else if (_areas.isNotEmpty)
         DropdownButtonFormField<String>(
           isExpanded: true,
@@ -4096,18 +4096,18 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
       const SizedBox(height: 16),
       // Image picker
-      GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder,style:BorderStyle.solid)),
+      GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
         child: _imgB64!=null
             ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_imgB64!.split(",").last),fit:BoxFit.cover,width:double.infinity))
             : (_imgUrl!=null && _imgUrl!.isNotEmpty)
                 ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_imgUrl!,fit:BoxFit.cover,width:double.infinity,
-                    errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMuted,size:36),const SizedBox(height:8),const Text("Tap to change image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600))])))
-                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+                    errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:36),const SizedBox(height:8),const Text("Tap to change image",style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600))])))
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMerchantMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // Second image picker — optional logo
-      const Text("Upload Logo [Optional]",style:TextStyle(color:kMuted,fontSize:12,fontWeight:FontWeight.w600)),
+      const Text("Upload Logo [Optional]",style:TextStyle(color:kMerchantMuted,fontSize:12,fontWeight:FontWeight.w600)),
       const SizedBox(height:6),
-      GestureDetector(onTap:_pickImage2,child:Container(height:110,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder,style:BorderStyle.solid)),
+      GestureDetector(onTap:_pickImage2,child:Container(height:110,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
         child: _img2B64!=null
             ? Stack(children:[
                 ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_img2B64!.split(",").last),fit:BoxFit.cover,width:double.infinity,height:110)),
@@ -4118,17 +4118,17 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             : (_img2Url!=null && _img2Url!.isNotEmpty)
                 ? Stack(children:[
                     ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_img2Url!,fit:BoxFit.cover,width:double.infinity,height:110,
-                      errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to change logo",style:TextStyle(color:kMuted,fontSize:12))]))),
+                      errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),const Text("Tap to change logo",style:TextStyle(color:kMerchantMuted,fontSize:12))]))),
                     Positioned(top:6,right:6,child:GestureDetector(
                       onTap:(){setState(()=>_img2Url=null);},
                       child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:Colors.black54,shape:BoxShape.circle),child:const Icon(Icons.close,color:Colors.white,size:14)))),
                   ])
-                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMerchantMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // ── Opening & Closing Time ──────────────────────────────────────
       const SizedBox(height:12),
       const Text("Store Timings [Optional]",
-        style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+        style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       Row(children: [
         Expanded(
@@ -4165,7 +4165,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       const SizedBox(height:20),
       SizedBox(height:50,child:ElevatedButton(
         onPressed:_loading?null:_save,
-        style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
+        style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
         child:_loading?const SizedBox(width:20,height:20,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):
             Text(_isEdit?"Save Changes":"Create Store",style:const TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
@@ -4177,13 +4177,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     TextField(controller:c,keyboardType:type,maxLength:maxLen,decoration:_dec(hint,icon).copyWith(counterText:maxLen!=null?"":null));
   InputDecoration _dec(String hint, IconData icon) => InputDecoration(
     hintText:hint,
-    prefixIcon:Icon(icon,color:kMuted,size:20),
+    prefixIcon:Icon(icon,color:kMerchantMuted,size:20),
     filled:true,
     fillColor:Colors.white,
     contentPadding:const EdgeInsets.symmetric(vertical:14,horizontal:14),
-    border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
-    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
-    focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kPrimary,width:2)));
+    border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
+    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
+    focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantPrimary,width:2)));
 }
 
 // ─────────── Subscribe Page ───────────
@@ -4272,11 +4272,11 @@ class _SubscribeState extends State<SubscribePage> {
       builder: (_) => const Center(child: Card(
         color: Colors.white,
         child: Padding(padding: EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
-          CircularProgressIndicator(color: kPrimary),
+          CircularProgressIndicator(color: kMerchantPrimary),
           SizedBox(height: 16),
-          Text("Confirming payment...", style: TextStyle(fontWeight: FontWeight.w600, color: kText)),
+          Text("Confirming payment...", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText)),
           SizedBox(height: 4),
-          Text("Please wait a moment", style: TextStyle(color: kMuted, fontSize: 12)),
+          Text("Please wait a moment", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
         ])),
       )),
     );
@@ -4376,7 +4376,7 @@ class _SubscribeState extends State<SubscribePage> {
         final discAmt = (order["discount_amount"] as num?)?.toDouble() ?? 0;
         final discType = order["discount_type"]?.toString();
         showDialog(context:context,barrierDismissible:false,builder:(ctx)=>AlertDialog(
-          title:const Text("Subscription Request Sent",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+          title:const Text("Subscription Request Sent",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
           content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
             _row("Store", widget.store["store_name"]??''),
             _row("Plan",  order["plan_label"]??''),
@@ -4393,16 +4393,16 @@ class _SubscribeState extends State<SubscribePage> {
             const SizedBox(height:12),
             Container(
               padding:const EdgeInsets.all(10),
-              decoration:BoxDecoration(color:kLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
               child:const Text(
                 "✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.",
-                style:TextStyle(fontSize:12,color:kPrimary,height:1.5),
+                style:TextStyle(fontSize:12,color:kMerchantPrimary,height:1.5),
               ),
             ),
           ]),
           actions:[
             ElevatedButton(
-              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
               onPressed:() async {
                 Navigator.pop(ctx);
                 // If amount is 0, activate immediately via free endpoint
@@ -4433,7 +4433,7 @@ class _SubscribeState extends State<SubscribePage> {
       final fromD   = order["from_date"]?.toString() ?? "";
       final toD     = order["end_date"]?.toString() ?? "";
       showDialog(context:context,builder:(_)=>AlertDialog(
-        title:const Text("Confirm Payment",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+        title:const Text("Confirm Payment",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
         content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
           _row("Store", widget.store["store_name"]?.toString()??''),
           _row("Plan",  planLbl),
@@ -4444,13 +4444,13 @@ class _SubscribeState extends State<SubscribePage> {
           _row("GST ($gstPct%)","₹$gstAmt"),
           _row("Total","₹$totalD",bold:true),
           const SizedBox(height:12),
-          Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:kLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
-            child:const Text("Razorpay checkout will open. After payment, admin will approve your store.",style:TextStyle(fontSize:12,color:kPrimary))),
+          Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
+            child:const Text("Razorpay checkout will open. After payment, admin will approve your store.",style:TextStyle(fontSize:12,color:kMerchantPrimary))),
         ]),
         actions:[
-          TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+          TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
           ElevatedButton(
-            style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+            style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
             onPressed:() {
               Navigator.pop(context);
               _openRazorpay(_pendingOrder);
@@ -4465,47 +4465,47 @@ class _SubscribeState extends State<SubscribePage> {
   }
 
   Widget _row(String k,String v,{bool bold=false}) => Padding(padding:const EdgeInsets.symmetric(vertical:3),
-    child:Row(children:[Expanded(child:Text(k,style:const TextStyle(color:kMuted,fontSize:13))),Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:bold?kPrimary:kText))]));
+    child:Row(children:[Expanded(child:Text(k,style:const TextStyle(color:kMerchantMuted,fontSize:13))),Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:bold?kMerchantPrimary:kMerchantText))]));
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(title:const Text("Subscribe Store"),backgroundColor: Colors.white, foregroundColor: kText),
-    body:_loading?const Center(child:CircularProgressIndicator(color:kPrimary)):SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:kBorder)),
+    backgroundColor:kMerchantBg,
+    appBar:AppBar(title:const Text("Subscribe Store"),backgroundColor: Colors.white, foregroundColor: kMerchantText),
+    body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Store",style:TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
-          Text(widget.store["store_name"]??"",style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:kText)),
-          Text("${widget.store['city']??''}, ${widget.store['area']??''}",style:const TextStyle(color:kMuted,fontSize:12)),
+          const Text("Store",style:TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
+          Text(widget.store["store_name"]??"",style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:kMerchantText)),
+          Text("${widget.store['city']??''}, ${widget.store['area']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12)),
         ])),
       const SizedBox(height:20),
-      const Text("Select Plan",style:TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:15)),
+      const Text("Select Plan",style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
       const SizedBox(height:10),
       ..._plans.map((p){
         final sel = _selectedPlan==p["id"];
         return GestureDetector(onTap:()=>setState((){_selectedPlan=p["id"];_selectedPlanData=Map.from(p);}),
           child:Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(16),
-            decoration:BoxDecoration(color:sel?kPrimary:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:sel?kPrimary:kBorder,width:sel?2:1)),
+            decoration:BoxDecoration(color:sel?kMerchantPrimary:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:sel?kMerchantPrimary:kMerchantBorder,width:sel?2:1)),
             child:Row(children:[
-              Icon(sel?Icons.radio_button_checked:Icons.radio_button_unchecked,color:sel?Colors.white:kMuted),
+              Icon(sel?Icons.radio_button_checked:Icons.radio_button_unchecked,color:sel?Colors.white:kMerchantMuted),
               const SizedBox(width:12),
               Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text(p["label"],style:TextStyle(fontWeight:FontWeight.bold,color:sel?Colors.white:kText)),
-                Text("₹${p['price']} + ${p['gst_percent']}% GST",style:TextStyle(fontSize:12,color:sel?kLight:kMuted)),
+                Text(p["label"],style:TextStyle(fontWeight:FontWeight.bold,color:sel?Colors.white:kMerchantText)),
+                Text("₹${p['price']} + ${p['gst_percent']}% GST",style:TextStyle(fontSize:12,color:sel?kMerchantLight:kMerchantMuted)),
               ])),
-              Text("₹${p['total']}",style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:sel?Colors.white:kPrimary)),
+              Text("₹${p['total']}",style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:sel?Colors.white:kMerchantPrimary)),
             ])));
       }).toList(),
       const SizedBox(height:16),
-      const Text("Start Date",style:TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:15)),
+      const Text("Start Date",style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
       const SizedBox(height:8),
       GestureDetector(
         onTap:() async {
           final d = await showDatePicker(context:context,initialDate:DateTime.now(),firstDate:DateTime.now(),lastDate:DateTime.now().add(const Duration(days:60)),
-            builder:(ctx,child)=>Theme(data:ThemeData(colorScheme:const ColorScheme.light(primary:kPrimary)),child:child!));
+            builder:(ctx,child)=>Theme(data:ThemeData(colorScheme:const ColorScheme.light(primary:kMerchantPrimary)),child:child!));
           if (d!=null) setState(()=>_fromDate=d.toIso8601String().substring(0,10));
         },
-        child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
-          child:Row(children:[const Icon(Icons.calendar_today,color:kPrimary,size:18),const SizedBox(width:10),Text(_fromDate,style:const TextStyle(color:kText,fontWeight:FontWeight.w600))]))),
+        child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+          child:Row(children:[const Icon(Icons.calendar_today,color:kMerchantPrimary,size:18),const SizedBox(width:10),Text(_fromDate,style:const TextStyle(color:kMerchantText,fontWeight:FontWeight.w600))]))),
       if (_selectedPlanData!=null)...[
         const SizedBox(height:16),
         Builder(builder:(_) {
@@ -4515,7 +4515,7 @@ class _SubscribeState extends State<SubscribePage> {
           final taxable   = (basePrice - discAmt).clamp(0, basePrice);
           final gstAmt    = taxable * gstPct / 100.0;
           final total     = taxable + gstAmt;
-          return Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
+          return Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
             child:Column(children:[
               _row("Base Price","₹${basePrice.toStringAsFixed(2)}"),
               if (discAmt>0) _row("Discount","-₹${discAmt.toStringAsFixed(2)}"),
@@ -4527,28 +4527,28 @@ class _SubscribeState extends State<SubscribePage> {
       ],
       const SizedBox(height:16),
       // ── Discount Code ──
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Have a discount code?",style:TextStyle(fontWeight:FontWeight.w600,color:kText,fontSize:13)),
+          const Text("Have a discount code?",style:TextStyle(fontWeight:FontWeight.w600,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
               controller:_discC,
               textCapitalization:TextCapitalization.characters,
               onChanged:(_){ if(_appliedCode!=null) setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";}); },
-              decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:BorderSide(color:kBorder))),
+              decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:BorderSide(color:kMerchantBorder))),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_validatingDisc?null:_validateDiscount,
-              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
+              style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
               child:_validatingDisc?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Text("Apply",style:TextStyle(color:Colors.white,fontSize:13))),
           ]),
           if (_discMsg.isNotEmpty)...[const SizedBox(height:6),Text(_discMsg,style:TextStyle(fontSize:12,color:_appliedCode!=null?const Color(0xFF1a6640):Colors.red.shade700))],
           if (_appliedCode!=null && _discountType!=null)...[
             const SizedBox(height:6),
             Row(children:[
-              const Text("Discount: ",style:TextStyle(fontSize:12,color:kMuted)),
+              const Text("Discount: ",style:TextStyle(fontSize:12,color:kMerchantMuted)),
               Text(_discountType=="PERCENTAGE" ? "- ${_discountValue.toStringAsFixed(0)}%" : "- ₹${_discountValue.toStringAsFixed(0)}",
                 style:const TextStyle(fontSize:12,color:Color(0xFF1a6640),fontWeight:FontWeight.bold)),
               const Spacer(),
@@ -4558,7 +4558,7 @@ class _SubscribeState extends State<SubscribePage> {
       const SizedBox(height:24),
       SizedBox(height:52,child:ElevatedButton(
         onPressed:_loading?null:_subscribe,
-        style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
+        style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
         child:const Text("Proceed to Pay",style:TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
       const SizedBox(height:24),
@@ -4735,23 +4735,23 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
+    backgroundColor:kMerchantBg,
     appBar:AppBar(
       title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Invoices",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
+      backgroundColor: Colors.white, foregroundColor: kMerchantText,automaticallyImplyLeading:false,
       actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load,tooltip:"Refresh")],
     ),
-    body:_loading?const Center(child:CircularProgressIndicator(color:kPrimary)):
+    body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):
     RefreshIndicator(
-      color:kPrimary,onRefresh:_load,
+      color:kMerchantPrimary,onRefresh:_load,
       child:_invoices.isEmpty
         ? ListView(children:[SizedBox(height:MediaQuery.sizeOf(context).height*0.4,
             child:const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Icon(Icons.receipt_long_outlined,size:56,color:kAccent),
+              Icon(Icons.receipt_long_outlined,size:56,color:kMerchantAccent),
               SizedBox(height:12),
-              Text("No invoices yet",style:TextStyle(color:kMuted,fontSize:15)),
+              Text("No invoices yet",style:TextStyle(color:kMerchantMuted,fontSize:15)),
               SizedBox(height:6),
-              Text("Pull down to refresh",style:TextStyle(color:kMuted,fontSize:12)),
+              Text("Pull down to refresh",style:TextStyle(color:kMerchantMuted,fontSize:12)),
             ])))])
         : ListView.builder(
             padding:const EdgeInsets.all(14),
@@ -4762,14 +4762,14 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                 shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
                 child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Row(children:[
-                    const Icon(Icons.receipt_long,color:kPrimary,size:16),
+                    const Icon(Icons.receipt_long,color:kMerchantPrimary,size:16),
                     const SizedBox(width:6),
-                    Expanded(child:Text(inv["invoice_no"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:13))),
-                    Text(_fmtDateTime(inv["created_at"]?.toString()),style:const TextStyle(color:kMuted,fontSize:11)),
+                    Expanded(child:Text(inv["invoice_no"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantPrimary,fontSize:13))),
+                    Text(_fmtDateTime(inv["created_at"]?.toString()),style:const TextStyle(color:kMerchantMuted,fontSize:11)),
                   ]),
                   const Divider(height:14),
-                  Text(inv["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText)),
-                  Text("Plan: ${inv['plan']??''}  •  ${inv['from_date']??''} – ${inv['end_date']??''}",style:const TextStyle(color:kMuted,fontSize:12)),
+                  Text(inv["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText)),
+                  Text("Plan: ${inv['plan']??''}  •  ${inv['from_date']??''} – ${inv['end_date']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                   const SizedBox(height:6),
                   Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
                     // TASK 6: show discount info if present
@@ -4783,7 +4783,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Base: ₹${origAmt.toStringAsFixed(2)}  GST: ₹${gstAmt.toStringAsFixed(2)}",
-                            style:const TextStyle(color:kMuted,fontSize:12)),
+                            style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                           if(discCode.isNotEmpty && discAmt > 0)
                             Text("Discount ($discCode): −₹${discAmt.toStringAsFixed(2)}",
                               style:const TextStyle(color:Color(0xFF1a6640),fontSize:11,fontWeight:FontWeight.w600)),
@@ -4791,7 +4791,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                       );
                     }),
                     Text("₹${((inv["total"]??0) as num).toStringAsFixed(2)}",
-                      style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:15)),
+                      style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantPrimary,fontSize:15)),
                   ]),
                   const SizedBox(height:12),
                   // FIX 14: Action buttons
@@ -4800,7 +4800,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                       icon:const Icon(Icons.share_rounded,size:16),
                       label:const Text("Share",style:TextStyle(fontSize:12)),
                       style:OutlinedButton.styleFrom(
-                        foregroundColor:kPrimary,side:const BorderSide(color:kPrimary),
+                        foregroundColor:kMerchantPrimary,side:const BorderSide(color:kMerchantPrimary),
                         padding:const EdgeInsets.symmetric(vertical:8),
                         shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
                       onPressed:()=>_shareInvoice(inv),
@@ -4810,7 +4810,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                       icon:const Icon(Icons.download_rounded,size:16),
                       label:const Text("Download PDF",style:TextStyle(fontSize:12)),
                       style:ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white, foregroundColor: kText,
+                        backgroundColor: Colors.white, foregroundColor: kMerchantText,
                         padding:const EdgeInsets.symmetric(vertical:8),
                         shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
                       onPressed:()=>_printInvoice(inv),
@@ -4887,7 +4887,7 @@ class _TxnState extends State<MerchantTxnPage> {
     // Payments/subscriptions from txns
     for(final t in _txns) {
       events.add({
-        "type":"payment","icon":Icons.payment,"color":kPrimary,
+        "type":"payment","icon":Icons.payment,"color":kMerchantPrimary,
         "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??"Payment"),
         "subtitle":"₹${t['amount']??0}",
         "date":t["date"]??t["created_at"]??"",
@@ -4949,15 +4949,15 @@ class _TxnState extends State<MerchantTxnPage> {
   @override Widget build(BuildContext context) {
     final items = _filtered; // once per build (was recomputed, incl. a sort, for every row)
     return Scaffold(
-    backgroundColor:kBg,
+    backgroundColor:kMerchantBg,
     appBar:AppBar(
       title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Activity",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
+      backgroundColor: Colors.white, foregroundColor: kMerchantText,automaticallyImplyLeading:false,
       actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load)],
     ),
     body:Column(children:[
       // Filter tabs
-      Container(decoration:const BoxDecoration(color:kPrimary),padding:const EdgeInsets.fromLTRB(12,0,12,10),
+      Container(decoration:const BoxDecoration(color:kMerchantPrimary),padding:const EdgeInsets.fromLTRB(12,0,12,10),
         child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
           GestureDetector(
             behavior:HitTestBehavior.opaque,
@@ -4969,48 +4969,48 @@ class _TxnState extends State<MerchantTxnPage> {
                 color:_tab==e.key?Colors.white:Colors.white.withValues(alpha:.18),
                 borderRadius:BorderRadius.circular(20)),
               child:Text(e.value,style:TextStyle(
-                color:_tab==e.key?kPrimary:Colors.white,
+                color:_tab==e.key?kMerchantPrimary:Colors.white,
                 fontSize:12,fontWeight:FontWeight.w700)),
             ),
           )).toList())),
       ),  // close filter-tabs Container
       // Content
       Expanded(child:_loading
-        ? const Center(child:CircularProgressIndicator(color:kPrimary))
+        ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary))
         : RefreshIndicator(
-            color:kPrimary,onRefresh:_load,
+            color:kMerchantPrimary,onRefresh:_load,
             child:items.isEmpty
               ? ListView(children:[SizedBox(height:300,child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  const Icon(Icons.history,size:48,color:kAccent),
+                  const Icon(Icons.history,size:48,color:kMerchantAccent),
                   const SizedBox(height:12),
-                  const Text("No activity yet",style:TextStyle(color:kMuted,fontSize:15)),
+                  const Text("No activity yet",style:TextStyle(color:kMerchantMuted,fontSize:15)),
                 ])))])
               : ListView.builder(
                   padding:const EdgeInsets.fromLTRB(14,12,14,24),
                   itemCount:items.length,
                   itemBuilder:(_,i){
                     final t = items[i];
-                    final Color ic = t["color"] as Color? ?? kPrimary;
-                    final Color sc = t["subtitle_color"] as Color? ?? kMuted;
+                    final Color ic = t["color"] as Color? ?? kMerchantPrimary;
+                    final Color sc = t["subtitle_color"] as Color? ?? kMerchantMuted;
                     return Container(
                       margin:const EdgeInsets.only(bottom:8),
                       padding:const EdgeInsets.all(14),
-                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
                       child:Row(children:[
                         CircleAvatar(backgroundColor:ic.withValues(alpha:.12),radius:20,
                           child:Icon(t["icon"] as IconData,color:ic,size:18)),
                         const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Text(t["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:13)),
+                          Text(t["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:13)),
                           const SizedBox(height:2),
                           Text(t["subtitle"]??"",style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w600)),
                           if((t["from_date"]??"").isNotEmpty && (t["end_date"]??"").isNotEmpty)
-                            Text("${t['from_date']} → ${t['end_date']}",style:const TextStyle(color:kMuted,fontSize:10)),
+                            Text("${t['from_date']} → ${t['end_date']}",style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                           const SizedBox(height:2),
-                          Text(_fmtDateTime(t["date"]?.toString()),style:const TextStyle(color:kMuted,fontSize:10)),
+                          Text(_fmtDateTime(t["date"]?.toString()),style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                         ])),
                         if((t["amount"]??0)>0)
-                          Text("₹${t['amount']}",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold,fontSize:13)),
+                          Text("₹${t['amount']}",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold,fontSize:13)),
                       ]),
                     );
                   }),
@@ -5070,29 +5070,29 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
+    backgroundColor:kMerchantBg,
     appBar:AppBar(
       title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Profile",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false),
+      backgroundColor: Colors.white, foregroundColor: kMerchantText,automaticallyImplyLeading:false),
     body:SingleChildScrollView(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:kPrimary,borderRadius:BorderRadius.circular(16)),
+      Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:BorderRadius.circular(16)),
         child:Column(children:[
           GestureDetector(
             onTap: _pickProfileImage,
             child: Stack(alignment:Alignment.bottomRight,children:[
-              CircleAvatar(radius:44, backgroundColor:kAccent,
+              CircleAvatar(radius:44, backgroundColor:kMerchantAccent,
                 backgroundImage: _imgB64 != null && _imgB64!.startsWith("data:") ? MemoryImage(base64Decode(_imgB64!.split(",").last)) : null,
-                child: _imgB64 == null ? buildLogo(38,kLight) : null),
+                child: _imgB64 == null ? buildLogo(38,kMerchantLight) : null),
               Container(width:26,height:26,decoration:const BoxDecoration(color:Colors.white,shape:BoxShape.circle),
-                child: _uploading ? const Padding(padding:EdgeInsets.all(4),child:CircularProgressIndicator(strokeWidth:2,color:kPrimary)) : const Icon(Icons.camera_alt,size:16,color:kPrimary)),
+                child: _uploading ? const Padding(padding:EdgeInsets.all(4),child:CircularProgressIndicator(strokeWidth:2,color:kMerchantPrimary)) : const Icon(Icons.camera_alt,size:16,color:kMerchantPrimary)),
             ])),
           const SizedBox(height:8),
           Text(_merchantData["name"]??"",style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.bold)),
-          Text(_merchantData["phone"]??"",style:const TextStyle(color:kAccent)),
+          Text(_merchantData["phone"]??"",style:const TextStyle(color:kMerchantAccent)),
           if((_merchantData["city"]??'').isNotEmpty)
-            Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:kAccent,fontSize:12)),
+            Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:kMerchantAccent,fontSize:12)),
           const SizedBox(height:4),
-          const Text("Tap photo to change",style:TextStyle(color:kLight,fontSize:10)),
+          const Text("Tap photo to change",style:TextStyle(color:kMerchantLight,fontSize:10)),
         ])),
       const SizedBox(height:20),
       _tile(context,Icons.info_outline,"About Us",() => _openAbout(context)),
@@ -5116,10 +5116,10 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
       const SizedBox(height:20),
       // ── Switch Mode ──
       SizedBox(height:48, child: OutlinedButton.icon(
-        icon: const Icon(Icons.swap_horiz_rounded, color: kPrimary),
-        label: const Text("Switch Mode", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+        icon: const Icon(Icons.swap_horiz_rounded, color: kMerchantPrimary),
+        label: const Text("Switch Mode", style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700)),
         style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: kPrimary),
+          side: const BorderSide(color: kMerchantPrimary),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
         onPressed: () {
           showModalBottomSheet(
@@ -5170,10 +5170,10 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
   );
 
   Widget _tile(BuildContext ctx, IconData icon, String title, VoidCallback onTap) =>
-    ListTile(tileColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:kBorder)),
-      leading:CircleAvatar(backgroundColor:kLight,child:Icon(icon,color:kPrimary)),
-      title:Text(title,style:const TextStyle(fontWeight:FontWeight.bold,color:kText)),
-      trailing:const Icon(Icons.chevron_right,color:kPrimary),onTap:onTap,
+    ListTile(tileColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:kMerchantBorder)),
+      leading:CircleAvatar(backgroundColor:kMerchantLight,child:Icon(icon,color:kMerchantPrimary)),
+      title:Text(title,style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText)),
+      trailing:const Icon(Icons.chevron_right,color:kMerchantPrimary),onTap:onTap,
       contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:4));
 
   void _openAbout(BuildContext ctx) async {
@@ -5186,7 +5186,7 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
     showDialog(context:ctx, barrierDismissible:false,
       builder:(_)=>FutureBuilder<String>(future:loader,
         builder:(c,snap){
-          if(snap.connectionState!=ConnectionState.done) return const AlertDialog(content:SizedBox(height:80,child:Center(child:CircularProgressIndicator(color:kPrimary))));
+          if(snap.connectionState!=ConnectionState.done) return const AlertDialog(content:SizedBox(height:80,child:Center(child:CircularProgressIndicator(color:kMerchantPrimary))));
           return OffroDialog(title:title,body:snap.data??"");
         }));
   }
@@ -5230,11 +5230,11 @@ class _UserProfileHeaderState extends State<UserProfileHeader> {
     leading: GestureDetector(
       onTap: _pickImage,
       child: Stack(alignment:Alignment.bottomRight, children:[
-        CircleAvatar(radius:24, backgroundColor:kLight,
+        CircleAvatar(radius:24, backgroundColor:kMerchantLight,
           backgroundImage: _imgB64 != null && _imgB64!.startsWith("data:")
             ? MemoryImage(base64Decode(_imgB64!.split(",").last)) : null,
-          child: _imgB64 == null ? const Icon(Icons.person, color:kPrimary) : null),
-        Container(width:16,height:16,decoration:const BoxDecoration(color:kPrimary,shape:BoxShape.circle),
+          child: _imgB64 == null ? const Icon(Icons.person, color:kMerchantPrimary) : null),
+        Container(width:16,height:16,decoration:const BoxDecoration(color:kMerchantPrimary,shape:BoxShape.circle),
           child: _uploading ? const Padding(padding:EdgeInsets.all(2),child:CircularProgressIndicator(strokeWidth:1.5,color:Colors.white)) : const Icon(Icons.camera_alt,size:10,color:Colors.white)),
       ])),
     title: Text(widget.name, style:const TextStyle(fontWeight:FontWeight.bold)),
@@ -5290,13 +5290,13 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
+    backgroundColor: kMerchantBg,
     appBar: AppBar(
         toolbarHeight:58,
         titleSpacing:16,
         centerTitle:true,
         title:const Text("My Deals",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kText, automaticallyImplyLeading:false,
+        backgroundColor: Colors.white, foregroundColor: kMerchantText, automaticallyImplyLeading:false,
         actions:[
           Padding(
             padding:const EdgeInsets.only(right:18),
@@ -5320,13 +5320,13 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
             ),
           ),
         ]),
-    body: _loading ? const Center(child: CircularProgressIndicator(color: kPrimary)) :
+    body: _loading ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary)) :
       _deals.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.local_offer_outlined, size: 64, color: kAccent),
+        const Icon(Icons.local_offer_outlined, size: 64, color: kMerchantAccent),
         const SizedBox(height: 12),
-        const Text("No deals yet", style: TextStyle(color: kMuted, fontSize: 16)),
+        const Text("No deals yet", style: TextStyle(color: kMerchantMuted, fontSize: 16)),
         const SizedBox(height: 8),
-        const Text("Add deals to attract more customers", style: TextStyle(color: kMuted, fontSize: 13)),
+        const Text("Add deals to attract more customers", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
       ])) :
       RefreshIndicator(onRefresh: _load, child: ListView.builder(
         padding: const EdgeInsets.all(14),
@@ -5352,28 +5352,28 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                 child: dealImg.startsWith('data:image')
                     ? Image.memory(base64Decode(dealImg.split(',').last), width: 44, height: 44, fit: BoxFit.cover)
                     : CachedNetworkImage(imageUrl: dealImg, width: 44, height: 44, fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(width: 44, height: 44, color: kLight.withValues(alpha: .5)),
+                        placeholder: (_, __) => Container(width: 44, height: 44, color: kMerchantLight.withValues(alpha: .5)),
                         errorWidget: (_, __, ___) => Container(width: 44, height: 44,
-                          color: kLight.withValues(alpha: .5),
-                          child: const Icon(Icons.broken_image_outlined, color: kMuted, size: 18))),
+                          color: kMerchantLight.withValues(alpha: .5),
+                          child: const Icon(Icons.broken_image_outlined, color: kMerchantMuted, size: 18))),
               ),
             );
           } else {
             leadingWidget = Container(width: 44, height: 44,
-              decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: kMerchantLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
               child: Center(child: hasDisc
-                  ? Text(discPct, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13))
-                  : const Icon(Icons.local_offer_outlined, color: kPrimary, size: 18)));
+                  ? Text(discPct, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold, fontSize: 13))
+                  : const Icon(Icons.local_offer_outlined, color: kMerchantPrimary, size: 18)));
           }
           return Card(elevation: 2, margin: const EdgeInsets.only(bottom: 10),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: ListTile(
               leading: leadingWidget,
-              title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kText)),
+              title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kMerchantText)),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                  Text("${d['store_name'] ?? ''} • ${d['category'] ?? ''}", style: const TextStyle(color: kMuted, fontSize: 12)),
+                  Text("${d['store_name'] ?? ''} • ${d['category'] ?? ''}", style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
                   const SizedBox(height: 4),
                   Builder(builder: (_) {
                     final endStr = d["end_date"]?.toString() ?? "";
@@ -5386,9 +5386,9 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                         istNow.isAfter(DateTime.utc(endDt.year, endDt.month, endDt.day, 23, 59, 59));
                     return Row(mainAxisSize: MainAxisSize.min, children: [
                       if (endStr.isNotEmpty) ...[
-                        const Icon(Icons.calendar_today_rounded, size: 11, color: kMuted),
+                        const Icon(Icons.calendar_today_rounded, size: 11, color: kMerchantMuted),
                         const SizedBox(width: 4),
-                        Text("Ends ${_formatDealDate(endStr)}", style: const TextStyle(color: kMuted, fontSize: 11)),
+                        Text("Ends ${_formatDealDate(endStr)}", style: const TextStyle(color: kMerchantMuted, fontSize: 11)),
                         const SizedBox(width: 8),
                       ],
                       Container(
@@ -5406,7 +5406,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
               ),
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: kPrimary),
+                  icon: const Icon(Icons.edit_outlined, color: kMerchantPrimary),
                   tooltip: "Edit Deal",
                   onPressed: () {
                     Navigator.push(context, appRoute(AddDealPage(
@@ -5546,7 +5546,7 @@ class _AddDealState extends State<AddDealPage> {
       firstDate: now,
       lastDate: maxDate,
       builder: (ctx, child) => Theme(data: Theme.of(ctx).copyWith(
-        colorScheme: ColorScheme.light(primary: kPrimary, onPrimary: Colors.white),
+        colorScheme: ColorScheme.light(primary: kMerchantPrimary, onPrimary: Colors.white),
       ), child: child!),
     );
     if (picked != null) {
@@ -5638,8 +5638,8 @@ class _AddDealState extends State<AddDealPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)), backgroundColor: Colors.white, foregroundColor: kText),
+    backgroundColor: kMerchantBg,
+    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)), backgroundColor: Colors.white, foregroundColor: kMerchantText),
     body: SingleChildScrollView(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.stores.length > 1) ...[
         DropdownButtonFormField<String>(
@@ -5649,36 +5649,36 @@ class _AddDealState extends State<AddDealPage> {
             DropdownMenuItem<String>(value: s["_id"]?.toString() ?? "",
               child: Text(s["store_name"]?.toString() ?? "", overflow: TextOverflow.ellipsis))).toList(),
           onChanged: (v) { if (v != null) { final s = widget.stores.firstWhere((s) => s["_id"] == v, orElse: () => <String,dynamic>{}); setState(() { _selectedStoreId = v; _selectedStoreName = s["store_name"] ?? ""; }); _loadStoreExpiry(); } },
-          decoration: InputDecoration(labelText: "Store", prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
-            filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+          decoration: InputDecoration(labelText: "Store", prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
+            filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
         const SizedBox(height: 14),
       ] else
         Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(color: kLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(10)),
-          child: Row(children: [const Icon(Icons.store, color: kPrimary, size: 18), const SizedBox(width: 8),
-            Text(_selectedStoreName, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w600))])),
+          decoration: BoxDecoration(color: kMerchantLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [const Icon(Icons.store, color: kMerchantPrimary, size: 18), const SizedBox(width: 8),
+            Text(_selectedStoreName, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w600))])),
       TextField(controller: _title,
-        decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+        decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMerchantMuted, size: 20),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(
         isExpanded: true,
         value: _category.isEmpty ? null : _category,
         items: _categories.map((e) { final c=(e is Map?e['name']:e).toString(); return DropdownMenuItem<String>(value:c,child:Text(c)); }).toList(),
         onChanged: (v) => setState(() => _category = v ?? ""),
-        decoration: InputDecoration(hintText: "Category", prefixIcon: const Icon(Icons.category, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+        decoration: InputDecoration(hintText: "Category", prefixIcon: const Icon(Icons.category, color: kMerchantMuted, size: 20),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       TextField(controller: _desc, maxLines: 3,
-        decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+        decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMerchantMuted, size: 20),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       // ── Item 3: Deal Image (optional) ──
-      const Text("Deal Image", style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+      const Text("Deal Image", style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       GestureDetector(
         onTap: _pickDealImage,
@@ -5687,7 +5687,7 @@ class _AddDealState extends State<AddDealPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: (_dealImgB64 != null || _dealImgUrl != null) ? kPrimary : kBorder),
+            border: Border.all(color: (_dealImgB64 != null || _dealImgUrl != null) ? kMerchantPrimary : kMerchantBorder),
           ),
           child: _dealImgB64 != null
               ? Stack(children: [
@@ -5704,9 +5704,9 @@ class _AddDealState extends State<AddDealPage> {
                       ClipRRect(borderRadius: BorderRadius.circular(11),
                         child: Image.network(_dealImgUrl!, width: double.infinity, height: 130, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            const Icon(Icons.broken_image_outlined, color: kMuted, size: 32),
+                            const Icon(Icons.broken_image_outlined, color: kMerchantMuted, size: 32),
                             const SizedBox(height: 6),
-                            const Text("Tap to replace image", style: TextStyle(color: kMuted, fontSize: 12)),
+                            const Text("Tap to replace image", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
                           ]))),
                       Positioned(top: 6, right: 6, child: GestureDetector(
                         onTap: () => setState(() => _dealImgUrl = null),
@@ -5715,9 +5715,9 @@ class _AddDealState extends State<AddDealPage> {
                           child: const Icon(Icons.close, color: Colors.white, size: 14)))),
                     ])
                   : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.add_photo_alternate_outlined, size: 32, color: kAccent),
+                      const Icon(Icons.add_photo_alternate_outlined, size: 32, color: kMerchantAccent),
                       const SizedBox(height: 6),
-                      const Text("[ Upload Image ]", style: TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                      const Text("[ Upload Image ]", style: TextStyle(color: kMerchantMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
                       _InfoChip("📦 Max 2MB · Optional"),
                     ]),
@@ -5730,27 +5730,27 @@ class _AddDealState extends State<AddDealPage> {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.white, borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kBorder)),
+            border: Border.all(color: kMerchantBorder)),
           child: Row(children: [
-            const Icon(Icons.calendar_today_rounded, color: kMuted, size: 20),
+            const Icon(Icons.calendar_today_rounded, color: kMerchantMuted, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(_endDate.isEmpty ? "Select End Date" : _formatEndDateDisplay(),
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: _endDate.isEmpty ? kMuted : kText, fontSize: 14, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: _endDate.isEmpty ? kMerchantMuted : kMerchantText, fontSize: 14, fontWeight: FontWeight.w600)),
             ),
             if (_storeExpiryDate != null) ...[
               const SizedBox(width: 8),
               Text("Max: ${_storeExpiryDisplay()}",
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
-                style: const TextStyle(color: kMuted, fontSize: 10)),
+                style: const TextStyle(color: kMerchantMuted, fontSize: 10)),
             ],
           ]))),
       const SizedBox(height: 20),
       SizedBox(height: 50, child: ElevatedButton(
         onPressed: _loading ? null : _save,
-        style: ElevatedButton.styleFrom(backgroundColor: kPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+        style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
         child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
           : Text(_isEdit ? "Save Changes" : "Add Deal", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)))),
       if (_msg.isNotEmpty) ...[const SizedBox(height: 10),
@@ -5812,8 +5812,8 @@ class _BannerThumbVideoState extends State<_BannerThumbVideo> {
 
   @override Widget build(BuildContext context) {
     if (_failed) {
-      return Container(width: 80, height: 80, color: kAccent,
-        child: Center(child: Text(widget.initial, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22))));
+      return Container(width: 80, height: 80, color: kMerchantAccent,
+        child: Center(child: Text(widget.initial, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22))));
     }
     final c = _c;
     final ready = c != null && c.value.isInitialized;
@@ -6002,30 +6002,30 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
 
   @override Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        foregroundColor: kText,
+        foregroundColor: kMerchantText,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text("Privacy Policy", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
+          child: Divider(height: 1, color: kMerchantBorder),
         ),
       ),
       body: _loading
-        ? const Center(child: CircularProgressIndicator(color: kPrimary))
+        ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
         : SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (_content.isEmpty)
                 const Text("Privacy policy content is being updated. Please check back later.",
-                  style: TextStyle(color: kMuted, fontSize: 14))
+                  style: TextStyle(color: kMerchantMuted, fontSize: 14))
               else ...[
                 Text(
                   _expanded ? _content : (_content.length > 280 ? _content.substring(0, 280) + "..." : _content),
-                  style: const TextStyle(fontSize: 14, color: kText, height: 1.6),
+                  style: const TextStyle(fontSize: 14, color: kMerchantText, height: 1.6),
                 ),
                 if (_content.length > 280) ...[
                   const SizedBox(height: 8),
@@ -6033,13 +6033,13 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
                     onTap: () => setState(() => _expanded = !_expanded),
                     child: Text(
                       _expanded ? "Read Less" : "Read More",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14),
+                      style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700, fontSize: 14),
                     ),
                   ),
                 ],
               ],
               const SizedBox(height: 32),
-              const Divider(height: 1, color: kBorder),
+              const Divider(height: 1, color: kMerchantBorder),
               const SizedBox(height: 16),
               GestureDetector(
                 onTap: () => Navigator.push(context,
@@ -6105,16 +6105,16 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
 
   @override Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
         backgroundColor: Colors.white,
-        foregroundColor: kText,
+        foregroundColor: kMerchantText,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text("Delete Account", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
+          child: Divider(height: 1, color: kMerchantBorder),
         ),
       ),
       body: Column(children: [
@@ -6140,7 +6140,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text("Select a reason for deleting your account",
-              style: TextStyle(fontSize: 13, color: kMuted, fontWeight: FontWeight.w500)),
+              style: TextStyle(fontSize: 13, color: kMerchantMuted, fontWeight: FontWeight.w500)),
           ),
         ),
         Expanded(child: ListView.builder(
@@ -6155,21 +6155,21 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
-                  color: selected ? kPrimary.withOpacity(0.08) : Colors.white,
+                  color: selected ? kMerchantPrimary.withOpacity(0.08) : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: selected ? kPrimary : kBorder),
+                  border: Border.all(color: selected ? kMerchantPrimary : kMerchantBorder),
                 ),
                 child: Row(children: [
                   Icon(
                     selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                    color: selected ? kPrimary : kMuted, size: 22,
+                    color: selected ? kMerchantPrimary : kMerchantMuted, size: 22,
                   ),
                   const SizedBox(width: 10),
                   Expanded(child: Text(r,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                      color: selected ? kPrimary : kText,
+                      color: selected ? kMerchantPrimary : kMerchantText,
                     )),
                   ),
                 ]),
@@ -6205,15 +6205,15 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Delete Account?", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
+        title: const Text("Delete Account?", style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
         content: const Text(
           "Your merchant account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your stores, products and data cannot be retrieved. Are you absolutely sure?",
-          style: TextStyle(fontSize: 14, color: kText, height: 1.5),
+          style: TextStyle(fontSize: 14, color: kMerchantText, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+            child: const Text("Cancel", style: TextStyle(color: kMerchantMuted, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -6241,10 +6241,10 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Deletion Requested", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
+          title: const Text("Deletion Requested", style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
           content: const Text(
             "Your account deletion request has been submitted. You have been logged out.",
-            style: TextStyle(fontSize: 14, color: kText),
+            style: TextStyle(fontSize: 14, color: kMerchantText),
           ),
           actions: [
             ElevatedButton(
@@ -6258,7 +6258,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary, foregroundColor: Colors.white,
+                backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w700)),

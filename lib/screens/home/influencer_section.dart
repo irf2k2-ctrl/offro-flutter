@@ -464,7 +464,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
+                        border: Border.all(color: OffroColors.primary, width: 1.5),
                         boxShadow: [BoxShadow(
                           color: Colors.black.withValues(alpha: .08),
                           blurRadius: 8, offset: const Offset(0, 3))],
@@ -473,14 +473,14 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
                         Container(
                           width: 22, height: 22,
                           decoration: const BoxDecoration(
-                            color: Color(0xFFe8f4ef),
+                            color: OffroColors.mint,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.add_rounded, color: Color(0xFF3E5F55), size: 14),
+                          child: const Icon(Icons.add_rounded, color: OffroColors.primary, size: 14),
                         ),
                         const SizedBox(height: 4),
                         const Text("See All",
-                          style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800),
+                          style: TextStyle(color: OffroColors.primary, fontSize: 9, fontWeight: FontWeight.w800),
                           textAlign: TextAlign.center),
                       ]),
                     ),
@@ -1018,7 +1018,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                 width: 360,
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Color(0xFF3E5F55), Color(0xFF253D35)],
+                    colors: [OffroColors.primary, Color(0xFF253D35)],
                     begin: Alignment.topLeft, end: Alignment.bottomRight,
                   ),
                 ),
@@ -1047,9 +1047,9 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                     Center(
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(color: const Color(0xFFCDEBD6), borderRadius: BorderRadius.circular(20)),
+                        decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(20)),
                         child: Text(inf["category"].toString(),
-                          style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 11, fontWeight: FontWeight.w800)),
+                          style: const TextStyle(color: OffroColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
                       ),
                     ),
                   const SizedBox(height: 10),
@@ -1060,16 +1060,16 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                     const SizedBox(width: 4),
                     Text("(${_displayReviewCount} reviews)",
-                      style: const TextStyle(color: Color(0xFFA9CDBA), fontSize: 12)),
+                      style: const TextStyle(color: OffroColors.accent, fontSize: 12)),
                   ])),
                   const SizedBox(height: 20),
                   Container(height: 1, color: Colors.white12),
                   const SizedBox(height: 12),
                   const Row(children: [
-                    Icon(Icons.download_rounded, color: Color(0xFFA9CDBA), size: 12),
+                    Icon(Icons.download_rounded, color: OffroColors.accent, size: 12),
                     SizedBox(width: 5),
                     Text("Discover creators • OFFRO",
-                      style: TextStyle(color: Color(0xFFA9CDBA), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+                      style: TextStyle(color: OffroColors.accent, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
                   ]),
                 ]),
               ),

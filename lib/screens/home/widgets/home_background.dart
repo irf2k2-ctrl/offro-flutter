@@ -23,7 +23,7 @@ class OffroHomeBgPainter extends CustomPainter {
     // ── Large soft circle — top left ──────────────────────────
     final c1 = Paint()
       ..shader = RadialGradient(
-        colors: const [Color(0x28A9CDBA), Color(0x00A9CDBA)],
+        colors: const [Color(0x2891B5A4), Color(0x0091B5A4)],
         center: Alignment.topLeft,
         radius: 1.0,
       ).createShader(Rect.fromLTWH(-w * 0.1, -h * 0.05, w * 0.75, w * 0.75));
@@ -32,7 +32,7 @@ class OffroHomeBgPainter extends CustomPainter {
     // ── Medium circle — top right ────────────────────────────
     final c2 = Paint()
       ..shader = RadialGradient(
-        colors: const [Color(0x223E5F55), Color(0x003E5F55)],
+        colors: const [Color(0x22345148), Color(0x00345148)],
         center: Alignment.topRight,
         radius: 1.0,
       ).createShader(Rect.fromLTWH(w * 0.55, -h * 0.02, w * 0.55, w * 0.55));
@@ -41,19 +41,19 @@ class OffroHomeBgPainter extends CustomPainter {
     // ── Small accent circle — mid left ──────────────────────
     final c3 = Paint()
       ..shader = RadialGradient(
-        colors: const [Color(0x1ACDEBD6), Color(0x00CDEBD6)],
+        colors: const [Color(0x1AB8D9C3), Color(0x00B8D9C3)],
       ).createShader(Rect.fromLTWH(0, h * 0.28, w * 0.4, w * 0.4));
     canvas.drawCircle(Offset(w * 0.08, h * 0.38), w * 0.22, c3);
 
     // ── Small circle — lower right ───────────────────────────
     final c4 = Paint()
       ..shader = RadialGradient(
-        colors: const [Color(0x18A9CDBA), Color(0x00A9CDBA)],
+        colors: const [Color(0x1891B5A4), Color(0x0091B5A4)],
       ).createShader(Rect.fromLTWH(w * 0.6, h * 0.55, w * 0.5, w * 0.5));
     canvas.drawCircle(Offset(w * 0.9, h * 0.68), w * 0.26, c4);
 
     // ── Dot grid (top right area) ────────────────────────────
-    final dotPaint = Paint()..color = const Color(0x223E5F55);
+    final dotPaint = Paint()..color = const Color(0x22345148);
     for (int row = 0; row < 5; row++) {
       for (int col = 0; col < 4; col++) {
         canvas.drawCircle(
@@ -65,7 +65,7 @@ class OffroHomeBgPainter extends CustomPainter {
     // ── Wave 1 — large sweeping curve (bottom third) ─────────
     final wave1 = Paint()
       ..shader = LinearGradient(
-        colors: const [Color(0x1A3E5F55), Color(0x0A3E5F55)],
+        colors: const [Color(0x1A345148), Color(0x0A345148)],
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
       ).createShader(Rect.fromLTWH(0, h * 0.5, w, h * 0.5))
@@ -80,7 +80,7 @@ class OffroHomeBgPainter extends CustomPainter {
 
     // ── Wave 2 — lighter higher curve ───────────────────────
     final wave2 = Paint()
-      ..color = const Color(0x0F3E5F55)
+      ..color = const Color(0x0F345148)
       ..style = PaintingStyle.fill;
     final wPath2 = Path();
     wPath2.moveTo(0, h * 0.62);
@@ -92,7 +92,7 @@ class OffroHomeBgPainter extends CustomPainter {
 
     // ── Thin curved accent line ──────────────────────────────
     final linePaint = Paint()
-      ..color = const Color(0x1A3E5F55)
+      ..color = const Color(0x1A345148)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     final linePath = Path();

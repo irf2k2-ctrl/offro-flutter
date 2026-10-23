@@ -102,7 +102,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
   bool _loading = true;
   _RegStatus _reg = _RegStatus();
 
-  static const Color kPrimary = Color(0xFF3E5F55);
+  static const Color kPrimary = OffroColors.primary;
   static const Color kBg = OffroColors.background;
   static const Color kText = OffroColors.text;
   static const Color kMuted = OffroColors.textMuted;

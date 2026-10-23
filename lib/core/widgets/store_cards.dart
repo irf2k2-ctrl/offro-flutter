@@ -174,7 +174,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       onTap: _startPlayback,
       child: Container(
         width: 56, height: 56,
-        decoration: const BoxDecoration(color: Color(0xFF17231F), shape: BoxShape.circle),
+        decoration: const BoxDecoration(color: OffroColors.textDark, shape: BoxShape.circle),
         alignment: Alignment.center,
         child: _playPending
             ? const SizedBox(width: 22, height: 22,
@@ -205,7 +205,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
   Widget _buildMedia(String url) {
     if (url.isEmpty) return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [Color(0xFF2c4a3e), Color(0xFF3E5F55)],
+        gradient: LinearGradient(colors: [Color(0xFF2c4a3e), OffroColors.primary],
           begin: Alignment.topLeft, end: Alignment.bottomRight)));
 
     // Video
@@ -225,7 +225,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         return video;
       }
       // While video loads → green placeholder (tap-to-play still shows the icon)
-      final ph = Container(color: const Color(0xFF3E5F55));
+      final ph = Container(color: OffroColors.primary);
       if (widget.tapToPlay && !_started) {
         return Stack(fit: StackFit.expand, children: [ph, _playOverlay()]);
       }
@@ -244,10 +244,10 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       imageUrl: url, fit: BoxFit.cover,
       width: double.infinity, height: double.infinity, memCacheWidth: 900,
       alignment: Alignment.center,
-      placeholder: (_, __) => Container(color: const Color(0xFF3E5F55)),
+      placeholder: (_, __) => Container(color: OffroColors.primary),
       errorWidget: (_, __, ___) => Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [Color(0xFF2c4a3e), Color(0xFF3E5F55)],
+          gradient: LinearGradient(colors: [Color(0xFF2c4a3e), OffroColors.primary],
             begin: Alignment.topLeft, end: Alignment.bottomRight))),
     );
   }
@@ -416,7 +416,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
   }
 
   Widget _fallback(String name)=>Container(
-    color:const Color(0xFF3E5F55),
+    color:OffroColors.primary,
     child:Center(child:Icon(Icons.store,color:kLight,size:36)),
   );
 }
@@ -466,7 +466,7 @@ class TopStoreCard extends StatelessWidget {
       case "trending":  return const Color(0xFFe67e22);
       case "popular":   return const Color(0xFF8e44ad);
       case "just added":return const Color(0xFF111111);
-      default:          return const Color(0xFF3E5F55);
+      default:          return OffroColors.primary;
     }
   }
 
@@ -516,7 +516,7 @@ class TopStoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFd4e8de), width: 1.0),
+        border: Border.all(color: OffroColors.border, width: 1.0),
         boxShadow: OffroShadows.card,
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -567,7 +567,7 @@ class TopStoreCard extends StatelessWidget {
               // Category · Area
               Text(
                 [if (category.isNotEmpty) category, if (locationStr.isNotEmpty) locationStr].join(" · "),
-                style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w500),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),
               // Rating badge + distance + open tag
@@ -576,7 +576,7 @@ class TopStoreCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3E5F55),
+                      color: OffroColors.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -589,11 +589,11 @@ class TopStoreCard extends StatelessWidget {
                   const SizedBox(width: 6),
                 ],
                 if (distKm != null) ...[
-                  const Icon(Icons.near_me_rounded, color: Color(0xFF6b8c7e), size: 11),
+                  const Icon(Icons.near_me_rounded, color: OffroColors.secondarySolid, size: 11),
                   const SizedBox(width: 2),
                   Text(
                     distKm < 1 ? "${(distKm*1000).round()}m away" : "${distKm.toStringAsFixed(1)}km away",
-                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500)),
+                    style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w500)),
                 ],
                 const Spacer(),
                 // Dynamic open/close indicator — hidden when times not configured
@@ -619,16 +619,16 @@ class TopStoreCard extends StatelessWidget {
         // Chevron
         const Padding(
           padding: EdgeInsets.only(right: 12, top: 35),
-          child: Icon(Icons.chevron_right_rounded, color: Color(0xFFa9cdba), size: 20),
+          child: Icon(Icons.chevron_right_rounded, color: OffroColors.accent, size: 20),
         ),
       ]),
     );
   }
 
   Widget _fallback(String name) => Container(
-    color: const Color(0xFFA9CDBA),
+    color: OffroColors.accent,
     child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "S",
-      style: const TextStyle(color: Color(0xFF3E5F55), fontWeight: FontWeight.w900, fontSize: 22))),
+      style: const TextStyle(color: OffroColors.primary, fontWeight: FontWeight.w900, fontSize: 22))),
   );
 }
 

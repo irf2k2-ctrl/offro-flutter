@@ -14,47 +14,47 @@ class OffroColors {
   OffroColors._();
 
   // Brand
-  static const Color primary    = Color(0xFF3E5F55);
-  static const Color mint       = Color(0xFFCDEBD6);
-  static const Color sage       = Color(0xFF759A89);
-  static const Color accent     = Color(0xFFA9CDBA);
-  static const Color beige      = Color(0xFFE7D7C8);
+  static const Color primary    = Color(0xFF345148);
+  static const Color mint       = Color(0xFFB8D9C3);
+  static const Color sage       = Color(0xFF638578);
+  static const Color accent     = Color(0xFF91B5A4);
+  static const Color beige      = Color(0xFFD8C4B2);
   static const Color background = Color(0xFFF3EBDD); // solid darker cream (was #FDFBF6)
   static const Color surface    = Color(0xFFFFFFFF);
 
   // Text
-  static const Color text     = Color(0xFF21332D);
-  static const Color textDark = Color(0xFF17231F);
+  static const Color text     = Color(0xFF1B2D27);
+  static const Color textDark = Color(0xFF111B17);
 
   // Accents / status
-  static const Color amber      = Color(0xFFC78D3E); // star ratings
-  static const Color terracotta = Color(0xFFD67858); // notification dot, highlights
+  static const Color amber      = Color(0xFFB4772F); // star ratings
+  static const Color terracotta = Color(0xFFC36346); // notification dot, highlights
   static const Color success    = Color(0xFF5C9274); // "New" dot
   static const Color open       = Color(0xFF64A17D); // "Open now" dot
   static const Color error      = Color(0xFFA95F4A);
 
   // Muted text = black at a given opacity (as in the design).
-  static const Color textMuted     = Color(0xFF54776A); // solid secondary (was black 45%)
-  static const Color textSubtle    = Color(0xFF54776A); // solid secondary (was black 40%)
-  static const Color textFaint     = Color(0xFF759A89); // solid sage tertiary (was black 35%)
-  static const Color textPlaceholder = Color(0xFF759A89); // solid sage (was black 25%)
+  static const Color textMuted     = Color(0xFF46685C); // solid secondary (was black 45%)
+  static const Color textSubtle    = Color(0xFF46685C); // solid secondary (was black 40%)
+  static const Color textFaint     = Color(0xFF638578); // solid sage tertiary (was black 35%)
+  static const Color textPlaceholder = Color(0xFF638578); // solid sage (was black 25%)
   /// Readable secondary: black 55%. Only for functional secondary text/icons
   /// that must stay legible on device (inactive nav, location info, search
   /// placeholder). Not a replacement for textMuted/textSubtle/textFaint.
-  static const Color textReadableSecondary = Color(0xFF54776A); // alias of secondarySolid
+  static const Color textReadableSecondary = Color(0xFF46685C); // alias of secondarySolid
   /// Home eyebrow: sage deepened ~60% toward primary (#759A89 -> #54776A).
-  static const Color sageStrong = Color(0xFF54776A);
+  static const Color sageStrong = Color(0xFF46685C);
   /// Solid secondary text/icon colour (Test C: replaces black-alpha secondary on Home). Same value as sageStrong.
-  static const Color secondarySolid = Color(0xFF54776A);
+  static const Color secondarySolid = Color(0xFF46685C);
 
   // Hairlines: primary at low opacity.
-  static const Color border      = Color(0x1A3E5F55); // 10%
-  static const Color borderSoft  = Color(0x143E5F55); // 8%
-  static const Color borderStrong = Color(0x2E3E5F55); // 18%
+  static const Color border      = Color(0x1A345148); // 10%
+  static const Color borderSoft  = Color(0x14345148); // 8%
+  static const Color borderStrong = Color(0x2E345148); // 18%
 
   // Soft fills
-  static const Color mintSoft = Color(0xFFCDEBD6); // solid mint (was mint @ 55%)
-  static const Color mintFill = Color(0xFFCDEBD6); // solid mint (was mint @ 65%)
+  static const Color mintSoft = Color(0xFFB8D9C3); // solid mint (was mint @ 55%)
+  static const Color mintFill = Color(0xFFB8D9C3); // solid mint (was mint @ 65%)
 }
 
 /// A pastel category tile colour pair (background + icon colour).

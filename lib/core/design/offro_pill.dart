@@ -41,11 +41,11 @@ class OffroPill extends StatelessWidget {
     late final Color fg;
     switch (tone) {
       case OffroPillTone.mint:
-        bg = const Color(0x80CDEBD6); // mint @ 50%
+        bg = const Color(0x80B8D9C3); // mint @ 50%
         fg = OffroColors.primary;
         break;
       case OffroPillTone.dark:
-        bg = const Color(0xCC21332D); // text @ 80%
+        bg = const Color(0xCC1B2D27); // text @ 80%
         fg = Colors.white;
         break;
       case OffroPillTone.primary:
@@ -53,7 +53,7 @@ class OffroPill extends StatelessWidget {
         fg = Colors.white;
         break;
       case OffroPillTone.light:
-        bg = const Color(0xE6FDFBF6); // background @ 90%
+        bg = const Color(0xE6F3EBDD); // background @ 90%
         fg = OffroColors.primary;
         break;
       case OffroPillTone.beige:

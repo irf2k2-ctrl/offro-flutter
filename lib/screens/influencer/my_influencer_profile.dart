@@ -12,6 +12,7 @@ import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../auth/login_screen.dart' show SwitchModeSheet;
 import '../home/influencer_section.dart' show InfluencerProfileScreen;
+import '../../core/design/offro_tokens.dart' show OffroColors;
 
 /// Local equivalent of the file-private `_timeAgo()` helpers already used
 /// elsewhere (lib/main.dart, notifications_page.dart) — same exact pattern,
@@ -1574,7 +1575,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: const Color(0xFFf0f9f4), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFc3dfc6))),
         child: const Text("No subscription payment is currently required to publish your profile.",
-          style: TextStyle(fontSize: 12.5, color: Color(0xFF3E5F55))),
+          style: TextStyle(fontSize: 12.5, color: OffroColors.primary)),
       );
     }
     final fee = (pricing["fee"] as num?)?.toDouble() ?? 0;

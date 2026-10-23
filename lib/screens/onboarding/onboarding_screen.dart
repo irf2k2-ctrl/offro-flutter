@@ -227,7 +227,7 @@ class _OnboardingSlideSt extends State<_OnboardingSlide> {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF3E5F55), Color(0xFF2a4039)],
+            colors: [OffroColors.primary, Color(0xFF2a4039)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

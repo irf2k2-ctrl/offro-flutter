@@ -209,7 +209,7 @@ class _WalletState extends State<WalletPage> {
         Container(
           width: 20, height: 20,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(color: Color(0x8CCDEBD6), shape: BoxShape.circle),
+          decoration: const BoxDecoration(color: Color(0x8CB8D9C3), shape: BoxShape.circle),
           child: const OffroIcon(OffroIcons.check, size: 11, color: OffroColors.primary),
         ),
         const SizedBox(width: 10),
@@ -275,7 +275,7 @@ class _WalletState extends State<WalletPage> {
                         Container(
                           width: 36, height: 36,
                           alignment: Alignment.center,
-                          decoration: const BoxDecoration(color: Color(0x8CCDEBD6), shape: BoxShape.circle),
+                          decoration: const BoxDecoration(color: Color(0x8CB8D9C3), shape: BoxShape.circle),
                           child: const OffroIcon(OffroIcons.star, size: 16, color: OffroColors.primary),
                         ),
                         const SizedBox(width: 12),

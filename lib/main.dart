@@ -2029,7 +2029,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Container(
           width: w, height: h,
           decoration: BoxDecoration(
-            color: const Color(0xFFd4e8de),
+            color: OffroColors.mint,
             borderRadius: BorderRadius.circular(radius),
           ),
         ),
@@ -2906,7 +2906,7 @@ class _BrowseByCategoriesSection extends StatelessWidget {
   ];
 
   static const List<List<Color>> _gradients = [
-    [Color(0xFF3E5F55), Color(0xFF6b8c7e)],   // OFFRO green (restaurant)
+    [OffroColors.primary, OffroColors.secondarySolid],   // OFFRO green (restaurant)
     [Color(0xFF7a5533), Color(0xFFD4936A)],   // warm brown (grocery)
     [Color(0xFF2C4A7A), Color(0xFF5B85C8)],   // navy blue (pharmacy)
     [Color(0xFF6A3FA0), Color(0xFFB57FD4)],   // violet (electronics)
@@ -3596,7 +3596,7 @@ class _PinCard extends StatelessWidget {
   });
 
   static const List<List<Color>> _gradients = [
-    [Color(0xFF3E5F55), Color(0xFF6b8c7e)],   // OFFRO green
+    [OffroColors.primary, OffroColors.secondarySolid],   // OFFRO green
     [Color(0xFF7a5533), Color(0xFFD4936A)],   // warm brown
     [Color(0xFF2C4A7A), Color(0xFF5B85C8)],   // navy
     [Color(0xFF6A3FA0), Color(0xFFB57FD4)],   // violet
@@ -4032,10 +4032,10 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
             decoration: BoxDecoration(
               color: OffroColors.surface,
               borderRadius: BorderRadius.circular(OffroRadii.input),
-              boxShadow: const [BoxShadow(color: Color(0x0F3E5F55), blurRadius: 30, offset: Offset(0, 8))],
+              boxShadow: const [BoxShadow(color: Color(0x0F345148), blurRadius: 30, offset: Offset(0, 8))],
             ),
             child: Row(children: [
-              const OffroIcon(OffroIcons.search, size: 18, color: Color(0x803E5F55)),
+              const OffroIcon(OffroIcons.search, size: 18, color: Color(0x80345148)),
               const SizedBox(width: 12),
               Expanded(child: TextField(
                 onChanged: (v) => setState(() => _q = v),
@@ -4097,7 +4097,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text("THIS WEEK",
-                    style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: const Color(0xA63E5F55))),
+                    style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: const Color(0xA6345148))),
                   const SizedBox(height: 4),
                   Text("${items.length} active ${items.length == 1 ? 'deal' : 'deals'} for you",
                     style: OffroText.titleSm.copyWith(fontSize: 18)),
@@ -4333,14 +4333,14 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
   }
 
   Widget _areaFallback(String name) {
-    const colors = [Color(0xFFCDEBD6), Color(0xFFE7D7C8), Color(0xFFA9CDBA), Color(0xFFEFF7EE)];
+    const colors = [OffroColors.mint, OffroColors.beige, OffroColors.accent, Color(0xFFEFF7EE)];
     final c = colors[name.isEmpty ? 0 : name.codeUnitAt(0) % colors.length];
     final init = name.trim().isEmpty ? "?" :
       name.trim().split(" ").take(2).map((w) => w.isEmpty ? "" : w[0].toUpperCase()).join();
     return Container(
       color: c,
       child: Center(child: Text(init,
-        style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 22, fontWeight: FontWeight.w900))),
+        style: const TextStyle(color: OffroColors.primary, fontSize: 22, fontWeight: FontWeight.w900))),
     );
   }
 }
@@ -4539,7 +4539,7 @@ class _HomeSearchBar extends StatelessWidget {
             color: OffroColors.surface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: OffroColors.border),
-            boxShadow: const [BoxShadow(color: Color(0x0F3E5F55), blurRadius: 32, offset: Offset(0, 8))],
+            boxShadow: const [BoxShadow(color: Color(0x0F345148), blurRadius: 32, offset: Offset(0, 8))],
           ),
           child: Row(children: [
             const OffroIcon(OffroIcons.search, size: 18, color: OffroColors.secondarySolid),
@@ -5325,13 +5325,13 @@ class _DiscoverProductsSection extends StatelessWidget {
       try {
         return Image.memory(decodeBase64ImageCached(imgUrl),
           fit: BoxFit.cover, width: double.infinity, gaplessPlayback: true);
-      } catch (_) { return Container(color: const Color(0xFFe8f5f0)); }
+      } catch (_) { return Container(color: OffroColors.mint); }
     } else if (imgUrl.startsWith("http")) {
       return Image.network(imgUrl, fit: BoxFit.cover, width: double.infinity,
-        errorBuilder: (_, __, ___) => Container(color: const Color(0xFFe8f5f0)));
+        errorBuilder: (_, __, ___) => Container(color: OffroColors.mint));
     }
-    return Container(color: const Color(0xFFe8f5f0),
-      child: const Icon(Icons.image_not_supported_outlined, color: Color(0xFF6b8c7e), size: 36));
+    return Container(color: OffroColors.mint,
+      child: const Icon(Icons.image_not_supported_outlined, color: OffroColors.secondarySolid, size: 36));
   }
 
   // Renders ALL configured default product images (not a hardcoded count) —
@@ -5383,12 +5383,12 @@ class _DiscoverProductsSection extends StatelessWidget {
   static bool _isFeatured(int i) => i == 0 || i == 3;
 
   Widget _productImage(String imgSrc, String title) {
-    const tint = [Color(0xFFe8f5f0), Color(0xFFCDEBD6)];
+    const tint = [Color(0xFFe8f5f0), OffroColors.mint];
     if (imgSrc.startsWith("http")) {
       return CachedNetworkImage(
         imageUrl: imgSrc, fit: BoxFit.cover,
         width: double.infinity, height: double.infinity,
-        placeholder: (_, __) => const ColoredBox(color: Color(0xFFCDEBD6)),
+        placeholder: (_, __) => const ColoredBox(color: OffroColors.mint),
         errorWidget: (_, __, ___) => _fallback(title, tint));
     }
     if (imgSrc.startsWith("data:image")) {
@@ -5987,7 +5987,7 @@ class _ExploreAreasSection extends StatelessWidget {
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => _AllAreasScreen(stores: stores, token: token))),
             child: const Text("View all →",
-              style: TextStyle(color: Color(0xFF3E5F55), fontSize: 13, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: OffroColors.primary, fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ]),
         const SizedBox(height: 12),
@@ -6043,7 +6043,7 @@ class _ExploreAreasSection extends StatelessWidget {
                     width: 52,
                     height: 52,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3E5F55),
+                      color: OffroColors.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     alignment: Alignment.center,
@@ -6099,17 +6099,17 @@ class _ExploreAreasSection extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFCDEBD6),
+                            color: OffroColors.mint,
                             borderRadius: BorderRadius.circular(50),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             const Icon(Icons.location_on_rounded,
-                              color: Color(0xFF3E5F55), size: 12),
+                              color: OffroColors.primary, size: 12),
                             const SizedBox(width: 4),
                             Text(
                               distLabel,
                               style: const TextStyle(
-                                color: Color(0xFF3E5F55),
+                                color: OffroColors.primary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -6330,7 +6330,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     return _gradBox();
   }
   Widget _gradBox() => Container(decoration: const BoxDecoration(
-    gradient: LinearGradient(colors: [Color(0xFF1e3d35), Color(0xFF3E5F55)],
+    gradient: LinearGradient(colors: [Color(0xFF1e3d35), OffroColors.primary],
       begin: Alignment.topLeft, end: Alignment.bottomRight)));
 
 
@@ -6448,7 +6448,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF3E5F55), width: 1.5),
+                border: Border.all(color: OffroColors.primary, width: 1.5),
                 boxShadow: [BoxShadow(
                   color: Colors.black.withValues(alpha: .08),
                   blurRadius: 8, offset: const Offset(0, 3))],
@@ -6457,14 +6457,14 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                 Container(
                   width: 22, height: 22,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFe8f4ef),
+                    color: OffroColors.mint,
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.store_mall_directory_rounded, color: Color(0xFF3E5F55), size: 14),
+                  child: const Icon(Icons.store_mall_directory_rounded, color: OffroColors.primary, size: 14),
                 ),
                 const SizedBox(height: 4),
                 const Text("See All\nStores",
-                  style: TextStyle(color: Color(0xFF3E5F55), fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
+                  style: TextStyle(color: OffroColors.primary, fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
                   textAlign: TextAlign.center),
               ]),
             ),),
@@ -6755,7 +6755,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
         imageUrl: logoSrc,
         fit: BoxFit.cover,
         width: double.infinity, height: _cardImgH,
-        placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
+        placeholder: (_, __) => Container(color: OffroColors.accent),
         errorWidget: (_, __, ___) => _storeFallback(name));
     } else if (logoSrc.startsWith("data:image")) {
       try {
@@ -6830,7 +6830,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF3E5F55),
+                        color: OffroColors.primary,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .20), blurRadius: 5)],
                       ),
@@ -6959,7 +6959,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                       if (_displayLabel.isNotEmpty) Container(
                         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _open ? const Color(0xFFCDEBD6) : const Color(0xFFfdf0f0),
+                          color: _open ? OffroColors.mint : const Color(0xFFfdf0f0),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(_open ? "Open Now" : _displayLabel,
@@ -6998,9 +6998,9 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   }
 
   Widget _storeFallback(String name) => Container(
-    color: const Color(0xFFA9CDBA),
+    color: OffroColors.accent,
     child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "S",
-      style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 28, fontWeight: FontWeight.w900))),
+      style: const TextStyle(color: OffroColors.primary, fontSize: 28, fontWeight: FontWeight.w900))),
   );
 }
 
@@ -7112,7 +7112,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       for (final k in ["image_url","image_thumb","image","image2"]) {
         final v = storeObj[k]?.toString() ?? "";
         if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-          placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
+          placeholder: (_, __) => Container(color: OffroColors.accent),
           errorWidget: (_, __, ___) => _fallbackImg());
         if (v.startsWith("data:image")) {
           try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
@@ -7122,7 +7122,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     for (final k in keys) {
       final v = widget.product[k]?.toString() ?? "";
       if (v.startsWith("http")) return CachedNetworkImage(imageUrl: v, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-        placeholder: (_, __) => Container(color: const Color(0xFFA9CDBA)),
+        placeholder: (_, __) => Container(color: OffroColors.accent),
         errorWidget: (_, __, ___) => _fallbackImg());
       if (v.startsWith("data:image")) {
         try { return Image.memory(decodeBase64ImageCached(v), fit: BoxFit.cover, width: double.infinity, height: double.infinity); } catch (_) { }
@@ -7161,9 +7161,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   Widget _fallbackImg() {
     final name = widget.product["title"]?.toString() ?? widget.product["name"]?.toString() ?? "P";
     return Container(
-      color: const Color(0xFFA9CDBA),
+      color: OffroColors.accent,
       child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "P",
-        style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 48, fontWeight: FontWeight.w900))),
+        style: const TextStyle(color: OffroColors.primary, fontSize: 48, fontWeight: FontWeight.w900))),
     );
   }
 
@@ -7218,7 +7218,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Review submitted! Thank you."),
-          backgroundColor: Color(0xFF3E5F55)));
+          backgroundColor: OffroColors.primary));
     } catch (e) {
       debugPrint('[OffrO] product review submit error: $e');
       if (mounted) {
@@ -7821,8 +7821,8 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
   }
 
   static const List<List<Color>> _palettes = [
-    [Color(0xFFCDEBD6), Color(0xFFA9CDBA)],
-    [Color(0xFFE7D7C8), Color(0xFFD4B896)],
+    [OffroColors.mint, OffroColors.accent],
+    [OffroColors.beige, Color(0xFFD4B896)],
     [Color(0xFFD6EAF8), Color(0xFFAED6F1)],
     [Color(0xFFFDE8E8), Color(0xFFF1ABAB)],
     [Color(0xFFFFF3CD), Color(0xFFFFD966)],
@@ -7841,7 +7841,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
         final siUrl = resolveImageUrl(si);
         if (siUrl.startsWith("http")) {
           return CachedNetworkImage(imageUrl:siUrl, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
-            placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
+            placeholder:(_,__)=>Container(color:OffroColors.mint),
             errorWidget:(_,__,___)=>_brandedBg());
         }
       }
@@ -7854,7 +7854,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       final imgUrl2 = resolveImageUrl(img);
       if (imgUrl2.startsWith("http")) {
         return CachedNetworkImage(imageUrl:imgUrl2, fit:BoxFit.cover, width:double.infinity, height:double.infinity,
-          placeholder:(_,__)=>Container(color:const Color(0xFFCDEBD6)),
+          placeholder:(_,__)=>Container(color:OffroColors.mint),
           errorWidget:(_,__,___)=>_brandedBg());
       }
     }
@@ -7863,7 +7863,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
 
   Widget _brandedBg() => Container(
     decoration:const BoxDecoration(
-      gradient:LinearGradient(colors:[Color(0xFF3E5F55),Color(0xFF2a4a40)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
+      gradient:LinearGradient(colors:[OffroColors.primary,Color(0xFF2a4a40)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
   );
 
   void _openDetail(BuildContext context) {
@@ -7923,7 +7923,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               borderRadius: BorderRadius.circular(30),
             ),
             child: Text(title.isNotEmpty ? title : "Special Offer",
-              style: const TextStyle(color: Color(0xFF3E5F55), fontSize: 15, fontWeight: FontWeight.w900)),
+              style: const TextStyle(color: OffroColors.primary, fontSize: 15, fontWeight: FontWeight.w900)),
           ),
           const SizedBox(height: 14),
           if (text.isNotEmpty) Text(text,
@@ -7932,17 +7932,17 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
           if (storeName.isNotEmpty) ...[
             const SizedBox(height: 10),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.store_rounded, color: Color(0xFF6b8c7e), size: 15),
+              const Icon(Icons.store_rounded, color: OffroColors.secondarySolid, size: 15),
               const SizedBox(width: 5),
-              Text(storeName, style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 13, fontWeight: FontWeight.w600)),
+              Text(storeName, style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
           ],
           if (validity.isNotEmpty) ...[
             const SizedBox(height: 8),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.calendar_today_rounded, color: Color(0xFF6b8c7e), size: 13),
+              const Icon(Icons.calendar_today_rounded, color: OffroColors.secondarySolid, size: 13),
               const SizedBox(width: 5),
-              Text("Valid till: $validity", style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 12)),
+              Text("Valid till: $validity", style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 12)),
             ]),
           ],
           const SizedBox(height: 24),
@@ -7952,8 +7952,8 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               icon: const Icon(Icons.close_rounded, size: 16),
               label: const Text("Close", style: TextStyle(fontSize: 13)),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF3E5F55),
-                side: const BorderSide(color: Color(0xFF3E5F55)),
+                foregroundColor: OffroColors.primary,
+                side: const BorderSide(color: OffroColors.primary),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -7964,7 +7964,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               icon: const Icon(Icons.download_rounded, size: 16),
               label: const Text("Download", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3E5F55),
+                backgroundColor: OffroColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

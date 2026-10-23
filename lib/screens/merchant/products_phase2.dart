@@ -146,15 +146,15 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
           });
           if (mounted) {
             showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
-              title: const Text("Upgrade Submitted", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+              title: const Text("Upgrade Submitted", style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
               content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(result["message"]?.toString() ?? "Your premium upgrade request has been submitted for admin review.", style: const TextStyle(fontSize: 14, color: kText)),
+                Text(result["message"]?.toString() ?? "Your premium upgrade request has been submitted for admin review.", style: const TextStyle(fontSize: 14, color: kMerchantText)),
                 const SizedBox(height: 12),
-                const Text("The product will go live once approved by the admin team.", style: TextStyle(fontSize: 12, color: kMuted)),
+                const Text("The product will go live once approved by the admin team.", style: TextStyle(fontSize: 12, color: kMerchantMuted)),
               ]),
               actions: [
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+                  style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary),
                   onPressed: () { Navigator.pop(ctx); Navigator.pop(context, true); },
                   child: const Text("OK", style: TextStyle(color: Colors.white))),
               ],
@@ -183,7 +183,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text("Product Order Summary",
-          style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+          style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           _dRow("Title",  widget.product["title"]?.toString() ?? ""),
           _dRow("Offer",  widget.product["offer_text"]?.toString() ?? ""),
@@ -202,17 +202,17 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: kLight.withValues(alpha: .4),
+              color: kMerchantLight.withValues(alpha: .4),
               borderRadius: BorderRadius.circular(8)),
             child: Text(note,
-              style: const TextStyle(fontSize: 12, color: kPrimary))),
+              style: const TextStyle(fontSize: 12, color: kMerchantPrimary))),
         ]),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: kMuted))),
+            child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+            style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary),
             onPressed: () => Navigator.pop(context, true),
             child: Text(_total <= 0 ? "Submit for Approval" : "Pay ₹${_total.toStringAsFixed(1)}",
               style: const TextStyle(color: Colors.white))),
@@ -225,11 +225,11 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
   Widget _dRow(String k, String v, {bool bold = false, Color? color}) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(children: [
-      Expanded(child: Text(k, style: const TextStyle(color: kMuted, fontSize: 13))),
+      Expanded(child: Text(k, style: const TextStyle(color: kMerchantMuted, fontSize: 13))),
       Text(v, style: TextStyle(
         fontSize: 13,
         fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-        color: color ?? (bold ? kPrimary : kText))),
+        color: color ?? (bold ? kMerchantPrimary : kMerchantText))),
     ]));
 
   String _fmtDateFull(DateTime dt) {
@@ -264,10 +264,10 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
   @override Widget build(BuildContext context) {
     final hasDays = _days > 0 && _pricingLoaded;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
         title: const Text("Upgrade to Premium", style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white, foregroundColor: kText,
+        backgroundColor: Colors.white, foregroundColor: kMerchantText,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -287,7 +287,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
                   label: "Number of Da…",
                   child: TextField(
                     controller: _daysC, keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kText),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kMerchantText),
                     decoration: const InputDecoration(
                       border: InputBorder.none, isDense: true,
                       contentPadding: EdgeInsets.zero),
@@ -301,7 +301,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
                       initialDate: _fromDate, firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                       builder: (c, child) => Theme(
-                        data: Theme.of(c).copyWith(colorScheme: const ColorScheme.light(primary: kPrimary)),
+                        data: Theme.of(c).copyWith(colorScheme: const ColorScheme.light(primary: kMerchantPrimary)),
                         child: child!));
                     if (p != null) setState(() => _fromDate = p);
                   },
@@ -309,7 +309,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
                     icon: Icons.calendar_today_rounded,
                     label: "From Date",
                     child: Text(_fmtDate(_fromDate),
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: kText)),
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: kMerchantText)),
                   ),
                 ),
               ]),
@@ -319,17 +319,17 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: kPrimary.withValues(alpha: .07),
+                    color: kMerchantPrimary.withValues(alpha: .07),
                     borderRadius: BorderRadius.circular(10)),
                   child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text("Active period:", style: TextStyle(color: kMuted, fontSize: 13)),
+                    const Text("Active period:", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
                     Text("${_fmtDate(_fromDate)} → ${_fmtDate(_endDate)}",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
                   ]),
                 ),
                 const SizedBox(height: 8),
                 Text("${_fmtAmt(_pricePerDay)}/day × $_days days",
-                  style: const TextStyle(color: kMuted, fontSize: 12)),
+                  style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
               ],
             ]),
           ),
@@ -367,23 +367,23 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
                 style: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 1.2),
                 decoration: InputDecoration(
                   hintText: "e.g. OFFRO20",
-                  hintStyle: const TextStyle(color: kMuted, fontWeight: FontWeight.normal, letterSpacing: 0),
-                  prefixIcon: const Icon(Icons.local_offer_outlined, color: kMuted, size: 20),
+                  hintStyle: const TextStyle(color: kMerchantMuted, fontWeight: FontWeight.normal, letterSpacing: 0),
+                  prefixIcon: const Icon(Icons.local_offer_outlined, color: kMerchantMuted, size: 20),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  filled: true, fillColor: kBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                  filled: true, fillColor: kMerchantBg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
                 ),
               )),
               const SizedBox(width: 10),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white, foregroundColor: kText,
+                  backgroundColor: Colors.white, foregroundColor: kMerchantText,
                   elevation: 1,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: kBorder))),
+                    side: const BorderSide(color: kMerchantBorder))),
                 onPressed: _applyDiscount,
                 child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.w700))),
             ]),
@@ -405,7 +405,7 @@ class _UpgradeProductPageState extends State<UpgradeProductPage> {
           // ── Proceed to Checkout ──
           SizedBox(width: double.infinity, child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: kText,
+              backgroundColor: kMerchantText,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -625,7 +625,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
       barrierDismissible: false,
       builder: (_) => AlertDialog(
         title: const Text("Product Order Summary",
-          style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+          style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           _dRow("Title",  widget.product["title"]?.toString() ?? ""),
           _dRow("Offer",  widget.product["offer_text"]?.toString() ?? ""),
@@ -644,17 +644,17 @@ class _RenewProductPageState extends State<RenewProductPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: kLight.withValues(alpha: .4),
+              color: kMerchantLight.withValues(alpha: .4),
               borderRadius: BorderRadius.circular(8)),
             child: Text(note,
-              style: const TextStyle(fontSize: 12, color: kPrimary))),
+              style: const TextStyle(fontSize: 12, color: kMerchantPrimary))),
         ]),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: kMuted))),
+            child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+            style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary),
             onPressed: () => Navigator.pop(context, true),
             child: Text("Pay ₹${_total.toStringAsFixed(1)}",
               style: const TextStyle(color: Colors.white))),
@@ -667,11 +667,11 @@ class _RenewProductPageState extends State<RenewProductPage> {
   Widget _dRow(String k, String v, {bool bold = false, Color? color}) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(children: [
-      Expanded(child: Text(k, style: const TextStyle(color: kMuted, fontSize: 13))),
+      Expanded(child: Text(k, style: const TextStyle(color: kMerchantMuted, fontSize: 13))),
       Text(v, style: TextStyle(
         fontSize: 13,
         fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-        color: color ?? (bold ? kPrimary : kText))),
+        color: color ?? (bold ? kMerchantPrimary : kMerchantText))),
     ]));
 
   String _fmtDateFull(DateTime dt) {
@@ -707,10 +707,10 @@ class _RenewProductPageState extends State<RenewProductPage> {
   @override Widget build(BuildContext context) {
     final hasDays = _days > 0 && _pricingLoaded;
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
         title: const Text("Renew Premium", style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white, foregroundColor: kText,
+        backgroundColor: Colors.white, foregroundColor: kMerchantText,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -727,9 +727,9 @@ class _RenewProductPageState extends State<RenewProductPage> {
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(widget.product["title"]?.toString() ?? "Product",
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: kText)),
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: kMerchantText)),
                 Text("Current listing ends: $_curEnd",
-                  style: const TextStyle(color: kMuted, fontSize: 12)),
+                  style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
               ])),
             ]),
           ),
@@ -744,7 +744,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
                 label: "Number of Days",
                 child: TextField(
                   controller: _daysC, keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kText),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kMerchantText),
                   decoration: const InputDecoration(
                     border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
                 ),
@@ -755,17 +755,17 @@ class _RenewProductPageState extends State<RenewProductPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   decoration: BoxDecoration(
-                    color: kPrimary.withValues(alpha: .07),
+                    color: kMerchantPrimary.withValues(alpha: .07),
                     borderRadius: BorderRadius.circular(10)),
                   child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text("Active period:", style: TextStyle(color: kMuted, fontSize: 13)),
+                    const Text("Active period:", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
                     Text("${_fmtDate(_renewFrom)} → ${_fmtDate(_newEnd)}",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
                   ]),
                 ),
                 const SizedBox(height: 8),
                 Text("${_fmtAmt(_pricePerDay)}/day × $_days days",
-                  style: const TextStyle(color: kMuted, fontSize: 12)),
+                  style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
               ],
             ]),
           ),
@@ -803,23 +803,23 @@ class _RenewProductPageState extends State<RenewProductPage> {
                 style: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 1.2),
                 decoration: InputDecoration(
                   hintText: "e.g. OFFRO20",
-                  hintStyle: const TextStyle(color: kMuted, fontWeight: FontWeight.normal, letterSpacing: 0),
-                  prefixIcon: const Icon(Icons.local_offer_outlined, color: kMuted, size: 20),
+                  hintStyle: const TextStyle(color: kMerchantMuted, fontWeight: FontWeight.normal, letterSpacing: 0),
+                  prefixIcon: const Icon(Icons.local_offer_outlined, color: kMerchantMuted, size: 20),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  filled: true, fillColor: kBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+                  filled: true, fillColor: kMerchantBg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
                 ),
               )),
               const SizedBox(width: 10),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white, foregroundColor: kText,
+                  backgroundColor: Colors.white, foregroundColor: kMerchantText,
                   elevation: 1,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: kBorder))),
+                    side: const BorderSide(color: kMerchantBorder))),
                 onPressed: _applyDiscount,
                 child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.w700))),
             ]),
@@ -841,7 +841,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
           // ── Proceed to Checkout ──
           SizedBox(width: double.infinity, child: ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: kText,
+              backgroundColor: kMerchantText,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -911,45 +911,45 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
+    backgroundColor: kMerchantBg,
     appBar: AppBar(
       title: const Text("Product Analytics", style: TextStyle(fontWeight: FontWeight.w800)),
-      backgroundColor: Colors.white, foregroundColor: kText,
+      backgroundColor: Colors.white, foregroundColor: kMerchantText,
       actions: [
         IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
       ],
     ),
     body: _loading
-      ? const Center(child: CircularProgressIndicator(color: kPrimary))
+      ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
       : _failed
       ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.cloud_off_rounded, color: kMuted, size: 44),
+          const Icon(Icons.cloud_off_rounded, color: kMerchantMuted, size: 44),
           const SizedBox(height: 12),
-          const Text("Couldn't load analytics", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 16)),
+          const Text("Couldn't load analytics", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText, fontSize: 16)),
           const SizedBox(height: 6),
           const Text("Please check your connection and try again.", textAlign: TextAlign.center,
-              style: TextStyle(color: kMuted, fontSize: 13)),
+              style: TextStyle(color: kMerchantMuted, fontSize: 13)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text("Retry"),
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, foregroundColor: Colors.white),
           ),
         ])))
       : SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(children: [
           // Product info card
           Card(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             child: ListTile(
-              leading: const Icon(Icons.local_activity_rounded, color: kPrimary, size: 36),
+              leading: const Icon(Icons.local_activity_rounded, color: kMerchantPrimary, size: 36),
               title: Text(widget.product["title"]?.toString() ?? "Product",
-                style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: kMerchantText)),
               subtitle: const Text("Premium Listing Analytics",
-                style: TextStyle(color: kMuted, fontSize: 12)),
+                style: TextStyle(color: kMerchantMuted, fontSize: 12)),
             )),
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: _AnalyticsStat("👁️ Views",  "${_count('views', 'view')}", kPrimary)),
+            Expanded(child: _AnalyticsStat("👁️ Views",  "${_count('views', 'view')}", kMerchantPrimary)),
             const SizedBox(width: 12),
             Expanded(child: _AnalyticsStat("🔗 Shares", "${_count('shares', 'share')}", const Color(0xFF2563EB))),
           ]),
@@ -961,7 +961,7 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
           ]),
           const SizedBox(height: 8),
           const Text("Store Visits: customers who visited the store",
-            style: TextStyle(color: kMuted, fontSize: 11)),
+            style: TextStyle(color: kMerchantMuted, fontSize: 11)),
           const SizedBox(height: 14),
           _ConversionBar(_data),
         ])),
@@ -1013,15 +1013,15 @@ class _ConversionBar extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text("Conversion Rate", style: TextStyle(fontWeight: FontWeight.w700, color: kText)),
+        const Text("Conversion Rate", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText)),
         const SizedBox(height: 4),
         Text("$pct% of viewers visited the store (tapped Sold by)",
-          style: const TextStyle(color: kMuted, fontSize: 12)),
+          style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
         const SizedBox(height: 10),
         LinearProgressIndicator(
           value: views > 0 ? opens / views : 0,
-          backgroundColor: kLight,
-          color: kPrimary,
+          backgroundColor: kMerchantLight,
+          color: kMerchantPrimary,
           minHeight: 8,
           borderRadius: BorderRadius.circular(8),
         ),
@@ -1081,13 +1081,13 @@ class _SimilarProductsSectionState extends State<SimilarProductsSection> {
   @override Widget build(BuildContext context) {
     if (_loading) return const Padding(
       padding: EdgeInsets.all(16),
-      child: Center(child: CircularProgressIndicator(color: kPrimary)));
+      child: Center(child: CircularProgressIndicator(color: kMerchantPrimary)));
     if (_items.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Padding(
         padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Text("Similar Products",
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText))),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kMerchantText))),
       SizedBox(height: 130, child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1100,23 +1100,23 @@ class _SimilarProductsSectionState extends State<SimilarProductsSection> {
               width: 110, margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kBorder)),
+                border: Border.all(color: kMerchantBorder)),
               padding: const EdgeInsets.all(8),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(height: 60, width: double.infinity,
                   decoration: BoxDecoration(
-                    color: kLight,
+                    color: kMerchantLight,
                     borderRadius: BorderRadius.circular(8),
                     image: logo.startsWith("http")
                       ? DecorationImage(image: NetworkImage(logo), fit: BoxFit.cover)
                       : null,
                   ),
                   child: logo.startsWith("http") ? null
-                    : const Center(child: Icon(Icons.local_activity, color: kPrimary, size: 24))),
+                    : const Center(child: Icon(Icons.local_activity, color: kMerchantPrimary, size: 24))),
                 const SizedBox(height: 6),
                 Text(p["title"]?.toString() ?? "", maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMerchantText)),
               ]),
             ),
           );
@@ -1155,7 +1155,7 @@ class _MoreFromStoreSectionState extends State<MoreFromStoreSection> {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Text("More from ${widget.storeName.isNotEmpty ? widget.storeName : 'this store'}",
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText))),
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kMerchantText))),
       SizedBox(height: 130, child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1167,21 +1167,21 @@ class _MoreFromStoreSectionState extends State<MoreFromStoreSection> {
             width: 110, margin: const EdgeInsets.only(right: 10),
             decoration: BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kBorder)),
+              border: Border.all(color: kMerchantBorder)),
             padding: const EdgeInsets.all(8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(height: 60, width: double.infinity,
-                decoration: BoxDecoration(color: kLight,
+                decoration: BoxDecoration(color: kMerchantLight,
                   borderRadius: BorderRadius.circular(8),
                   image: logo.startsWith("http")
                     ? DecorationImage(image: NetworkImage(logo), fit: BoxFit.cover)
                     : null),
                 child: logo.startsWith("http") ? null
-                  : const Center(child: Icon(Icons.local_activity, color: kPrimary, size: 24))),
+                  : const Center(child: Icon(Icons.local_activity, color: kMerchantPrimary, size: 24))),
               const SizedBox(height: 6),
               Text(p["title"]?.toString() ?? "", maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMerchantText)),
             ]),
           );
         },
@@ -1208,10 +1208,10 @@ class _CheckoutCard extends StatelessWidget {
       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8, offset: const Offset(0, 2))],
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: kText)),
+      Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: kMerchantText)),
       if (subtitle != null) ...[
         const SizedBox(height: 2),
-        Text(subtitle!, style: const TextStyle(color: kMuted, fontSize: 12)),
+        Text(subtitle!, style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
       ],
       const SizedBox(height: 14),
       child,
@@ -1228,14 +1228,14 @@ class _DateBox extends StatelessWidget {
   @override Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
     decoration: BoxDecoration(
-      border: Border.all(color: kBorder),
+      border: Border.all(color: kMerchantBorder),
       borderRadius: BorderRadius.circular(12),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(icon, size: 14, color: kMuted),
+        Icon(icon, size: 14, color: kMerchantMuted),
         const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: kMuted, fontSize: 11)),
+        Text(label, style: const TextStyle(color: kMerchantMuted, fontSize: 11)),
       ]),
       const SizedBox(height: 6),
       child,
@@ -1253,11 +1253,11 @@ class _PriceRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: TextStyle(
-        color: color ?? (bold ? kText : kMuted),
+        color: color ?? (bold ? kMerchantText : kMerchantMuted),
         fontSize: bold ? 15 : 13,
         fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
       Text(value, style: TextStyle(
-        color: color ?? (bold ? kText : kText),
+        color: color ?? (bold ? kMerchantText : kMerchantText),
         fontSize: bold ? 15 : 13,
         fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
     ]),
