@@ -45,6 +45,10 @@ class PromoSliderCard extends StatefulWidget {
   final bool tapToPlay;
   /// Called once when the customer starts a tap-to-play video.
   final VoidCallback? onPlayStarted;
+  /// Opens the banner's CTA destination (Product / Deal / Store) when the
+  /// slider carries cta_type/cta_id. Returns true when it handled the tap;
+  /// false/null falls back to the original store_id behaviour.
+  final Future<bool> Function(BuildContext context, Map<String,dynamic> slider)? onOpenCta;
   const PromoSliderCard({
     required this.slider,
     this.token = "",
@@ -53,6 +57,7 @@ class PromoSliderCard extends StatefulWidget {
     this.onVideoComplete,
     this.tapToPlay = false,
     this.onPlayStarted,
+    this.onOpenCta,
     Key? key,
   }) : super(key: key);
   @override State<PromoSliderCard> createState() => _PromoSliderCardState();
@@ -260,8 +265,10 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     final radius   = widget.squareCorners ? 0.0 : 20.0;
 
     return GestureDetector(
-      onTap: storeId.isNotEmpty ? () async {
+      onTap: (storeId.isNotEmpty || widget.onOpenCta != null) ? () async {
         try {
+          if (widget.onOpenCta != null && await widget.onOpenCta!(context, widget.slider)) return;
+          if (storeId.isEmpty) return;
           final store = await Api.fetchStoreDetail(storeId);
           if (context.mounted) {
             Navigator.push(context, appRoute(

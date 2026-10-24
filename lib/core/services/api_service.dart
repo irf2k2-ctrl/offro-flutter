@@ -500,7 +500,7 @@ class Api {
     // Reads from Admin Dashboard → Products module (gift_vouchers + products collections)
     final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
-      final raw = await _get("/gift-vouchers-public$cityParam").timeout(const Duration(seconds: 10));
+      final raw = await _get("/products-public$cityParam").timeout(const Duration(seconds: 10));
       if (raw is List) return raw;
     } catch (_) {}
     return [];
@@ -536,7 +536,7 @@ class Api {
     }
     final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
-      final raw = await _get("/gift-vouchers-public$cityParam").timeout(const Duration(seconds: 10));
+      final raw = await _get("/products-public$cityParam").timeout(const Duration(seconds: 10));
       List items = raw is List ? raw : [];
       if (items.isNotEmpty) {
         final result = items
@@ -902,8 +902,15 @@ class Api {
     catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
   }
 
-  static Future<Map<String,dynamic>> getProductPricing(String token) async =>
-    Map<String,dynamic>.from(await _get("/merchant/products/pricing", token: token));
+  /// Free-slot usage and the current additional-product price. The values are a
+  /// display estimate - the backend re-decides free vs paid on save / renew.
+  /// [excludeId] previews the renewal of that product. Null when unavailable.
+  static Future<Map<String,dynamic>?> getProductSlots(String token, {String? excludeId}) async {
+    try {
+      final q = (excludeId != null && excludeId.isNotEmpty) ? "?exclude_id=${Uri.encodeComponent(excludeId)}" : "";
+      return Map<String,dynamic>.from(await _get("/merchant/products/slots$q", token: token));
+    } catch (_) { return null; }
+  }
 
   static Future<Map<String,dynamic>> createProductOrder(String token, Map body) =>
     _post("/merchant/products/order", body, token: token);
@@ -914,22 +921,19 @@ class Api {
   static Future<Map<String,dynamic>> verifyProductPayment(String token, Map body) =>
     _post("/merchant/products/verify", body, token: token);
 
-  static Future<Map<String,dynamic>> createStandardProduct(String token, Map body) async {
-    try { return Map<String,dynamic>.from(await _post("/merchant/products/standard", body, token: token)); }
-    catch(e) { throw Exception(e.toString().replaceAll("Exception: ","")); }
-  }
-
   static Future<Map<String,dynamic>> getProductLimit(String token) async {
-    try { return Map<String,dynamic>.from(await _get("/merchant/products/limit", token: token)); }
-    catch(_) { return {"standard_product_limit": 10, "standard_count": 0, "premium_count": 0}; }
+    // Slot usage + limit come from the backend (Admin-configured). No local fallback number.
+    try { return Map<String,dynamic>.from(await _get("/merchant/products/slots", token: token)); }
+    catch(_) { return <String,dynamic>{}; }
   }
 
   static Future<void> deleteMerchantProduct(String token, String productId) async {
-    try {
-      final uri = Uri.parse("$kBaseUrl/merchant/products/$productId");
-      await http.delete(uri, headers: {"Authorization": "Bearer $token"})
-          .timeout(const Duration(seconds: 20));
-    } catch(_) {}
+    final uri = Uri.parse("$kBaseUrl/merchant/products/$productId");
+    final r = await http.delete(uri, headers: {"Authorization": "Bearer $token"})
+        .timeout(const Duration(seconds: 20));
+    if (r.statusCode >= 400) {
+      throw Exception("Could not delete the product. Please try again.");
+    }
   }
 
   static Future<List> getProductCards({String city = ''}) async {
@@ -967,18 +971,6 @@ class Api {
       final d = await _get("/merchant/products/search$qs", token: token);
       return d is List ? List<Map<String,dynamic>>.from(d.map((e) => Map<String,dynamic>.from(e))) : [];
     } catch (_) { return []; }
-  }
-
-  static Future<Map<String,dynamic>> upgradeProductOrder(
-      String token, String pid, Map<String,dynamic> data) async {
-    return Map<String,dynamic>.from(
-        await _post("/merchant/products/$pid/upgrade", data, token: token));
-  }
-
-  static Future<Map<String,dynamic>> verifyUpgradePayment(
-      String token, String pid, Map<String,dynamic> paymentData) async {
-    return Map<String,dynamic>.from(
-        await _post("/merchant/products/$pid/upgrade/verify", paymentData, token: token));
   }
 
   static Future<Map<String,dynamic>> renewProductOrder(
@@ -1044,7 +1036,7 @@ class Api {
   static Future<Map<String,dynamic>> adminExtendPremium(
       String token, String vid, int days) async {
     return Map<String,dynamic>.from(
-        await _put("/merchant-vouchers/$vid/extend", {"days": days}, token: token));
+        await _put("/admin/products/$vid/extend", {"days": days}, token: token));
   }
 
 }

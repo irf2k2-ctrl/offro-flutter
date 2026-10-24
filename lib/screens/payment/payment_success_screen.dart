@@ -31,7 +31,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                 Container(
                   width: 90, height: 90,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF1a6640),
+                    color: OffroColors.statusLive,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(Icons.check_rounded, color: Colors.white, size: 52),
@@ -89,17 +89,17 @@ class PaymentSuccessScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFd1f0e0),
+                    color: OffroColors.mint,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: Color(0xFF1a6640)),
+                      Icon(Icons.info_outline, size: 16, color: OffroColors.statusLive),
                       SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           "Admin will review and activate your purchase within 24 hours.",
-                          style: TextStyle(color: Color(0xFF1a6640), fontSize: 13),
+                          style: TextStyle(color: OffroColors.statusLive, fontSize: 13),
                         ),
                       ),
                     ],

@@ -14,47 +14,62 @@ class OffroColors {
   OffroColors._();
 
   // Brand
-  static const Color primary    = Color(0xFF345148);
-  static const Color mint       = Color(0xFFB8D9C3);
-  static const Color sage       = Color(0xFF638578);
-  static const Color accent     = Color(0xFF91B5A4);
-  static const Color beige      = Color(0xFFD8C4B2);
-  static const Color background = Color(0xFFF3EBDD); // solid darker cream (was #FDFBF6)
-  static const Color surface    = Color(0xFFFFFFFF);
+  static const Color primary = Color(0xFF345148);
+  static const Color mint = Color(0xFFB8D9C3);
+  static const Color sage = Color(0xFF638578);
+  static const Color accent = Color(0xFF91B5A4);
+  static const Color beige = Color(0xFFD8C4B2);
+  static const Color background =
+      Color(0xFFF3EBDD); // solid darker cream (was #FDFBF6)
+  static const Color surface = Color(0xFFFFFFFF);
 
   // Text
-  static const Color text     = Color(0xFF1B2D27);
+  static const Color text = Color(0xFF1B2D27);
   static const Color textDark = Color(0xFF111B17);
 
   // Accents / status
-  static const Color amber      = Color(0xFFB4772F); // star ratings
-  static const Color terracotta = Color(0xFFC36346); // notification dot, highlights
-  static const Color success    = Color(0xFF5C9274); // "New" dot
-  static const Color open       = Color(0xFF64A17D); // "Open now" dot
-  static const Color error      = Color(0xFFA95F4A);
+  static const Color amber = Color(0xFFB4772F); // star ratings
+  static const Color terracotta =
+      Color(0xFFC36346); // notification dot, highlights
+  static const Color success = Color(0xFF5C9274); // "New" dot
+  static const Color open = Color(0xFF64A17D); // "Open now" dot
+  static const Color error = Color(0xFFA95F4A);
+  // Semantic status colours used by Merchant/payment badges (values unchanged
+  // from the legacy hard-coded literals; centralised here only).
+  static const Color statusLive = Color(0xFF1A6640); // approved / live / active
+  static const Color statusPending = Color(0xFF856404); // pending / awaiting
+  static const Color statusPremium = Color(0xFF6B2FAA); // premium product badge
 
   // Muted text = black at a given opacity (as in the design).
-  static const Color textMuted     = Color(0xFF46685C); // solid secondary (was black 45%)
-  static const Color textSubtle    = Color(0xFF46685C); // solid secondary (was black 40%)
-  static const Color textFaint     = Color(0xFF638578); // solid sage tertiary (was black 35%)
-  static const Color textPlaceholder = Color(0xFF638578); // solid sage (was black 25%)
+  static const Color textMuted =
+      Color(0xFF46685C); // solid secondary (was black 45%)
+  static const Color textSubtle =
+      Color(0xFF46685C); // solid secondary (was black 40%)
+  static const Color textFaint =
+      Color(0xFF638578); // solid sage tertiary (was black 35%)
+  static const Color textPlaceholder =
+      Color(0xFF638578); // solid sage (was black 25%)
   /// Readable secondary: black 55%. Only for functional secondary text/icons
   /// that must stay legible on device (inactive nav, location info, search
   /// placeholder). Not a replacement for textMuted/textSubtle/textFaint.
-  static const Color textReadableSecondary = Color(0xFF46685C); // alias of secondarySolid
+  static const Color textReadableSecondary =
+      Color(0xFF46685C); // alias of secondarySolid
   /// Home eyebrow: sage deepened ~60% toward primary (#759A89 -> #54776A).
   static const Color sageStrong = Color(0xFF46685C);
+
   /// Solid secondary text/icon colour (Test C: replaces black-alpha secondary on Home). Same value as sageStrong.
   static const Color secondarySolid = Color(0xFF46685C);
 
   // Hairlines: primary at low opacity.
-  static const Color border      = Color(0x1A345148); // 10%
-  static const Color borderSoft  = Color(0x14345148); // 8%
+  static const Color border = Color(0x1A345148); // 10%
+  static const Color borderSoft = Color(0x14345148); // 8%
   static const Color borderStrong = Color(0x2E345148); // 18%
 
   // Soft fills
-  static const Color mintSoft = Color(0xFFB8D9C3); // solid mint (was mint @ 55%)
-  static const Color mintFill = Color(0xFFB8D9C3); // solid mint (was mint @ 65%)
+  static const Color mintSoft =
+      Color(0xFFB8D9C3); // solid mint (was mint @ 55%)
+  static const Color mintFill =
+      Color(0xFFB8D9C3); // solid mint (was mint @ 65%)
 }
 
 /// A pastel category tile colour pair (background + icon colour).
@@ -67,41 +82,57 @@ class OffroTone {
 /// Pastel tones used by category tiles.
 class OffroTones {
   OffroTones._();
-  static const OffroTone restaurant  = OffroTone(Color(0xFFF6E3D2), Color(0xFF9A6249));
-  static const OffroTone grocery     = OffroTone(Color(0xFFDDEEDF), Color(0xFF4F745C));
-  static const OffroTone pharmacy    = OffroTone(Color(0xFFE1EBF2), Color(0xFF4A7088));
-  static const OffroTone fashion     = OffroTone(Color(0xFFEEE1E7), Color(0xFF865D72));
-  static const OffroTone electronics = OffroTone(Color(0xFFE5E4F1), Color(0xFF66648A));
-  static const OffroTone salon       = OffroTone(Color(0xFFF2E4DC), Color(0xFF916B55));
-  static const OffroTone fitness     = OffroTone(Color(0xFFDCE9E4), Color(0xFF477064));
-  static const OffroTone doctor      = OffroTone(Color(0xFFE7EBF4), Color(0xFF5F6F90));
+  static const OffroTone restaurant =
+      OffroTone(Color(0xFFF6E3D2), Color(0xFF9A6249));
+  static const OffroTone grocery =
+      OffroTone(Color(0xFFDDEEDF), Color(0xFF4F745C));
+  static const OffroTone pharmacy =
+      OffroTone(Color(0xFFE1EBF2), Color(0xFF4A7088));
+  static const OffroTone fashion =
+      OffroTone(Color(0xFFEEE1E7), Color(0xFF865D72));
+  static const OffroTone electronics =
+      OffroTone(Color(0xFFE5E4F1), Color(0xFF66648A));
+  static const OffroTone salon =
+      OffroTone(Color(0xFFF2E4DC), Color(0xFF916B55));
+  static const OffroTone fitness =
+      OffroTone(Color(0xFFDCE9E4), Color(0xFF477064));
+  static const OffroTone doctor =
+      OffroTone(Color(0xFFE7EBF4), Color(0xFF5F6F90));
+
   /// Fallback for any category that has no dedicated tone.
-  static const OffroTone neutral     = OffroTone(Color(0xFFE7D7C8), Color(0xFF3E5F55));
+  static const OffroTone neutral =
+      OffroTone(Color(0xFFE7D7C8), Color(0xFF3E5F55));
 }
 
 /// Spacing scale and layout constants (logical px).
 class OffroSpacing {
   OffroSpacing._();
   static const double xxs = 2;
-  static const double xs  = 4;
-  static const double sm  = 8;
-  static const double md  = 12;
-  static const double lg  = 16;
-  static const double xl  = 20;
+  static const double xs = 4;
+  static const double sm = 8;
+  static const double md = 12;
+  static const double lg = 16;
+  static const double xl = 20;
   static const double xxl = 28;
 
   /// Horizontal page gutter.
   static const double gutter = 20;
+
   /// Normal card padding.
   static const double card = 16;
+
   /// Compact card padding.
   static const double cardCompact = 12;
+
   /// Vertical gap between home/page sections.
   static const double section = 36;
+
   /// Max content width of the design (the Figma phone frame).
   static const double maxContentWidth = 480;
+
   /// Height of the floating bottom navigation bar.
   static const double navHeight = 76;
+
   /// Inset of the floating bottom navigation from the screen edges.
   static const double navInset = 12;
 
@@ -111,21 +142,21 @@ class OffroSpacing {
 /// Corner radii (logical px).
 class OffroRadii {
   OffroRadii._();
-  static const double pill  = 999;
+  static const double pill = 999;
   static const double input = 16;
-  static const double card  = 24;
+  static const double card = 24;
   static const double cardSm = 22;
-  static const double hero  = 29;
-  static const double tile  = 18;
-  static const double nav   = 26;
+  static const double hero = 29;
+  static const double tile = 18;
+  static const double nav = 26;
 
-  static BorderRadius get pillRadius  => BorderRadius.circular(pill);
+  static BorderRadius get pillRadius => BorderRadius.circular(pill);
   static BorderRadius get inputRadius => BorderRadius.circular(input);
-  static BorderRadius get cardRadius  => BorderRadius.circular(card);
+  static BorderRadius get cardRadius => BorderRadius.circular(card);
   static BorderRadius get cardSmRadius => BorderRadius.circular(cardSm);
-  static BorderRadius get heroRadius  => BorderRadius.circular(hero);
-  static BorderRadius get tileRadius  => BorderRadius.circular(tile);
-  static BorderRadius get navRadius   => BorderRadius.circular(nav);
+  static BorderRadius get heroRadius => BorderRadius.circular(hero);
+  static BorderRadius get tileRadius => BorderRadius.circular(tile);
+  static BorderRadius get navRadius => BorderRadius.circular(nav);
 }
 
 /// Soft green-tinted shadows.

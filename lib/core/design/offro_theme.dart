@@ -45,7 +45,8 @@ class OffroTheme {
     );
 
     return ThemeData(
-      useMaterial3: false, // matches the current app; Material 3 is a later, separate decision
+      useMaterial3:
+          false, // matches the current app; Material 3 is a later, separate decision
       fontFamily: OffroFonts.sans,
       colorScheme: scheme,
       primaryColor: OffroColors.primary,
@@ -91,7 +92,8 @@ class OffroTheme {
         behavior: SnackBarBehavior.floating,
         shape: StadiumBorder(),
       ),
-      dividerTheme: const DividerThemeData(color: OffroColors.borderSoft, thickness: 1, space: 1),
+      dividerTheme: const DividerThemeData(
+          color: OffroColors.borderSoft, thickness: 1, space: 1),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: OffroColors.primary,
         selectionColor: OffroColors.primary.withValues(alpha: .2),
@@ -114,7 +116,8 @@ class OffroFontScope extends StatelessWidget {
     return Theme(
       data: theme.copyWith(
         textTheme: theme.textTheme.apply(fontFamily: OffroFonts.sans),
-        primaryTextTheme: theme.primaryTextTheme.apply(fontFamily: OffroFonts.sans),
+        primaryTextTheme:
+            theme.primaryTextTheme.apply(fontFamily: OffroFonts.sans),
       ),
       child: DefaultTextStyle.merge(
         style: const TextStyle(fontFamily: OffroFonts.sans),

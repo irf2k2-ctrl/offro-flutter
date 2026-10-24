@@ -22,6 +22,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/design/design.dart' show OffroBottomNav, OffroNavVariant, OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones;
 import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
@@ -39,6 +40,39 @@ import 'products_phase2.dart';
 // Deals list thumbnail tap-to-view — no duplicate viewer implementation.
 import '../store/widgets/store_header.dart' show FullScreenImageViewer;
 import '../../core/utils/navigation.dart';
+
+/// Figma-style page header for Merchant screens: eyebrow + headline on the
+/// cream background, flat (no elevation), optional trailing actions.
+PreferredSizeWidget merchantHeaderBar({
+  required String eyebrow,
+  required String title,
+  List<Widget>? actions,
+  bool back = true,
+  PreferredSizeWidget? bottom,
+}) {
+  return AppBar(
+    automaticallyImplyLeading: back,
+    toolbarHeight: 84,
+    centerTitle: false,
+    titleSpacing: back ? 0 : OffroSpacing.gutter,
+    backgroundColor: kMerchantBg,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    surfaceTintColor: Colors.transparent,
+    title: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(eyebrow.toUpperCase(), style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+        const SizedBox(height: 4),
+        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: OffroText.headline.copyWith(fontSize: 26)),
+      ],
+    ),
+    actions: actions,
+    bottom: bottom,
+  );
+}
+
 
 /// PERMANENT HEADER REDESIGN: small circular filled "+" action button used
 /// in place of the old large outlined "New X" buttons across merchant list
@@ -75,9 +109,11 @@ class MerchantHomePage extends StatefulWidget {
   final String locationTitle;
   final String locationSubtitle;
   final VoidCallback? onLocationTap;
+  final String merchantName;
   const MerchantHomePage({
     super.key,
     required this.token,
+    this.merchantName = '',
     this.locationTitle = '',
     this.locationSubtitle = '',
     this.onLocationTap,
@@ -90,7 +126,8 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   List<Map<String,dynamic>> _products = [];
   bool _loading   = true;
   bool _loadError = false;
-  int  _stdLimit  = 10;  // admin-configured standard product slot limit
+  int? _freeLimit;  // admin-configured free product slots (from the backend; null until loaded)
+  int  _slotsUsed = 0;   // qualifying products (backend count)
 
   @override void initState() { super.initState(); _load(); }
 
@@ -108,7 +145,8 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
         _banners  = List<Map<String,dynamic>>.from(results[1] as Iterable);
         _products = List<Map<String,dynamic>>.from(results[2] as Iterable);
         final limitMap = results[3] as Map<String,dynamic>;
-        _stdLimit = (limitMap["standard_product_limit"] as num?)?.toInt() ?? 10;
+        _freeLimit = (limitMap["free_limit"] as num?)?.toInt();
+        _slotsUsed = (limitMap["used"] as num?)?.toInt() ?? 0;
         _loading  = false;
         _loadError = false;
       });
@@ -135,203 +173,218 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   // routers/admin.py's approve_store() sets — no new status system).
   bool get _hasActiveStore => !_loadError && _stores.any((s) => s["status"] == "active");
 
+  // Real counts only (from the same lists already loaded above).
+  int get _activeStores => _stores.where((s) => s['status'] == 'active').length;
+  int get _liveBanners => _banners.where((b) => (b['approval_status'] ?? b['status'] ?? '') == 'approved').length;
+  int get _liveProducts => _products.where((v) => (v['approval_status'] ?? v['status'] ?? '').toString() == 'approved').length;
+
+  String get _storeNote => _stores.isEmpty
+      ? "No stores yet — tap to add your first"
+      : "${_stores.length} Store${_stores.length > 1 ? 's' : ''} • $_activeStores Active";
+
+  String get _bannerNote {
+    if (!_hasActiveStore) return "Subscribe your store to create banners.";
+    if (_banners.isEmpty) return "No banners yet — promote your store";
+    final pend = _banners.where((b) {
+      final st = (b['approval_status'] ?? b['status'] ?? '').toString();
+      return st == 'pending' || st == 'pending_approval';
+    }).length;
+    final parts = <String>[];
+    if (_liveBanners > 0) parts.add("$_liveBanners Live");
+    if (pend > 0) parts.add("$pend Pending");
+    return "${_banners.length} Banner${_banners.length > 1 ? 's' : ''} • ${parts.isEmpty ? 'Submitted' : parts.join(' · ')}";
+  }
+
+  String get _productNote {
+    if (!_hasActiveStore) return "Subscribe your store to add products.";
+    if (_products.isEmpty) return "No products yet — add your first product";
+    final parts = <String>[if (_freeLimit != null) "$_slotsUsed/$_freeLimit free slots used"];
+    if (_liveProducts > 0) parts.add("$_liveProducts Live");
+    return parts.join('  ·  ');
+  }
+
+  void _lockedSnack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+  Widget _hero() {
+    final first = widget.merchantName.trim().split(' ').first;
+    return Container(
+      width: double.infinity,
+      color: OffroColors.mint,
+      padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, MediaQuery.of(context).padding.top + 20, OffroSpacing.gutter, 36),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        buildImageLogo(height: 26),
+        const SizedBox(height: 32),
+        Text('MERCHANT WORKSPACE', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+        const SizedBox(height: 4),
+        Text(first.isEmpty ? 'Welcome back' : 'Welcome back, $first', style: OffroText.headline),
+        if (widget.onLocationTap != null) ...[
+          const SizedBox(height: 14),
+          InkWell(
+            onTap: widget.onLocationTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary, filled: true),
+                const SizedBox(width: 8),
+                Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(widget.locationTitle.isEmpty ? 'Select location' : widget.locationTitle,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: OffroText.value.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
+                  if (widget.locationSubtitle.isNotEmpty)
+                    Text(widget.locationSubtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+                ])),
+                const SizedBox(width: 6),
+                const OffroIcon(OffroIcons.chevron, size: 13, color: OffroColors.secondarySolid),
+              ]),
+            ),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  Widget _statTile(String value, String label) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: OffroColors.surface,
+        borderRadius: BorderRadius.circular(OffroRadii.card),
+        boxShadow: OffroShadows.card,
+      ),
+      child: Column(children: [
+        Text(value, style: OffroText.title.copyWith(fontSize: 20)),
+        const SizedBox(height: 2),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+      ]),
+    ),
+  );
+
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
-    appBar: AppBar(
-      title: Row(children:[
-        buildImageLogo(height:24, white:true),
-        const SizedBox(width:8),
-        const Text("Merchant Home", style:TextStyle(fontWeight:FontWeight.w800)),
-      ]),
-      backgroundColor: Colors.white, foregroundColor: kMerchantText,
-      automaticallyImplyLeading:false,
-      bottom: widget.onLocationTap == null ? null : PreferredSize(
-        preferredSize: const Size.fromHeight(52),
-        child: _MerchantLocationBar(
-          title: widget.locationTitle,
-          subtitle: widget.locationSubtitle,
-          onTap: widget.onLocationTap!,
-        ),
-      ),
-    ),
     body: _loading
       ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary))
       // FIX7: show retry instead of new-merchant flow when network failed
       : (_loadError && _stores.isEmpty)
-          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
-              const SizedBox(height: 16),
-              const Text("Couldn't load your dashboard", style: TextStyle(color: kMerchantText, fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              const Text("Check your connection and try again", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () => _load(),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text("Retry"),
-                style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, foregroundColor: Colors.white),
-              ),
-            ]))
+          ? Center(child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
+                const SizedBox(height: 16),
+                Text("Couldn't load your dashboard", style: OffroText.title.copyWith(fontSize: 18)),
+                const SizedBox(height: 6),
+                Text("Check your connection and try again", style: OffroText.body),
+                const SizedBox(height: 20),
+                OffroButton.small(label: "Retry", onPressed: () => _load()),
+              ]),
+            ))
       : RefreshIndicator(
           onRefresh:_load,
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFEEF7F2), Color(0xFFF9FBF9), Color(0xFFF4EFE8)],
-                stops: [0.0, 0.5, 1.0],
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              _hero(),
+              Transform.translate(
+                offset: const Offset(0, -14),
+                child: Padding(
+                  padding: OffroSpacing.gutterH,
+                  child: Row(children: [
+                    _statTile('${_stores.length}', 'Stores'),
+                    const SizedBox(width: 8),
+                    _statTile('$_liveBanners', 'Live banners'),
+                    const SizedBox(width: 8),
+                    _statTile('$_liveProducts', 'Live products'),
+                  ]),
+                ),
               ),
-            ),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-
-              // ── Section cards ──
-              _SectionCard(
-                icon: Icons.store_rounded,
-                color: kMerchantPrimary,
-                bgColor: const Color(0xFFe8f4ef),
-                title: "My Store",
-                subtitle: _stores.isEmpty
-                  ? "No stores yet — tap to add your first"
-                  : "${_stores.length} Store${_stores.length>1?'s':''} • ${_stores.where((s)=>s['status']=='active').length} Active",
-                onTap: ()=>Navigator.push(context,appRoute(MerchantStoresPage(token:widget.token))).then((_)=>_load()),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 14, OffroSpacing.gutter, 0),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('MANAGE YOUR BUSINESS', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    icon: OffroIcons.store,
+                    bgColor: OffroColors.mint,
+                    title: "My Store",
+                    subtitle: _storeNote,
+                    onTap: () => Navigator.push(context, appRoute(MerchantStoresPage(token: widget.token))).then((_) => _load()),
+                  ),
+                  const SizedBox(height: 12),
+                  // Banner card — locked until a subscribed+active store exists
+                  _SectionCard(
+                    icon: OffroIcons.play,
+                    bgColor: OffroColors.beige,
+                    title: "My Banner",
+                    locked: !_hasActiveStore,
+                    subtitle: _bannerNote,
+                    onTap: _hasActiveStore
+                      ? () => Navigator.push(context, appRoute(MerchantBannersPage(token: widget.token))).then((_) => _load())
+                      : () => _lockedSnack("Subscribe your store to create banners."),
+                  ),
+                  const SizedBox(height: 12),
+                  // Product card — locked until a subscribed+active store exists
+                  _SectionCard(
+                    icon: OffroIcons.tag,
+                    bgColor: OffroTones.electronics.background,
+                    title: "My Products",
+                    locked: !_hasActiveStore,
+                    subtitle: _productNote,
+                    onTap: _hasActiveStore
+                      ? () => Navigator.push(context, appRoute(MerchantProductsPage(token: widget.token))).then((_) => _load())
+                      : () => _lockedSnack("Subscribe your store to add products."),
+                  ),
+                ]),
               ),
-              const SizedBox(height:12),
-
-              // Banner card — locked until a subscribed+active store exists
-              _SectionCard(
-                icon: Icons.view_carousel_rounded,
-                color: _hasActiveStore ? const Color(0xFFc0392b) : kMerchantMuted,
-                bgColor: _hasActiveStore ? const Color(0xFFfde8e8) : const Color(0xFFf0f0f0),
-                title: "My Banner",
-                locked: !_hasActiveStore,
-                subtitle: !_hasActiveStore
-                  ? "🔒 Subscribe your store to create banners."
-                  : _banners.isEmpty
-                    ? "No banners yet — promote your store"
-                    : ((){
-                        final live=_banners.where((b)=>(b['approval_status']??b['status']??'')=='approved').length;
-                        final pend=_banners.where((b){final st=(b['approval_status']??b['status']??'').toString();return st=='pending'||st=='pending_approval';}).length;
-                        final parts=<String>[];if(live>0)parts.add("$live Live");if(pend>0)parts.add("$pend Pending");
-                        return "${_banners.length} Banner${_banners.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
-                      })(),
-                onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,appRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
-                  : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Subscribe your store to create banners."),
-                      backgroundColor:Colors.orange)),
-              ),
-              const SizedBox(height:12),
-
-              // Product card — locked until a subscribed+active store exists
-              _SectionCard(
-                icon: Icons.local_activity_rounded,
-                color: _hasActiveStore ? const Color(0xFF856404) : kMerchantMuted,
-                bgColor: _hasActiveStore ? const Color(0xFFfff3cd) : const Color(0xFFf0f0f0),
-                title: "My Products",
-                locked: !_hasActiveStore,
-                subtitle: !_hasActiveStore
-                  ? "🔒 Subscribe your store to add products."
-                  : _products.isEmpty
-                    ? "No products yet — add your first product"
-                    : ((){
-                        final std  = _products.where((v)=>(v['product_type']??'')=='standard').length;
-                        final prem = _products.where((v)=>(v['product_type']??'premium')=='premium').length;
-                        final live = _products.where((v){
-                          final st=(v['approval_status']??v['status']??'').toString();
-                          return st=='approved';
-                        }).length;
-                        final parts=<String>[];
-                        parts.add("🟢 Std: $std/$_stdLimit");
-                        if(prem>0) parts.add("🟣 Prem: $prem");
-                        if(live>0) parts.add("$live Live");
-                        return parts.join('  ·  ');
-                      })(),
-                onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,appRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
-                  : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Subscribe your store to add products."),
-                      backgroundColor:Colors.orange)),
-              ),
-
-
             ]),
-            ),  // SingleChildScrollView
-          ),    // Container (gradient)
-        ),      // RefreshIndicator
+          ),
+        ),
   );
 }
 
 class _SectionCard extends StatelessWidget {
-  final IconData icon; final Color color, bgColor;
+  final OffroIconData icon; final Color bgColor;
   final String title, subtitle; final VoidCallback onTap;
   // Item 1 (draft-store lock): when true, shows a "Locked" pill instead of
-  // "Open →" so the card visually communicates it can't be opened yet.
-  // Defaults to false so existing call sites (e.g. "My Store", which is
-  // never locked) don't need to change.
+  // "Open" so the card visually communicates it can't be opened yet.
   final bool locked;
-  const _SectionCard({required this.icon, required this.color, required this.bgColor,
+  const _SectionCard({required this.icon, required this.bgColor,
     required this.title, required this.subtitle, required this.onTap, this.locked = false});
 
-  @override Widget build(BuildContext context) => GestureDetector(
+  @override Widget build(BuildContext context) => OffroCard(
     onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: .22), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: .12), blurRadius: 20, offset: const Offset(0, 8)),
-          BoxShadow(color: color.withValues(alpha: .05), blurRadius: 6,  offset: const Offset(0, 2)),
-        ],
+    radius: 22,
+    padding: const EdgeInsets.all(16),
+    child: Row(children: [
+      Container(
+        width: 48, height: 48,
+        decoration: BoxDecoration(color: locked ? OffroColors.mint : bgColor, borderRadius: BorderRadius.circular(16)),
+        alignment: Alignment.center,
+        child: OffroIcon(icon, size: 20, color: OffroColors.primary),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Top row: icon + arrow ──
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 56, height: 56,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: color.withValues(alpha: .12), blurRadius: 8, offset: const Offset(0, 3))],
-            ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (locked) ...[
-                Icon(Icons.lock_rounded, color: color, size: 12),
-                const SizedBox(width: 4),
-                Text("Locked", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-              ] else ...[
-                Text("Open", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_forward_rounded, color: color, size: 13),
-              ],
-            ]),
-          ),
+      const SizedBox(width: 14),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: OffroText.value.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 3),
+        Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: OffroText.caption.copyWith(color: OffroColors.secondarySolid, height: 1.35)),
+      ])),
+      const SizedBox(width: 10),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(20)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (locked) ...[
+            const Icon(Icons.lock_rounded, color: OffroColors.primary, size: 11),
+            const SizedBox(width: 4),
+          ],
+          Text(locked ? "Locked" : "Manage",
+              style: OffroText.caption.copyWith(color: OffroColors.primary, fontSize: 10, fontWeight: FontWeight.w700)),
         ]),
-        const SizedBox(height: 14),
-        // ── Title ──
-        Text(title,
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: color, letterSpacing: -0.3)),
-        const SizedBox(height: 6),
-        // ── Subtitle / stats ──
-        Text(subtitle,
-          style: const TextStyle(color: kMerchantMuted, fontSize: 13, height: 1.4),
-          maxLines: 2, overflow: TextOverflow.ellipsis),
-      ]),
-    ),
+      ),
+    ]),
   );
 }
 
@@ -372,13 +425,8 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(
-      toolbarHeight:58,
-      titleSpacing:16,
-      centerTitle:true,
-      title:const Text("My Banners",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-      backgroundColor: Colors.white, foregroundColor: kMerchantText,
-      actions:[
+    appBar:merchantHeaderBar(eyebrow: "Promotions", title: "My Banners", back: true,
+              actions:[
         Padding(
           padding:const EdgeInsets.only(right:18),
           child:offroHeaderAddButton(
@@ -398,7 +446,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
               const Text("Couldn't load banners",style:TextStyle(color:kMerchantText,fontSize:15,fontWeight:FontWeight.w700)),
               const SizedBox(height:8),
               ElevatedButton.icon(onPressed:()=>_load(),icon:const Icon(Icons.refresh),label:const Text("Retry"),
-                style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,foregroundColor:Colors.white)),
+                style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary,foregroundColor:Colors.white)),
             ]))
       : Column(children:[
           Expanded(child:_banners.isEmpty
@@ -443,12 +491,12 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         : (!_bIsActive ? "off" : rawStatus);
 
                     final (Color sc, String sl, IconData si) = switch(displayStatus) {
-                      "approved"  => (const Color(0xFF1a6640),"Approved — Live", Icons.check_circle),
+                      "approved"  => (OffroColors.statusLive,"Approved — Live", Icons.check_circle),
                       "rejected"  => (Colors.red, "Rejected", Icons.cancel),
                       "expired"   => (Colors.grey.shade600, "Expired", Icons.event_busy_rounded),
                       "removed"   => (Colors.red.shade700, "Removed by Admin", Icons.block_rounded),
                       "off"       => (Colors.grey.shade500, "Turned Off", Icons.pause_circle_outline_rounded),
-                      "pending_approval" || "pending" => (const Color(0xFF856404),"Pending Approval", Icons.access_time_rounded),
+                      "pending_approval" || "pending" => (OffroColors.statusPending,"Pending Approval", Icons.access_time_rounded),
                       _ => (kMerchantMuted,"Submitted", Icons.hourglass_empty),
                     };
                     // FIX 2: prefer from_date/end_date, fallback start_date
@@ -510,7 +558,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                       );
                     }
 
-                    Widget _actionButtons = Row(children:[
+                    Widget _editAndToggleButtons = Row(children:[
                       Expanded(child:OutlinedButton.icon(
                         onPressed:() async {
                           final ctrl = TextEditingController(text:b["title"]??"");
@@ -518,12 +566,12 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             title:const Text("Edit Banner Title",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
                             content:TextField(controller:ctrl,decoration:InputDecoration(
                               hintText:"Banner title",
-                              border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)))),
+                              border:OutlineInputBorder(borderRadius:BorderRadius.circular(16)),
+                              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)))),
                             actions:[
                               TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
                               ElevatedButton(
-                                style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
+                                style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
                                 onPressed:()=>Navigator.pop(context,ctrl.text.trim()),
                                 child:const Text("Save",style:TextStyle(color:Colors.white))),
                             ],
@@ -541,9 +589,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         },
                         icon:const Icon(Icons.edit_rounded,size:14,color:kMerchantPrimary),
                         label:const Text("Edit Title",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
-                        style:OutlinedButton.styleFrom(
+                        style:OutlinedButton.styleFrom(elevation: 0, 
                           side:const BorderSide(color:kMerchantPrimary),
-                          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+                          shape: const StadiumBorder(),
                           padding:const EdgeInsets.symmetric(vertical:6),
                           minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
                       )),
@@ -563,7 +611,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                   TextButton(onPressed:()=>Navigator.pop(context,false),
                                     child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
                                   ElevatedButton(
-                                    style:ElevatedButton.styleFrom(
+                                    style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), 
                                       backgroundColor:isOn?Colors.orange:kMerchantPrimary),
                                     onPressed:()=>Navigator.pop(context,true),
                                     child:Text(isOn?"Turn Off":"Turn On",
@@ -585,30 +633,73 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             size:14,color:_bIsActive?Colors.orange:kMerchantPrimary),
                           label:Text(_bIsActive?"Turn Off":"Turn On",
                             style:TextStyle(color:_bIsActive?Colors.orange:kMerchantPrimary,fontSize:12)),
-                          style:OutlinedButton.styleFrom(
+                          style:OutlinedButton.styleFrom(elevation: 0, 
                             side:BorderSide(color:_bIsActive?Colors.orange:kMerchantPrimary),
-                            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+                            shape: const StadiumBorder(),
                             padding:const EdgeInsets.symmetric(vertical:6),
                             minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
                         )),
                       ],
                     ]);
 
+                    // Actions per banner state (existing lifecycle only — no new
+                    // backend actions). Real statuses: pending / approved /
+                    // rejected / expired / off / removed. There is no "draft"
+                    // banner: a banner is only created after the order is
+                    // paid/activated, so the closest state is "pending"
+                    // (submitted, awaiting admin approval).
+                    Widget _noteRow(String text, {Widget? action}) => Container(
+                      padding:EdgeInsets.fromLTRB(12,action==null?10:6,action==null?12:6,action==null?10:6),
+                      decoration:BoxDecoration(color:OffroColors.beige,borderRadius:BorderRadius.circular(16)),
+                      child:Row(children:[
+                        Expanded(child:Text(text,style:OffroText.caption.copyWith(color:OffroColors.text,fontSize:11,fontWeight:FontWeight.w600))),
+                        if(action!=null) ...[const SizedBox(width:8),action],
+                      ]),
+                    );
+                    final Widget _actionButtons;
+                    if (displayStatus == "expired") {
+                      // EXPIRED: no Edit Title. Renew = the existing paid banner
+                      // flow (Create Banner → order → payment → activate) with
+                      // the title prefilled; no separate banner-renewal API exists.
+                      _actionButtons = _noteRow("Expired · Choose a new start date",
+                        action:ElevatedButton(
+                          onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token,renewFrom:Map<String,dynamic>.from(b)))).then((_)=>_load()),
+                          style:ElevatedButton.styleFrom(elevation:0,shape:const StadiumBorder(),backgroundColor:OffroColors.primary,foregroundColor:Colors.white,
+                            padding:const EdgeInsets.symmetric(horizontal:18,vertical:9),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                          child:const Text("Renew",style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
+                    } else if (displayStatus == "rejected") {
+                      _actionButtons = _noteRow("Rejected · Create a new banner to resubmit",
+                        action:ElevatedButton(
+                          onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
+                          style:ElevatedButton.styleFrom(elevation:0,shape:const StadiumBorder(),backgroundColor:OffroColors.primary,foregroundColor:Colors.white,
+                            padding:const EdgeInsets.symmetric(horizontal:16,vertical:9),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                          child:const Text("Create new",style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
+                    } else if (displayStatus == "removed") {
+                      _actionButtons = _noteRow("Removed by admin");
+                    } else if (displayStatus == "pending" || displayStatus == "pending_approval") {
+                      _actionButtons = Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+                        _noteRow("Awaiting admin approval"),
+                        const SizedBox(height:8),
+                        _editAndToggleButtons,
+                      ]);
+                    } else {
+                      _actionButtons = _editAndToggleButtons;
+                    }
+
                     return Container(
-                      margin:const EdgeInsets.only(bottom:10),
+                      margin:const EdgeInsets.only(bottom:12),
                       decoration:BoxDecoration(
                         color:Colors.white,
-                        borderRadius:BorderRadius.circular(12),
-                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.06),blurRadius:8,offset:const Offset(0,2))],
+                        borderRadius:BorderRadius.circular(22),
+                        border:Border.all(color:OffroColors.border),
                       ),
                       child:IntrinsicHeight(
                         child:Row(
                           crossAxisAlignment:CrossAxisAlignment.start,
                           children:[
-                            Container(width:4,decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
                             Padding(
-                              padding:const EdgeInsets.all(10),
-                              child:ClipRRect(borderRadius:BorderRadius.circular(10),child:_thumb),
+                              padding:const EdgeInsets.all(12),
+                              child:ClipRRect(borderRadius:BorderRadius.circular(16),child:_thumb),
                             ),
                             Expanded(child:Padding(
                               padding:const EdgeInsets.fromLTRB(0,10,12,10),
@@ -661,7 +752,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                   Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                                 ],
                                 const SizedBox(height:8),
-                                const Divider(height:1,thickness:.5,color:Color(0xFFd4e8de)),
+                                const Divider(height:1,thickness:.5,color:OffroColors.border),
                                 const SizedBox(height:8),
                                 _actionButtons,
                               ]),
@@ -712,7 +803,11 @@ double previewDiscountAmount(double basePrice, String? discountType, double disc
 
 class AddBannerPage extends StatefulWidget {
   final String token;
-  const AddBannerPage({super.key, required this.token});
+  /// When set (Renew on an expired banner), the existing Create Banner flow
+  /// opens with that banner's title prefilled. Everything else (media, store,
+  /// dates, payment) is chosen again exactly as for a new banner.
+  final Map<String,dynamic>? renewFrom;
+  const AddBannerPage({super.key, required this.token, this.renewFrom});
   @override State<AddBannerPage> createState() => _AddBannerState();
 }
 class _AddBannerState extends State<AddBannerPage> {
@@ -735,6 +830,13 @@ class _AddBannerState extends State<AddBannerPage> {
   List<Map<String,dynamic>> _stores = [];
   Map<String,dynamic>? _selectedBannerStore;
   bool _storesLoading = false;
+  // ── CTA destination (Store / Deal / Product). Only Deal/Product records
+  // that really exist for this merchant are offered; Store is always valid. ──
+  String _ctaType = "store";
+  Map<String,dynamic>? _ctaItem;
+  List<Map<String,dynamic>> _ctaDeals = [];
+  List<Map<String,dynamic>> _ctaProducts = [];
+  bool _ctaLoading = true;
   // Discount code state
   String? _appliedCode; double _appliedDiscount = 0; String? _appliedDiscountType;
   String _discountMsg = ""; bool _discountOk = false; bool _applyingCode = false;
@@ -955,12 +1057,13 @@ class _AddBannerState extends State<AddBannerPage> {
             "city":      _selCity??"",
             "store_id":  (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
             "store_name":(_selectedBannerStore?["store_name"] ?? "").toString(),
+            ..._ctaPayload,
           });
           if (mounted) {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content:Text("✅ Banner submitted! ${res['message']??''}"),
-              backgroundColor:const Color(0xFF1a6640)));
+              backgroundColor:OffroColors.statusLive));
           }
         }
       } else {
@@ -978,8 +1081,10 @@ class _AddBannerState extends State<AddBannerPage> {
 
   @override void initState() {
     super.initState();
+    if (widget.renewFrom != null) _titleC.text = widget.renewFrom!["title"]?.toString() ?? "";
     _loadPricing();
     _loadBannerStores();
+    _loadCtaOptions();
     _daysC.addListener(()=>setState((){}));
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
@@ -999,6 +1104,129 @@ class _AddBannerState extends State<AddBannerPage> {
     } catch (_) {
       if (mounted) setState(() => _storesLoading = false);
     }
+  }
+
+  static String _ctaId(Map<String,dynamic> m) => (m["_id"] ?? m["id"] ?? "").toString();
+  static String _ctaName(Map<String,dynamic> m, String type) {
+    for (final k in const ["title", "deal_title", "name", "product_name", "voucher_name"]) {
+      final v = (m[k] ?? "").toString().trim();
+      if (v.isNotEmpty) return v;
+    }
+    return type == "deal" ? "Untitled deal" : "Untitled product";
+  }
+
+  Future<void> _loadCtaOptions() async {
+    try {
+      final r = await Future.wait([
+        Api.getMerchantDeals(widget.token),
+        Api.getMerchantProducts(widget.token),
+      ]);
+      Map<String,dynamic> m(e) => Map<String,dynamic>.from(e as Map);
+      // Same "usable" rule the backend enforces: active deals; products that
+      // are not deleted/inactive/rejected.
+      final deals = (r[0] as List).where((e) => e is Map).map(m)
+          .where((d) => _ctaId(d).isNotEmpty && (d["status"] ?? "active").toString() == "active").toList();
+      final prods = (r[1] as List).where((e) => e is Map).map(m)
+          .where((p) {
+            final st = (p["approval_status"] ?? p["status"] ?? "").toString();
+            return _ctaId(p).isNotEmpty && p["is_active"] != false && p["is_deleted"] != true
+                && st != "deleted" && st != "rejected";
+          }).toList();
+      if (!mounted) return;
+      setState(() {
+        _ctaDeals = deals; _ctaProducts = prods; _ctaLoading = false;
+        // Preferred order Product → Deal → Store, only when records exist.
+        _ctaType = prods.isNotEmpty ? "product" : deals.isNotEmpty ? "deal" : "store";
+      });
+    } catch (_) {
+      if (mounted) setState(() { _ctaLoading = false; _ctaType = "store"; });
+    }
+  }
+
+  /// Destination actually sent to the backend. Falls back to the selected
+  /// Store whenever no valid Product/Deal is chosen.
+  Map<String,dynamic> get _ctaPayload {
+    final storeId = _ctaId(_selectedBannerStore ?? {});
+    if (_ctaType != "store" && _ctaItem != null) {
+      final id = _ctaId(_ctaItem!);
+      final list = _ctaType == "deal" ? _ctaDeals : _ctaProducts;
+      if (id.isNotEmpty && list.any((e) => _ctaId(e) == id)) {
+        return {"cta_type": _ctaType, "cta_id": id};
+      }
+    }
+    return {"cta_type": "store", "cta_id": storeId};
+  }
+
+  Widget _ctaChip(String label, IconData icon, String value, bool enabled) {
+    final sel = _ctaType == value;
+    return Expanded(child: GestureDetector(
+      onTap: enabled ? () => setState(() { _ctaType = value; _ctaItem = null; }) : null,
+      child: Opacity(opacity: enabled ? 1 : 0.45, child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: sel ? OffroColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: sel ? OffroColors.primary : OffroColors.border)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 16, color: sel ? Colors.white : OffroColors.secondarySolid),
+          const SizedBox(width: 5),
+          Text(label, style: OffroText.caption.copyWith(
+            color: sel ? Colors.white : OffroColors.text, fontWeight: FontWeight.w700)),
+        ])))));
+  }
+
+  Widget _ctaSection() {
+    if (_ctaLoading) return const SizedBox.shrink();
+    final isDeal = _ctaType == "deal";
+    final list = isDeal ? _ctaDeals : _ctaProducts;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OffroColors.mint.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: OffroColors.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text("CTA destination", style: OffroText.title),
+        const SizedBox(height: 2),
+        Text("Choose where this banner should take the customer.",
+          style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+        const SizedBox(height: 10),
+        Row(children: [
+          _ctaChip("Product", Icons.local_activity_outlined, "product", _ctaProducts.isNotEmpty),
+          const SizedBox(width: 8),
+          _ctaChip("Deal", Icons.local_offer_outlined, "deal", _ctaDeals.isNotEmpty),
+          const SizedBox(width: 8),
+          _ctaChip("Store", Icons.storefront_outlined, "store", true),
+        ]),
+        if (_ctaType != "store") ...[
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            value: _ctaItem == null ? null : _ctaId(_ctaItem!),
+            hint: Text(isDeal ? "Select Deal" : "Select Product"),
+            items: list.map((e) => DropdownMenuItem<String>(
+              value: _ctaId(e),
+              child: Text(_ctaName(e, _ctaType), overflow: TextOverflow.ellipsis))).toList(),
+            onChanged: (id) => setState(() {
+              _ctaItem = list.firstWhere((e) => _ctaId(e) == id, orElse: () => <String,dynamic>{});
+              if (_ctaItem!.isEmpty) _ctaItem = null;
+            }),
+            decoration: InputDecoration(
+              filled: true, fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: OffroColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: OffroColors.border)))),
+        ],
+        const SizedBox(height: 8),
+        Text(
+          _ctaType == "store"
+            ? "Customers will open the selected store."
+            : (_ctaItem == null
+                ? "Nothing selected yet — the banner will open the store."
+                : "If this ${isDeal ? 'deal' : 'product'} is later removed, the banner opens the store instead."),
+          style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+      ]),
+    );
   }
 
   void _onBannerStoreSelected(Map<String,dynamic> store) {
@@ -1074,6 +1302,7 @@ class _AddBannerState extends State<AddBannerPage> {
         "city":               _selCity??"",
         "store_id":           (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
         "store_name":         (_selectedBannerStore?["store_name"] ?? "").toString(),
+        ..._ctaPayload,
         "razorpay_payment_id": res.paymentId,
         "razorpay_order_id":  res.orderId,
         "razorpay_signature": res.signature,
@@ -1108,7 +1337,7 @@ class _AddBannerState extends State<AddBannerPage> {
         const Divider(),
         _dRow("Base Price","₹${order['base_price']}"),
         if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
-          color:const Color(0xFF1a6640)),
+          color:OffroColors.statusLive),
         _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
         _dRow("Total","₹${order['amount_display']}",bold:true),
         const SizedBox(height:10),
@@ -1122,7 +1351,7 @@ class _AddBannerState extends State<AddBannerPage> {
       actions:[
         TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
-          style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
+          style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
           child:Text(manual?"Confirm Submit":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
       ],
@@ -1137,19 +1366,19 @@ class _AddBannerState extends State<AddBannerPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(title:const Text("Create Banner"),backgroundColor: Colors.white, foregroundColor: kMerchantText),
+    appBar:AppBar(title:Text(widget.renewFrom != null ? "Renew Banner" : "Create Banner")),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
 
       // Title field
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text("Banner Title *",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
           TextField(controller:_titleC,decoration:InputDecoration(
             hintText:"e.g. 50% OFF at Raj Store",isDense:true,
             contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-            border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
-            enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
+            border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+            enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
           )),
         ])),
       const SizedBox(height:12),
@@ -1175,15 +1404,15 @@ class _AddBannerState extends State<AddBannerPage> {
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
             filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
 
       // ── City (auto-filled from store) ──
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F9F6),
+          color: OffroColors.mint,
           border: Border.all(color: kMerchantBorder),
           borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
@@ -1199,6 +1428,9 @@ class _AddBannerState extends State<AddBannerPage> {
         ]),
       ),
       const SizedBox(height: 12),
+
+      // ── CTA destination ──
+      _ctaSection(),
 
       // Banner type: Image / Video
       Row(children:[
@@ -1243,7 +1475,7 @@ class _AddBannerState extends State<AddBannerPage> {
       const SizedBox(height:12),
 
       // Duration + From Date
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
@@ -1256,8 +1488,8 @@ class _AddBannerState extends State<AddBannerPage> {
                 labelText:"Number of Days",hintText:"e.g. 7",
                 prefixIcon:const Icon(Icons.today_rounded,color:kMerchantMuted,size:18),
                 filled:true,fillColor:kMerchantBg,isDense:true,
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:10),
@@ -1310,7 +1542,7 @@ class _AddBannerState extends State<AddBannerPage> {
       // Item 6: Discount code field
       Container(
         padding:const EdgeInsets.all(14),
-        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
@@ -1325,16 +1557,16 @@ class _AddBannerState extends State<AddBannerPage> {
                 hintText:"e.g. OFFRO20",isDense:true,
                 prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountOk?kMerchantPrimary:kMerchantBorder)),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:_discountOk?kMerchantPrimary:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_applyingCode?null:_applyDiscountCode,
-              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
+              style:ElevatedButton.styleFrom(elevation: 0,  
                 padding:const EdgeInsets.symmetric(horizontal:14,vertical:12),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                shape: const StadiumBorder()),
               child:_applyingCode
                 ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
                 : const Text("Apply",style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
@@ -1342,19 +1574,19 @@ class _AddBannerState extends State<AddBannerPage> {
           ]),
           if (_discountMsg.isNotEmpty) ...[
             const SizedBox(height:6),
-            Text(_discountMsg,style:TextStyle(color:_discountOk?const Color(0xFF1a6640):Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
+            Text(_discountMsg,style:TextStyle(color:_discountOk?OffroColors.statusLive:Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
           ],
           if (_appliedDiscount > 0) ...[
             const SizedBox(height:6),
             Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
               decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
               child:Row(children:[
-                const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
+                const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
                 Text(_appliedDiscountType == "PERCENTAGE"
                       ? "−₹${_discountAmt.toStringAsFixed(2)} (${_appliedDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
                       : "−₹${_appliedDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
-                  style:const TextStyle(color:Color(0xFF1a6640),fontWeight:FontWeight.w700,fontSize:12)),
+                  style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
           ],
@@ -1366,8 +1598,8 @@ class _AddBannerState extends State<AddBannerPage> {
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
         label:const Text("Proceed to Checkout"),
-        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
+        style:ElevatedButton.styleFrom(elevation: 0,  
+          shape: const StadiumBorder(),
           padding:const EdgeInsets.symmetric(vertical:14)),
         onPressed:_loading?null:_proceed,
       ),
@@ -1388,7 +1620,7 @@ class MerchantProductsPage extends StatefulWidget {
 class _MerchantProductsState extends State<MerchantProductsPage> {
   List<Map<String,dynamic>> _products = [];
   List<Map<String,dynamic>> _filtered = [];
-  List<Map<String,dynamic>> _stores   = [];   // for standard product store expiry
+  Map<String,dynamic>? _slots;                 // free-slot usage + additional price (backend)
   bool _loading = true;
 
   final _searchCtrl = TextEditingController();
@@ -1407,12 +1639,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       final results = await Future.wait([
         Api.getMerchantProducts(widget.token).timeout(const Duration(seconds:15)),
         Api.checkProductExpiry(widget.token).timeout(const Duration(seconds:10)),
-        Api.getMerchantStores(widget.token).timeout(const Duration(seconds:10)),
+        Api.getProductSlots(widget.token).timeout(const Duration(seconds:10)),
       ]);
       _products = List<Map<String,dynamic>>.from(results[0] as Iterable);
       final exp = results[1];
       _expiryWarnings = exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[];
-      _stores = List<Map<String,dynamic>>.from(results[2] as Iterable);
+      _slots = results[2] is Map ? Map<String,dynamic>.from(results[2] as Map) : null;
       _applyFilters();
       if (mounted) setState(() { _loading = false; _loadError = false; });
     } catch(e) {
@@ -1424,31 +1656,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       _applyFilters();
       if (mounted) setState(() { _loading = false; _loadError = true; });
     }
-  }
-
-  // Returns formatted expiry label for a STANDARD product from the store's subscription_end.
-  // subscription_end can be ISO "2026-07-22T00:00:00" or pre-formatted "22 Jul 2026".
-  String _storeExpiryLabel(Map<String,dynamic> v) {
-    final storeId = (v["store_id"] ?? "").toString();
-    if (storeId.isEmpty) return "";
-    try {
-      final store = _stores.firstWhere((s) =>
-        (s["_id"] ?? s["id"] ?? "").toString() == storeId);
-      final raw = (store["subscription_end"] ?? "").toString().trim();
-      if (raw.isEmpty) return "";
-      return _parseDateLabel(raw);
-    } catch (_) { return ""; }
-  }
-
-  // Parses any date string into "dd-mm-yyyy". Falls back to stripping the time portion.
-  String _parseDateLabel(String raw) {
-    if (raw.isEmpty) return "";
-    try {
-      final dt = DateTime.parse(raw);  // handles ISO: "2026-07-22T00:00:00"
-      return "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
-    } catch (_) {}
-    // Already a readable string like "22 Jul 2026" — just strip any trailing time part
-    return raw.contains("T") ? raw.split("T").first : raw;
   }
 
   // Parses ISO "2026-07-04" OR "04 Jul 2026" OR "04-07-2026" → DateTime
@@ -1480,38 +1687,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                               "submitted", "new", "under_review", "in_review"};
     if (pendingVariants.contains(st)) st = "pending_approval";
     if (st == "approved") {
-      final isStandard = (v["product_type"]?.toString() ?? "") == "standard";
-      // FIX: Standard products always have end_date:"" from the backend — their
-      // real expiry is the PARENT STORE's subscription_end, not the product's
-      // own end_date (that field is only populated for Premium products). Not
-      // checking the store date meant a Standard product kept showing "Live"
-      // forever, even after the store's subscription lapsed.
-      final endRaw = isStandard ? _storeExpiryRaw(v) : (v["end_date"]?.toString() ?? "");
-      if (endRaw.isNotEmpty) {
-        final dt = _parseAnyDate(endRaw);
-        if (dt != null) {
-          // FIX: expires at END of the end_date day (23:59:59), not start.
-          // e.g. "20-07-2026" means live all day July 20, expires July 21 00:00.
-          final endOfDay = DateTime(dt.year, dt.month, dt.day, 23, 59, 59);
-          if (DateTime.now().isAfter(endOfDay)) st = "expired";
+      // Backend flags expiry (valid through the end date). Fall back to the
+      // product's own end_date; products with no end date never expire.
+      if (v["is_expired"] == true) {
+        st = "expired";
+      } else {
+        final dt = _parseAnyDate(v["end_date"]?.toString() ?? "");
+        if (dt != null && DateTime.now().isAfter(DateTime(dt.year, dt.month, dt.day, 23, 59, 59))) {
+          st = "expired";
         }
       }
     }
     return st;
-  }
-
-  // Returns the RAW (unformatted) store subscription_end string for a standard
-  // product — used by _effectiveStatus() for expiry comparison. Unlike
-  // _storeExpiryLabel(), this does not reformat the date, so _parseAnyDate can
-  // parse either ISO or "dd MMM yyyy" forms directly.
-  String _storeExpiryRaw(Map<String,dynamic> v) {
-    final storeId = (v["store_id"] ?? "").toString();
-    if (storeId.isEmpty) return "";
-    try {
-      final store = _stores.firstWhere((s) =>
-        (s["_id"] ?? s["id"] ?? "").toString() == storeId);
-      return (store["subscription_end"] ?? "").toString().trim();
-    } catch (_) { return ""; }
   }
 
   void _applyFilters() {
@@ -1519,12 +1706,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     _filtered = _products.where((v) {
       final title = (v["title"] ?? "").toString().toLowerCase();
       final offer = (v["offer_text"] ?? "").toString().toLowerCase();
-      final ptype = (v["product_type"] ?? "premium").toString();
       final st    = _effectiveStatus(v);
       if (q.isNotEmpty && !title.contains(q) && !offer.contains(q)) return false;
       switch (_activeFilter) {
-        case "Standard":        return ptype == "standard";
-        case "Premium":         return ptype != "standard";
         case "approved":        return st == "approved";
         case "pending_approval":return st == "pending_approval";
         case "expired":         return st == "expired";
@@ -1542,10 +1726,8 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   void _openFilter() {
     final opts = [
       ("All",              "All Products",         Icons.grid_view_rounded,         kMerchantText),
-      ("Standard",         "Standard Only",        Icons.inventory_2_rounded,        const Color(0xFF1a6640)),
-      ("Premium",          "Premium Only",         Icons.workspace_premium_rounded,  const Color(0xFF6B2FAA)),
-      ("approved",         "Live",                 Icons.check_circle_rounded,       const Color(0xFF1a6640)),
-      ("pending_approval", "Pending Approval",     Icons.hourglass_top_rounded,      const Color(0xFF856404)),
+      ("approved",         "Live",                 Icons.check_circle_rounded,       OffroColors.statusLive),
+      ("pending_approval", "Pending Approval",     Icons.hourglass_top_rounded,      OffroColors.statusPending),
       ("expired",          "Expired",              Icons.event_busy_rounded,         Colors.red),
     ];
     showModalBottomSheet(
@@ -1621,7 +1803,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
 
   // ── More actions bottom sheet ────────────────────────────
   void _openMore(Map<String,dynamic> v, String pid) {
-    final isStd = (v["product_type"] ?? "premium").toString() == "standard";
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -1634,15 +1815,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             const SizedBox(height: 4),
             const Divider(),
             ListTile(
-              leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFe8f4ef),
+              leading: const CircleAvatar(radius: 18, backgroundColor: OffroColors.mint,
                 child: Icon(Icons.edit_rounded, color: kMerchantPrimary, size: 18)),
               title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
-            // FIX3: Analytics only for Premium
-            if (pid.isNotEmpty && !isStd)
+            if (pid.isNotEmpty)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFF3CD),
-                  child: Icon(Icons.bar_chart_rounded, color: Color(0xFF856404), size: 18)),
+                  child: Icon(Icons.bar_chart_rounded, color: OffroColors.statusPending, size: 18)),
                 title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
                   Navigator.push(context, appRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
@@ -1663,13 +1843,8 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     final hasFilter = _activeFilter != "All";
     return Scaffold(
       backgroundColor: kMerchantBg,
-      appBar: AppBar(
-        toolbarHeight:58,
-        titleSpacing:16,
-        centerTitle:true,
-        title: const Text("My Products", overflow:TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kMerchantText,
-        actions: [
+      appBar: merchantHeaderBar(eyebrow: "Catalogue", title: "My Products", back: true,
+                actions: [
           // Filter button with active indicator — unchanged, kept before the + button
           Stack(clipBehavior: Clip.none, children: [
             IconButton(
@@ -1688,7 +1863,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             child:offroHeaderAddButton(
               icon:Icons.add,
               tooltip:"New Product",
-              onPressed:()=>_showProductTypeDialog(context, widget.token, _load),
+              onPressed:()=>Navigator.push(context, appRoute(AddProductPage(token: widget.token))).then((_) => _load()),
             ),
           ),
         ],
@@ -1700,6 +1875,8 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               _expiryWarnings.whereType<Map>().map((e) => Map<String,dynamic>.from(e))),
           onRenewTap: () => setState(() { _activeFilter = "expired"; _applyFilters(); }),
         ),
+
+        _slotBanner(),
 
         // ── Search + active filter chip ──
         Padding(
@@ -1719,9 +1896,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 filled: true, fillColor: Colors.white,
-                border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantPrimary, width: 1.5)),
+                border:        OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantPrimary, width: 1.5)),
               ),
             )),
           ]),
@@ -1767,7 +1944,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   const Text("Couldn't load products", style: TextStyle(color: kMerchantText, fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(onPressed: ()=>_load(), icon: const Icon(Icons.refresh), label: const Text("Retry"),
-                    style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, foregroundColor: Colors.white)),
+                    style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary, foregroundColor: Colors.white)),
                 ]))
           : _filtered.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -1793,41 +1970,75 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     );
   }
 
+  /// "8 / 10 free product slots used" + the additional-product price once
+  /// every free slot is taken. Numbers come from the backend (never hard-coded).
+  Widget _slotBanner() {
+    final s = _slots;
+    if (s == null) return const SizedBox.shrink();
+    final used  = (s["used"] as num?)?.toInt() ?? 0;
+    final limit = (s["free_limit"] as num?)?.toInt();
+    if (limit == null) return const SizedBox.shrink();   // limit unknown → show nothing, never a made-up number
+    final price = (s["additional_price"] as num?)?.toDouble() ?? 0;
+    final allUsed = used >= limit;
+    final priceTxt = price == price.truncate() ? "₹${price.toInt()}" : "₹${price.toStringAsFixed(2)}";
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: OffroColors.mint,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kMerchantBorder)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.inventory_2_outlined, size: 16, color: kMerchantPrimary),
+          const SizedBox(width: 8),
+          Text("$used / $limit free product slots used",
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kMerchantText)),
+        ]),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: limit <= 0 ? 1 : (used / limit).clamp(0.0, 1.0),
+            minHeight: 6,
+            backgroundColor: Colors.white,
+            valueColor: const AlwaysStoppedAnimation<Color>(kMerchantPrimary))),
+        if (allUsed) ...[
+          const SizedBox(height: 8),
+          Text("Additional products are charged at $priceTxt each.",
+            style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
+        ],
+      ]),
+    );
+  }
+
+  String _shortDate(String raw) {
+    final dt = _parseAnyDate(raw);
+    if (dt == null) return "";
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${m[dt.month-1]} ${dt.year}";
+  }
+
   Widget _buildCard(Map<String,dynamic> v) {
-    final pType    = (v["product_type"] ?? "premium").toString();
-    final isStd    = pType == "standard";
     final pid      = _pid(v);
     final status   = _effectiveStatus(v);
     final endRaw   = v["end_date"]?.toString() ?? "";
     final isActive = v["is_active"] as bool? ?? true;
-
     final isExpired  = status == "expired";
-    final isApproved = status == "approved";
+    final isFree   = (v["pricing_tier"] ?? "free").toString() == "free";
 
     // ── Status badge ──
-    final (Color sc, String sl, IconData si) = isStd
-        ? switch(status) {
-            "approved"             => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
-            "expired"              => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
-            "subscription_expired" => (Colors.grey.shade600,    "Paused",  Icons.pause_circle_rounded),
-            _                      => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
-          }
-        : switch(status) {
-            "approved"         => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
-            "rejected"         => (Colors.red,              "Rejected",Icons.cancel_rounded),
-            "expired"          => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
-            "pending_approval" => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
-            _                  => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
-          };
+    final (Color sc, String sl, IconData si) = switch(status) {
+      "approved"         => (OffroColors.statusLive, "Live",    Icons.check_circle_rounded),
+      "rejected"         => (Colors.red,              "Rejected",Icons.cancel_rounded),
+      "expired"          => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
+      "subscription_expired" => (Colors.grey.shade600, "Paused", Icons.pause_circle_rounded),
+      _                  => (OffroColors.statusPending, "Pending", Icons.hourglass_top_rounded),
+    };
+    final deactivated = !isActive && !isExpired && status == "approved";
 
-    // Expiry: standard → store subscription end, premium → product end_date
-    String expiryLabel = "";
-    if (isStd) {
-      expiryLabel = _storeExpiryLabel(v);
-    } else if (endRaw.isNotEmpty) {
-      expiryLabel = _parseDateLabel(endRaw);
-    }
-
+    final expiryLabel = _shortDate(endRaw);
     final logoUrl = v["logo_url"]?.toString() ?? "";
 
     return Container(
@@ -1835,19 +2046,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isStd
-            ? const Color(0xFF1a6640).withValues(alpha: .18)
-            : const Color(0xFF6B2FAA).withValues(alpha: .18)),
+        border: Border.all(color: kMerchantBorder),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-          // ── Row 1: image + info + More button ──
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // FIX2: Square image — tap to enlarge
             GestureDetector(
               onTap: () => _showImageFullscreen(context, logoUrl),
               child: ClipRRect(
@@ -1860,13 +2066,15 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             ),
             const SizedBox(width: 12),
 
-            // Info column
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Type badge + status badge
-              Row(children: [
-                _TypeBadge(isStd: isStd),
-                const SizedBox(width: 6),
+              Wrap(spacing: 6, runSpacing: 4, children: [
                 _StatusBadge(label: sl, color: sc, icon: si),
+                _StatusBadge(
+                  label: isFree ? "Free" : "Paid",
+                  color: isFree ? OffroColors.statusLive : OffroColors.primary,
+                  icon: isFree ? Icons.redeem_rounded : Icons.payments_outlined),
+                if (deactivated)
+                  _StatusBadge(label: "Deactivated", color: Colors.grey.shade600, icon: Icons.pause_circle_outline_rounded),
               ]),
               const SizedBox(height: 6),
               Text(v["title"] ?? "",
@@ -1878,20 +2086,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   style: const TextStyle(fontSize: 12, color: kMerchantMuted),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
-              // FIX1: Expiry for both std and premium (if end_date exists)
               if (expiryLabel.isNotEmpty) ...[
                 const SizedBox(height: 3),
                 Row(children: [
                   Icon(Icons.event_rounded, size: 11,
                     color: isExpired ? Colors.red : kMerchantMuted),
                   const SizedBox(width: 3),
-                  Text("Expires: $expiryLabel",
+                  Text(isExpired ? "Expired $expiryLabel" : "Expires $expiryLabel",
                     style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w600,
                       color: isExpired ? Colors.red : kMerchantMuted)),
                 ]),
               ],
-              // Store name + city below expiry
               Builder(builder: (_ctx) {
                 final sName = (v["store_name"] ?? "").toString().trim();
                 final sCity = (v["city"] ?? "").toString().trim();
@@ -1910,10 +2116,8 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   ]),
                 );
               }),
-              // FIX1: price line removed
             ])),
 
-            // More button + FIX4: On/Off toggle stacked vertically
             Column(children: [
               GestureDetector(
                 onTap: () => _openMore(v, pid),
@@ -1927,59 +2131,40 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              // FIX4: On/Off switch
+              // An expired product cannot be switched back on - it has to be renewed.
               Transform.scale(
                 scale: 0.75,
                 child: Switch(
-                  value: isActive,
-                  onChanged: pid.isEmpty ? null : (_) => _toggleActive(v, pid),
+                  value: isActive && !isExpired,
+                  onChanged: (pid.isEmpty || isExpired) ? null : (_) => _toggleActive(v, pid),
                   activeColor: kMerchantPrimary,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
-              Text(isActive ? "On" : "Off",
+              Text(isActive && !isExpired ? "On" : "Off",
                 style: TextStyle(
                   fontSize: 9, fontWeight: FontWeight.w700,
-                  color: isActive ? kMerchantPrimary : kMerchantMuted)),
+                  color: isActive && !isExpired ? kMerchantPrimary : kMerchantMuted)),
             ]),
           ]),
 
-          // ── Row 2: CTA buttons ──
-          const SizedBox(height: 10),
-          if (isStd && v["upgraded"] != true)
+          if (isExpired) ...[
+            const SizedBox(height: 10),
             SizedBox(width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF856404),
+                  backgroundColor: kMerchantPrimary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                icon: const Icon(Icons.upgrade_rounded, size: 16),
-                label: const Text("Upgrade Now", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                onPressed: () => Navigator.push(context,
-                  appRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
-              )),
-          if (!isStd && (isApproved || isExpired))
-            SizedBox(width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isExpired ? Colors.red.shade600 : const Color(0xFF856404),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: const StadiumBorder(),
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.autorenew_rounded, size: 16),
-                label: Text(
-                  expiryLabel.isNotEmpty
-                    ? "Renew Now  ·  Expires: $expiryLabel"
-                    : "Renew Now",
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                label: const Text("Renew", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 onPressed: () => Navigator.push(context,
                   appRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
+          ],
         ]),
       ),
     );
@@ -2004,7 +2189,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary),
+          style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary),
           onPressed: () {
             final opVal = double.tryParse(opCtrl.text.trim());
             final prVal = double.tryParse(prCtrl.text.trim());
@@ -2025,7 +2210,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         await Api.updateMerchantProduct(widget.token, pid, saved);
         _load();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Product updated!"), backgroundColor: Color(0xFF1a6640)));
+          const SnackBar(content: Text("Product updated!"), backgroundColor: OffroColors.statusLive));
       } catch (e) {
         debugPrint('[MerchantProducts] update error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -2035,15 +2220,16 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   }
 
   Future<void> _confirmDelete(Map<String,dynamic> v, String pid) async {
-    final confirm = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text("Delete Product?", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-      content: Text("Delete \"${v['title'] ?? 'this product'}\"? This cannot be undone."),
+    final confirm = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => AlertDialog(
+      title: const Text("Delete this product?", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+      content: Text("\"${v['title'] ?? 'This product'}\" will be permanently removed and cannot be reactivated. "
+          "Any payment already made for this product will not be refunded."),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: Colors.red),
           onPressed: () => Navigator.pop(context, true),
-          child: const Text("Delete", style: TextStyle(color: Colors.white))),
+          child: const Text("Delete Product", style: TextStyle(color: Colors.white))),
       ],
     ));
     if (confirm == true && mounted) {
@@ -2058,30 +2244,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
           SnackBar(content: Text("Error deleting: ${friendlyError(e)}"), backgroundColor: Colors.red));
       }
     }
-  }
-}
-
-// ── Compact type badge ──────────────────────────────────────────────────────
-class _TypeBadge extends StatelessWidget {
-  final bool isStd;
-  const _TypeBadge({required this.isStd});
-  @override Widget build(BuildContext context) {
-    final color = isStd ? const Color(0xFF1a6640) : const Color(0xFF6B2FAA);
-    final label = isStd ? "Standard" : "Premium";
-    final icon  = isStd ? Icons.inventory_2_rounded : Icons.workspace_premium_rounded;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: .3)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 10, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
-      ]),
-    );
   }
 }
 
@@ -2106,81 +2268,6 @@ class _StatusBadge extends StatelessWidget {
   );
 }
 
-// ── Product type choice dialog + navigation ──────────────────────────────────
-void _showProductTypeDialog(BuildContext context, String token, VoidCallback onRefresh) {
-  showModalBottomSheet(
-    context: context,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text("Choose Product Type", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: kMerchantText)),
-          const SizedBox(height:6),
-          const Text("Select the type of product you want to create.", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
-          const SizedBox(height: 20),
-          // Standard product option
-          InkWell(
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, appRoute(StandardProductPage(token: token))).then((_) => onRefresh());
-            },
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .4)),
-                borderRadius: BorderRadius.circular(14),
-                color: const Color(0xFFf0faf4),
-              ),
-              child: Row(children: [
-                Container(width:44,height:44,decoration:BoxDecoration(color:const Color(0xFF1a6640),borderRadius:BorderRadius.circular(12)),
-                  child:const Icon(Icons.inventory_2_rounded, color:Colors.white, size:24)),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kMerchantText)),
-                  const SizedBox(height:3),
-                  const Text("Free • Linked to your store subscription\nAdmin approval required, no payment needed", style: TextStyle(fontSize: 12, color: kMerchantMuted)),
-                ])),
-                const Icon(Icons.chevron_right_rounded, color: kMerchantMuted),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Premium product option
-          InkWell(
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, appRoute(AddProductPage(token: token))).then((_) => onRefresh());
-            },
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF6B2FAA).withValues(alpha: .4)),
-                borderRadius: BorderRadius.circular(14),
-                color: const Color(0xFFF5F0FF),
-              ),
-              child: Row(children: [
-                Container(width:44,height:44,decoration:BoxDecoration(color:const Color(0xFF6B2FAA),borderRadius:BorderRadius.circular(12)),
-                  child:const Icon(Icons.workspace_premium_rounded, color:Colors.white, size:24)),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text("🟣 Premium Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kMerchantText)),
-                  const SizedBox(height:3),
-                  const Text("Paid • Featured in Discover Products section\nAdmin approval required after payment", style: TextStyle(fontSize: 12, color: kMerchantMuted)),
-                ])),
-                const Icon(Icons.chevron_right_rounded, color: kMerchantMuted),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    ),
-  );
-}
-
 // ── Inline edit field helper ──
 class _EditField extends StatelessWidget {
   final TextEditingController ctrl;
@@ -2192,8 +2279,8 @@ class _EditField extends StatelessWidget {
     decoration: InputDecoration(
       labelText: label, isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
     ));
 }
 
@@ -2231,291 +2318,9 @@ class _ProductThumb extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════
-// STANDARD PRODUCT PAGE — free, subscription-linked, no payment
+// ADD PRODUCT — one product type. Free while free slots remain, otherwise the
+// backend-configured additional-product price. The backend makes the final call.
 // ══════════════════════════════════════════════════════════
-
-class StandardProductPage extends StatefulWidget {
-  final String token;
-  const StandardProductPage({super.key, required this.token});
-  @override State<StandardProductPage> createState() => _StandardProductState();
-}
-class _StandardProductState extends State<StandardProductPage> {
-  final _titleC       = TextEditingController();
-  final _offerC       = TextEditingController();
-  final _priceC       = TextEditingController();
-  final _origPriceC   = TextEditingController();
-  String? _logoB64;
-  String? _selCity;
-  List<Map<String,dynamic>> _stores = [];
-  Map<String,dynamic>? _selectedStore;
-  bool _loading = false;
-  bool _storesLoading = false;
-  String _msg = "";
-  Map<String,dynamic> _limitInfo = {"standard_product_limit":10,"standard_count":0};
-
-  @override void initState() {
-    super.initState();
-    _loadStores();
-    _loadLimit();
-  }
-
-  @override void dispose() {
-    _titleC.dispose(); _offerC.dispose(); _priceC.dispose(); _origPriceC.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadStores() async {
-    if (!mounted) return;
-    setState(() => _storesLoading = true);
-    try {
-      final list = await Api.getMerchantStores(widget.token);
-      if (mounted) setState(() {
-        _stores = List<Map<String,dynamic>>.from(list);
-        if (_stores.length == 1) _onStoreSelected(_stores.first);
-        _storesLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _storesLoading = false);
-    }
-  }
-
-  Future<void> _loadLimit() async {
-    try {
-      final info = await Api.getProductLimit(widget.token);
-      if (mounted) setState(() => _limitInfo = info);
-    } catch (_) {}
-  }
-
-  void _onStoreSelected(Map<String,dynamic> store) {
-    final city = (store["city"] ?? "").toString().trim();
-    setState(() {
-      _selectedStore = store;
-      if (city.isNotEmpty) _selCity = city;
-    });
-  }
-
-  Future<void> _pickLogo() async {
-    final picker = ImagePicker();
-    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 400);
-    if (img == null) return;
-    final bytes = await File(img.path).readAsBytes();
-    if (bytes.length > 1 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Logo too large. Max 1MB."), backgroundColor: Colors.red));
-      return;
-    }
-    setState(() => _logoB64 = "data:image/jpeg;base64,${base64Encode(bytes)}");
-  }
-
-  Future<void> _submit() async {
-    if (_titleC.text.trim().isEmpty) { setState(() => _msg = "Product title required"); return; }
-    if (_selectedStore == null) { setState(() => _msg = "Please select a store for this product"); return; }
-    if (_logoB64 == null) { setState(() => _msg = "Please upload a product image"); return; }
-
-    final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
-    final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
-    if (count >= limit) {
-      setState(() => _msg = "Standard product limit reached ($limit). Delete an existing product or use Premium.");
-      return;
-    }
-
-    setState(() { _loading = true; _msg = ""; });
-    try {
-      final storeId = (_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString();
-      final result = await Api.createStandardProduct(widget.token, {
-        "title":          _titleC.text.trim(),
-        "offer_text":     _offerC.text.trim(),
-        "logo_url":       _logoB64 ?? "",
-        "price":          _priceC.text.trim(),
-        "original_price": _origPriceC.text.trim(),
-        "store_id":       storeId,
-        "store_name":     (_selectedStore?["store_name"] ?? "").toString(),
-        "city":           _selCity ?? "",
-        "is_active":      true,
-      });
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("✅ ${result['message'] ?? 'Standard product created!'}"),
-            backgroundColor: const Color(0xFF1a6640)));
-      }
-    } catch (e) {
-      setState(() => _msg = friendlyError(e));
-    }
-    if (mounted) setState(() => _loading = false);
-  }
-
-  @override Widget build(BuildContext context) {
-    final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
-    final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
-    return Scaffold(
-      backgroundColor: kMerchantBg,
-      appBar: AppBar(
-        title: Row(children: [
-          buildImageLogo(height: 24, white: true),
-          const SizedBox(width: 8),
-          const Text("Standard Product", style: TextStyle(fontWeight: FontWeight.w800)),
-        ]),
-        backgroundColor: Colors.white, foregroundColor: kMerchantText,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Info banner
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFf0faf4),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .3)),
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1a6640))),
-              const SizedBox(height: 4),
-              const Text("• Free — no payment required\n• Linked to your store subscription\n• Admin approval required before going live\n• Paused automatically when subscription expires", style: TextStyle(fontSize: 12, color: kMerchantMuted)),
-              const SizedBox(height: 8),
-              Text("Usage: $count / $limit standard products", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kMerchantText)),
-            ]),
-          ),
-          const SizedBox(height: 20),
-          // Store selector
-          const Text("Select Store *", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
-          const SizedBox(height: 6),
-          _storesLoading
-              ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
-              : _stores.isEmpty
-                  ? const Text("No stores found. Create a store first.", style: TextStyle(color: Colors.red, fontSize: 13))
-                  : DropdownButtonFormField<Map<String,dynamic>>(
-                      value: _selectedStore,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-                      ),
-                      hint: const Text("Select a store"),
-                      items: _stores.map((s) => DropdownMenuItem(value: s, child: Text(s["store_name"]?.toString() ?? ""))).toList(),
-                      onChanged: (s) { if (s != null) _onStoreSelected(s); },
-                    ),
-          const SizedBox(height: 16),
-          // Product title
-          const Text("Product Title *", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _titleC,
-            decoration: InputDecoration(
-              hintText: "e.g. Flat 20% Off on All Items",
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Offer text
-          const Text("Offer Text", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _offerC,
-            decoration: InputDecoration(
-              hintText: "e.g. Valid on all products",
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Price row
-          Row(children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("Offer Price", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _priceC,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: "₹ 99",
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-                ),
-              ),
-            ])),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("Original Price", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _origPriceC,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: "₹ 199",
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kMerchantBorder)),
-                ),
-              ),
-            ])),
-          ]),
-          const SizedBox(height: 16),
-          // Logo
-          const Text("Product Image *", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText, fontSize: 13)),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _pickLogo,
-            child: Container(
-              height: 80, width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFf5f5f5),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: kMerchantBorder),
-              ),
-              child: _logoB64 != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.memory(base64Decode(_logoB64!.split(',').last), fit: BoxFit.cover))
-                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.add_photo_alternate_outlined, color: kMerchantMuted, size: 28),
-                      const SizedBox(height: 4),
-                      const Text("Tap to upload", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [_InfoChip("📐 400×400px (1:1)"), SizedBox(width: 6), _InfoChip("📦 Max 1MB")]),
-                    ]),
-            ),
-          ),
-          if (_msg.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Text(_msg, style: const TextStyle(color: Colors.red, fontSize: 13)),
-          ],
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1a6640),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _loading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text("Create Standard Product", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ]),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-// ADD PRODUCT PAGE — with checkout flow
-// ══════════════════════════════════════════════════════════
-
 class AddProductPage extends StatefulWidget {
   final String token;
   const AddProductPage({super.key, required this.token});
@@ -2526,11 +2331,12 @@ class _AddProductState extends State<AddProductPage> {
   final _offerC          = TextEditingController();
   final _priceC          = TextEditingController();
   final _originalPriceC  = TextEditingController();
-  final _daysC      = TextEditingController(text:"30");
   final _discountVC = TextEditingController(); // discount code input
   String? _logoB64; bool _loading=false; String _msg="";
   DateTime _fromDate = DateTime.now();
-  Map<String,dynamic>? _pricing;
+  // Merchant-chosen end date (valid through that day).
+  DateTime _endDate  = DateTime.now().add(const Duration(days:30));
+  Map<String,dynamic>? _slots;   // free-slot usage + additional price (estimate; backend decides)
   String? _selCity;
   // ── Store selection ──
   List<Map<String,dynamic>> _stores = [];
@@ -2548,9 +2354,8 @@ class _AddProductState extends State<AddProductPage> {
 
   @override void initState() {
     super.initState();
-    _loadPricing();
+    _loadSlots();
     _loadStores();
-    _daysC.addListener(()=>setState((){}));
     _razorpay=Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS,_onPaySuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,  _onPayError);
@@ -2578,30 +2383,49 @@ class _AddProductState extends State<AddProductPage> {
       if (city.isNotEmpty) _selCity = city;
     });
   }
-  @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_daysC.dispose();_discountVC.dispose(); _razorpay.clear(); super.dispose(); }
+  @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_discountVC.dispose(); _razorpay.clear(); super.dispose(); }
 
-  Future<void> _loadPricing() async {
-    try{ final p=await Api.getProductPricing(widget.token); if(mounted) setState(()=>_pricing=Map<String,dynamic>.from(p)); }catch(_){}
+  Future<void> _loadSlots() async {
+    final sl = await Api.getProductSlots(widget.token);
+    if (mounted) setState(() => _slots = sl);
   }
 
-  int get _days => int.tryParse(_daysC.text.trim()) ?? 0;
-  double get _pricePerDay=>(_pricing?["price_per_day"] as num?)?.toDouble()??10;
-  double get _basePrice => double.parse((_pricePerDay * _days).toStringAsFixed(2));
-  double get _gstPct=>(_pricing?["gst_pct"] as num?)?.toDouble()??18;
+  DateTime get _fromDay => DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
+  int get _days => DateTime(_endDate.year, _endDate.month, _endDate.day).difference(_fromDay).inDays;
+  bool get _slotsKnown => _slots != null;
+  bool get _nextIsFree => _slots == null ? true : (_slots!["next_is_free"] as bool? ?? true);
+  int get _freeLimit => (_slots?["free_limit"] as num?)?.toInt() ?? 0;
+  int get _freeRemaining => (_slots?["free_remaining"] as num?)?.toInt() ?? 0;
+  int get _maxDays => (_slots?["max_validity_days"] as num?)?.toInt() ?? 365;
+  double get _addlPrice => (_slots?["additional_price"] as num?)?.toDouble() ?? 0;
+  String _money(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
+  double get _basePrice => _nextIsFree ? 0 : double.parse(_addlPrice.toStringAsFixed(2));
+  double get _gstPct=>(_slots?["gst_pct"] as num?)?.toDouble()??18;
   double get _discountVAmt => previewDiscountAmount(_basePrice, _appliedVDiscountType, _appliedVDiscount);
   double get _taxableV => (_basePrice - _discountVAmt) < 0 ? 0 : (_basePrice - _discountVAmt);
   double get _gst=>double.parse((_taxableV*_gstPct/100).toStringAsFixed(2));
   double get _total=>double.parse((_taxableV+_gst).toStringAsFixed(2));
 
   String get _fromDateStr=>"${_fromDate.year}-${_fromDate.month.toString().padLeft(2,'0')}-${_fromDate.day.toString().padLeft(2,'0')}";
+  String get _endDateStr=>"${_endDate.year}-${_endDate.month.toString().padLeft(2,'0')}-${_endDate.day.toString().padLeft(2,'0')}";
   String get _fromDateDisplay=>"${_fromDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_fromDate.month-1]} ${_fromDate.year}";
-  DateTime get _endDate=>_fromDate.add(Duration(days:_days));
   String get _endDateDisplay=>"${_endDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_endDate.month-1]} ${_endDate.year}";
 
   Future<void> _pickFromDate() async {
     final picked=await showDatePicker(context:context,initialDate:_fromDate,
       firstDate:DateTime.now(),lastDate:DateTime.now().add(const Duration(days:365)));
-    if(picked!=null) setState(()=>_fromDate=picked);
+    if(picked!=null) setState((){
+      _fromDate=picked;
+      if(!_endDate.isAfter(picked)) _endDate=picked.add(const Duration(days:30));
+    });
+  }
+
+  Future<void> _pickEndDate() async {
+    final first=_fromDay.add(const Duration(days:1));
+    final picked=await showDatePicker(context:context,
+      initialDate:_endDate.isBefore(first)?first:_endDate,
+      firstDate:first,lastDate:_fromDay.add(Duration(days:_maxDays)));
+    if(picked!=null) setState(()=>_endDate=picked);
   }
 
   Future<void> _pickLogo() async {
@@ -2655,7 +2479,7 @@ class _AddProductState extends State<AddProductPage> {
     if(_selectedStore==null){setState(()=>_msg="Please select a store for this product");return;}
     if(_selCity==null||_selCity!.trim().isEmpty){setState(()=>_msg="Please select a city for this product");return;}
     if(_logoB64==null){setState(()=>_msg="Please upload a product image");return;}
-    if(_days<1){setState(()=>_msg="Enter number of days (minimum 1)");return;}
+    if(_days<1){setState(()=>_msg="Choose an end date after the start date");return;}
     setState((){_loading=true;_msg="";});
     try{
       // Item 1 (draft-store lock): send store_id here too so a draft/
@@ -2663,10 +2487,12 @@ class _AddProductState extends State<AddProductPage> {
       // (backend's create_voucher_order() treats it as optional) instead of
       // only at activation — activate_free_voucher()/verify_voucher_payment()
       // still enforce it regardless.
+      // Free vs paid and the price are decided by the backend from the live slot
+      // count - the client only sends the validity the merchant picked.
       final order=await Api.createProductOrder(widget.token,{
-        "days":_days,
         "from_date":_fromDateStr,
-        "discount_code":_appliedVCode,
+        "end_date":_endDateStr,
+        "discount_code":_nextIsFree?"":_appliedVCode,
         "store_id":(_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString(),
       });
       if(!mounted)return;
@@ -2691,7 +2517,7 @@ class _AddProductState extends State<AddProductPage> {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content:Text("✅ Product submitted! ${res['message']??''}"),
-              backgroundColor:const Color(0xFF1a6640)));
+              backgroundColor:OffroColors.statusLive));
           }
         }
       } else {
@@ -2716,7 +2542,7 @@ class _AddProductState extends State<AddProductPage> {
       "key":rzpKey,
       "amount":(order["amount_paise"] as num?)?.toInt()??0,
       "name":"OFFRO",
-      "description":"Product – ${order['days']} Days",
+      "description":"Additional product",
       "order_id":rzpOrderId,
       "prefill":{"contact":"","email":""},
       "theme":{"color":"#3E5F55"},
@@ -2769,27 +2595,28 @@ class _AddProductState extends State<AddProductPage> {
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
         _dRow("Title",_titleC.text.trim()),
         _dRow("Offer",_offerC.text.trim()),
-        _dRow("Duration","${order['days']} Days"),
+        _dRow("Plan",order['pricing_tier']=="free"?"Free product":"Additional product"),
         _dRow("Period","${order['from_date']} → ${order['end_date']}"),
-        _dRow("Rate","₹${order['price_per_day']}/day"),
-        const Divider(),
-        _dRow("Base","₹${order['base_price']}"),
-        if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
-          color:const Color(0xFF1a6640)),
-        _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
-        _dRow("Total","₹${order['amount_display']}",bold:true),
+        if(order['pricing_tier']!="free") ...[
+          const Divider(),
+          _dRow("Price","₹${order['base_price']}"),
+          if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
+            color:OffroColors.statusLive),
+          _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
+          _dRow("Total","₹${order['amount_display']}",bold:true),
+        ],
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
           decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
-          child:Text(manual?"Product will go to admin review.":"Razorpay opens. Product live after admin approval.",
+          child:Text(manual?"Product will go to admin review. No payment needed.":"Razorpay opens. Product live after admin approval.",
             style:const TextStyle(fontSize:12,color:kMerchantPrimary))),
       ]),
       actions:[
         TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
-          style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
+          style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
-          child:Text(manual?"Submit":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
+          child:Text(manual?"Save Product":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
       ],
     ));
 
@@ -2802,8 +2629,10 @@ class _AddProductState extends State<AddProductPage> {
 
   @override Widget build(BuildContext context)=>Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(title:const Text("Create Product"),backgroundColor: Colors.white, foregroundColor: kMerchantText),
+    appBar:AppBar(title:const Text("Add Product"), ),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      // Free / additional notice - shown BEFORE the form so the price is never a surprise
+      _pricingNotice(),
       // Fields
       _field(_titleC,"Product Title *","e.g. Raj Store ₹50 Off",Icons.confirmation_number),
       const SizedBox(height:12),
@@ -2844,15 +2673,15 @@ class _AddProductState extends State<AddProductPage> {
           decoration: InputDecoration(
             prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
             filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
 
       // ── City (auto-filled from store, read-only) ──
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F9F6),
+          color: OffroColors.mint,
           border: Border.all(color: kMerchantBorder),
           borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
@@ -2892,58 +2721,32 @@ class _AddProductState extends State<AddProductPage> {
         )),
       const SizedBox(height:12),
 
-      // Duration input + From Date picker
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+      // Start date + end date (merchant decides how long the product stays live)
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
+          const Text("Start & End Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
-            Expanded(child:TextField(
-              controller:_daysC,
-              keyboardType:TextInputType.number,
-              decoration:InputDecoration(
-                labelText:"Number of Days",hintText:"e.g. 30",
-                prefixIcon:const Icon(Icons.calendar_today_outlined,color:kMerchantMuted,size:18),
-                filled:true,fillColor:kMerchantBg,isDense:true,
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
-              ),
-            )),
+            Expanded(child:_dateTile("Start date",_fromDateDisplay,_pickFromDate)),
             const SizedBox(width:10),
-            Expanded(child:GestureDetector(
-              onTap:_pickFromDate,
-              child:Container(
-                padding:const EdgeInsets.symmetric(horizontal:12,vertical:13),
-                decoration:BoxDecoration(color:kMerchantBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kMerchantBorder)),
-                child:Row(children:[
-                  const Icon(Icons.event_rounded,size:18,color:kMerchantMuted),
-                  const SizedBox(width:8),
-                  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                    const Text("From Date",style:TextStyle(fontSize:11,color:kMerchantMuted)),
-                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kMerchantText,fontWeight:FontWeight.w600)),
-                  ])),
-                ]),
-              ),
-            )),
+            Expanded(child:_dateTile("End date",_endDateDisplay,_pickEndDate)),
           ]),
           if(_days>0) Padding(padding:const EdgeInsets.only(top:10),
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
               decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
               child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
-                Text("Active period:",style:const TextStyle(fontSize:12,color:kMerchantMuted)),
+                const Text("Live period:",style:TextStyle(fontSize:12,color:kMerchantMuted)),
                 Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
               ]),
             )),
-          if(_pricing!=null && _days>0) Padding(padding:const EdgeInsets.only(top:6),
-            child:Text("₹${_pricePerDay.toStringAsFixed(0)}/day × $_days days",
-              style:const TextStyle(fontSize:12,color:kMerchantMuted))),
         ])),
       const SizedBox(height:12),
 
-      if (_pricing!=null && _days>0)
+      if (_slotsKnown && !_nextIsFree && _days>0)
         Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
-            _dRow("Base Price","₹${_basePrice.toStringAsFixed(2)}"),
+            _dRow("Price",_money(_basePrice)),
+            if(_discountVAmt>0) _dRow("Discount","−${_money(_discountVAmt)}",color:OffroColors.statusLive),
             _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
             const Divider(height:16),
             _dRow("Total","₹${_total.toStringAsFixed(2)}",bold:true),
@@ -2954,11 +2757,10 @@ class _AddProductState extends State<AddProductPage> {
         child:Text(_msg,style:const TextStyle(color:Colors.red,fontSize:12))),
       const SizedBox(height:12),
 
-      // FIX 5: Discount field
-      // Item 6: Discount code field — product
-      Container(
+      // Discount code - only relevant for an additional (paid) product
+      if (_slotsKnown && !_nextIsFree) Container(
         padding:const EdgeInsets.all(14),
-        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
@@ -2973,16 +2775,16 @@ class _AddProductState extends State<AddProductPage> {
                 hintText:"e.g. OFFRO20",isDense:true,
                 prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kMerchantBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountVOk?kMerchantPrimary:kMerchantBorder)),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:_discountVOk?kMerchantPrimary:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_applyingVCode?null:_applyVDiscountCode,
-              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
+              style:ElevatedButton.styleFrom(elevation: 0,  
                 padding:const EdgeInsets.symmetric(horizontal:14,vertical:12),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                shape: const StadiumBorder()),
               child:_applyingVCode
                 ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
                 : const Text("Apply",style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
@@ -2990,19 +2792,19 @@ class _AddProductState extends State<AddProductPage> {
           ]),
           if (_discountVMsg.isNotEmpty) ...[
             const SizedBox(height:6),
-            Text(_discountVMsg,style:TextStyle(color:_discountVOk?const Color(0xFF1a6640):Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
+            Text(_discountVMsg,style:TextStyle(color:_discountVOk?OffroColors.statusLive:Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
           ],
           if (_appliedVDiscount > 0) ...[
             const SizedBox(height:6),
             Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
               decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
               child:Row(children:[
-                const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
+                const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
                 Text(_appliedVDiscountType == "PERCENTAGE"
                       ? "−₹${_discountVAmt.toStringAsFixed(2)} (${_appliedVDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
                       : "−₹${_appliedVDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
-                  style:const TextStyle(color:Color(0xFF1a6640),fontWeight:FontWeight.w700,fontSize:12)),
+                  style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
           ],
@@ -3011,9 +2813,9 @@ class _AddProductState extends State<AddProductPage> {
       const SizedBox(height:12),
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
-        label:const Text("Proceed to Checkout"),
-        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kMerchantText,
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
+        label:Text(_nextIsFree?"Save Product":"Proceed to Checkout"),
+        style:ElevatedButton.styleFrom(elevation: 0,  
+          shape: const StadiumBorder(),
           padding:const EdgeInsets.symmetric(vertical:14)),
         onPressed:_loading?null:_proceed,
       ),
@@ -3021,13 +2823,51 @@ class _AddProductState extends State<AddProductPage> {
     ])),
   );
 
+  Widget _dateTile(String label,String value,VoidCallback onTap)=>GestureDetector(
+    onTap:onTap,
+    child:Container(
+      padding:const EdgeInsets.symmetric(horizontal:12,vertical:13),
+      decoration:BoxDecoration(color:kMerchantBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kMerchantBorder)),
+      child:Row(children:[
+        const Icon(Icons.event_rounded,size:18,color:kMerchantMuted),
+        const SizedBox(width:8),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(label,style:const TextStyle(fontSize:11,color:kMerchantMuted)),
+          Text(value,style:const TextStyle(fontSize:13,color:kMerchantText,fontWeight:FontWeight.w600)),
+        ])),
+      ]),
+    ));
+
+  /// Pricing notice: free slots remaining, or the additional-product price.
+  Widget _pricingNotice(){
+    if(!_slotsKnown) return const SizedBox.shrink();
+    final free=_nextIsFree;
+    return Container(
+      margin:const EdgeInsets.only(bottom:14),
+      padding:const EdgeInsets.all(14),
+      decoration:BoxDecoration(color:OffroColors.mint,borderRadius:BorderRadius.circular(16),border:Border.all(color:kMerchantBorder)),
+      child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Icon(free?Icons.redeem_rounded:Icons.payments_outlined,color:kMerchantPrimary,size:22),
+        const SizedBox(width:12),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(free?"Free product":"Additional product",
+            style:const TextStyle(fontWeight:FontWeight.w800,fontSize:14,color:kMerchantText)),
+          const SizedBox(height:3),
+          Text(free
+            ? "You have $_freeRemaining of $_freeLimit free product slots remaining."
+            : "You have used all $_freeLimit free product slots.\nThis product will cost ${_money(_addlPrice)} + GST.",
+            style:const TextStyle(fontSize:12,color:kMerchantMuted)),
+        ])),
+      ]));
+  }
+
   Widget _field(TextEditingController c,String label,String hint,IconData icon,{TextInputType keyboardType=TextInputType.text})=>TextField(
     controller:c,
     decoration:InputDecoration(
       labelText:label,hintText:hint,prefixIcon:Icon(icon,color:kMerchantMuted,size:20),
       filled:true,fillColor:Colors.white,
-      border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
-      enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
+      border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+      enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
     ));
 }
 
@@ -3181,6 +3021,7 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
   List<Widget> get _pages => [
     MerchantHomePage(
       token: widget.token,
+      merchantName: widget.merchant['name']?.toString() ?? '',
       locationTitle: _loc?.title ?? '',
       locationSubtitle: _loc?.subtitle ?? '',
       onLocationTap: () => _chooseLocation(mandatory: false),
@@ -3204,58 +3045,19 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
     return PopScope(
       canPop: false,
       child: Scaffold(
+        backgroundColor: kMerchantBg,
         body: _pages[_idx],
-        bottomNavigationBar: BottomNavigationBar(
+        bottomNavigationBar: OffroBottomNav(
+          variant: OffroNavVariant.merchant,
+          items: OffroBottomNav.merchantItems,
           currentIndex: _idx,
-          onTap: (i) => setState(()=>_idx=i),
-          selectedItemColor: kMerchantPrimary, unselectedItemColor: kMerchantMuted,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(icon:Icon(Icons.home_rounded),label:"Home"),
-            BottomNavigationBarItem(icon:Icon(Icons.local_offer),label:"Deals"),
-            BottomNavigationBarItem(icon:Icon(Icons.receipt_long),label:"Invoices"),
-            BottomNavigationBarItem(icon:Icon(Icons.history),label:"Activity"),
-            BottomNavigationBarItem(icon:Icon(Icons.person),label:"Profile"),
-          ],
+          onTap: (i) => setState(() => _idx = i),
         ),
       ),
     );
   }
 }
 
-/// Tappable location header on Merchant Home (opens the shared Location screen).
-class _MerchantLocationBar extends StatelessWidget {
-  final String title, subtitle; final VoidCallback onTap;
-  const _MerchantLocationBar({required this.title, required this.subtitle, required this.onTap});
-  @override Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    child: Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: kMerchantBorder), bottom: BorderSide(color: kMerchantBorder)),
-      ),
-      child: Row(children: [
-        const Icon(Icons.location_on_rounded, color: kMerchantPrimary, size: 22),
-        const SizedBox(width: 8),
-        Expanded(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title.isEmpty ? 'Select location' : title,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kMerchantText)),
-            if (subtitle.isNotEmpty)
-              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11.5, color: kMerchantMuted)),
-          ],
-        )),
-        const Icon(Icons.keyboard_arrow_down_rounded, color: kMerchantMuted),
-      ]),
-    ),
-  );
-}
 class MerchantStoresPage extends StatefulWidget {
   final String token;
   const MerchantStoresPage({super.key, required this.token});
@@ -3274,17 +3076,8 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
-    appBar: AppBar(
-        toolbarHeight:58,
-        titleSpacing:16,
-        centerTitle:true,
-        title:const Text("My Stores",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kMerchantText,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kMerchantPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions:[
+    appBar: merchantHeaderBar(eyebrow: "Your business", title: "My Stores", back: true,
+                actions:[
           Padding(
             padding:const EdgeInsets.only(right:18),
             child:offroHeaderAddButton(
@@ -3309,10 +3102,10 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           // Status badge config — small, consistent, colored
           Color sc = kMerchantMuted;
           String sl = status;
-          if (status=="active") { sc=const Color(0xFF1a6640); sl="Active"; }
+          if (status=="active") { sc=OffroColors.statusLive; sl="Active"; }
           else if (status=="expired") { sc=Colors.red.shade700; sl="Expired"; }
-          else if (status=="waiting_approval") { sc=const Color(0xFF856404); sl="Pending"; }
-          else if (status=="paid") { sc=const Color(0xFF856404); sl="Paid"; }
+          else if (status=="waiting_approval") { sc=OffroColors.statusPending; sl="Pending"; }
+          else if (status=="paid") { sc=OffroColors.statusPending; sl="Paid"; }
           else if (status=="draft") { sc=kMerchantMuted; sl="Draft"; }
           else if (status=="inactive") { sc=Colors.red.shade700; sl="Inactive"; }
           else if (status=="pending") { sc=kMerchantMuted; sl="Pending"; }
@@ -3354,32 +3147,32 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:ElevatedButton.icon(
                 icon:const Icon(Icons.payment,size:15), label:const Text("Subscribe",style:TextStyle(fontSize:12)),
-                style:ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:ElevatedButton.styleFrom(elevation: 0, backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           } else if (status=="waiting_approval") {
-            _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:Color(0xFF856404),fontSize:11,fontWeight:FontWeight.w600))));
+            _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:OffroColors.statusPending,fontSize:11,fontWeight:FontWeight.w600))));
           } else if (status=="active") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.add_shopping_cart,size:15,color:kMerchantPrimary),label:const Text("Deals",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantBorder),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
                 icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kMerchantPrimary),
                 label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kMerchantPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantBorder),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:(s["qr_code"]??'').isNotEmpty
                   ?()=>_showQR(context,s["store_name"]??"",s["qr_code"]??'')
                   :() async {
@@ -3395,7 +3188,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
                 icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kMerchantPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           }
@@ -3459,18 +3252,18 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                           Container(
                             padding:const EdgeInsets.symmetric(horizontal:7,vertical:2),
                             decoration:BoxDecoration(
-                              color: status=="active" ? const Color(0xFFd1f0e0) : const Color(0xFFFFF3CD),
+                              color: status=="active" ? OffroColors.mint : const Color(0xFFFFF3CD),
                               borderRadius:BorderRadius.circular(6)),
                             child:Row(mainAxisSize:MainAxisSize.min,children:[
-                              Icon(Icons.event_available,size:11,color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404)),
+                              Icon(Icons.event_available,size:11,color: status=="active" ? OffroColors.statusLive : OffroColors.statusPending),
                               const SizedBox(width:3),
                               Text("${status=='active'?'Till':'Exp'}: ${(s['subscription_end']?.toString() ?? '').split('T').first}",
-                                style:TextStyle(color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404),fontSize:10,fontWeight:FontWeight.w700)),
+                                style:TextStyle(color: status=="active" ? OffroColors.statusLive : OffroColors.statusPending,fontSize:10,fontWeight:FontWeight.w700)),
                             ])),
                       ]),
                       // Divider above buttons
                       const SizedBox(height:8),
-                      const Divider(height:1,thickness:.5,color:Color(0xFFd4e8de)),
+                      const Divider(height:1,thickness:.5,color:OffroColors.border),
                       const SizedBox(height:8),
                       // Action buttons — computed above as a plain widget variable
                       _actionButtons,
@@ -3697,6 +3490,66 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     }
   }
 
+  Widget _locTile(String label, String value) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      Text(label.toUpperCase(),
+          style: OffroText.caption.copyWith(fontSize: 8.5, letterSpacing: .8, color: OffroColors.secondarySolid)),
+      const SizedBox(height: 2),
+      Text(value.isEmpty ? '—' : value, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: OffroText.value.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
+    ]),
+  );
+
+  /// Compact result card shown once a location exists (GPS, resolved Maps
+  /// link, or an already-saved store). Display only: it reads the same
+  /// state/city/area/address values the form already holds; lat/lng stay in
+  /// their controllers and are saved exactly as before.
+  Widget _capturedLocationCard() {
+    final addr = _addr.text.trim().isNotEmpty
+        ? _addr.text.trim()
+        : (_resolvedAddress.trim().isNotEmpty ? _resolvedAddress.trim() : _resolvedPlaceName.trim());
+    final pin = RegExp(r'\b\d{6}\b').firstMatch(addr)?.group(0) ?? '';
+    final tiles = <(String, String)>[
+      ('City', _selCity ?? ''),
+      ('State', _selState ?? ''),
+      ('Area', _area.text.trim()),
+      if (pin.isNotEmpty) ('Postal code', pin),
+    ];
+    final rows = <Widget>[];
+    for (var k = 0; k < tiles.length; k += 2) {
+      rows.add(Padding(
+        padding: EdgeInsets.only(top: k == 0 ? 0 : 6),
+        child: Row(children: [
+          Expanded(child: _locTile(tiles[k].$1, tiles[k].$2)),
+          const SizedBox(width: 6),
+          Expanded(child: k + 1 < tiles.length ? _locTile(tiles[k + 1].$1, tiles[k + 1].$2) : const SizedBox.shrink()),
+        ]),
+      ));
+    }
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(18)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const OffroIcon(OffroIcons.check, size: 13, color: OffroColors.primary),
+          const SizedBox(width: 6),
+          Text("Location captured",
+              style: OffroText.caption.copyWith(color: OffroColors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 8),
+        ...rows,
+        if (addr.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(addr, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: OffroText.caption.copyWith(fontSize: 10, color: OffroColors.secondarySolid, height: 1.35)),
+        ],
+      ]),
+    );
+  }
+
   bool get _isEdit => widget.store != null;
 
   @override void initState() {
@@ -3866,7 +3719,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     backgroundColor: kMerchantBg,
     appBar: AppBar(
         title:Text(_isEdit?"Edit Store":"Add Store"),
-        backgroundColor: Colors.white, foregroundColor: kMerchantText,
+         
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kMerchantPrimary),
           onPressed: () => Navigator.pop(context),
@@ -3884,10 +3737,22 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       // GPS location capture
       Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kMerchantBorder)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: kMerchantBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText, fontSize: 13)),
-          const SizedBox(height: 10),
+          Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: const BoxDecoration(color: OffroColors.mint, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary, filled: true),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Store location", style: OffroText.value.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
+              Text("Use GPS or paste a Maps link.", style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+            ])),
+          ]),
+          const SizedBox(height: 12),
           ElevatedButton.icon(
             // The button stays enabled even after a denial — tapping it
             // again retries the permission/location flow (see
@@ -3897,27 +3762,18 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             // surfaced only in the small message below the button.
             onPressed: _locLoading ? null : _captureGpsLocation,
             icon: _locLoading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: OffroColors.primary))
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: const Text("Current Location"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white, foregroundColor: kMerchantText,
+            label: const Text("Use current location"),
+            style: ElevatedButton.styleFrom(elevation: 0,
+              backgroundColor: OffroColors.mint, foregroundColor: OffroColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: const StadiumBorder(),
             ),
           ),
           if (_locMsg.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(_locMsg, style: const TextStyle(color: Colors.red, fontSize: 12)),
-          ],
-          if (_locConfirmed && !_mapsApplied) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: kMerchantLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(8)),
-              child: const Text("✅ GPS location captured",
-                  style: TextStyle(fontSize: 12, color: kMerchantPrimary, fontWeight: FontWeight.w600)),
-            ),
           ],
           const SizedBox(height: 14),
           // ── Blinkit-style Google Maps inline input ──────────────────
@@ -3930,7 +3786,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _mapsApplied
-                    ? const Color(0xFF1a6640)
+                    ? OffroColors.statusLive
                     : _msg.contains('resolve') || _msg.contains('Could not')
                         ? const Color(0xFFc0392b)
                         : kMerchantBorder,
@@ -3985,10 +3841,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _mapsResolving ? null : () => _resolveMapsLink(_mapsUrlCtrl.text),
-                style: ElevatedButton.styleFrom(
+                style: ElevatedButton.styleFrom(elevation: 0, 
                   backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: const StadiumBorder(),
                 ),
                 child: _mapsResolving
                     ? const SizedBox(width: 18, height: 18,
@@ -3996,54 +3852,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                     : const Text("Resolve Location", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ),
-          // ── Preview card (shows after successful resolve) ──
-          if (_resolvedPlaceName.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .4)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 6, offset: const Offset(0, 2))],
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF1a6640), size: 16),
-                  const SizedBox(width: 6),
-                  const Text("google.com",
-                      style: TextStyle(fontSize: 11, color: kMerchantMuted, fontWeight: FontWeight.w500)),
-                ]),
-                const SizedBox(height: 6),
-                Text(_resolvedPlaceName,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kMerchantText)),
-                if (_resolvedAddress.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(_resolvedAddress,
-                      style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
-                ],
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _mapsApplied ? null : () => _resolveMapsLink(_mapsUrlCtrl.text),
-                    icon: Icon(
-                      _mapsApplied ? Icons.check_rounded : Icons.location_on_rounded,
-                      size: 16),
-                    label: Text(
-                      _mapsApplied ? "✓ Location Applied" : "Apply Location",
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _mapsApplied ? const Color(0xFF1a6640) : kMerchantPrimary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-              ]),
-            ),
-          ],
+          // ── Compact captured-location card (GPS, Maps link, or saved store) ──
+          if (_locConfirmed || (_lat.text.trim().isNotEmpty && _lng.text.trim().isNotEmpty)) _capturedLocationCard(),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _field(_lat, "Latitude", Icons.gps_fixed, type: TextInputType.number)),
@@ -4096,7 +3906,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
       const SizedBox(height: 16),
       // Image picker
-      GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
+      GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
         child: _imgB64!=null
             ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_imgB64!.split(",").last),fit:BoxFit.cover,width:double.infinity))
             : (_imgUrl!=null && _imgUrl!.isNotEmpty)
@@ -4107,7 +3917,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       // Second image picker — optional logo
       const Text("Upload Logo [Optional]",style:TextStyle(color:kMerchantMuted,fontSize:12,fontWeight:FontWeight.w600)),
       const SizedBox(height:6),
-      GestureDetector(onTap:_pickImage2,child:Container(height:110,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
+      GestureDetector(onTap:_pickImage2,child:Container(height:110,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
         child: _img2B64!=null
             ? Stack(children:[
                 ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_img2B64!.split(",").last),fit:BoxFit.cover,width:double.infinity,height:110)),
@@ -4165,7 +3975,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       const SizedBox(height:20),
       SizedBox(height:50,child:ElevatedButton(
         onPressed:_loading?null:_save,
-        style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
+        style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
         child:_loading?const SizedBox(width:20,height:20,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):
             Text(_isEdit?"Save Changes":"Create Store",style:const TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
@@ -4181,9 +3991,9 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     filled:true,
     fillColor:Colors.white,
     contentPadding:const EdgeInsets.symmetric(vertical:14,horizontal:14),
-    border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
-    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantBorder)),
-    focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kMerchantPrimary,width:2)));
+    border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+    focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantPrimary,width:2)));
 }
 
 // ─────────── Subscribe Page ───────────
@@ -4402,7 +4212,7 @@ class _SubscribeState extends State<SubscribePage> {
           ]),
           actions:[
             ElevatedButton(
-              style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
               onPressed:() async {
                 Navigator.pop(ctx);
                 // If amount is 0, activate immediately via free endpoint
@@ -4450,7 +4260,7 @@ class _SubscribeState extends State<SubscribePage> {
         actions:[
           TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
           ElevatedButton(
-            style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary),
+            style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
             onPressed:() {
               Navigator.pop(context);
               _openRazorpay(_pendingOrder);
@@ -4469,9 +4279,9 @@ class _SubscribeState extends State<SubscribePage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(title:const Text("Subscribe Store"),backgroundColor: Colors.white, foregroundColor: kMerchantText),
+    appBar:AppBar(title:const Text("Subscribe Store"), ),
     body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:kMerchantBorder)),
+      Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text("Store",style:TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
           Text(widget.store["store_name"]??"",style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:kMerchantText)),
@@ -4504,7 +4314,7 @@ class _SubscribeState extends State<SubscribePage> {
             builder:(ctx,child)=>Theme(data:ThemeData(colorScheme:const ColorScheme.light(primary:kMerchantPrimary)),child:child!));
           if (d!=null) setState(()=>_fromDate=d.toIso8601String().substring(0,10));
         },
-        child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+        child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
           child:Row(children:[const Icon(Icons.calendar_today,color:kMerchantPrimary,size:18),const SizedBox(width:10),Text(_fromDate,style:const TextStyle(color:kMerchantText,fontWeight:FontWeight.w600))]))),
       if (_selectedPlanData!=null)...[
         const SizedBox(height:16),
@@ -4527,7 +4337,7 @@ class _SubscribeState extends State<SubscribePage> {
       ],
       const SizedBox(height:16),
       // ── Discount Code ──
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
           const Text("Have a discount code?",style:TextStyle(fontWeight:FontWeight.w600,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
@@ -4536,21 +4346,21 @@ class _SubscribeState extends State<SubscribePage> {
               controller:_discC,
               textCapitalization:TextCapitalization.characters,
               onChanged:(_){ if(_appliedCode!=null) setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";}); },
-              decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:BorderSide(color:kMerchantBorder))),
+              decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:kMerchantBorder))),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_validatingDisc?null:_validateDiscount,
-              style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
+              style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
               child:_validatingDisc?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Text("Apply",style:TextStyle(color:Colors.white,fontSize:13))),
           ]),
-          if (_discMsg.isNotEmpty)...[const SizedBox(height:6),Text(_discMsg,style:TextStyle(fontSize:12,color:_appliedCode!=null?const Color(0xFF1a6640):Colors.red.shade700))],
+          if (_discMsg.isNotEmpty)...[const SizedBox(height:6),Text(_discMsg,style:TextStyle(fontSize:12,color:_appliedCode!=null?OffroColors.statusLive:Colors.red.shade700))],
           if (_appliedCode!=null && _discountType!=null)...[
             const SizedBox(height:6),
             Row(children:[
               const Text("Discount: ",style:TextStyle(fontSize:12,color:kMerchantMuted)),
               Text(_discountType=="PERCENTAGE" ? "- ${_discountValue.toStringAsFixed(0)}%" : "- ₹${_discountValue.toStringAsFixed(0)}",
-                style:const TextStyle(fontSize:12,color:Color(0xFF1a6640),fontWeight:FontWeight.bold)),
+                style:const TextStyle(fontSize:12,color:OffroColors.statusLive,fontWeight:FontWeight.bold)),
               const Spacer(),
               GestureDetector(onTap:(){setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";_discC.clear();});},child:const Text("Remove",style:TextStyle(fontSize:11,color:Colors.red,decoration:TextDecoration.underline)))]),
           ],
@@ -4558,7 +4368,7 @@ class _SubscribeState extends State<SubscribePage> {
       const SizedBox(height:24),
       SizedBox(height:52,child:ElevatedButton(
         onPressed:_loading?null:_subscribe,
-        style:ElevatedButton.styleFrom(backgroundColor:kMerchantPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
+        style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
         child:const Text("Proceed to Pay",style:TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
       const SizedBox(height:24),
@@ -4736,9 +4546,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Invoices",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kMerchantText,automaticallyImplyLeading:false,
+    appBar:merchantHeaderBar(eyebrow:"Billing & subscriptions",title:"Invoices",back:false,
       actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load,tooltip:"Refresh")],
     ),
     body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):
@@ -4758,8 +4566,8 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
             itemCount:_invoices.length,
             itemBuilder:(_,i){
               final inv = _invoices[i] as Map;
-              return Card(elevation:1,margin:const EdgeInsets.only(bottom:10),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+              return Card(elevation:0,color:Colors.white,surfaceTintColor:Colors.transparent,margin:const EdgeInsets.only(bottom:12),
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:const BorderSide(color:OffroColors.border)),
                 child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Row(children:[
                     const Icon(Icons.receipt_long,color:kMerchantPrimary,size:16),
@@ -4786,7 +4594,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                             style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                           if(discCode.isNotEmpty && discAmt > 0)
                             Text("Discount ($discCode): −₹${discAmt.toStringAsFixed(2)}",
-                              style:const TextStyle(color:Color(0xFF1a6640),fontSize:11,fontWeight:FontWeight.w600)),
+                              style:const TextStyle(color:OffroColors.statusLive,fontSize:11,fontWeight:FontWeight.w600)),
                         ],
                       );
                     }),
@@ -4799,20 +4607,20 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                     Expanded(child:OutlinedButton.icon(
                       icon:const Icon(Icons.share_rounded,size:16),
                       label:const Text("Share",style:TextStyle(fontSize:12)),
-                      style:OutlinedButton.styleFrom(
+                      style:OutlinedButton.styleFrom(elevation: 0, 
                         foregroundColor:kMerchantPrimary,side:const BorderSide(color:kMerchantPrimary),
                         padding:const EdgeInsets.symmetric(vertical:8),
-                        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+                        shape: const StadiumBorder()),
                       onPressed:()=>_shareInvoice(inv),
                     )),
                     const SizedBox(width:10),
                     Expanded(child:ElevatedButton.icon(
                       icon:const Icon(Icons.download_rounded,size:16),
                       label:const Text("Download PDF",style:TextStyle(fontSize:12)),
-                      style:ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white, foregroundColor: kMerchantText,
+                      style:ElevatedButton.styleFrom(elevation: 0, 
+                         
                         padding:const EdgeInsets.symmetric(vertical:8),
-                        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+                        shape: const StadiumBorder()),
                       onPressed:()=>_printInvoice(inv),
                     )),
                   ]),
@@ -4898,9 +4706,9 @@ class _TxnState extends State<MerchantTxnPage> {
     for(final b in _banners) {
       final st=(b["approval_status"]??b["status"]??"pending").toString();
       final (Color sc,IconData si) = switch(st){
-        "approved"   => (const Color(0xFF1a6640), Icons.check_circle_outline),
+        "approved"   => (OffroColors.statusLive, Icons.check_circle_outline),
         "rejected"   => (Colors.red, Icons.cancel_outlined),
-        _ => (const Color(0xFF856404), Icons.hourglass_top_rounded),
+        _ => (OffroColors.statusPending, Icons.hourglass_top_rounded),
       };
       events.add({
         "type":"banner","icon":Icons.photo_size_select_actual_outlined,"color":const Color(0xFF2980b9),
@@ -4917,9 +4725,9 @@ class _TxnState extends State<MerchantTxnPage> {
     for(final v in _products) {
       final st=(v["approval_status"]??v["status"]??"pending").toString();
       final (Color sc,IconData si) = switch(st){
-        "approved"   => (const Color(0xFF1a6640), Icons.check_circle_outline),
+        "approved"   => (OffroColors.statusLive, Icons.check_circle_outline),
         "rejected"   => (Colors.red, Icons.cancel_outlined),
-        _ => (const Color(0xFF856404), Icons.hourglass_top_rounded),
+        _ => (OffroColors.statusPending, Icons.hourglass_top_rounded),
       };
       events.add({
         "type":"product","icon":Icons.local_activity_outlined,"color":const Color(0xFF8e44ad),
@@ -4950,27 +4758,26 @@ class _TxnState extends State<MerchantTxnPage> {
     final items = _filtered; // once per build (was recomputed, incl. a sort, for every row)
     return Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Activity",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kMerchantText,automaticallyImplyLeading:false,
+    appBar:merchantHeaderBar(eyebrow:"Business timeline",title:"Activity",back:false,
       actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load)],
     ),
     body:Column(children:[
       // Filter tabs
-      Container(decoration:const BoxDecoration(color:kMerchantPrimary),padding:const EdgeInsets.fromLTRB(12,0,12,10),
+      Container(padding:const EdgeInsets.fromLTRB(OffroSpacing.gutter,4,OffroSpacing.gutter,10),
         child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
           GestureDetector(
             behavior:HitTestBehavior.opaque,
             onTap:()=>setState(()=>_tab=e.key),
             child:Container(
               margin:const EdgeInsets.only(right:8),
-              padding:const EdgeInsets.symmetric(horizontal:14,vertical:6),
+              padding:const EdgeInsets.symmetric(horizontal:16,vertical:9),
               decoration:BoxDecoration(
-                color:_tab==e.key?Colors.white:Colors.white.withValues(alpha:.18),
-                borderRadius:BorderRadius.circular(20)),
-              child:Text(e.value,style:TextStyle(
-                color:_tab==e.key?kMerchantPrimary:Colors.white,
-                fontSize:12,fontWeight:FontWeight.w700)),
+                color:_tab==e.key?OffroColors.primary:Colors.white,
+                borderRadius:BorderRadius.circular(20),
+                border:_tab==e.key?null:Border.all(color:OffroColors.border)),
+              child:Text(e.value,style:OffroText.caption.copyWith(
+                color:_tab==e.key?Colors.white:OffroColors.primary,
+                fontSize:11,fontWeight:FontWeight.w700)),
             ),
           )).toList())),
       ),  // close filter-tabs Container
@@ -4995,10 +4802,10 @@ class _TxnState extends State<MerchantTxnPage> {
                     return Container(
                       margin:const EdgeInsets.only(bottom:8),
                       padding:const EdgeInsets.all(14),
-                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kMerchantBorder)),
+                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
                       child:Row(children:[
-                        CircleAvatar(backgroundColor:ic.withValues(alpha:.12),radius:20,
-                          child:Icon(t["icon"] as IconData,color:ic,size:18)),
+                        CircleAvatar(backgroundColor:OffroColors.mint,radius:22,
+                          child:Icon(t["icon"] as IconData,color:OffroColors.primary,size:18)),
                         const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                           Text(t["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:13)),
@@ -5071,28 +4878,26 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Profile",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kMerchantText,automaticallyImplyLeading:false),
+    appBar:merchantHeaderBar(eyebrow:"Merchant account",title:"Profile",back:false,),
     body:SingleChildScrollView(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:BorderRadius.circular(16)),
+      Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:OffroColors.mint,borderRadius:BorderRadius.circular(24)),
         child:Column(children:[
           GestureDetector(
             onTap: _pickProfileImage,
             child: Stack(alignment:Alignment.bottomRight,children:[
-              CircleAvatar(radius:44, backgroundColor:kMerchantAccent,
+              CircleAvatar(radius:44, backgroundColor:OffroColors.primary,
                 backgroundImage: _imgB64 != null && _imgB64!.startsWith("data:") ? MemoryImage(base64Decode(_imgB64!.split(",").last)) : null,
-                child: _imgB64 == null ? buildLogo(38,kMerchantLight) : null),
+                child: _imgB64 == null ? buildLogo(38,OffroColors.mint) : null),
               Container(width:26,height:26,decoration:const BoxDecoration(color:Colors.white,shape:BoxShape.circle),
                 child: _uploading ? const Padding(padding:EdgeInsets.all(4),child:CircularProgressIndicator(strokeWidth:2,color:kMerchantPrimary)) : const Icon(Icons.camera_alt,size:16,color:kMerchantPrimary)),
             ])),
           const SizedBox(height:8),
-          Text(_merchantData["name"]??"",style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.bold)),
-          Text(_merchantData["phone"]??"",style:const TextStyle(color:kMerchantAccent)),
+          Text(_merchantData["name"]??"",style:OffroText.title.copyWith(fontSize:18)),
+          Text(_merchantData["phone"]??"",style:const TextStyle(color:OffroColors.secondarySolid)),
           if((_merchantData["city"]??'').isNotEmpty)
-            Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:kMerchantAccent,fontSize:12)),
+            Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:OffroColors.secondarySolid,fontSize:12)),
           const SizedBox(height:4),
-          const Text("Tap photo to change",style:TextStyle(color:kMerchantLight,fontSize:10)),
+          const Text("Tap photo to change",style:TextStyle(color:OffroColors.secondarySolid,fontSize:10)),
         ])),
       const SizedBox(height:20),
       _tile(context,Icons.info_outline,"About Us",() => _openAbout(context)),
@@ -5101,7 +4906,7 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
       _tile(context,Icons.receipt,"Refund Policy",() => _openPolicy(context,"Refund Policy",Api.fetchPolicy("refund"))),
       _tile(context,Icons.badge,"KYC Policy",() => _openPolicy(context,"KYC Policy",Api.fetchPolicy("kyc"))),
       const SizedBox(height:8),
-      ListTile(tileColor:const Color(0xFFe8faf0),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:Color(0xFF25D366))),
+      ListTile(tileColor:OffroColors.mint,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:Color(0xFF25D366))),
         leading:const CircleAvatar(backgroundColor:Color(0xFF25D366),child:Icon(Icons.chat_bubble,color:Colors.white)),
         title:const Text("Contact Offro",style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a7a3c))),
         subtitle:const Text("Chat with us on WhatsApp",style:TextStyle(fontSize:11,color:Color(0xFF25D366))),
@@ -5118,9 +4923,9 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
       SizedBox(height:48, child: OutlinedButton.icon(
         icon: const Icon(Icons.swap_horiz_rounded, color: kMerchantPrimary),
         label: const Text("Switch Mode", style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700)),
-        style: OutlinedButton.styleFrom(
+        style: OutlinedButton.styleFrom(elevation: 0, 
           side: const BorderSide(color: kMerchantPrimary),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          shape: const StadiumBorder()),
         onPressed: () {
           showModalBottomSheet(
             context: context,
@@ -5156,7 +4961,7 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
       const SizedBox(height:12),
       SizedBox(height:48,child:OutlinedButton.icon(
         icon:const Icon(Icons.logout,color:Colors.red),label:const Text("Logout",style:TextStyle(color:Colors.red)),
-        style:OutlinedButton.styleFrom(side:const BorderSide(color:Colors.red),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12))),
+        style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:Colors.red),shape: const StadiumBorder()),
         onPressed:() async {
             await Prefs.clear(keepMode: false);
             Api.clearCache();
@@ -5170,11 +4975,11 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
   );
 
   Widget _tile(BuildContext ctx, IconData icon, String title, VoidCallback onTap) =>
-    ListTile(tileColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:kMerchantBorder)),
-      leading:CircleAvatar(backgroundColor:kMerchantLight,child:Icon(icon,color:kMerchantPrimary)),
-      title:Text(title,style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText)),
-      trailing:const Icon(Icons.chevron_right,color:kMerchantPrimary),onTap:onTap,
-      contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:4));
+    Padding(padding:const EdgeInsets.only(bottom:10),child:ListTile(tileColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:const BorderSide(color:OffroColors.border)),
+      leading:CircleAvatar(backgroundColor:OffroColors.mint,child:Icon(icon,color:OffroColors.primary,size:20)),
+      title:Text(title,style:OffroText.value.copyWith(fontSize:13,fontWeight:FontWeight.w600)),
+      trailing:const Icon(Icons.chevron_right,color:OffroColors.secondarySolid),onTap:onTap,
+      contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:4)));
 
   void _openAbout(BuildContext ctx) async {
     final c = await Api.getAboutUs();
@@ -5291,12 +5096,8 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
-    appBar: AppBar(
-        toolbarHeight:58,
-        titleSpacing:16,
-        centerTitle:true,
-        title:const Text("My Deals",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kMerchantText, automaticallyImplyLeading:false,
+    appBar: merchantHeaderBar(eyebrow: "Merchant offers", title: "My Deals", back: false,
+        
         actions:[
           Padding(
             padding:const EdgeInsets.only(right:18),
@@ -5360,13 +5161,13 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
             );
           } else {
             leadingWidget = Container(width: 44, height: 44,
-              decoration: BoxDecoration(color: kMerchantLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(14)),
               child: Center(child: hasDisc
                   ? Text(discPct, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold, fontSize: 13))
                   : const Icon(Icons.local_offer_outlined, color: kMerchantPrimary, size: 18)));
           }
-          return Card(elevation: 2, margin: const EdgeInsets.only(bottom: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          return Card(elevation: 0, color: Colors.white, surfaceTintColor: Colors.transparent, margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: const BorderSide(color: OffroColors.border)),
             child: ListTile(
               leading: leadingWidget,
               title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kMerchantText)),
@@ -5426,7 +5227,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                         content: Text("Delete \"${d['title']}\"?"),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-                          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          ElevatedButton(style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: Colors.red),
                             onPressed: () => Navigator.pop(context, true), child: const Text("Delete", style: TextStyle(color: Colors.white))),
                         ]));
                     if (confirm == true) {
@@ -5625,12 +5426,12 @@ class _AddDealState extends State<AddDealPage> {
         await Api.updateDeal(widget.token, widget.editDeal!["_id"].toString(), payload);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Deal updated!"), backgroundColor: Color(0xFF1a6640)));
+          content: Text("Deal updated!"), backgroundColor: OffroColors.statusLive));
       } else {
         await Api.addDeal(widget.token, payload);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Deal added!"), backgroundColor: Color(0xFF1a6640)));
+          content: Text("Deal added!"), backgroundColor: OffroColors.statusLive));
       }
       Navigator.pop(context);
     } catch (e) { setState(() => _msg = friendlyError(e)); }
@@ -5639,7 +5440,7 @@ class _AddDealState extends State<AddDealPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
-    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)), backgroundColor: Colors.white, foregroundColor: kMerchantText),
+    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)),  ),
     body: SingleChildScrollView(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.stores.length > 1) ...[
         DropdownButtonFormField<String>(
@@ -5650,8 +5451,8 @@ class _AddDealState extends State<AddDealPage> {
               child: Text(s["store_name"]?.toString() ?? "", overflow: TextOverflow.ellipsis))).toList(),
           onChanged: (v) { if (v != null) { final s = widget.stores.firstWhere((s) => s["_id"] == v, orElse: () => <String,dynamic>{}); setState(() { _selectedStoreId = v; _selectedStoreName = s["store_name"] ?? ""; }); _loadStoreExpiry(); } },
           decoration: InputDecoration(labelText: "Store", prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
-            filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
+            filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
         const SizedBox(height: 14),
       ] else
         Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 14),
@@ -5660,8 +5461,8 @@ class _AddDealState extends State<AddDealPage> {
             Text(_selectedStoreName, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w600))])),
       TextField(controller: _title,
         decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMerchantMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(
         isExpanded: true,
@@ -5669,13 +5470,13 @@ class _AddDealState extends State<AddDealPage> {
         items: _categories.map((e) { final c=(e is Map?e['name']:e).toString(); return DropdownMenuItem<String>(value:c,child:Text(c)); }).toList(),
         onChanged: (v) => setState(() => _category = v ?? ""),
         decoration: InputDecoration(hintText: "Category", prefixIcon: const Icon(Icons.category, color: kMerchantMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       TextField(controller: _desc, maxLines: 3,
         decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMerchantMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kMerchantBorder)))),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       // ── Item 3: Deal Image (optional) ──
       const Text("Deal Image", style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
@@ -5729,7 +5530,7 @@ class _AddDealState extends State<AddDealPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(12),
+            color: Colors.white, borderRadius: BorderRadius.circular(22),
             border: Border.all(color: kMerchantBorder)),
           child: Row(children: [
             const Icon(Icons.calendar_today_rounded, color: kMerchantMuted, size: 20),
@@ -5750,7 +5551,7 @@ class _AddDealState extends State<AddDealPage> {
       const SizedBox(height: 20),
       SizedBox(height: 50, child: ElevatedButton(
         onPressed: _loading ? null : _save,
-        style: ElevatedButton.styleFrom(backgroundColor: kMerchantPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+        style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: kMerchantPrimary, shape: const StadiumBorder()),
         child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
           : Text(_isEdit ? "Save Changes" : "Add Deal", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)))),
       if (_msg.isNotEmpty) ...[const SizedBox(height: 10),
@@ -5911,7 +5712,7 @@ class _BannerVideoTileState extends State<_BannerVideoTile> {
     // Loading placeholder
     return Container(
       width: double.infinity, height: 120,
-      color: const Color(0xFF3E5F55),
+      color: OffroColors.primary,
       child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
     );
   }
@@ -6004,8 +5805,7 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
     return Scaffold(
       backgroundColor: kMerchantBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kMerchantText,
+         
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text("Privacy Policy", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
@@ -6107,8 +5907,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
     return Scaffold(
       backgroundColor: kMerchantBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kMerchantText,
+         
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text("Delete Account", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
@@ -6185,12 +5984,12 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
               onPressed: _selectedReason == null ? null : () => _showConfirmDialog(),
               icon: const Icon(Icons.delete_forever_rounded, size: 20),
               label: const Text("Submit Delete Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              style: ElevatedButton.styleFrom(
+              style: ElevatedButton.styleFrom(elevation: 0, 
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: Colors.red.withOpacity(0.3),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: const StadiumBorder(),
               ),
             ),
           ),
@@ -6220,9 +6019,9 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
               Navigator.pop(ctx);
               _submitDeletion();
             },
-            style: ElevatedButton.styleFrom(
+            style: ElevatedButton.styleFrom(elevation: 0, 
               backgroundColor: Colors.red, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: const StadiumBorder(),
             ),
             child: const Text("Yes, Delete", style: TextStyle(fontWeight: FontWeight.w700)),
           ),
@@ -6257,9 +6056,9 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
                   (_) => false,
                 );
               },
-              style: ElevatedButton.styleFrom(
+              style: ElevatedButton.styleFrom(elevation: 0, 
                 backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: const StadiumBorder(),
               ),
               child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w700)),
             ),
