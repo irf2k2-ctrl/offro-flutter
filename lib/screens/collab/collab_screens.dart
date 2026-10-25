@@ -90,8 +90,11 @@ class _CollabWorkspacePageState extends State<CollabWorkspacePage> {
   }
 
   Future<void> _create() async {
+    // Typed route: appRoute() returns PageRoute<dynamic>, which can't be passed
+    // where Navigator.push<bool> expects Route<bool>.
     final ok = await Navigator.push<bool>(
-        context, appRoute(CampaignBriefPage(token: widget.token)));
+        context,
+        MaterialPageRoute<bool>(builder: (_) => CampaignBriefPage(token: widget.token)));
     if (ok == true) _load();
   }
 
