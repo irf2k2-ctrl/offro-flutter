@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/design/offro_tokens.dart' show OffroColors;
@@ -13,7 +14,7 @@ import '../../core/services/error_mapper.dart';
 // RENEW PRODUCT PAGE
 // The merchant picks the new end date. The backend decides - at order time AND
 // again on confirmation - whether this renewal is free (a free product slot is
-// available) or charged at the current additional-product price.
+// available) or charged at the configured price per day for the days added.
 // ══════════════════════════════════════════════════════════════════════
 class RenewProductPage extends StatefulWidget {
   final String token;
@@ -31,10 +32,15 @@ class _RenewProductPageState extends State<RenewProductPage> {
   Map<String,dynamic>? _pendingOrder;
   late Razorpay _razorpay;
   late DateTime _newEnd;
+  final _addDaysC = TextEditingController(text: "30");
 
   String get _pid => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
   bool get _isFree => _slots == null ? true : (_slots!["next_is_free"] as bool? ?? true);
-  double get _price => (_slots?["additional_price"] as num?)?.toDouble() ?? 0;
+  double get _pricePerDay => (_slots?["price_per_day"] as num?)?.toDouble() ?? 0;
+  /// Days being added (billable): new end date minus the day the extension starts from.
+  int get _addedDays => _newEnd.difference(_renewFrom).inDays;
+  // Preview only: price per day × added days. The order response is authoritative.
+  double get _price => _addedDays < 1 ? 0 : double.parse((_pricePerDay * _addedDays).toStringAsFixed(2));
   double get _gstPct => (_slots?["gst_pct"] as num?)?.toDouble() ?? 18;
   int get _maxDays => (_slots?["max_validity_days"] as num?)?.toInt() ?? 365;
   double get _gstAmt => double.parse((_price * _gstPct / 100).toStringAsFixed(2));
@@ -67,11 +73,13 @@ class _RenewProductPageState extends State<RenewProductPage> {
   }
 
   DateTime get _curEnd => _parseAnyDate(widget.product["end_date"]?.toString() ?? "") ?? DateTime.now();
-  /// Renewal extends from today when expired, from the current end date otherwise.
+  /// The last day already paid for (same rule as the backend): the current end date while the
+  /// product is live, yesterday once it has expired - so added days start the day after.
   DateTime get _renewFrom {
     final t = DateTime.now();
-    final today = DateTime(t.year, t.month, t.day);
-    return _curEnd.isAfter(today) ? DateTime(_curEnd.year, _curEnd.month, _curEnd.day) : today;
+    final yesterday = DateTime(t.year, t.month, t.day).subtract(const Duration(days: 1));
+    final cur = DateTime(_curEnd.year, _curEnd.month, _curEnd.day);
+    return cur.isAfter(yesterday) ? cur : yesterday;
   }
 
   @override void initState() {
@@ -82,7 +90,13 @@ class _RenewProductPageState extends State<RenewProductPage> {
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPayError);
     _loadSlots();
   }
-  @override void dispose() { _discountCtrl.dispose(); _razorpay.clear(); super.dispose(); }
+  @override void dispose() { _discountCtrl.dispose(); _addDaysC.dispose(); _razorpay.clear(); super.dispose(); }
+
+  void _setAddedDays(String raw) {
+    final n = int.tryParse(raw.trim());
+    if (n == null || n < 1) return;
+    setState(() => _newEnd = _renewFrom.add(Duration(days: n)));
+  }
 
   Future<void> _loadSlots() async {
     final s = await Api.getProductSlots(widget.token, excludeId: _pid);
@@ -95,8 +109,8 @@ class _RenewProductPageState extends State<RenewProductPage> {
       context: context,
       initialDate: _newEnd.isBefore(first) ? first : _newEnd,
       firstDate: first,
-      lastDate: _renewFrom.add(Duration(days: _maxDays)));
-    if (picked != null) setState(() => _newEnd = picked);
+      lastDate: DateTime.now().add(Duration(days: _maxDays - 1)));
+    if (picked != null) setState(() { _newEnd = picked; _addDaysC.text = "$_addedDays"; });
   }
 
   Future<void> _applyDiscount() async {
@@ -115,7 +129,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
   }
 
   Future<void> _proceed() async {
-    if (!_newEnd.isAfter(_renewFrom)) { setState(() => _msg = "Choose an end date after ${_fmtDate(_renewFrom)}"); return; }
+    if (!_newEnd.isAfter(_renewFrom)) { setState(() => _msg = "Choose a later end date (add at least 1 day)"); return; }
     setState(() { _loading = true; _msg = ""; });
     try {
       // The backend re-counts slots here - the preview above is only an estimate.
@@ -275,7 +289,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
               const SizedBox(height: 4),
               Text(_isFree
                   ? "A free product slot is available ($used of $limit in use), so this renewal is free."
-                  : "You are using all $limit free product slots. Renewing costs ${_fmtAmt(_price)} + GST.",
+                  : "You are using all $limit free product slots. Renewing costs ${_fmtAmt(_pricePerDay)} per day added + GST.",
                 style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
             ]),
           ),
@@ -284,7 +298,21 @@ class _RenewProductPageState extends State<RenewProductPage> {
           _CheckoutCard(
             title: "New end date",
             subtitle: "Choose how long the product stays live.",
-            child: GestureDetector(
+            child: Column(children: [
+              TextField(
+                controller: _addDaysC,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: _setAddedDays,
+                decoration: InputDecoration(
+                  labelText: "Days to add",
+                  prefixIcon: const Icon(Icons.calendar_month_rounded, color: kMerchantMuted, size: 20),
+                  filled: true, fillColor: kMerchantBg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14))),
+              const SizedBox(height: 10),
+              GestureDetector(
               onTap: _pickEnd,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -301,6 +329,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
                 ]),
               ),
             ),
+            ]),
           ),
 
           if (_slots != null && !_isFree) ...[
@@ -310,7 +339,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(14)),
               child: Column(children: [
-                _PriceRow("Price", _fmtAmt(_price)),
+                _PriceRow("$_addedDays ${_addedDays == 1 ? 'day' : 'days'} × ${_fmtAmt(_pricePerDay)}/day", _fmtAmt(_price)),
                 _PriceRow("GST (${_gstPct.toInt()}%)", _fmtAmt(_gstAmt)),
                 const Divider(height: 20),
                 _PriceRow("Total", _fmtAmt(_total), bold: true),

@@ -1978,9 +1978,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     final used  = (s["used"] as num?)?.toInt() ?? 0;
     final limit = (s["free_limit"] as num?)?.toInt();
     if (limit == null) return const SizedBox.shrink();   // limit unknown → show nothing, never a made-up number
-    final price = (s["additional_price"] as num?)?.toDouble() ?? 0;
+    final ppd = (s["price_per_day"] as num?)?.toDouble() ?? 0;
     final allUsed = used >= limit;
-    final priceTxt = price == price.truncate() ? "₹${price.toInt()}" : "₹${price.toStringAsFixed(2)}";
+    final priceTxt = ppd == ppd.truncate() ? "₹${ppd.toInt()}" : "₹${ppd.toStringAsFixed(2)}";
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
@@ -2006,7 +2006,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             valueColor: const AlwaysStoppedAnimation<Color>(kMerchantPrimary))),
         if (allUsed) ...[
           const SizedBox(height: 8),
-          Text("Additional products are charged at $priceTxt each.",
+          Text("Additional products are charged at $priceTxt per day of validity.",
             style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
         ],
       ]),
@@ -2335,8 +2335,9 @@ class _AddProductState extends State<AddProductPage> {
   String? _logoB64; bool _loading=false; String _msg="";
   DateTime _fromDate = DateTime.now();
   // Merchant-chosen end date (valid through that day).
-  DateTime _endDate  = DateTime.now().add(const Duration(days:30));
-  Map<String,dynamic>? _slots;   // free-slot usage + additional price (estimate; backend decides)
+  DateTime _endDate  = DateTime.now().add(const Duration(days:29));
+  final _daysC = TextEditingController(text:"30");   // subscription length in days (synced with end date)
+  Map<String,dynamic>? _slots;   // free-slot usage + price per day (estimate; backend decides)
   String? _selCity;
   // ── Store selection ──
   List<Map<String,dynamic>> _stores = [];
@@ -2383,7 +2384,7 @@ class _AddProductState extends State<AddProductPage> {
       if (city.isNotEmpty) _selCity = city;
     });
   }
-  @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_discountVC.dispose(); _razorpay.clear(); super.dispose(); }
+  @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_discountVC.dispose(); _daysC.dispose(); _razorpay.clear(); super.dispose(); }
 
   Future<void> _loadSlots() async {
     final sl = await Api.getProductSlots(widget.token);
@@ -2391,15 +2392,17 @@ class _AddProductState extends State<AddProductPage> {
   }
 
   DateTime get _fromDay => DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
-  int get _days => DateTime(_endDate.year, _endDate.month, _endDate.day).difference(_fromDay).inDays;
+  // Inclusive: a product is live THROUGH its end date (start == end is 1 day).
+  int get _days => DateTime(_endDate.year, _endDate.month, _endDate.day).difference(_fromDay).inDays + 1;
   bool get _slotsKnown => _slots != null;
   bool get _nextIsFree => _slots == null ? true : (_slots!["next_is_free"] as bool? ?? true);
   int get _freeLimit => (_slots?["free_limit"] as num?)?.toInt() ?? 0;
   int get _freeRemaining => (_slots?["free_remaining"] as num?)?.toInt() ?? 0;
   int get _maxDays => (_slots?["max_validity_days"] as num?)?.toInt() ?? 365;
-  double get _addlPrice => (_slots?["additional_price"] as num?)?.toDouble() ?? 0;
+  double get _pricePerDay => (_slots?["price_per_day"] as num?)?.toDouble() ?? 0;
   String _money(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
-  double get _basePrice => _nextIsFree ? 0 : double.parse(_addlPrice.toStringAsFixed(2));
+  // Preview only: price = configured per-day price × days. The order response is authoritative.
+  double get _basePrice => _nextIsFree || _days < 1 ? 0 : double.parse((_pricePerDay * _days).toStringAsFixed(2));
   double get _gstPct=>(_slots?["gst_pct"] as num?)?.toDouble()??18;
   double get _discountVAmt => previewDiscountAmount(_basePrice, _appliedVDiscountType, _appliedVDiscount);
   double get _taxableV => (_basePrice - _discountVAmt) < 0 ? 0 : (_basePrice - _discountVAmt);
@@ -2415,17 +2418,24 @@ class _AddProductState extends State<AddProductPage> {
     final picked=await showDatePicker(context:context,initialDate:_fromDate,
       firstDate:DateTime.now(),lastDate:DateTime.now().add(const Duration(days:365)));
     if(picked!=null) setState((){
+      final keep=_days<1?30:_days;          // keep the chosen number of days when the start moves
       _fromDate=picked;
-      if(!_endDate.isAfter(picked)) _endDate=picked.add(const Duration(days:30));
+      _endDate=DateTime(picked.year,picked.month,picked.day).add(Duration(days:keep-1));
     });
   }
 
+  void _setDaysFromText(String raw){
+    final n=int.tryParse(raw.trim());
+    if(n==null||n<1) return;
+    setState((){ _endDate=_fromDay.add(Duration(days:n-1)); });
+  }
+
   Future<void> _pickEndDate() async {
-    final first=_fromDay.add(const Duration(days:1));
+    final first=_fromDay;
     final picked=await showDatePicker(context:context,
       initialDate:_endDate.isBefore(first)?first:_endDate,
-      firstDate:first,lastDate:_fromDay.add(Duration(days:_maxDays)));
-    if(picked!=null) setState(()=>_endDate=picked);
+      firstDate:first,lastDate:_fromDay.add(Duration(days:_maxDays-1)));
+    if(picked!=null) setState((){ _endDate=picked; _daysC.text="$_days"; });
   }
 
   Future<void> _pickLogo() async {
@@ -2479,7 +2489,8 @@ class _AddProductState extends State<AddProductPage> {
     if(_selectedStore==null){setState(()=>_msg="Please select a store for this product");return;}
     if(_selCity==null||_selCity!.trim().isEmpty){setState(()=>_msg="Please select a city for this product");return;}
     if(_logoB64==null){setState(()=>_msg="Please upload a product image");return;}
-    if(_days<1){setState(()=>_msg="Choose an end date after the start date");return;}
+    if(_days<1){setState(()=>_msg="Enter the number of days (minimum 1)");return;}
+    if(_slotsKnown && _days>_maxDays){setState(()=>_msg="Maximum validity is $_maxDays days");return;}
     setState((){_loading=true;_msg="";});
     try{
       // Item 1 (draft-store lock): send store_id here too so a draft/
@@ -2492,6 +2503,7 @@ class _AddProductState extends State<AddProductPage> {
       final order=await Api.createProductOrder(widget.token,{
         "from_date":_fromDateStr,
         "end_date":_endDateStr,
+        "days":_days,
         "discount_code":_nextIsFree?"":_appliedVCode,
         "store_id":(_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString(),
       });
@@ -2724,13 +2736,28 @@ class _AddProductState extends State<AddProductPage> {
       // Start date + end date (merchant decides how long the product stays live)
       Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Start & End Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
+          const Text("Validity (Days)",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
             Expanded(child:_dateTile("Start date",_fromDateDisplay,_pickFromDate)),
             const SizedBox(width:10),
             Expanded(child:_dateTile("End date",_endDateDisplay,_pickEndDate)),
           ]),
+          const SizedBox(height:10),
+          TextField(
+            controller:_daysC,
+            keyboardType:TextInputType.number,
+            inputFormatters:[FilteringTextInputFormatter.digitsOnly],
+            onChanged:_setDaysFromText,
+            decoration:InputDecoration(
+              labelText:"Number of days",
+              hintText:"e.g. 30",
+              helperText:_slotsKnown?"Maximum $_maxDays days":null,
+              prefixIcon:const Icon(Icons.calendar_month_rounded,color:kMerchantMuted,size:20),
+              filled:true,fillColor:Colors.white,
+              border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+              contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:14))),
           if(_days>0) Padding(padding:const EdgeInsets.only(top:10),
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
               decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
@@ -2742,10 +2769,13 @@ class _AddProductState extends State<AddProductPage> {
         ])),
       const SizedBox(height:12),
 
+      if (_slotsKnown && _nextIsFree && _days>0)
+        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
+          child:_dRow("$_days ${_days==1?'day':'days'}","Free (₹0)",bold:true)),
       if (_slotsKnown && !_nextIsFree && _days>0)
         Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
-            _dRow("Price",_money(_basePrice)),
+            _dRow("$_days ${_days==1?'day':'days'} × ${_money(_pricePerDay)}/day",_money(_basePrice)),
             if(_discountVAmt>0) _dRow("Discount","−${_money(_discountVAmt)}",color:OffroColors.statusLive),
             _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
             const Divider(height:16),
@@ -2855,7 +2885,7 @@ class _AddProductState extends State<AddProductPage> {
           const SizedBox(height:3),
           Text(free
             ? "You have $_freeRemaining of $_freeLimit free product slots remaining."
-            : "You have used all $_freeLimit free product slots.\nThis product will cost ${_money(_addlPrice)} + GST.",
+            : "You have used all $_freeLimit free product slots.\nPrice is ${_money(_pricePerDay)} per day + GST for the days you choose.",
             style:const TextStyle(fontSize:12,color:kMerchantMuted)),
         ])),
       ]));
