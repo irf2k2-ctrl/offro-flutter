@@ -919,6 +919,24 @@ class Api {
     } catch (_) { return null; }
   }
 
+  // ── Creator Collaborations ──────────────────────────────────────────────
+  static Future<Map<String,dynamic>> collabOptions(String token) async =>
+    Map<String,dynamic>.from(await _get("/merchant/collab/options", token: token));
+  static Future<Map<String,dynamic>> collabCreateCampaign(String token, Map body) =>
+    _post("/merchant/collab/campaigns", body, token: token);
+  static Future<Map<String,dynamic>> collabCampaigns(String token) async =>
+    Map<String,dynamic>.from(await _get("/merchant/collab/campaigns", token: token));
+  static Future<Map<String,dynamic>> collabProposals(String token, String id) async =>
+    Map<String,dynamic>.from(await _get("/merchant/collab/campaigns/$id/proposals", token: token));
+  static Future<dynamic> collabClose(String token, String id) =>
+    _put("/merchant/collab/campaigns/$id/close", {}, token: token);
+  static Future<Map<String,dynamic>> influencerOpportunities(String token) async =>
+    Map<String,dynamic>.from(await _get("/influencer/opportunities", token: token));
+  static Future<Map<String,dynamic>> influencerOpportunity(String token, String id) async =>
+    Map<String,dynamic>.from(await _get("/influencer/opportunities/$id", token: token));
+  static Future<Map<String,dynamic>> influencerRespond(String token, String id, bool accept) =>
+    _post("/influencer/opportunities/$id/${accept ? 'accept' : 'decline'}", {}, token: token);
+
   static Future<Map<String,dynamic>> createProductOrder(String token, Map body) =>
     _post("/merchant/products/order", body, token: token);
 

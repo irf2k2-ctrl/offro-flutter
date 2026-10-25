@@ -36,6 +36,7 @@ import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../payment/payment_success_screen.dart';
 import 'products_phase2.dart';
+import '../collab/collab_screens.dart' show CollabWorkspacePage;
 // Round 7 Item 2: reuse the existing full-screen image viewer for the Merchant
 // Deals list thumbnail tap-to-view — no duplicate viewer implementation.
 import '../store/widgets/store_header.dart' show FullScreenImageViewer;
@@ -377,6 +378,18 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                     onTap: _hasActiveStore
                       ? () => Navigator.push(context, appRoute(MerchantProductsPage(token: widget.token))).then((_) => _refreshParts(products: true, slots: true))
                       : () => _lockedSnack("Subscribe your store to add products."),
+                  ),
+                  const SizedBox(height: 12),
+                  // Creator collaborations — brief, match and manage local creators
+                  _SectionCard(
+                    icon: OffroIcons.sparkles,
+                    bgColor: OffroTones.fashion.background,
+                    title: "Creator collaborations",
+                    locked: !_hasActiveStore,
+                    subtitle: "Brief, match and manage local creators",
+                    onTap: _hasActiveStore
+                      ? () => Navigator.push(context, appRoute(CollabWorkspacePage(token: widget.token)))
+                      : () => _lockedSnack("Subscribe your store to work with creators."),
                   ),
                 ]),
               ),

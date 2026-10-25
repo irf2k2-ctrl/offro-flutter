@@ -15,6 +15,7 @@ import '../home/influencer_section.dart' show InfluencerProfileScreen;
 import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones, OffroBottomNav, OffroNavVariant, OffroNavItem, OffroScreenHeader;
 import '../../core/widgets/brand_logo.dart' show buildImageLogo;
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
+import '../collab/collab_screens.dart' show InfluencerOpportunitiesView;
 
 /// Local equivalent of the file-private `_timeAgo()` helpers already used
 /// elsewhere (lib/main.dart, notifications_page.dart) — same exact pattern,
@@ -207,13 +208,11 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
   Widget _tabBody() {
     switch (_tab) {
       case 1:
-        return _placeholderTab(
-          eyebrow: "Matched locally",
-          title: "Opportunities",
-          description: "Review collaboration requests from relevant merchants in your city.",
-          icon: OffroIcons.sparkles,
-          emptyTitle: "No collaboration requests yet",
-          emptyBody: "Requests from merchants will appear here once collaboration is available for your account.",
+        return InfluencerOpportunitiesView(
+          token: widget.token,
+          headerTrailing: widget.onSwitchMode == null
+              ? null
+              : Row(mainAxisSize: MainAxisSize.min, children: _headerActions(withShare: false)),
         );
       case 2:
         return _placeholderTab(
