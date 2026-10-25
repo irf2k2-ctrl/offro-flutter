@@ -129,10 +129,51 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   int? _freeLimit;  // admin-configured free product slots (from the backend; null until loaded)
   int  _slotsUsed = 0;   // qualifying products (backend count)
 
+  // Data already on screen is kept while a refresh runs (no full-screen spinner after the
+  // first load), and overlapping loads share one request instead of firing duplicates.
+  bool _hasData = false;
+  Future<void>? _inFlight;
+
   @override void initState() { super.initState(); _load(); }
 
-  Future<void> _load({int retryCount = 0}) async {
-    setState(()=>_loading=true);
+  Future<void> _load({int retryCount = 0}) {
+    if (_inFlight != null && retryCount == 0) return _inFlight!;
+    final f = _loadAll(retryCount: retryCount);
+    if (retryCount == 0) {
+      _inFlight = f;
+      f.whenComplete(() { if (identical(_inFlight, f)) _inFlight = null; });
+    }
+    return f;
+  }
+
+  /// Refresh only the parts a sub-screen can have changed (instead of re-fetching everything
+  /// every time the merchant navigates back). Silent: current data stays visible.
+  Future<void> _refreshParts({bool stores = false, bool banners = false, bool products = false, bool slots = false}) async {
+    try {
+      final r = await Future.wait<dynamic>([
+        stores   ? Api.getMerchantStores(widget.token).timeout(const Duration(seconds: 15))   : Future<dynamic>.value(null),
+        banners  ? Api.getMerchantBanners(widget.token).timeout(const Duration(seconds: 10))  : Future<dynamic>.value(null),
+        products ? Api.getMerchantProducts(widget.token).timeout(const Duration(seconds: 10)) : Future<dynamic>.value(null),
+        slots    ? Api.getProductLimit(widget.token).timeout(const Duration(seconds: 10))     : Future<dynamic>.value(null),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        if (r[0] is Iterable) _stores   = List<Map<String,dynamic>>.from(r[0] as Iterable);
+        if (r[1] is Iterable) _banners  = List<Map<String,dynamic>>.from(r[1] as Iterable);
+        if (r[2] is Iterable) _products = List<Map<String,dynamic>>.from(r[2] as Iterable);
+        if (r[3] is Map) {
+          final limitMap = Map<String,dynamic>.from(r[3] as Map);
+          _freeLimit = (limitMap["free_limit"] as num?)?.toInt() ?? _freeLimit;
+          _slotsUsed = (limitMap["used"] as num?)?.toInt() ?? _slotsUsed;
+        }
+      });
+    } catch (e) {
+      debugPrint('[MerchantHome] partial refresh error: $e');   // keep what is on screen
+    }
+  }
+
+  Future<void> _loadAll({int retryCount = 0}) async {
+    if (!_hasData) setState(()=>_loading=true);
     try {
       final storesFuture   = Api.getMerchantStores(widget.token).timeout(const Duration(seconds: 15));
       final bannersFuture  = Api.getMerchantBanners(widget.token).timeout(const Duration(seconds: 10));
@@ -149,14 +190,15 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
         _slotsUsed = (limitMap["used"] as num?)?.toInt() ?? 0;
         _loading  = false;
         _loadError = false;
+        _hasData = true;
       });
     } catch(e) {
       debugPrint('[MerchantHome] _load error (attempt ${retryCount+1}): $e');
       if (retryCount == 0 && mounted) {
         await Future.delayed(const Duration(seconds: 2));
-        return _load(retryCount: 1);
+        return _loadAll(retryCount: 1);
       }
-      if (mounted) setState(() { _loading = false; _loadError = true; });
+      if (mounted) setState(() { _loading = false; _loadError = !_hasData; });
     }
   }
 
@@ -310,7 +352,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                     bgColor: OffroColors.mint,
                     title: "My Store",
                     subtitle: _storeNote,
-                    onTap: () => Navigator.push(context, appRoute(MerchantStoresPage(token: widget.token))).then((_) => _load()),
+                    onTap: () => Navigator.push(context, appRoute(MerchantStoresPage(token: widget.token))).then((_) => _refreshParts(stores: true, slots: true)),
                   ),
                   const SizedBox(height: 12),
                   // Banner card — locked until a subscribed+active store exists
@@ -321,7 +363,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                     locked: !_hasActiveStore,
                     subtitle: _bannerNote,
                     onTap: _hasActiveStore
-                      ? () => Navigator.push(context, appRoute(MerchantBannersPage(token: widget.token))).then((_) => _load())
+                      ? () => Navigator.push(context, appRoute(MerchantBannersPage(token: widget.token))).then((_) => _refreshParts(banners: true))
                       : () => _lockedSnack("Subscribe your store to create banners."),
                   ),
                   const SizedBox(height: 12),
@@ -333,7 +375,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                     locked: !_hasActiveStore,
                     subtitle: _productNote,
                     onTap: _hasActiveStore
-                      ? () => Navigator.push(context, appRoute(MerchantProductsPage(token: widget.token))).then((_) => _load())
+                      ? () => Navigator.push(context, appRoute(MerchantProductsPage(token: widget.token))).then((_) => _refreshParts(products: true, slots: true))
                       : () => _lockedSnack("Subscribe your store to add products."),
                   ),
                 ]),
@@ -815,6 +857,8 @@ class _AddBannerState extends State<AddBannerPage> {
   final _daysC     = TextEditingController(text:"30");
   final _discountC = TextEditingController();
   String? _imgB64; bool _loading = false; String _msg = "";
+  // Renew: the existing banner's image (CDN url) stays in use unless the merchant replaces/removes it.
+  String? _existingImgUrl;
   // Banner media: "image" (default, unchanged) or "video" (max 15 s / 10 MB).
   static const int _kVideoMaxBytes = 10 * 1024 * 1024;
   static const Duration _kVideoMaxDuration = Duration(seconds: 15);
@@ -884,7 +928,7 @@ class _AddBannerState extends State<AddBannerPage> {
   }
 
   // What gets sent as the banner media: the CDN video url, or the image data URI.
-  String? get _mediaPayload => _mediaType == "video" ? _videoUrl : _imgB64;
+  String? get _mediaPayload => _mediaType == "video" ? _videoUrl : (_imgB64 ?? _existingImgUrl);
 
   void _videoError(String message) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -981,7 +1025,7 @@ class _AddBannerState extends State<AddBannerPage> {
     final c = _videoCtrl;
     final has = c != null && c.value.isInitialized;
     return GestureDetector(
-      onTap: has ? null : _pickVideo,
+      onTap: has ? null : _pickVideo,   // (an existing renewed video is replaced by tapping)
       child: Container(
         height: 110,
         decoration: BoxDecoration(
@@ -1004,6 +1048,21 @@ class _AddBannerState extends State<AddBannerPage> {
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                     child: const Icon(Icons.close, color: Colors.white, size: 14)))),
               ])
+            : (_videoUrl != null && _videoPath == null)
+            ? Stack(children: [
+                Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.check_circle_outline, size: 34, color: kMerchantPrimary),
+                  const SizedBox(height: 6),
+                  const Text("Existing banner video will be reused", style: TextStyle(color: kMerchantText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 3),
+                  const Text("Tap to replace", style: TextStyle(color: kMerchantMuted, fontSize: 11)),
+                ])),
+                Positioned(top: 6, right: 6, child: GestureDetector(
+                  onTap: _removeVideo,
+                  child: Container(padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+              ])
             : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const Icon(Icons.video_library_outlined, size: 36, color: kMerchantAccent),
                 const SizedBox(height: 6),
@@ -1019,8 +1078,8 @@ class _AddBannerState extends State<AddBannerPage> {
     if (_selectedBannerStore==null) { setState(()=>_msg="Please select a store"); return; }
     if (_selCity==null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city"); return; }
     if (_mediaType=="video") {
-      if (_videoPath==null) { setState(()=>_msg="Please select a banner video"); return; }
-    } else if (_imgB64==null) { setState(()=>_msg="Please upload a banner image"); return; }
+      if (_videoPath==null && _videoUrl==null) { setState(()=>_msg="Please select a banner video"); return; }
+    } else if (_imgB64==null && _existingImgUrl==null) { setState(()=>_msg="Please upload a banner image"); return; }
     if (_days<1) { setState(()=>_msg="Enter number of days (minimum 1)"); return; }
     setState((){_loading=true; _msg="";});
     try {
@@ -1081,7 +1140,18 @@ class _AddBannerState extends State<AddBannerPage> {
 
   @override void initState() {
     super.initState();
-    if (widget.renewFrom != null) _titleC.text = widget.renewFrom!["title"]?.toString() ?? "";
+    if (widget.renewFrom != null) {
+      _titleC.text = widget.renewFrom!["title"]?.toString() ?? "";
+      // Load the existing banner media so the merchant does not have to upload it again.
+      final url = (widget.renewFrom!["image_url"] ?? "").toString().trim();
+      if (url.isNotEmpty) {
+        final low = url.toLowerCase();
+        final isVideo = (widget.renewFrom!["media_type"]?.toString() == "video") ||
+            low.endsWith(".mp4") || low.contains(".mp4?") || low.contains("video/mp4") || url.startsWith("data:video");
+        if (isVideo) { _mediaType = "video"; _videoUrl = url; }
+        else { _existingImgUrl = url; }
+      }
+    }
     _loadPricing();
     _loadBannerStores();
     _loadCtaOptions();
@@ -1448,15 +1518,18 @@ class _AddBannerState extends State<AddBannerPage> {
           decoration:BoxDecoration(
             color:Colors.white,
             borderRadius:BorderRadius.circular(12),
-            border:Border.all(color:_imgB64!=null?kMerchantPrimary:kMerchantBorder,
-              style:_imgB64!=null?BorderStyle.solid:BorderStyle.solid,width:_imgB64!=null?2:1),
+            border:Border.all(color:(_imgB64!=null||_existingImgUrl!=null)?kMerchantPrimary:kMerchantBorder,
+              style:BorderStyle.solid,width:(_imgB64!=null||_existingImgUrl!=null)?2:1),
           ),
-          child:_imgB64!=null
+          child:(_imgB64!=null||_existingImgUrl!=null)
             ? Stack(children:[
                 ClipRRect(borderRadius:BorderRadius.circular(11),
-                  child:Image.memory(base64Decode(_imgB64!.split(",").last),width:double.infinity,height:110,fit:BoxFit.cover)),
+                  child:_imgB64!=null
+                    ? Image.memory(base64Decode(_imgB64!.split(",").last),width:double.infinity,height:110,fit:BoxFit.cover)
+                    : Image.network(_existingImgUrl!,width:double.infinity,height:110,fit:BoxFit.cover,
+                        errorBuilder:(_,__,___)=>const Center(child:Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:32)))),
                 Positioned(top:6,right:6,child:GestureDetector(
-                  onTap:()=>setState(()=>_imgB64=null),
+                  onTap:()=>setState((){_imgB64=null;_existingImgUrl=null;}),
                   child:Container(padding:const EdgeInsets.all(4),
                     decoration:const BoxDecoration(color:Colors.red,shape:BoxShape.circle),
                     child:const Icon(Icons.close,color:Colors.white,size:14)))),
@@ -1625,6 +1698,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
 
   final _searchCtrl = TextEditingController();
   String _activeFilter = "All";
+  // Store filter: "" = All Stores, otherwise a store id of THIS merchant (the stores API only returns their own).
+  String _storeFilter = "";
+  List<Map<String,dynamic>> _myStores = [];
 
   List<dynamic> _expiryWarnings = [];
 
@@ -1640,8 +1716,12 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         Api.getMerchantProducts(widget.token).timeout(const Duration(seconds:15)),
         Api.checkProductExpiry(widget.token).timeout(const Duration(seconds:10)),
         Api.getProductSlots(widget.token).timeout(const Duration(seconds:10)),
+        Api.getMerchantStores(widget.token).timeout(const Duration(seconds:15)),
       ]);
       _products = List<Map<String,dynamic>>.from(results[0] as Iterable);
+      _myStores = List<Map<String,dynamic>>.from((results[3] as Iterable).map((e) => Map<String,dynamic>.from(e as Map)));
+      // A store that no longer exists cannot stay selected.
+      if (_storeFilter.isNotEmpty && !_myStores.any((st) => (st["_id"] ?? "").toString() == _storeFilter)) _storeFilter = "";
       final exp = results[1];
       _expiryWarnings = exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[];
       _slots = results[2] is Map ? Map<String,dynamic>.from(results[2] as Map) : null;
@@ -1708,6 +1788,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       final offer = (v["offer_text"] ?? "").toString().toLowerCase();
       final st    = _effectiveStatus(v);
       if (q.isNotEmpty && !title.contains(q) && !offer.contains(q)) return false;
+      if (_storeFilter.isNotEmpty && (v["store_id"] ?? "").toString() != _storeFilter) return false;
       switch (_activeFilter) {
         case "approved":        return st == "approved";
         case "pending_approval":return st == "pending_approval";
@@ -1730,11 +1811,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       ("pending_approval", "Pending Approval",     Icons.hourglass_top_rounded,      OffroColors.statusPending),
       ("expired",          "Expired",              Icons.event_busy_rounded,         Colors.red),
     ];
+    final storeOpts = <(String, String)>[("", "All Stores"),
+      ..._myStores.map((st) => ((st["_id"] ?? "").toString(), (st["store_name"] ?? "Store").toString()))];
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text("Filter Products", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kMerchantText)),
@@ -1758,8 +1842,33 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 },
               );
             }),
+            if (_myStores.isNotEmpty) ...[
+              const Divider(height: 20),
+              const Text("Store", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kMerchantText)),
+              const SizedBox(height: 6),
+              ...storeOpts.map((o) {
+                final selected = _storeFilter == o.$1;
+                return ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: (selected ? kMerchantPrimary : kMerchantBorder).withValues(alpha: .15),
+                    child: Icon(o.$1.isEmpty ? Icons.storefront_outlined : Icons.store_rounded,
+                      color: selected ? kMerchantPrimary : kMerchantMuted, size: 18)),
+                  title: Text(o.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? kMerchantPrimary : kMerchantText, fontSize: 14)),
+                  trailing: selected ? const Icon(Icons.check_rounded, color: kMerchantPrimary, size: 20) : null,
+                  onTap: () {
+                    setState(() { _storeFilter = o.$1; _applyFilters(); });
+                    Navigator.pop(context);
+                  },
+                );
+              }),
+            ],
           ]),
-        ),
+        )),
       ),
     );
   }
@@ -1840,7 +1949,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final hasFilter = _activeFilter != "All";
+    final hasFilter = _activeFilter != "All" || _storeFilter.isNotEmpty;
+    final storeLabel = _storeFilter.isEmpty ? "" : (_myStores.firstWhere(
+        (st) => (st["_id"] ?? "").toString() == _storeFilter, orElse: () => <String,dynamic>{})["store_name"] ?? "Store").toString();
     return Scaffold(
       backgroundColor: kMerchantBg,
       appBar: merchantHeaderBar(eyebrow: "Catalogue", title: "My Products", back: true,
@@ -1908,7 +2019,26 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
             child: Row(children: [
-              Container(
+              if (_storeFilter.isNotEmpty) ...[
+                Flexible(child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: kMerchantPrimary.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: kMerchantPrimary.withValues(alpha: .3))),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.store_rounded, size: 13, color: kMerchantPrimary),
+                    const SizedBox(width: 5),
+                    Flexible(child: Text(storeLabel, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: kMerchantPrimary, fontWeight: FontWeight.w700))),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => setState(() { _storeFilter = ""; _applyFilters(); }),
+                      child: const Icon(Icons.close_rounded, size: 13, color: kMerchantPrimary)),
+                  ]),
+                )),
+                const SizedBox(width: 6),
+              ],
+              if (_activeFilter != "All") Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(color: kMerchantPrimary.withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(20),
@@ -3354,7 +3484,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   String? _imgUrl; String? _img2Url;
   List<dynamic> _categories = [];
   String? _selState; String? _selCity;
-  List<String> _areas = []; bool _areasLoading = false;
   bool _locLoading = false; bool _locConfirmed = false;
   bool _locDenied = false; // true after a denial THIS attempt — button stays enabled, tapping again retries
   // Location-specific error, shown directly under the "Current Location"
@@ -3453,14 +3582,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             ? kIndiaStates.firstWhere((s) => s.toLowerCase() == st.toLowerCase(), orElse: () => '')
             : '';
         if (matchedState.isNotEmpty) _selState = matchedState;
+        else if (st.isNotEmpty) _selState = st;
         // Case-insensitive city match within the matched state's city list
         if (ct.isNotEmpty) {
           final stateKey = matchedState.isNotEmpty ? matchedState : (_selState ?? '');
           final cities = kIndiaCities[stateKey] ?? [];
           final matchedCity = cities.firstWhere(
               (c) => c.toLowerCase() == ct.toLowerCase(), orElse: () => '');
-          if (matchedCity.isNotEmpty) { _selCity = matchedCity; _loadAreas(matchedCity); }
-          else if (cities.isEmpty) { _selCity = ct; _loadAreas(ct); }
+          _selCity = matchedCity.isNotEmpty ? matchedCity : ct;
         }
         if (ar.isNotEmpty) _area.text = ar;
         if (ad.isNotEmpty) _addr.text = ad;
@@ -3511,14 +3640,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               ? kIndiaStates.firstWhere((s) => s.toLowerCase() == st.toLowerCase(), orElse: () => '')
               : '';
           if (matchedState.isNotEmpty) _selState = matchedState;
+          else if (st.isNotEmpty) _selState = st;
           // Case-insensitive city match within the matched state's city list
           if (ct.isNotEmpty) {
             final stateKey = matchedState.isNotEmpty ? matchedState : (_selState ?? '');
             final cities = kIndiaCities[stateKey] ?? [];
             final matchedCity = cities.firstWhere(
                 (c) => c.toLowerCase() == ct.toLowerCase(), orElse: () => '');
-            if (matchedCity.isNotEmpty) { _selCity = matchedCity; _loadAreas(matchedCity); }
-            else if (cities.isEmpty) { _selCity = ct; _loadAreas(ct); }
+            _selCity = matchedCity.isNotEmpty ? matchedCity : ct;
           }
           if (ar.isNotEmpty) _area.text = ar;
           if (ad.isNotEmpty) _addr.text = ad;
@@ -3629,7 +3758,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         orElse: () => rawCity,
       );
       _selCity = matchedCity;
-      if (matchedCity.isNotEmpty) _loadAreas(matchedCity);
     } else {
       _selCity = null;
     }
@@ -3666,14 +3794,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   Future<void> _loadCategories() async { _categories = await Api.fetchCategories(token: widget.token); if (mounted) setState((){}); }
 
 
-  Future<void> _loadAreas(String city) async {
-    if (city.trim().isEmpty) { setState(() { _areas = []; }); return; }
-    setState(() => _areasLoading = true);
-    final areas = await Api.fetchAreas(city.trim());
-    if (mounted) setState(() { _areas = areas; _areasLoading = false; });
-    // If current _area.text is not in the new list, keep it (custom value)
-  }
-
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75, maxWidth: 800);
@@ -3703,8 +3823,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) { setState(()=>_msg="Store name required"); return; }
-    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg="Please select a state to continue"); return; }
-    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city to continue"); return; }
+    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg='Please set the store location using "Use current location" or a Google Maps link'); return; }
+    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg='Please set the store location using "Use current location" or a Google Maps link'); return; }
     final _phoneVal = _phone.text.trim();
     if (_phoneVal.isEmpty) { setState(()=>_msg="Mobile number is required"); return; }
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg="Enter a valid 10-digit mobile number (starts with 6–9)"); return; }
@@ -3902,43 +4022,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               style: TextStyle(color: kMerchantMuted, fontSize: 11)),
         ]),
       ),
-      const SizedBox(height:12),
-      DropdownButtonFormField<String>(
-        isExpanded: true,
-        value: kIndiaStates.contains(_selState)?_selState:null,
-        items: kIndiaStates.map((s)=>DropdownMenuItem<String>(value:s,child:Text(s,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
-        onChanged:(v)=>setState((){_selState=v;_selCity=null;}),
-        decoration:_dec("State *",Icons.map),
-        hint:const Text("Select State",overflow:TextOverflow.ellipsis)),
-      const SizedBox(height:12),
-      DropdownButtonFormField<String>(
-        isExpanded: true,
-        value: (_selState!=null && (kIndiaCities[_selState]??[]).contains(_selCity))?_selCity:null,
-        items: (_selState==null?[]:kIndiaCities[_selState]??[]).map((c)=>DropdownMenuItem<String>(value:c,child:Text(c,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
-        onChanged:(v){ setState(()=>_selCity=v); if(v!=null) _loadAreas(v); },
-        decoration:_dec("City *",Icons.location_city),
-        hint:Text(_selState==null?"Select State first":"Select City",overflow:TextOverflow.ellipsis)),
-      const SizedBox(height:12),
-      // ── Area / Locality Dropdown ──────────────────────────────────────
-      if (_areasLoading)
-        const LinearProgressIndicator(minHeight: 2, color: kMerchantPrimary)
-      else if (_areas.isNotEmpty)
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          // current value: if _area.text is in list use it, else null (show hint)
-          value: _areas.contains(_area.text) ? _area.text : null,
-          items: _areas.map((a) => DropdownMenuItem<String>(
-            value: a,
-            child: Text(a, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
-          )).toList(),
-          onChanged: (v) { if (v != null) setState(() => _area.text = v); },
-          decoration: _dec("Area / Locality", Icons.my_location),
-          hint: const Text("Select area", overflow: TextOverflow.ellipsis),
-        )
-      else
-        _field(_area, "Area / Locality", Icons.my_location),
-      const SizedBox(height:12),
-      _field(_addr,"Full Address",Icons.home),
       const SizedBox(height:12),
       _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
       const SizedBox(height: 16),
