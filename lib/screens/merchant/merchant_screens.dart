@@ -2382,20 +2382,27 @@ class _AddProductState extends State<AddProductPage> {
     setState(() {
       _selectedStore = store;
       if (city.isNotEmpty) _selCity = city;
+      _slots = null;                      // quota belongs to the store: reload for the new one
     });
+    _loadSlots();
   }
   @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_discountVC.dispose(); _daysC.dispose(); _razorpay.clear(); super.dispose(); }
 
+  // Free slots are counted PER STORE, so the quota is loaded for the selected store.
+  String get _selectedStoreId => (_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString();
+  String _slotsForStore = "";
   Future<void> _loadSlots() async {
-    final sl = await Api.getProductSlots(widget.token);
-    if (mounted) setState(() => _slots = sl);
+    final sid = _selectedStoreId;
+    if (sid.isEmpty) { if (mounted) setState(() { _slots = null; _slotsForStore = ""; }); return; }
+    final sl = await Api.getProductSlots(widget.token, storeId: sid);
+    if (mounted && sid == _selectedStoreId) setState(() { _slots = sl; _slotsForStore = sid; });
   }
 
   DateTime get _fromDay => DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
   // Inclusive: a product is live THROUGH its end date (start == end is 1 day).
   int get _days => DateTime(_endDate.year, _endDate.month, _endDate.day).difference(_fromDay).inDays + 1;
-  bool get _slotsKnown => _slots != null;
-  bool get _nextIsFree => _slots == null ? true : (_slots!["next_is_free"] as bool? ?? true);
+  bool get _slotsKnown => _slots != null && _slotsForStore == _selectedStoreId;
+  bool get _nextIsFree => !_slotsKnown ? true : (_slots!["next_is_free"] as bool? ?? true);
   int get _freeLimit => (_slots?["free_limit"] as num?)?.toInt() ?? 0;
   int get _freeRemaining => (_slots?["free_remaining"] as num?)?.toInt() ?? 0;
   int get _maxDays => (_slots?["max_validity_days"] as num?)?.toInt() ?? 365;

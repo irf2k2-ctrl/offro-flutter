@@ -905,9 +905,16 @@ class Api {
   /// Free-slot usage and the current additional-product price. The values are a
   /// display estimate - the backend re-decides free vs paid on save / renew.
   /// [excludeId] previews the renewal of that product. Null when unavailable.
-  static Future<Map<String,dynamic>?> getProductSlots(String token, {String? excludeId}) async {
+  /// The free quota is PER STORE: pass [storeId] for that store's numbers, or [excludeId]
+  /// (renewal - the store is taken from that product). With neither, the backend returns a
+  /// combined overview of the merchant's stores.
+  static Future<Map<String,dynamic>?> getProductSlots(String token, {String? excludeId, String? storeId}) async {
     try {
-      final q = (excludeId != null && excludeId.isNotEmpty) ? "?exclude_id=${Uri.encodeComponent(excludeId)}" : "";
+      final qp = <String>[
+        if (excludeId != null && excludeId.isNotEmpty) "exclude_id=${Uri.encodeComponent(excludeId)}",
+        if (storeId != null && storeId.isNotEmpty) "store_id=${Uri.encodeComponent(storeId)}",
+      ];
+      final q = qp.isEmpty ? "" : "?${qp.join('&')}";
       return Map<String,dynamic>.from(await _get("/merchant/products/slots$q", token: token));
     } catch (_) { return null; }
   }
