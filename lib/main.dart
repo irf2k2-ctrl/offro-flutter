@@ -907,6 +907,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_autoRefreshLocation());
     });
+    _locTimer = Timer.periodic(const Duration(minutes: 3), (_) {
+      if (mounted && _lifecycle == AppLifecycleState.resumed) unawaited(_autoRefreshLocation());
+    });
     if (widget.preloadedStores.isNotEmpty) {
       _usePreloadedData(); // async — clears _loading when done
       // Always fetch live GPS even when preloaded — ensures distance_km is computed
@@ -1689,6 +1692,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // saved location on any failure; 2-min throttle + 1.5 km threshold are
   // enforced inside LocationService.autoRefreshIfMoved.
   bool _autoLocBusy = false;
+  // While Home stays open in the foreground the same silent check re-runs
+  // periodically (the service's own throttle still applies), so moving to a
+  // new place no longer needs an app restart or resume.
+  Timer? _locTimer;
+  AppLifecycleState _lifecycle = AppLifecycleState.resumed;
   Future<void> _autoRefreshLocation() async {
     if (_autoLocBusy || _locScreenOpen || !mounted) return;
     _autoLocBusy = true;
@@ -1771,6 +1779,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   @override void dispose() {
     FavState.instance.productRevision.removeListener(_onFavChanged);
     _unreadNotifier.removeListener(_onUnreadChanged);
+    _locTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _catTimer?.cancel(); _sliderTimer?.cancel(); _heroRotateTimer?.cancel();
     _scrollCtrl.dispose(); // FIX 1: FAB scroll controller
@@ -1781,6 +1790,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycle = state;
     // Refresh unread badge when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       _loadUnreadCount();
@@ -7525,32 +7535,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     ]),
                   ),
                 ),
-
-                // ── Offer card (real offer text only) ──
-                if (offerText.trim().isNotEmpty && offerText.trim() != "null") ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(22)),
-                    child: Row(children: [
-                      Container(
-                        width: 40, height: 40,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(color: OffroColors.primary, shape: BoxShape.circle),
-                        child: const OffroIcon(OffroIcons.tag, size: 18, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text("OffrO offer", style: OffroText.cardTitle.copyWith(fontSize: 12)),
-                        const SizedBox(height: 2),
-                        Text(offerText.trim(),
-                          style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.4,
-                            color: OffroColors.primary.withValues(alpha: .7))),
-                      ])),
-                    ]),
-                  ),
-                ],
 
                 // ── Product details ──
                 if (description.isNotEmpty) ...[

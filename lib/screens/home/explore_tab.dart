@@ -178,9 +178,7 @@ class _ExploreTabState extends State<ExploreTab> {
                       setState(() => _query = '');
                     },
                     child: const Icon(Icons.close_rounded, size: 18, color: OffroColors.primary),
-                  )
-                else
-                  const OffroIcon(OffroIcons.sliders, size: 17, color: OffroColors.primary),
+                  ),
               ]),
             ),
             const SizedBox(height: 8),

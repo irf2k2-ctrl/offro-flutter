@@ -190,6 +190,11 @@ class LocationService {
   static const double autoRefreshMinMoveKm = 1.5;
   /// Minimum gap between two automatic checks (startup + resume share it).
   static const Duration autoRefreshInterval = Duration(minutes: 2);
+  /// After a check that could NOT complete (no GPS fix yet, geocoder offline)
+  /// the next attempt is allowed this soon instead of waiting the full
+  /// [autoRefreshInterval] - otherwise one weak-signal read left the saved
+  /// location stale for minutes (or until the next app resume).
+  static const Duration autoRefreshRetryAfter = Duration(seconds: 30);
   static DateTime? _lastAutoCheck;
   static bool _autoBusy = false;
 
@@ -215,20 +220,22 @@ class LocationService {
       final last = _lastAutoCheck;
       if (last != null && now.difference(last) < autoRefreshInterval) return null;
       _autoBusy = true;
-      _lastAutoCheck = now; // throttle failures too — no hammering on errors
+      _lastAutoCheck = now;
+      // Short back-off (not the full interval) when the check cannot finish.
+      void retrySoon() => _lastAutoCheck = now.subtract(autoRefreshInterval - autoRefreshRetryAfter);
       try {
         final pos = await silentPosition(
-          timeout: const Duration(seconds: 8),
+          timeout: const Duration(seconds: 15),
           accuracy: LocationAccuracy.medium,
         );
-        if (pos == null) return null;
+        if (pos == null) { retrySoon(); return null; }
         final movedKm =
             Geolocator.distanceBetween(sLat, sLng, pos.latitude, pos.longitude) / 1000.0;
         if (movedKm < autoRefreshMinMoveKm) return null;
 
         final supported = await fetchSupportedCities();
         final fresh = await resolveFix(pos, supported);
-        if (fresh == null || !fresh.hasCity) return null;
+        if (fresh == null || !fresh.hasCity) { retrySoon(); return null; }
 
         // The saved location must still be the exact GPS location we compared
         // against (a manual pick / explicit GPS update may have happened).

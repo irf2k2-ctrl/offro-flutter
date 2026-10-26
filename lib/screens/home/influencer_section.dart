@@ -785,12 +785,6 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
     final photo = inf["photo_url"]?.toString() ?? "";
     final category = inf["category"]?.toString() ?? "";
     final city = inf["city"]?.toString() ?? "";
-    final firstName = name.trim().split(RegExp(r'\s+')).first;
-    String connectUrl = "";
-    for (final k in const ["instagram", "youtube", "facebook"]) {
-      final u = social[k]?.toString() ?? "";
-      if (u.isNotEmpty) { connectUrl = u; break; }
-    }
     final heroH = MediaQuery.of(context).size.height * 0.46;
     final topInset = MediaQuery.of(context).padding.top;
 
@@ -905,21 +899,6 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                     statTile(city, "City"),
                   ],
                 ]),
-
-                if (connectUrl.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity, height: 50,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _openSocial(connectUrl),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: OffroColors.primary, elevation: 0, shape: const StadiumBorder()),
-                      icon: const OffroIcon(OffroIcons.message, size: 16, color: Colors.white),
-                      label: Text("Connect with $firstName",
-                        style: OffroText.button.copyWith(color: Colors.white, fontSize: 13)),
-                    ),
-                  ),
-                ],
 
                 if (about.isNotEmpty) ...[
                   const SizedBox(height: 28),

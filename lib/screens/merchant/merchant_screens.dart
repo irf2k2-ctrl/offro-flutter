@@ -3118,14 +3118,23 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_autoRefreshLocation());
     });
+    // Same silent check, repeated while the app stays open (service throttles).
+    _locTimer = Timer.periodic(const Duration(minutes: 3), (_) {
+      if (mounted && _lifecycle == AppLifecycleState.resumed) unawaited(_autoRefreshLocation());
+    });
   }
 
+  Timer? _locTimer;
+  AppLifecycleState _lifecycle = AppLifecycleState.resumed;
+
   @override void dispose() {
+    _locTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycle = state;
     // Silent GPS check on return to the app (throttled inside the service).
     if (state == AppLifecycleState.resumed) unawaited(_autoRefreshLocation());
   }
