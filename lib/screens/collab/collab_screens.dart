@@ -364,6 +364,8 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
         ? (r["categories"] as List).map((e) => e.toString()).join(" · ")
         : "";
     final ig = (r["instagram"] ?? "").toString().trim();
+    final phone = (r["phone"] ?? "").toString().trim();
+    final waUri = phone.isEmpty ? null : _waUri(phone);
     return OffroCard(
       padding: const EdgeInsets.all(16),
       child: Row(children: [
@@ -387,9 +389,37 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
             Text(ig.startsWith("@") ? ig : "@$ig",
                 style: OffroText.body.copyWith(fontSize: 12.5, color: kMerchantPrimary)),
           ],
+          if (phone.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(phone, style: OffroText.body.copyWith(fontSize: 12.5, color: kMerchantText)),
+          ],
         ])),
+        if (waUri != null)
+          IconButton(
+            tooltip: "Chat on WhatsApp",
+            onPressed: () => _openWhatsApp(waUri),
+            icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 26),
+          ),
       ]),
     );
+  }
+
+  /// https://wa.me/<number> - the standard WhatsApp deep link. 10-digit Indian numbers get 91.
+  Uri? _waUri(String raw) {
+    var d = raw.replaceAll(RegExp(r'\D'), '');
+    if (d.length == 11 && d.startsWith('0')) d = d.substring(1);
+    if (d.length == 10) d = '91$d';
+    if (d.length < 11) return null;
+    return Uri.parse("https://wa.me/$d");
+  }
+
+  Future<void> _openWhatsApp(Uri u) async {
+    try {
+      final ok = await launchUrl(u, mode: LaunchMode.externalApplication);
+      if (!ok && mounted) _snack(context, "Couldn't open WhatsApp.");
+    } catch (_) {
+      if (mounted) _snack(context, "Couldn't open WhatsApp.");
+    }
   }
 }
 
@@ -708,7 +738,7 @@ class _InfluencerOpportunitiesViewState extends State<InfluencerOpportunitiesVie
                           ? _empty()
                           : Column(children: [
                               for (final r in _rows) ...[
-                                _OppCard(r: r, onTap: () => _open(r)),
+                                OpportunityCard(r: r, onTap: () => _open(r)),
                                 const SizedBox(height: 12),
                               ],
                             ]),
@@ -742,58 +772,134 @@ class _InfluencerOpportunitiesViewState extends State<InfluencerOpportunitiesVie
       );
 }
 
-class _OppCard extends StatelessWidget {
+/// Opportunity card (white OffrO card). Reused by the Opportunities tab and the
+/// Influencer Home "Campaign opportunities" block. The ACCEPTED look is driven by the
+/// backend `my_status`, never by local state.
+class OpportunityCard extends StatelessWidget {
   final Map<String, dynamic> r;
   final VoidCallback onTap;
-  const _OppCard({required this.r, required this.onTap});
+  const OpportunityCard({super.key, required this.r, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final my = (r["my_status"] ?? "new").toString();
-    final label = my == "accepted"
+    final accepted = my == "accepted";
+    final label = accepted
         ? "Accepted"
         : my == "declined"
             ? "Declined"
             : (r["campaign_state"] ?? "active") == "active"
                 ? "New collaboration request"
                 : "Closed";
-    return GestureDetector(
+    return OffroCard(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-            color: OffroTones.fashion.background,
-            borderRadius: BorderRadius.circular(OffroRadii.card)),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label.toUpperCase(),
-                style: OffroText.eyebrow.copyWith(color: OffroTones.fashion.foreground)),
-            const SizedBox(height: 8),
-            Text((r["title"] ?? "").toString(), style: OffroText.cardTitle.copyWith(fontSize: 16)),
-            const SizedBox(height: 3),
-            Text((r["store_name"] ?? "").toString(), style: OffroText.body.copyWith(fontSize: 12.5)),
-            if ((r["content_summary"] ?? "").toString().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text((r["content_summary"]).toString(),
-                  style: OffroText.body.copyWith(fontSize: 12.5)),
+      shadow: !accepted,
+      color: accepted ? OffroColors.mint.withValues(alpha: .22) : OffroColors.surface,
+      padding: const EdgeInsets.all(16),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            if (accepted) ...[
+              const OffroIcon(OffroIcons.check, size: 12, color: OffroColors.primary),
+              const SizedBox(width: 5),
             ],
-            const SizedBox(height: 12),
-            Row(mainAxisSize: MainAxisSize.min, children: [
-              Text("View brief", style: OffroText.cardTitle.copyWith(color: OffroTones.fashion.foreground)),
-              const SizedBox(width: 6),
-              OffroIcon(OffroIcons.arrow, size: 14, color: OffroTones.fashion.foreground),
-            ]),
-          ])),
-          const SizedBox(width: 12),
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-            alignment: Alignment.center,
-            child: OffroIcon(OffroIcons.sparkles, size: 20, color: OffroTones.fashion.foreground),
-          ),
-        ]),
-      ),
+            Text(label.toUpperCase(),
+                style: OffroText.eyebrow.copyWith(color: accepted ? OffroColors.primary : OffroColors.sageStrong)),
+          ]),
+          const SizedBox(height: 8),
+          Text((r["title"] ?? "").toString(), style: OffroText.cardTitle.copyWith(fontSize: 16)),
+          const SizedBox(height: 3),
+          Text((r["store_name"] ?? "").toString(), style: OffroText.body.copyWith(fontSize: 12.5)),
+          if ((r["content_summary"] ?? "").toString().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text((r["content_summary"]).toString(), style: OffroText.body.copyWith(fontSize: 12.5)),
+          ],
+          const SizedBox(height: 12),
+          OffroButton.small(label: "View brief", onPressed: onTap, trailingIcon: OffroIcons.arrow),
+        ])),
+        const SizedBox(width: 12),
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(color: OffroColors.mint.withValues(alpha: .35), borderRadius: BorderRadius.circular(16)),
+          alignment: Alignment.center,
+          child: const OffroIcon(OffroIcons.sparkles, size: 20, color: OffroColors.primary),
+        ),
+      ]),
     );
+  }
+}
+
+/// Influencer Home "Campaign opportunities": ONLY pending (my_status == new, still open)
+/// requests from the backend. Once accepted/declined a campaign is no longer pending, so it
+/// drops out of here and shows (as ACCEPTED) in the Opportunities tab instead.
+class CampaignOpportunitiesSection extends StatefulWidget {
+  final String token;
+  final VoidCallback? onSeeAll;
+  const CampaignOpportunitiesSection({super.key, required this.token, this.onSeeAll});
+  @override
+  State<CampaignOpportunitiesSection> createState() => _CampaignOpportunitiesSectionState();
+}
+
+class _CampaignOpportunitiesSectionState extends State<CampaignOpportunitiesSection> {
+  bool _loading = true;
+  String? _error;
+  List<Map<String, dynamic>> _pending = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (mounted) setState(() { _loading = true; _error = null; });
+    try {
+      final d = await Api.influencerOpportunities(widget.token);
+      if (!mounted) return;
+      setState(() {
+        _pending = _maps(d["opportunities"])
+            .where((r) => r["my_status"] == "new" && r["campaign_state"] == "active")
+            .toList();
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() { _error = friendlyError(e); _loading = false; });
+    }
+  }
+
+  Future<void> _open(Map<String, dynamic> r) async {
+    await Navigator.push(context,
+        appRoute(OpportunityDetailPage(token: widget.token, id: (r["id"] ?? "").toString())));
+    _load(); // accepted/declined -> no longer pending
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(padding: EdgeInsets.symmetric(vertical: 24),
+          child: Center(child: CircularProgressIndicator(color: OffroColors.primary)));
+    }
+    if (_error != null) return _loadError(_error!, _load);
+    if (_pending.isEmpty) {
+      return OffroCard(
+        padding: const EdgeInsets.all(20),
+        child: Column(children: [
+          Text("No campaign requests yet", style: OffroText.cardTitle),
+          const SizedBox(height: 6),
+          Text("New briefs from merchants in your city will appear here.",
+              textAlign: TextAlign.center, style: OffroText.body.copyWith(fontSize: 12.5)),
+        ]),
+      );
+    }
+    final shown = _pending.take(3).toList();
+    return Column(children: [
+      for (final r in shown) ...[
+        OpportunityCard(r: r, onTap: () => _open(r)),
+        const SizedBox(height: 12),
+      ],
+      if (_pending.length > shown.length && widget.onSeeAll != null)
+        OffroButton.secondary(label: "See all ${_pending.length} requests", onPressed: widget.onSeeAll),
+    ]);
   }
 }
 
@@ -892,6 +998,11 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
     final store = (_d["store"] is Map) ? Map<String, dynamic>.from(_d["store"]) : <String, dynamic>{};
     final my = (_d["my_status"] ?? "new").toString();
     final canRespond = _d["can_respond"] == true;
+    // Backend also enforces this; the app just shows it honestly.
+    final canAccept = _d["can_accept"] != false;
+    final blockedMsg = (_d["accept_blocked_message"] ?? "").toString().trim().isNotEmpty
+        ? _d["accept_blocked_message"].toString()
+        : "Complete your profile subscription to accept collaborations.";
     final phone = (_d["merchant_phone"] ?? "").toString();
     final content = (_d["content_types"] is List)
         ? (_d["content_types"] as List).map((e) => e.toString()).join(", ") : "";
@@ -943,13 +1054,20 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
       ] else if (!canRespond)
         Text("This request is no longer open.", style: OffroText.cardTitle)
       else ...[
-        OffroButton(label: _busy ? "Please wait…" : "Accept collaboration", onPressed: _busy ? null : () => _respond(true)),
+        OffroButton(
+          label: _busy ? "Please wait…" : "Accept collaboration",
+          onPressed: (_busy || !canAccept) ? null : () => _respond(true),
+        ),
+        if (!canAccept) ...[
+          const SizedBox(height: 8),
+          Text(blockedMsg, textAlign: TextAlign.center, style: OffroText.body.copyWith(fontSize: 12.5)),
+        ],
         if (my != "declined") ...[
           const SizedBox(height: 10),
           OffroButton.secondary(label: "Decline", onPressed: _busy ? null : () => _respond(false)),
         ] else ...[
           const SizedBox(height: 10),
-          Text("You declined this request. You can still accept it while it is open.",
+          Text("You declined this request.${canAccept ? " You can still accept it while it is open." : ""}",
               style: OffroText.body.copyWith(fontSize: 12.5)),
         ],
       ],

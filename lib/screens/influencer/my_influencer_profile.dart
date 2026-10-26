@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/india_locations.dart' show kIndiaStates, kIndiaCities;
 import '../../core/services/api_service.dart';
@@ -15,7 +14,7 @@ import '../home/influencer_section.dart' show InfluencerProfileScreen;
 import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones, OffroBottomNav, OffroNavVariant, OffroNavItem, OffroScreenHeader;
 import '../../core/widgets/brand_logo.dart' show buildImageLogo;
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
-import '../collab/collab_screens.dart' show InfluencerOpportunitiesView;
+import '../collab/collab_screens.dart' show InfluencerOpportunitiesView, CampaignOpportunitiesSection;
 
 /// Local equivalent of the file-private `_timeAgo()` helpers already used
 /// elsewhere (lib/main.dart, notifications_page.dart) — same exact pattern,
@@ -155,15 +154,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         ),
       );
 
-  List<Widget> _headerActions({required bool withShare}) => [
-        // Share the influencer's own public profile — only shown once a real
-        // profile has actually loaded.
-        if (withShare && (_profile?.isNotEmpty ?? false))
-          IconButton(
-            icon: const Icon(Icons.share_rounded, color: OffroColors.text),
-            tooltip: "Share",
-            onPressed: () => _shareProfile(_profile!),
-          ),
+  List<Widget> _headerActions() => [
         if (widget.onSwitchMode != null)
           IconButton(
             icon: const Icon(Icons.settings_rounded, color: OffroColors.text),
@@ -181,12 +172,12 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       },
       child: Scaffold(
         backgroundColor: OffroColors.background,
-        appBar: _tab == 3
+        appBar: _tab == 2
             ? merchantHeaderBar(
                 eyebrow: "Creator account",
                 title: "Profile",
                 back: Navigator.canPop(context),
-                actions: _headerActions(withShare: true),
+                actions: _headerActions(),
               )
             : null,
         body: _tabBody(),
@@ -197,7 +188,6 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
           items: const [
             OffroNavItem(label: 'Home', icon: OffroIcons.home, fillWhenActive: true),
             OffroNavItem(label: 'Opportunities', icon: OffroIcons.sparkles),
-            OffroNavItem(label: 'Activity', icon: OffroIcons.clock),
             OffroNavItem(label: 'Profile', icon: OffroIcons.user),
           ],
         ),
@@ -212,78 +202,13 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
           token: widget.token,
           headerTrailing: widget.onSwitchMode == null
               ? null
-              : Row(mainAxisSize: MainAxisSize.min, children: _headerActions(withShare: false)),
+              : Row(mainAxisSize: MainAxisSize.min, children: _headerActions()),
         );
       case 2:
-        return _placeholderTab(
-          eyebrow: "Creator timeline",
-          title: "Activity",
-          description: "Requests, messages and collaboration updates in one place.",
-          icon: OffroIcons.clock,
-          emptyTitle: "No activity yet",
-          emptyBody: "Collaboration updates and messages will show up here.",
-        );
-      case 3:
         return _buildBody();
       default:
         return _buildHome();
     }
-  }
-
-  /// Shared header + honest empty state for tabs whose data does not exist in
-  /// the backend yet (no collaboration / campaign endpoints). Nothing is faked.
-  Widget _placeholderTab({
-    required String eyebrow,
-    required String title,
-    required String description,
-    required OffroIconData icon,
-    required String emptyTitle,
-    required String emptyBody,
-  }) {
-    return SafeArea(
-      bottom: false,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 24),
-        children: [
-          OffroScreenHeader(
-            eyebrow: eyebrow,
-            title: title,
-            description: description,
-            trailing: widget.onSwitchMode == null
-                ? null
-                : Row(mainAxisSize: MainAxisSize.min, children: _headerActions(withShare: false)),
-          ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: OffroSpacing.gutterH,
-            child: _emptyCard(icon, emptyTitle, emptyBody),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyCard(OffroIconData icon, String title, String body) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: OffroTones.fashion.background,
-        borderRadius: BorderRadius.circular(OffroRadii.card),
-      ),
-      child: Column(children: [
-        Container(
-          width: 52, height: 52,
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
-          alignment: Alignment.center,
-          child: OffroIcon(icon, size: 22, color: OffroTones.fashion.foreground),
-        ),
-        const SizedBox(height: 14),
-        Text(title, textAlign: TextAlign.center, style: OffroText.title.copyWith(fontSize: 16)),
-        const SizedBox(height: 6),
-        Text(body, textAlign: TextAlign.center, style: OffroText.body.copyWith(fontSize: 12.5)),
-      ]),
-    );
   }
 
   Widget _statTile(String value, String label) => Expanded(
@@ -304,8 +229,8 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       );
 
   /// Influencer Home — real profile data only (name, category, city, views,
-  /// saves, reviews, publish state). Campaign opportunities have no backend
-  /// yet, so that block is an honest empty state.
+  /// saves, reviews, publish state). Campaign opportunities come from the
+  /// collaboration backend (pending requests only).
   Widget _buildHome() {
     if (_loading || _error != null || (_profile ?? {}).isEmpty) {
       return SafeArea(child: _buildBody());
@@ -370,7 +295,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
             padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 14, OffroSpacing.gutter, 0),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               OffroCard(
-                onTap: () => setState(() => _tab = 3),
+                onTap: () => setState(() => _tab = 2),
                 radius: 22,
                 padding: const EdgeInsets.all(16),
                 child: Row(children: [
@@ -396,8 +321,10 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
               const SizedBox(height: 4),
               Text('Campaign opportunities', style: OffroText.title),
               const SizedBox(height: 14),
-              _emptyCard(OffroIcons.sparkles, "No campaign requests yet",
-                  "Briefs from merchants will appear here once collaboration is available for your account."),
+              CampaignOpportunitiesSection(
+                token: widget.token,
+                onSeeAll: () => setState(() => _tab = 1),
+              ),
             ]),
           ),
         ],
@@ -444,18 +371,6 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       // here beyond clearing local state.
       onProfileDeleted: () => setState(() => _profile = {}),
     );
-  }
-
-  /// Plain-text share — same simple pattern already used for sharing an
-  /// influencer from the public browse screen (lib/screens/home/
-  /// influencer_section.dart's _shareText), just written locally since
-  /// that helper is private to its own file. Only ever built from the
-  /// influencer's own real, current profile data — never fabricated.
-  void _shareProfile(Map<String, dynamic> profile) {
-    final name = profile["name"]?.toString() ?? "";
-    final city = profile["city"]?.toString() ?? "";
-    final rating = (profile["rating"] as num?)?.toStringAsFixed(1) ?? "-";
-    Share.share("Check out $name on OffrO\n$city • ⭐ $rating", subject: "OffrO – $name");
   }
 
   Widget _buildEmptyState() {
