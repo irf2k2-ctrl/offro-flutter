@@ -828,6 +828,25 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _heroRotateTimer;           // rotates hero image every 2 min
   List<String> _defaultProductImageUrls = []; // default product images from /admin/default-images (all configured)
   List<Map<String,dynamic>> _mbFallbackSliders = []; // default merchant banners (may be multiple, images OR videos)
+
+  /// Hero carousel order: ALL backend Default Merchant Banners first (admin order; the first one
+  /// carries the "Explore <City>" overlay), then the merchant-uploaded banners/videos in their
+  /// existing order. De-duplicated by media URL so nothing appears twice. [_sliders] holds only the
+  /// merchant banners.
+  List<Map<String,dynamic>> get _heroSlides {
+    final seen = <String>{};
+    final out = <Map<String,dynamic>>[];
+    void add(Map<String,dynamic> m, {bool explore = false}) {
+      final key = (m["image_url"] ?? m["image"] ?? m["id"] ?? "").toString().trim();
+      if (key.isNotEmpty && !seen.add(key)) return;
+      out.add(explore ? {...m, "_explore_city": true} : m);
+    }
+    for (var i = 0; i < _mbFallbackSliders.length; i++) {
+      add(_mbFallbackSliders[i], explore: i == 0);
+    }
+    for (final m in _sliders) { add(m); }
+    return out;
+  }
   Timer? _sliderTimer;
   // FIX 2: ValueNotifier for slider page — avoids full-tree rebuild on swipe
   final ValueNotifier<int> _sliderPageNotifier = ValueNotifier<int>(0);
@@ -1227,6 +1246,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           _mbFallbackSliders = mb;
         });
         _startHeroRotation();
+        if (_sliderTimer == null || !_sliderTimer!.isActive) _startSliderAutoPlay();
       })().catchError((_) {
         // A malformed /default-images payload must never leave the hero
         // shimmer spinning or block the fallback decision below.
@@ -1289,10 +1309,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       if (slides.isEmpty || voucs.isEmpty) await defaultsApplied;
       if (!mounted || myGen != _supplementaryGen) return;
 
-      // Fallback — no active banners for the city: default merchant banners
-      if (slides.isEmpty && _mbFallbackSliders.isNotEmpty) {
-        slides = List<Map<String,dynamic>>.from(_mbFallbackSliders);
-      }
+      // (Default merchant banners are no longer a fallback here: the hero shows them FIRST and
+      // the merchant banners after them - see _heroSlides.)
       final sliderList  = List<Map<String,dynamic>>.from(slides);
       final productList = List<Map<String,dynamic>>.from(voucs);
       for (int i = 0; i < sliderList.length; i++)  sliderList[i]["_idx"]  = i;
@@ -1349,7 +1367,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         _recomputeDistances();
       }
       // Still load banners/products if not yet loaded (keeps loading overlay until ready)
-      if (_sliders.isEmpty || _products.isEmpty) {
+      if (_heroSlides.isEmpty || _products.isEmpty) {
         await _loadSupplementary(c);
       }
       if (mounted) setState(() => _loading = false);
@@ -1559,9 +1577,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       if (cats.length > 1 || _cats.length <= 1) _cats = List<String>.from(cats);
         if (richCats3.isNotEmpty) _richCats = richCats3;
         else if (_richCats.isEmpty) Api.clearCache(); // force refetch
-      // Apply city-filtered sliders; use fallback if empty and URL already known
-      _sliders  = filteredSliders.isNotEmpty ? filteredSliders
-          : (_mbFallbackSliders.isNotEmpty ? List<Map<String,dynamic>>.from(_mbFallbackSliders) : filteredSliders);
+      // Merchant banners only (city-filtered); defaults are merged in front by _heroSlides.
+      _sliders  = filteredSliders;
       _products = productList;
       _productsLoading = false;
       _loading  = false;
@@ -1605,8 +1622,9 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // The hero is ONE fixed card; only its media layer changes (crossfade).
   void _advanceHeroSlide(){
-    if(!mounted || _sliders.length < 2) return;
-    _sliderPageNotifier.value = (_sliderPageNotifier.value + 1) % _sliders.length;
+    final n = _heroSlides.length;
+    if(!mounted || n < 2) return;
+    _sliderPageNotifier.value = (_sliderPageNotifier.value + 1) % n;
   }
 
   // Hero video is tap-to-play: once the customer starts one, stop the timed
@@ -1620,7 +1638,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   void _startSliderAutoPlay(){
     _sliderTimer?.cancel();
     // Auto-play even for 1 item (will loop to same) — only skip if empty
-    if(_sliders.isNotEmpty){
+    if(_heroSlides.isNotEmpty){
       _sliderTimer=Timer.periodic(const Duration(seconds:10),(_){
         _advanceHeroSlide();
       });
@@ -1854,7 +1872,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         // while the hero photo is loading, shimmer instead of the flat fallback
                         imageLoading: _heroImageLoading,
                         onCtaTap: () => _searchStores(context),
-                        sliders: _sliders,
+                        sliders: _heroSlides,
                         sliderPageNotifier: _sliderPageNotifier,
                         token: widget.token,
                         onAdvance: _heroVideoDone,
@@ -4727,6 +4745,7 @@ class _CityHeroSection extends StatelessWidget {
     final promoter = (sl["store_name"] ?? sl["merchant_name"] ?? "").toString().trim();
     final storeId  = (sl["store_id"] ?? "").toString().trim();
     final hasStore = promoter.isNotEmpty || (storeId.isNotEmpty && storeId != "null");
+    final exploreCity = sl["_explore_city"] == true;
 
     return Stack(fit: StackFit.expand, children: [
           Positioned.fill(child: PromoSliderCard(
@@ -4744,6 +4763,21 @@ class _CityHeroSection extends StatelessWidget {
           // else is shown on the hero. The gradient is a soft, local fade at the very
           // bottom so it blends into the image instead of reading as a bar.
           IgnorePointer(child: Stack(fit: StackFit.expand, children: [
+            // First default slide: "Explore <City>" (city = the user's GPS/selected location).
+            if (exploreCity)
+              Positioned(
+                left: 24, right: 24, bottom: 24,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 285),
+                  child: OffroAccentText(
+                    before: "Explore\n",
+                    accent: city.isNotEmpty ? city : "Your City",
+                    style: OffroText.headline.copyWith(
+                      color: Colors.white, fontSize: 34,
+                      shadows: const [Shadow(blurRadius: 10, color: Colors.black87)]),
+                  ),
+                ),
+              ),
             if (hasStore)
               Positioned(
                 left: 0, right: 0, bottom: 0,
