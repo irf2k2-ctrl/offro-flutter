@@ -134,6 +134,22 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       _load();
     } else {
       setState(() => _profile = updated);
+      // Never trust only what the form handed back (e.g. a draft copy sent before a
+      // free / 100%-discount publish): re-read the real profile from the backend.
+      _refreshProfileSilently();
+    }
+  }
+
+  /// Re-reads the profile from the backend WITHOUT a loading spinner or error state, so Home
+  /// and Profile always reflect the real payment/publish status (used after save/publish/pay
+  /// and whenever the person returns to Home).
+  Future<void> _refreshProfileSilently() async {
+    try {
+      final p = await Api.getMyInfluencerProfile(widget.token);
+      if (!mounted || p.isEmpty) return;
+      setState(() => _profile = p);
+    } catch (_) {
+      // keep what we have; pull-to-refresh / next visit retries
     }
   }
 
@@ -184,7 +200,10 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         bottomNavigationBar: OffroBottomNav(
           variant: OffroNavVariant.merchant,
           currentIndex: _tab,
-          onTap: (i) => setState(() => _tab = i),
+          onTap: (i) {
+            setState(() => _tab = i);
+            if (i == 0 || i == 2) _refreshProfileSilently();
+          },
           items: const [
             OffroNavItem(label: 'Home', icon: OffroIcons.home, fillWhenActive: true),
             OffroNavItem(label: 'Opportunities', icon: OffroIcons.sparkles),
@@ -246,7 +265,8 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
     final views = (p["view_count"] as num?)?.toInt() ?? 0;
     final saves = (p["favorite_count"] as num?)?.toInt() ?? 0;
     final reviews = (p["review_count"] as num?)?.toInt() ?? 0;
-    final live = p["payment_status"]?.toString() == "PAID" && p["publish_status"]?.toString() == "published";
+    // Same defaults the Profile tab uses: a missing payment/publish field (older profiles) counts as PAID / published.
+    final live = (p["payment_status"]?.toString() ?? "PAID") == "PAID" && (p["publish_status"]?.toString() ?? "published") == "published";
     final sub = [cat, city].where((e) => e.isNotEmpty).join(' · ');
     return RefreshIndicator(
       color: OffroColors.primary,
@@ -504,8 +524,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     final bio = profile["bio"]?.toString() ?? "";
     final rating = (profile["rating"] as num?)?.toDouble() ?? 0.0;
     final reviewCount = (profile["review_count"] as num?)?.toInt() ?? 0;
-    final viewCount = (profile["view_count"] as num?)?.toInt() ?? 0;
-    final favoriteCount = (profile["favorite_count"] as num?)?.toInt() ?? 0;
     final social = (profile["social"] is Map) ? profile["social"] as Map : {};
     // Verified badge: real state derived from the same payment/publish
     // fields already used everywhere else — never a separate/fabricated flag.
@@ -687,11 +705,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           const SizedBox(height: 16),
           _socialCard(social),
 
-          // ── Stats — merged into one card with a divider, with real
-          // padding (not squeezed) — same values/icons as before. ──
-          const SizedBox(height: 16),
-          _statsCard(viewCount, favoriteCount),
-
           const SizedBox(height: 18),
           _buildSubscriptionStatusBanner(),
           const SizedBox(height: 8),
@@ -718,8 +731,35 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
               )),
             ),
 
+          // ── Profile actions: one compact row (Edit · Disable/Enable · Delete). Handlers are the
+          // original ones, unchanged. ──
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(child: _actionButton(
+              icon: Icons.edit_rounded, label: "Edit", color: kPrimary, borderColor: kPrimary,
+              onPressed: () async {
+                final updated = await Navigator.push<Map<String,dynamic>>(context,
+                  MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
+                    token: token, existing: profile, onProfileSaved: onProfileUpdated)));
+                if (updated != null) onProfileUpdated(updated);
+              },
+            )),
+            const SizedBox(width: 10),
+            // Enable/Disable is a visibility toggle only - it never touches payment_status/publish_status.
+            Expanded(child: _actionButton(
+              icon: _isActive ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+              label: _isActive ? "Disable" : "Enable", color: kText, borderColor: kBorder,
+              onPressed: _busy ? null : _toggleActive,
+            )),
+            const SizedBox(width: 10),
+            Expanded(child: _actionButton(
+              icon: Icons.delete_outline_rounded, label: "Delete", color: Colors.red, borderColor: Colors.red,
+              onPressed: _busy ? null : _confirmDelete,
+            )),
+          ]),
+
           // ── Reviews (real data — never hardcoded example businesses) ──
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           Row(children: [
             const Text("Reviews", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kText)),
             const Spacer(),
@@ -754,42 +794,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           else
             ..._reviews.map((r) => _reviewCard(r)),
 
-          const SizedBox(height: 20),
-          // Edit Profile is now the primary (filled) action — matches the
-          // reference's cleaner button hierarchy. Disable/Delete below stay
-          // outlined so the two destructive/account-management actions
-          // remain visually distinct, per the redesign brief. onPressed
-          // logic is byte-for-byte unchanged from before.
-          SizedBox(width: double.infinity, child: ElevatedButton.icon(
-            onPressed: () async {
-              final updated = await Navigator.push<Map<String,dynamic>>(context,
-                MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
-                  token: token, existing: profile, onProfileSaved: onProfileUpdated)));
-              if (updated != null) onProfileUpdated(updated);
-            },
-            icon: const Icon(Icons.edit_rounded, size: 16, color: Colors.white),
-            label: const Text("Edit Profile", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 12),
-              elevation: 0, shape: const StadiumBorder()),
-          )),
-          const SizedBox(height: 12),
-          // Enable/Disable — a visibility toggle only. Deliberately never
-          // touches payment_status/publish_status: disabling a paid,
-          // published profile keeps it PAID; re-enabling never re-charges.
-          SizedBox(width: double.infinity, child: OutlinedButton.icon(
-            onPressed: _busy ? null : _toggleActive,
-            icon: Icon(_isActive ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 16, color: kText),
-            label: Text(_isActive ? "Disable Profile" : "Enable Profile",
-              style: const TextStyle(color: kText, fontWeight: FontWeight.w700)),
-            style: OutlinedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), side: const BorderSide(color: kBorder), padding: const EdgeInsets.symmetric(vertical: 12)),
-          )),
-          const SizedBox(height: 12),
-          SizedBox(width: double.infinity, child: OutlinedButton.icon(
-            onPressed: _busy ? null : _confirmDelete,
-            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.red),
-            label: const Text("Delete Profile", style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
-            style: OutlinedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), side: const BorderSide(color: Colors.red), padding: const EdgeInsets.symmetric(vertical: 12)),
-          )),
             ]),
           ),
         ],
@@ -820,32 +824,23 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     ]);
   }
 
-  /// ROUND redesign: the two previous separate bordered `_statCard`s are
-  /// now one merged card with a vertical divider between them — same
-  /// values/icons/labels, just presented as "clean cards/dividers" per the
-  /// reference instead of two boxes.
-  Widget _statsCard(int viewCount, int favoriteCount) {
-    Widget stat(IconData icon, String value, String label) => Expanded(
-      child: Column(children: [
-        Container(width: 36, height: 36,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
-          child: Icon(icon, size: 18, color: kPrimary)),
-        const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kText)),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11.5, color: kMuted), textAlign: TextAlign.center),
-      ]),
-    );
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
-      child: Row(children: [
-        stat(Icons.visibility_rounded, "$viewCount", "Profile Views"),
-        Container(width: 1, height: 44, color: kBorder),
-        stat(Icons.favorite_rounded, "$favoriteCount", "Favourites"),
-      ]),
-    );
-  }
+  /// Compact icon + short label button used for the Edit / Disable / Delete row.
+  Widget _actionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color borderColor,
+    required VoidCallback? onPressed,
+  }) =>
+      OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 16, color: color),
+        label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+        style: OutlinedButton.styleFrom(
+          elevation: 0, shape: const StadiumBorder(), side: BorderSide(color: borderColor),
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8)),
+      );
 
   /// Social — always rendered as its own card (previously this whole
   /// section only existed once a real link was saved, which is why it

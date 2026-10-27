@@ -13,7 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/design/design.dart'
     show OffroColors, OffroText, OffroRadii, OffroSpacing, OffroButton, OffroCard,
-         OffroIcons, OffroIcon, OffroIconData, OffroTones, OffroScreenHeader;
+         OffroIcons, OffroIcon, OffroIconData, OffroTones, OffroScreenHeader, OffroNetworkImage;
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/utils/navigation.dart';
@@ -221,17 +221,28 @@ class _CampaignCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Expanded(child: Text((c["title"] ?? "").toString(), style: OffroText.cardTitle.copyWith(fontSize: 15))),
-          if (!open)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: kMerchantBorder, borderRadius: BorderRadius.circular(99)),
-              child: Text(status == "expired" ? "Expired" : "Closed",
-                  style: OffroText.caption.copyWith(color: kMerchantMuted)),
-            ),
+          // Store thumbnail (OffroNetworkImage shows the standard OffrO store placeholder when empty/failed).
+          OffroNetworkImage(
+            url: (c["store_image"] ?? "").toString(),
+            width: 52, height: 52,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: Text((c["title"] ?? "").toString(), style: OffroText.cardTitle.copyWith(fontSize: 15))),
+              if (!open)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: kMerchantBorder, borderRadius: BorderRadius.circular(99)),
+                  child: Text(status == "expired" ? "Expired" : "Closed",
+                      style: OffroText.caption.copyWith(color: kMerchantMuted)),
+                ),
+            ]),
+            const SizedBox(height: 4),
+            Text((c["store_name"] ?? "").toString(), style: OffroText.body.copyWith(fontSize: 12.5)),
+          ])),
         ]),
-        const SizedBox(height: 4),
-        Text((c["store_name"] ?? "").toString(), style: OffroText.body.copyWith(fontSize: 12.5)),
         const SizedBox(height: 10),
         Wrap(spacing: 14, runSpacing: 4, children: [
           _meta(OffroIcons.sparkles, "$proposals ${proposals == 1 ? 'proposal' : 'proposals'}"),

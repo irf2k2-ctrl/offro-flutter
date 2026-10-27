@@ -5530,6 +5530,8 @@ class _AddDealState extends State<AddDealPage> {
   Future<void> _save() async {
     if (_title.text.trim().isEmpty) { setState(() => _msg = "Deal title is required"); return; }
     if (_endDate.isEmpty)           { setState(() => _msg = "End date is required"); return; }
+    // Image is mandatory (new deal, or an edit that would leave the deal without one).
+    if ((_dealImgB64 ?? _dealImgUrl ?? "").isEmpty) { setState(() => _msg = "Please add an image before saving."); return; }
 
     if (_storeExpiryDate != null) {
       final endDt = DateTime.tryParse(_endDate);
@@ -5620,7 +5622,7 @@ class _AddDealState extends State<AddDealPage> {
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
-      // ── Item 3: Deal Image (optional) ──
+      // ── Item 3: Deal Image (required) ──
       const Text("Deal Image", style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       GestureDetector(
@@ -5662,7 +5664,7 @@ class _AddDealState extends State<AddDealPage> {
                       const SizedBox(height: 6),
                       const Text("[ Upload Image ]", style: TextStyle(color: kMerchantMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
-                      _InfoChip("📦 Max 2MB · Optional"),
+                      _InfoChip("📦 Max 2MB · Required"),
                     ]),
         ),
       ),
