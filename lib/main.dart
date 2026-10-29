@@ -829,21 +829,20 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<String> _defaultProductImageUrls = []; // default product images from /admin/default-images (all configured)
   List<Map<String,dynamic>> _mbFallbackSliders = []; // default merchant banners (may be multiple, images OR videos)
 
-  /// Hero carousel order: ALL backend Default Merchant Banners first (admin order; the first one
-  /// carries the "Explore <City>" overlay), then the merchant-uploaded banners/videos in their
+  /// Hero carousel order: ALL backend Default Merchant Banners first (admin order; only the one the admin
+  /// ticked "Explore City Name" on carries the overlay), then the merchant-uploaded banners/videos in their
   /// existing order. De-duplicated by media URL so nothing appears twice. [_sliders] holds only the
   /// merchant banners.
   List<Map<String,dynamic>> get _heroSlides {
     final seen = <String>{};
     final out = <Map<String,dynamic>>[];
-    void add(Map<String,dynamic> m, {bool explore = false}) {
+    void add(Map<String,dynamic> m) {
       final key = (m["image_url"] ?? m["image"] ?? m["id"] ?? "").toString().trim();
       if (key.isNotEmpty && !seen.add(key)) return;
-      out.add(explore ? {...m, "_explore_city": true} : m);
+      out.add(m);
     }
-    for (var i = 0; i < _mbFallbackSliders.length; i++) {
-      add(_mbFallbackSliders[i], explore: i == 0);
-    }
+    // Only the default media the admin marked carries "_explore_city" (set where the defaults load).
+    for (final m in _mbFallbackSliders) { add(m); }
     for (final m in _sliders) { add(m); }
     return out;
   }
@@ -1224,11 +1223,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         // merchant_banner: array of URLs (images or mp4 videos)
         List<Map<String,dynamic>> mb = [];
         final mbRaw = defaults["merchant_banner"];
+        // The ONE default media the admin ticked "Explore City Name" on (empty = none).
+        final mbExploreUrl = (defaults["merchant_banner_explore_url"] ?? "").toString().trim();
         if (mbRaw is List) {
           mb = mbRaw.where((u) => u is String && okImg(u)).map<Map<String,dynamic>>((u) {
             final uid = "mb_${(u as String).hashCode.abs()}";
             return {"id": uid, "title": "", "subtitle": "", "image": u, "image_url": u,
-              "link_url": "", "bg_color": "", "sort_order": 0, "city": ""};
+              "link_url": "", "bg_color": "", "sort_order": 0, "city": "",
+              if (mbExploreUrl.isNotEmpty && u == mbExploreUrl) "_explore_city": true};
           }).toList();
         } else if (mbRaw is String && mbRaw.startsWith("http")) {
           mb = [{"id":"default","title":"","subtitle":"","image":mbRaw,"image_url":mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
@@ -4763,15 +4765,16 @@ class _CityHeroSection extends StatelessWidget {
           // else is shown on the hero. The gradient is a soft, local fade at the very
           // bottom so it blends into the image instead of reading as a bar.
           IgnorePointer(child: Stack(fit: StackFit.expand, children: [
-            // First default slide: "Explore <City>" (city = the user's GPS/selected location).
-            if (exploreCity)
+            // Only the default media the admin ticked "Explore City Name" on. City = the Home's
+            // GPS/saved-location city; hidden when the city is unknown (never a wrong/placeholder city).
+            if (exploreCity && city.trim().isNotEmpty)
               Positioned(
                 left: 24, right: 24, bottom: 24,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 285),
                   child: OffroAccentText(
                     before: "Explore\n",
-                    accent: city.isNotEmpty ? city : "Your City",
+                    accent: city.trim(),
                     style: OffroText.headline.copyWith(
                       color: Colors.white, fontSize: 34,
                       shadows: const [Shadow(blurRadius: 10, color: Colors.black87)]),

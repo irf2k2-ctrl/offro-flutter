@@ -68,6 +68,7 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
   bool _videoReady = false;
   bool _started = false;      // tap-to-play: customer has pressed play
   bool _playPending = false;  // tapped before the video finished loading
+  bool _userPaused = false;   // tap-to-play: customer tapped the playing video to pause it
 
   static bool _isVideo(String url) =>
       url.isNotEmpty && (
@@ -173,6 +174,22 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     if (mounted) setState(() {});
   }
 
+  /// Tap-to-play hero video, after it has started: a tap on the video pauses it, another tap
+  /// resumes it. Uses the same controller; a paused video stays on its slide (the timed
+  /// rotation was cancelled in [_startPlayback]) and, once resumed, finishes -> onVideoComplete.
+  void _togglePause() {
+    final c = _vpc;
+    if (c == null || !c.value.isInitialized) return;
+    if (_userPaused) {
+      _userPaused = false;
+      c.play();
+    } else {
+      _userPaused = true;
+      c.pause();
+    }
+    if (mounted) setState(() {});
+  }
+
   Widget _playOverlay() => Center(
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -227,6 +244,18 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         if (widget.tapToPlay && !_started) {
           return Stack(fit: StackFit.expand, children: [video, _playOverlay()]);
         }
+        if (widget.tapToPlay && _userPaused) {
+          // Paused by tap: show a play icon (taps pass through to the card, which resumes).
+          return Stack(fit: StackFit.expand, children: [
+            video,
+            IgnorePointer(child: Center(child: Container(
+              width: 56, height: 56,
+              decoration: const BoxDecoration(color: OffroColors.textDark, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+            ))),
+          ]);
+        }
         return video;
       }
       // While video loads → green placeholder (tap-to-play still shows the icon)
@@ -264,8 +293,11 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     final subtitle = widget.slider["subtitle"]?.toString() ?? widget.slider["text"]?.toString() ?? "";
     final radius   = widget.squareCorners ? 0.0 : 20.0;
 
+    // Tap-to-play video that has already been started: tap = pause / resume (no navigation).
+    final videoToggle = widget.tapToPlay && _started && _isVideo(mediaUrl);
+
     return GestureDetector(
-      onTap: (storeId.isNotEmpty || widget.onOpenCta != null) ? () async {
+      onTap: videoToggle ? _togglePause : (storeId.isNotEmpty || widget.onOpenCta != null) ? () async {
         try {
           if (widget.onOpenCta != null && await widget.onOpenCta!(context, widget.slider)) return;
           if (storeId.isEmpty) return;
