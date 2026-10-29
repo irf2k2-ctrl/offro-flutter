@@ -5021,6 +5021,99 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
     if (mounted) setState(() => _uploading = false);
   }
 
+  Future<void> _contactOffro() async {
+    final s = await Api.getSocialLinks();
+    final rawWa = s["whatsapp"] ?? "";
+    if (rawWa.isNotEmpty) {
+      final digits = rawWa.replaceAll(RegExp(r'[^0-9]'), '');
+      final waNum = digits.length >= 10 ? (digits.length == 10 ? "91$digits" : digits) : digits;
+      await launchUrl(Uri.parse("https://wa.me/$waNum"), mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _openSwitchMode() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SwitchModeSheet(
+        currentMode: 'merchant',
+        token: widget.token,
+        phone: widget.merchant['phone']?.toString() ?? '',
+        onSwitch: (role) {
+          if (role == 'user' || role == 'influencer') {
+            // Same goSwitchMode dispatch for User and Influencer (unchanged behaviour).
+            final token = widget.token;
+            final name  = widget.merchant['name']?.toString() ?? '';
+            final phone = widget.merchant['phone']?.toString() ?? '';
+            final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
+            Navigator.of(context).pop(); // close profile
+            MyApp.goSwitchMode(token, name, phone, uid, role);
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    await Prefs.clear(keepMode: false);
+    Api.clearCache();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  Widget _group(String eyebrow, List<Widget> rows) => Padding(
+    padding: const EdgeInsets.only(top: 12, bottom: 8),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(eyebrow.toUpperCase(),
+        style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.8, color: OffroColors.sage)),
+      const SizedBox(height: 12),
+      Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(color: OffroColors.surface, borderRadius: BorderRadius.circular(22)),
+        child: Column(children: rows),
+      ),
+    ]),
+  );
+
+  Widget _accountRow({
+    required Widget icon,
+    required String label,
+    String? note,
+    required VoidCallback onTap,
+    bool destructive = false,
+  }) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(children: [
+        Container(
+          width: 36, height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: destructive ? OffroColors.error.withValues(alpha: .10) : OffroColors.mintSoft,
+            shape: BoxShape.circle),
+          child: icon,
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: OffroText.cardTitle.copyWith(
+            fontSize: 13, color: destructive ? OffroColors.error : OffroColors.text)),
+          if (note != null) ...[
+            const SizedBox(height: 2),
+            Text(note, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
+          ],
+        ])),
+        if (!destructive) const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.sage),
+      ]),
+    ),
+  );
+
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
     appBar:merchantHeaderBar(eyebrow:"Merchant account",title:"Profile",back:false,),
@@ -5050,72 +5143,24 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
       _tile(context,Icons.privacy_tip,"Privacy Policy",() => Navigator.push(context,MaterialPageRoute(builder:(_)=>MerchantPrivacyPolicyPage(token:widget.token)))),
       _tile(context,Icons.receipt,"Refund Policy",() => _openPolicy(context,"Refund Policy",Api.fetchPolicy("refund"))),
       _tile(context,Icons.badge,"KYC Policy",() => _openPolicy(context,"KYC Policy",Api.fetchPolicy("kyc"))),
-      const SizedBox(height:8),
-      ListTile(tileColor:OffroColors.mint,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:Color(0xFF25D366))),
-        leading:const CircleAvatar(backgroundColor:Color(0xFF25D366),child:Icon(Icons.chat_bubble,color:Colors.white)),
-        title:const Text("Contact Offro",style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a7a3c))),
-        subtitle:const Text("Chat with us on WhatsApp",style:TextStyle(fontSize:11,color:Color(0xFF25D366))),
-        trailing:const Icon(Icons.chevron_right,color:Color(0xFF25D366)),
-        onTap:()async{final s=await Api.getSocialLinks();
-          final rawWa=s["whatsapp"]??"";
-          if(rawWa.isNotEmpty){
-            final digits=rawWa.replaceAll(RegExp(r'[^0-9]'),'');
-            final waNum=digits.length>=10?(digits.length==10?"91$digits":digits):digits;
-            await launchUrl(Uri.parse("https://wa.me/$waNum"),mode:LaunchMode.externalApplication);
-          }}),
-      const SizedBox(height:20),
-      // ── Switch Mode ──
-      SizedBox(height:48, child: OutlinedButton.icon(
-        icon: const Icon(Icons.swap_horiz_rounded, color: kMerchantPrimary),
-        label: const Text("Switch Mode", style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700)),
-        style: OutlinedButton.styleFrom(elevation: 0, 
-          side: const BorderSide(color: kMerchantPrimary),
-          shape: const StadiumBorder()),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => SwitchModeSheet(
-              currentMode: 'merchant',
-              token: widget.token,
-              phone: widget.merchant['phone']?.toString() ?? '',
-              onSwitch: (role) {
-                if (role == 'user') {
-                  // Switch to User → GPS loader
-                  final token = widget.token;
-                  final name  = widget.merchant['name']?.toString() ?? '';
-                  final phone = widget.merchant['phone']?.toString() ?? '';
-                  final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
-                  Navigator.of(context).pop(); // close profile
-                  MyApp.goSwitchMode(token, name, phone, uid, 'user');
-                } else if (role == 'influencer') {
-                  // C4: Merchant → Influencer, same goSwitchMode dispatch
-                  // pattern as the User branch above.
-                  final token = widget.token;
-                  final name  = widget.merchant['name']?.toString() ?? '';
-                  final phone = widget.merchant['phone']?.toString() ?? '';
-                  final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
-                  Navigator.of(context).pop(); // close profile
-                  MyApp.goSwitchMode(token, name, phone, uid, 'influencer');
-                }
-              },
-            ),
-          );
-        })),
-      const SizedBox(height:12),
-      SizedBox(height:48,child:OutlinedButton.icon(
-        icon:const Icon(Icons.logout,color:Colors.red),label:const Text("Logout",style:TextStyle(color:Colors.red)),
-        style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:Colors.red),shape: const StadiumBorder()),
-        onPressed:() async {
-            await Prefs.clear(keepMode: false);
-            Api.clearCache();
-            if (!context.mounted) return;
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => LoginScreen()),
-              (_) => false,
-            );
-          })),
+      // ── ACCOUNT / SESSION — same grouped-card + row styling as the Customer profile
+      // (ProfileTab._group/_row). Behaviour of each action is unchanged. ──
+      _group("Account", [
+        _accountRow(
+          icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: OffroColors.primary),
+          label: "Switch Mode", note: "Switch between User, Merchant & Influencer",
+          onTap: _openSwitchMode),
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.message, size: 16, color: OffroColors.primary),
+          label: "Contact Offro", note: "Chat with us on WhatsApp",
+          onTap: _contactOffro),
+      ]),
+      _group("Session", [
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.arrow, size: 16, color: OffroColors.error),
+          label: "Logout", destructive: true,
+          onTap: _logout),
+      ]),
     ])),
   );
 

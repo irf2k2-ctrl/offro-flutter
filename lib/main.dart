@@ -5779,6 +5779,14 @@ class _NearbyStoresSection extends StatelessWidget {
     );
   }
 
+  /// Compact inline badge text from the shared badge key (emoji dropped; "new_store" -> "NEW").
+  static String _nearbyBadgeText(String key) {
+    if (key == "new_store") return "NEW";
+    final label = _BannerStoresBlockState._badgeRibbonMeta[key]?["label"] ?? "";
+    final i = label.indexOf(" ");
+    return i < 0 ? label : label.substring(i + 1);
+  }
+
   Widget _storeCard(BuildContext ctx, Map<String,dynamic> s, double width) {
     final sid      = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
     final name     = s["store_name"]?.toString() ?? "";
@@ -5790,7 +5798,10 @@ class _NearbyStoresSection extends StatelessWidget {
     final offer    = (s["offer"] ?? "").toString().trim();
     final dealCnt  = s["deal_count"];
     final hasOffer = offer.isNotEmpty && (dealCnt == null || ((dealCnt is num) ? dealCnt : 0) > 0);
-    final isNew    = s["is_new_in_town"] == true || s["is_new_in_town"]?.toString() == 'true';
+    // Same badge data/rules the other store cards use (admin badge, created < 10 days,
+    // is_new_in_town / trending / popular). Shown inline after the store name.
+    final badgeKey   = _BannerStoresBlockState._resolveStoreBadge(s);
+    final badgeLabel = badgeKey == null ? "" : _nearbyBadgeText(badgeKey);
     final status   = computeStoreOpenStatus(s["open_time"]?.toString() ?? "", s["close_time"]?.toString() ?? "");
     final imgSrc   = _resolveImg(s);
 
@@ -5850,8 +5861,20 @@ class _NearbyStoresSection extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: OffroText.cardTitle),
+                  Row(children: [
+                    Flexible(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: OffroText.cardTitle)),
+                    if (badgeLabel.isNotEmpty) ...[
+                      const SizedBox(width: 6),
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        Container(width: 6, height: 6,
+                          decoration: const BoxDecoration(color: OffroColors.success, shape: BoxShape.circle)),
+                        const SizedBox(width: 4),
+                        Text(badgeLabel, maxLines: 1,
+                          style: OffroText.caption.copyWith(fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 0.9, color: OffroColors.success)),
+                      ]),
+                    ],
+                  ]),
                   const SizedBox(height: 8),
                   Wrap(spacing: 8, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
                     if (category.isNotEmpty)
@@ -5861,14 +5884,6 @@ class _NearbyStoresSection extends StatelessWidget {
                         child: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis,
                           style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                       ),
-                    if (isNew)
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        Container(width: 6, height: 6,
-                          decoration: const BoxDecoration(color: OffroColors.success, shape: BoxShape.circle)),
-                        const SizedBox(width: 4),
-                        Text("NEW",
-                          style: OffroText.caption.copyWith(fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 0.9, color: OffroColors.success)),
-                      ]),
                   ]),
                   if (area.isNotEmpty)
                     Padding(
@@ -6615,7 +6630,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // good badge per store id prevents that flicker.
   static final Map<String, String> _badgeStickyCache = {};
 
-  String? _resolveStoreBadge(Map<String,dynamic> s) {
+  static String? _resolveStoreBadge(Map<String,dynamic> s) {
     final String sid = s["_id"]?.toString() ?? s["id"]?.toString() ?? "";
     String? resolved;
     // 1. Explicit admin badge — highest priority
@@ -7902,6 +7917,8 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
       gradient:LinearGradient(colors:[OffroColors.primary,Color(0xFF2a4a40)],begin:Alignment.topLeft,end:Alignment.bottomRight)),
   );
 
+  // Old bottom-sheet detail — no longer used by Browse Products (kept, not deleted).
+  // ignore: unused_element
   void _openDetail(BuildContext context) {
     final title    = product["title"]?.toString() ?? "";
     final text     = product["text"]?.toString() ?? "";
@@ -8069,7 +8086,9 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
     }
 
     return GestureDetector(
-      onTap: () => _openDetail(context),
+      // Same NEW Product Detail screen Home product cards open (was the old bottom sheet).
+      onTap: () => Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ProductDetailsPage(product: Map<String,dynamic>.from(product), token: widget.token))),
       child: Container(
         decoration: BoxDecoration(
           color: OffroColors.surface,

@@ -133,13 +133,35 @@ class _NavButton extends StatelessWidget {
               children: [
                 item.iconBuilder != null
                     ? item.iconBuilder!(active)
-                    : OffroIcon(item.icon, size: iconSize, color: color, filled: active && item.fillWhenActive),
+                    // Selected state: dark-green glyph on a soft mint pill drawn BEHIND the icon
+                    // (Stack + negative inset, so layout/spacing is unchanged) — clearly visible
+                    // against the #54776A inactive items. No top bar/line.
+                    : SizedBox(
+                        width: iconSize, height: iconSize,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          clipBehavior: Clip.none,
+                          children: [
+                            if (active)
+                              Positioned(
+                                left: -13, right: -13, top: -5, bottom: -4,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: OffroColors.mint,
+                                    borderRadius: OffroRadii.pillRadius,
+                                  ),
+                                ),
+                              ),
+                            OffroIcon(item.icon, size: iconSize, color: color, filled: active && item.fillWhenActive),
+                          ],
+                        ),
+                      ),
                 const SizedBox(height: 6),
                 Text(
                   item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: OffroText.navLabel.copyWith(color: color, decoration: TextDecoration.none),
+                  style: OffroText.navLabel.copyWith(color: color, decoration: TextDecoration.none, fontWeight: active ? FontWeight.w700 : null),
                 ),
               ],
             ),
