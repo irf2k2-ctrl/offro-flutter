@@ -10,7 +10,6 @@ import '../../core/constants/india_locations.dart' show kIndiaStates, kIndiaCiti
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../auth/login_screen.dart' show SwitchModeSheet;
-import '../home/influencer_section.dart' show InfluencerProfileScreen;
 import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones, OffroBottomNav, OffroNavVariant, OffroNavItem, OffroScreenHeader;
 import '../../core/widgets/brand_logo.dart' show buildImageLogo;
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
@@ -170,10 +169,12 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         ),
       );
 
+  bool get _hasProfile => !_loading && _error == null && (_profile ?? {}).isNotEmpty;
+
   List<Widget> _headerActions() => [
         if (widget.onSwitchMode != null)
           IconButton(
-            icon: const Icon(Icons.settings_rounded, color: OffroColors.text),
+            icon: const Icon(Icons.swap_horiz_rounded, color: OffroColors.text),
             tooltip: "Switch Mode",
             onPressed: _openSwitchMode,
           ),
@@ -188,7 +189,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       },
       child: Scaffold(
         backgroundColor: OffroColors.background,
-        appBar: _tab == 2
+        appBar: (_tab == 2 && !_hasProfile)
             ? merchantHeaderBar(
                 eyebrow: "Creator account",
                 title: "Profile",
@@ -283,7 +284,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
                 const Spacer(),
                 if (widget.onSwitchMode != null)
                   IconButton(
-                    icon: const Icon(Icons.settings_rounded, color: OffroColors.primary),
+                    icon: const Icon(Icons.swap_horiz_rounded, color: OffroColors.primary),
                     tooltip: "Switch Mode",
                     onPressed: _openSwitchMode,
                   ),
@@ -382,6 +383,8 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       token: widget.token,
       profile: profile,
       onProfileUpdated: _applyProfileUpdate,
+      phone: widget.phone,
+      onSwitchMode: widget.onSwitchMode == null ? null : _openSwitchMode,
       // Delete (rule 4 — permanent): returning to the empty state ({}) is
       // exactly what InfluencerModuleScreen already renders for "no profile
       // yet" — the same _buildEmptyState() a brand-new influencer sees. A
@@ -436,11 +439,15 @@ class _MyInfluencerProfileView extends StatefulWidget {
   final Map<String, dynamic> profile;
   final void Function(Map<String,dynamic>) onProfileUpdated;
   final VoidCallback onProfileDeleted;
+  final String phone;
+  final VoidCallback? onSwitchMode; // null = no Switch Mode row (no parent handler)
   const _MyInfluencerProfileView({
     required this.token,
     required this.profile,
     required this.onProfileUpdated,
     required this.onProfileDeleted,
+    this.phone = '',
+    this.onSwitchMode,
   });
 
   @override
@@ -488,15 +495,14 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     final photoUrl = profile["photo_url"]?.toString() ?? "";
     Widget fallback() => Container(
       width: size, height: size,
-      decoration: const BoxDecoration(shape: BoxShape.circle, color: kLight),
+      decoration: const BoxDecoration(shape: BoxShape.circle, color: OffroColors.primary),
       alignment: Alignment.center,
       child: Text(name.isNotEmpty ? name[0].toUpperCase() : "?",
-        style: TextStyle(fontSize: size * 0.36, fontWeight: FontWeight.w800, color: kPrimary)),
+        style: OffroText.cardTitle.copyWith(fontSize: size * 0.3, color: Colors.white)),
     );
     if (photoUrl.startsWith("http")) {
-      return Container(
+      return SizedBox(
         width: size, height: size,
-        decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: kBorder, width: 1)),
         child: ClipOval(child: CachedNetworkImage(imageUrl: photoUrl, width: size, height: size, fit: BoxFit.cover,
           placeholder: (_, __) => fallback(), errorWidget: (_, __, ___) => fallback())),
       );
@@ -504,14 +510,149 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     return fallback();
   }
 
+  Future<void> _openEdit() async {
+    final updated = await Navigator.push<Map<String,dynamic>>(context,
+      MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
+        token: token, existing: profile, onProfileSaved: onProfileUpdated)));
+    if (updated != null) onProfileUpdated(updated);
+  }
+
+  // ── Profile layout — mirrors the Customer ProfileTab (lib/screens/home/
+  // profile_tab.dart): OffroScreenHeader, mint identity card, eyebrow-headed
+  // surface cards with 36px mint icon circles. Those helpers are private to
+  // ProfileTab, so the same styling is mirrored here rather than editing the
+  // Customer screen. ──
+  static const _eyebrowGap = 12.0;
+
+  Widget _eyebrow(String text) => Text(text.toUpperCase(),
+      style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.8, color: OffroColors.sage));
+
+  Widget _sectionTitle(String text) => Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 10),
+        child: Text(text, style: OffroText.cardTitle.copyWith(fontSize: 13)),
+      );
+
+  Widget _card(List<Widget> rows) => Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(color: OffroColors.surface, borderRadius: BorderRadius.circular(22)),
+        child: Column(children: rows),
+      );
+
+  Widget _iconCircle(Widget icon, {bool destructive = false}) => Container(
+        width: 36, height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: destructive ? OffroColors.error.withValues(alpha: .10) : OffroColors.mintSoft,
+          shape: BoxShape.circle,
+        ),
+        child: icon,
+      );
+
+  /// Tappable action row (same look as ProfileTab._row).
+  Widget _actionRow({
+    required Widget icon,
+    required String label,
+    String? note,
+    required VoidCallback? onTap,
+    bool destructive = false,
+    bool last = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: last ? null : const Border(bottom: BorderSide(color: Color(0x0D000000))),
+        ),
+        child: Row(children: [
+          _iconCircle(icon, destructive: destructive),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: OffroText.cardTitle.copyWith(
+              fontSize: 13, color: destructive ? OffroColors.error : OffroColors.text)),
+            if (note != null) ...[
+              const SizedBox(height: 2),
+              Text(note, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
+            ],
+          ])),
+          if (!destructive) const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.sage),
+        ]),
+      ),
+    );
+  }
+
+  /// Read-only detail row (label above value); tapping opens Edit.
+  Widget _infoRow(Widget icon, String label, String value, {bool last = false, int maxLines = 2}) {
+    final has = value.trim().isNotEmpty;
+    return InkWell(
+      onTap: _openEdit,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: last ? null : const Border(bottom: BorderSide(color: Color(0x0D000000))),
+        ),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _iconCircle(icon),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
+            const SizedBox(height: 2),
+            Text(has ? value : "Not added", maxLines: maxLines, overflow: TextOverflow.ellipsis,
+              style: OffroText.cardTitle.copyWith(fontSize: 13,
+                color: has ? OffroColors.text : OffroColors.textFaint,
+                fontWeight: has ? FontWeight.w600 : FontWeight.w400)),
+          ])),
+        ]),
+      ),
+    );
+  }
+
+  Widget _identityCard(String name, String phone) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(26)),
+      child: Row(children: [
+        GestureDetector(
+          onTap: _openEdit, // photo is changed in the Edit form (same as the old camera badge)
+          child: Stack(alignment: Alignment.bottomRight, children: [
+            _avatar(64),
+            Container(
+              width: 20, height: 20,
+              decoration: BoxDecoration(
+                color: OffroColors.surface, shape: BoxShape.circle,
+                border: Border.all(color: OffroColors.mint, width: 1.5)),
+              child: const Icon(Icons.camera_alt, size: 10, color: OffroColors.primary),
+            ),
+          ]),
+        ),
+        const SizedBox(width: 16),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(name.isEmpty ? "OffrO Influencer" : name, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: OffroText.cardTitle.copyWith(fontSize: 16)),
+          if (phone.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(phone, style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400,
+              color: OffroColors.primary.withValues(alpha: .65))),
+          ],
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: .55), borderRadius: OffroRadii.pillRadius),
+            child: Text("OffrO Influencer",
+              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+          ),
+        ])),
+      ]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final name = profile["name"]?.toString() ?? "";
-    // Issue 3: prefer the new `categories` list (always present now, even
-    // for legacy records — the backend derives it on read); join for this
-    // simple subtitle display, same visual result as before for a
-    // single-category profile, correctly shows all of them for a
-    // multi-category one.
+    // `categories` is always present (the backend derives it on read, even
+    // for legacy records); fall back to the legacy single `category`.
     final categoriesList = (profile["categories"] is List)
         ? (profile["categories"] as List).map((c) => c.toString()).toList()
         : <String>[];
@@ -522,18 +663,13 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     final city = profile["city"]?.toString() ?? "";
     final state = profile["state"]?.toString() ?? "";
     final bio = profile["bio"]?.toString() ?? "";
-    final rating = (profile["rating"] as num?)?.toDouble() ?? 0.0;
-    final reviewCount = (profile["review_count"] as num?)?.toInt() ?? 0;
     final social = (profile["social"] is Map) ? profile["social"] as Map : {};
-    // Verified badge: real state derived from the same payment/publish
-    // fields already used everywhere else — never a separate/fabricated flag.
-    final verified = _paymentStatus == "PAID" && _publishStatus == "published";
-    // Local-explorer style role indicator — derived from the influencer's
-    // own primary category, never a hardcoded label.
-    final roleLabel = displayCategories.isNotEmpty ? displayCategories.first : "Influencer";
+    final phone = widget.phone.isNotEmpty ? widget.phone : (profile["phone"]?.toString() ?? "");
+    String s(String k) => (social[k] ?? "").toString();
+    final topPad = MediaQuery.of(context).padding.top;
 
     return RefreshIndicator(
-      color: kPrimary,
+      color: OffroColors.primary,
       onRefresh: () async {
         try {
           final fresh = await Api.getMyInfluencerProfile(token);
@@ -542,258 +678,123 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
         await _loadReviews();
       },
       child: ListView(
-        // Horizontal inset moved OFF the ListView itself — the hero below
-        // needs to render edge-to-edge (no card margin) so the background
-        // asset reads as part of the page rather than a boxed banner.
-        // Every other section keeps the same 20px side margin as before,
-        // now applied by the single Padding wrapped around them further
-        // down instead of by this top-level padding.
-        padding: const EdgeInsets.only(top: 16, bottom: 28),
+        padding: EdgeInsets.only(top: topPad, bottom: 28),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          // ── Hero — the main visual focus of the screen, no longer a
-          // bordered/white card: the background asset is the page's own
-          // decorative surface, flowing full-bleed behind the photo, with
-          // the profile photo + text sitting directly on top of/below it
-          // as one continuous composition (no rounded-rectangle boundary,
-          // no border, no shadow around the whole section). Every value
-          // below is the same data the previous card read (name, verified,
-          // roleLabel, city/state, bio, rating, reviewCount, categories) —
-          // only the container/boxing around it was removed. ──
-          Column(children: [
-              // ── Decorative background asset (full page width) + profile photo ──
-              // Uses the supplied background image as-is (no CustomPainter,
-              // no generated shapes) as the hero's visual foundation. The
-              // asset is 841×1870 and its curved artwork occupies the top
-              // 664px of that (verified by pixel-sampling the file); the
-              // box height is (664/841) of the card's own width — via
-              // LayoutBuilder, so it's always derived from the real
-              // rendered width, never a hardcoded pixel — times 1.22 for
-              // ~22% more vertical presence per the latest feedback. The
-              // extra height simply reveals a bit more of the SAME asset
-              // below the curve line; pixel-sampling confirms that strip is
-              // already a near-white/cream tone almost identical to the
-              // page's own kBg, so BoxFit.cover + Alignment.topCenter still
-              // blends seamlessly with no synthetic backdrop needed. The
-              // photo is raised off the very bottom edge to sit prominently
-              // over the curve artwork: positioned at 49% down the hero's
-              // own height (Positioned(top: heroH * 0.49, ...), a fraction
-              // of the computed height, so it stays responsive) instead of
-              // being pinned to the bottom. Camera badge stays attached to
-              // the photo as before.
-              LayoutBuilder(builder: (context, constraints) {
-                final heroW = constraints.maxWidth;
-                final heroH = heroW * (664 / 841) * 1.22;
-                return SizedBox(
-                height: heroH,
-                width: double.infinity,
-                child: Stack(clipBehavior: Clip.none, children: [
-                  Positioned.fill(
-                    child: Image.asset(
-                      'assets/influencer_profile_bg.png',
-                      fit: BoxFit.cover,
-                      alignment: Alignment.topCenter,
-                    ),
-                  ),
-                  Positioned(
-                    top: heroH * 0.49,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Stack(clipBehavior: Clip.none, children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white,
-                            boxShadow: [BoxShadow(color: Color(0x33000000), blurRadius: 14, offset: Offset(0, 4))]),
-                          child: _avatar(108),
-                        ),
-                        Positioned(
-                          bottom: 2, right: 2,
-                          child: GestureDetector(
-                            onTap: () async {
-                              final updated = await Navigator.push<Map<String,dynamic>>(context,
-                                MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
-                                  token: token, existing: profile, onProfileSaved: onProfileUpdated)));
-                              if (updated != null) onProfileUpdated(updated);
-                            },
-                            child: Container(
-                              width: 32, height: 32,
-                              decoration: BoxDecoration(color: kPrimary, shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2.5)),
-                              child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ]),
-              );
-              }),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 22),
-                child: Column(children: [
-                  Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Flexible(child: Text(name, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: kText))),
-                    if (verified) ...[
-                      const SizedBox(width: 6),
-                      const Icon(Icons.verified_rounded, size: 20, color: kPrimary),
-                    ],
-                  ]),
-                  // ── Role/category + location on one line (same pattern
-                  // already used in store_header.dart's category/location
-                  // row) — matches the reference's own "Restaurant ·
-                  // 📍 City, State" example, same underlying data.
-                  if (roleLabel.isNotEmpty || city.isNotEmpty || state.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-                      if (roleLabel.isNotEmpty)
-                        Text(roleLabel, style: const TextStyle(fontSize: 13.5, color: kPrimary, fontWeight: FontWeight.w700)),
-                      if (roleLabel.isNotEmpty && (city.isNotEmpty || state.isNotEmpty))
-                        const Padding(padding: EdgeInsets.symmetric(horizontal: 6),
-                          child: Text("·", style: TextStyle(color: kMuted, fontSize: 13))),
-                      if (city.isNotEmpty || state.isNotEmpty) ...[
-                        const Icon(Icons.location_on_rounded, size: 14, color: kMuted),
-                        const SizedBox(width: 3),
-                        Text([if (city.isNotEmpty) city, if (state.isNotEmpty) state].join(", "),
-                          style: const TextStyle(fontSize: 13.5, color: kMuted)),
-                      ],
-                    ]),
-                  ],
-                  const SizedBox(height: 10),
-                  Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.star_rounded, color: Color(0xFFFFB800), size: 19),
-                    const SizedBox(width: 4),
-                    Text(rating.toStringAsFixed(1), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
-                    const SizedBox(width: 4),
-                    Text("($reviewCount reviews)", style: const TextStyle(fontSize: 12.5, color: kMuted)),
-                  ]),
-                  if (bio.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(bio, textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, color: kText, height: 1.45)),
-                  ],
-                  if (displayCategories.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    Center(child: _categoryChips(displayCategories)),
-                  ],
-                  const SizedBox(height: 16),
-                  SizedBox(width: double.infinity, child: OutlinedButton(
-                    onPressed: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => InfluencerProfileScreen(influencer: profile, token: token))),
-                    style: OutlinedButton.styleFrom(elevation: 0, side: const BorderSide(color: kPrimary), padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: const StadiumBorder()),
-                    child: const Text("View public profile", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13.5)),
-                  )),
-                ]),
-              ),
-            ]),
-
-          // ── Everything below the hero keeps the page's normal 20px side
-          // margin — only the hero above renders edge-to-edge. Wrapping the
-          // rest in one Padding (instead of the ListView's own padding, now
-          // reduced to vertical-only) is what lets the hero's background
-          // asset extend full-bleed while these sections stay inset exactly
-          // as they were. ──
+          OffroScreenHeader(eyebrow: "Creator account", title: "Profile", showBack: Navigator.canPop(context)),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(children: [
-          // ── Social — always shown as its own card now (previously only
-          // appeared once a link existed, so it looked "missing"); shows a
-          // proper empty state otherwise. Same underlying social data/rows
-          // as before (_socialRow unchanged). ──
-          const SizedBox(height: 16),
-          _socialCard(social),
+            padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 24, OffroSpacing.gutter, 0),
+            child: _identityCard(name, phone),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 0),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Draft / pending / failed payment state + one-tap Pay Now (unchanged logic).
+              if (!(_paymentStatus == "PAID" && _publishStatus == "published")) const SizedBox(height: 16),
+              _buildSubscriptionStatusBanner(),
+              if (_paymentStatus != "PAID")
+                Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                    onPressed: _openEdit,
+                    icon: const Icon(Icons.payment_rounded, size: 16, color: Colors.white),
+                    label: const Text("Continue Publishing / Pay Now", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: OffroColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: 12), shape: const StadiumBorder()),
+                  )),
+                ),
 
-          const SizedBox(height: 18),
-          _buildSubscriptionStatusBanner(),
-          const SizedBox(height: 8),
-          // FIX (Bug 1): a draft/pending/failed profile gets a direct,
-          // one-tap way to finish payment — same form, same existing
-          // profile, same reused-order/retry logic already in
-          // _saveAndPublish — rather than only the generic "Edit Profile"
-          // entry point. This is purely a UI affordance; nothing here
-          // creates a new profile or clears influencer_id.
-          if (_paymentStatus != "PAID")
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10, top: 8),
-              child: SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                onPressed: () async {
-                  final updated = await Navigator.push<Map<String,dynamic>>(context,
-                    MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
-                      token: token, existing: profile, onProfileSaved: onProfileUpdated)));
-                  if (updated != null) onProfileUpdated(updated);
-                },
-                icon: const Icon(Icons.payment_rounded, size: 16, color: Colors.white),
-                label: const Text("Continue Publishing / Pay Now", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: kPrimary, padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: const StadiumBorder()),
-              )),
-            ),
+              // ── MY PROFILE ──
+              const SizedBox(height: 28),
+              _eyebrow("My profile"),
 
-          // ── Profile actions: one compact row (Edit · Disable/Enable · Delete). Handlers are the
-          // original ones, unchanged. ──
-          const SizedBox(height: 14),
-          Row(children: [
-            Expanded(child: _actionButton(
-              icon: Icons.edit_rounded, label: "Edit", color: kPrimary, borderColor: kPrimary,
-              onPressed: () async {
-                final updated = await Navigator.push<Map<String,dynamic>>(context,
-                  MaterialPageRoute(builder: (_) => InfluencerProfileFormScreen(
-                    token: token, existing: profile, onProfileSaved: onProfileUpdated)));
-                if (updated != null) onProfileUpdated(updated);
-              },
-            )),
-            const SizedBox(width: 10),
-            // Enable/Disable is a visibility toggle only - it never touches payment_status/publish_status.
-            Expanded(child: _actionButton(
-              icon: _isActive ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-              label: _isActive ? "Disable" : "Enable", color: kText, borderColor: kBorder,
-              onPressed: _busy ? null : _toggleActive,
-            )),
-            const SizedBox(width: 10),
-            Expanded(child: _actionButton(
-              icon: Icons.delete_outline_rounded, label: "Delete", color: Colors.red, borderColor: Colors.red,
-              onPressed: _busy ? null : _confirmDelete,
-            )),
-          ]),
-
-          // ── Reviews (real data — never hardcoded example businesses) ──
-          const SizedBox(height: 24),
-          Row(children: [
-            const Text("Reviews", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kText)),
-            const Spacer(),
-            if (_reviews.isNotEmpty)
-              GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => _MyInfluencerAllReviewsScreen(influencerId: _influencerId, name: name))),
-                child: Row(mainAxisSize: MainAxisSize.min, children: const [
-                  Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
-                  Icon(Icons.chevron_right_rounded, size: 16, color: kPrimary),
-                ]),
-              ),
-          ]),
-          const SizedBox(height: 10),
-          if (_loadingReviews)
-            const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
-          else if (_reviews.isEmpty)
-            // Proper empty state (matches the Social card's treatment)
-            // instead of a lone line of text leaving a large blank gap.
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
-              child: Column(children: [
-                Container(width: 40, height: 40,
-                  decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
-                  child: const Icon(Icons.star_border_rounded, size: 20, color: kMuted)),
-                const SizedBox(height: 8),
-                const Text("No reviews yet", style: TextStyle(fontSize: 12.5, color: kMuted, fontWeight: FontWeight.w600)),
+              _sectionTitle("Business Details"),
+              _card([
+                _infoRow(const OffroIcon(OffroIcons.user, size: 16, color: OffroColors.primary), "Display Name", name),
+                _infoRow(const OffroIcon(OffroIcons.message, size: 16, color: OffroColors.primary), "Bio", bio, maxLines: 3),
+                _infoRow(const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary), "State", state),
+                _infoRow(const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary), "City", city, last: true),
               ]),
-            )
-          else
-            ..._reviews.map((r) => _reviewCard(r)),
 
+              _sectionTitle("Social Pages"),
+              _card([
+                _infoRow(const Icon(Icons.camera_alt_rounded, size: 16, color: Color(0xFFD4537E)), "Instagram", s("instagram"), maxLines: 1),
+                _infoRow(const Icon(Icons.facebook_rounded, size: 16, color: Color(0xFF378ADD)), "Facebook", s("facebook"), maxLines: 1),
+                _infoRow(const Icon(Icons.play_circle_fill_rounded, size: 16, color: Color(0xFFE24B4A)), "YouTube", s("youtube"), maxLines: 1, last: true),
+              ]),
+
+              _sectionTitle("Primary Specialty"),
+              _card([
+                InkWell(
+                  onTap: _openEdit,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: displayCategories.isEmpty
+                        ? Text("No specialty selected", style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint))
+                        : SizedBox(width: double.infinity, child: _categoryChips(displayCategories)),
+                  ),
+                ),
+              ]),
+
+              _sectionTitle("Account Details"),
+              _card([
+                _actionRow(
+                  icon: const OffroIcon(OffroIcons.user, size: 16, color: OffroColors.primary),
+                  label: "Edit", note: "Update your profile details", onTap: _openEdit),
+                _actionRow(
+                  icon: Icon(_isActive ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 16, color: OffroColors.primary),
+                  label: _isActive ? "Disable" : "Enable",
+                  note: _isActive ? "Hide your profile from customers" : "Make your profile visible again",
+                  onTap: _busy ? null : _toggleActive),
+                _actionRow(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 16, color: OffroColors.error),
+                  label: "Delete", destructive: true, last: true,
+                  onTap: _busy ? null : _confirmDelete),
+              ]),
+
+              // ── Reviews (real data — never hardcoded example businesses) ──
+              const SizedBox(height: 28),
+              Row(children: [
+                Expanded(child: _eyebrow("Reviews")),
+                if (_reviews.isNotEmpty)
+                  GestureDetector(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(
+                      builder: (_) => _MyInfluencerAllReviewsScreen(influencerId: _influencerId, name: name))),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                      Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
+                      Icon(Icons.chevron_right_rounded, size: 16, color: kPrimary),
+                    ]),
+                  ),
+              ]),
+              const SizedBox(height: _eyebrowGap),
+              if (_loadingReviews)
+                const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
+              else if (_reviews.isEmpty)
+                _card([
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(children: [
+                      _iconCircle(const Icon(Icons.star_border_rounded, size: 16, color: OffroColors.primary)),
+                      const SizedBox(width: 12),
+                      Text("No reviews yet", style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint)),
+                    ]),
+                  ),
+                ])
+              else
+                ..._reviews.map((r) => _reviewCard(r)),
+
+              // ── ACCOUNT — Switch Mode only (same SwitchModeSheet as Customer/Merchant) ──
+              if (widget.onSwitchMode != null) ...[
+                const SizedBox(height: 28),
+                _eyebrow("Account"),
+                const SizedBox(height: _eyebrowGap),
+                _card([
+                  _actionRow(
+                    icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: OffroColors.primary),
+                    label: "Switch Mode", note: "Switch to your Customer account",
+                    onTap: widget.onSwitchMode, last: true),
+                ]),
+              ],
             ]),
           ),
         ],
@@ -801,79 +802,16 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     );
   }
 
-  /// Dynamic category chips — capped display with a "+N" overflow chip,
-  /// exactly matching the reference design's "Restaurant / Bakery / +2"
-  /// pattern, but always built from the influencer's own real categories.
+  /// Selected specialties as small chips (all of them, no cap).
   Widget _categoryChips(List<String> categories) {
-    const maxShown = 3;
-    final shown = categories.take(maxShown).toList();
-    final overflow = categories.length - shown.length;
     return Wrap(spacing: 8, runSpacing: 8, children: [
-      for (final c in shown)
+      for (final c in categories)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(20)),
-          child: Text(c, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
-        ),
-      if (overflow > 0)
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(20)),
-          child: Text("+$overflow", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(color: OffroColors.mintSoft, borderRadius: OffroRadii.pillRadius),
+          child: Text(c, style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
         ),
     ]);
-  }
-
-  /// Compact icon + short label button used for the Edit / Disable / Delete row.
-  Widget _actionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required Color borderColor,
-    required VoidCallback? onPressed,
-  }) =>
-      OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: color),
-        label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
-        style: OutlinedButton.styleFrom(
-          elevation: 0, shape: const StadiumBorder(), side: BorderSide(color: borderColor),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8)),
-      );
-
-  /// Social — always rendered as its own card (previously this whole
-  /// section only existed once a real link was saved, which is why it
-  /// "disappeared" from the visible result even though the data/logic was
-  /// always there). Empty state added; `_socialRow` and the underlying
-  /// `social` map/data are completely unchanged.
-  Widget _socialCard(Map social) {
-    final hasAny = social.values.any((v) => (v?.toString() ?? "").isNotEmpty);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: kBorder)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text("Social", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
-        const SizedBox(height: 12),
-        if (!hasAny)
-          Row(children: [
-            Container(width: 34, height: 34,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: kLight.withValues(alpha: .5)),
-              child: const Icon(Icons.share_rounded, size: 16, color: kMuted)),
-            const SizedBox(width: 10),
-            const Text("No social links added yet", style: TextStyle(fontSize: 12.5, color: kMuted)),
-          ])
-        else ...[
-          if ((social["instagram"] ?? "").toString().isNotEmpty)
-            _socialRow(Icons.camera_alt_rounded, const Color(0xFFD4537E), "Instagram", social["instagram"].toString()),
-          if ((social["youtube"] ?? "").toString().isNotEmpty)
-            _socialRow(Icons.play_circle_fill_rounded, const Color(0xFFE24B4A), "YouTube", social["youtube"].toString()),
-          if ((social["facebook"] ?? "").toString().isNotEmpty)
-            _socialRow(Icons.facebook_rounded, const Color(0xFF378ADD), "Facebook", social["facebook"].toString()),
-        ],
-      ]),
-    );
   }
 
   /// Real review card — reviewer name/rating/date/text, sourced entirely
@@ -1019,19 +957,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  Widget _socialRow(IconData icon, Color color, String label, String url) {
-    // Display-only here — link-opening on the owner's own management
-    // screen isn't part of this scope; the value is just shown for context.
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 10),
-        Expanded(child: Text(url, style: const TextStyle(fontSize: 12, color: kText), overflow: TextOverflow.ellipsis)),
-      ]),
-    );
   }
 }
 
@@ -1602,29 +1527,13 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             hint: Text(_selState == null ? "Select state first" : "Select city"),
           ),
           const SizedBox(height: 16),
-          const Text("Category (select one or more)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          const Text("Primary Specialty (select one or more)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 8),
           _loadingCategories
               ? const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(color: kPrimary))
               : _categories.isEmpty
                   ? const Text("No categories available", style: TextStyle(fontSize: 12, color: kMuted))
-                  : Wrap(
-                      spacing: 8, runSpacing: 8,
-                      children: _categories.map((c) {
-                        final selected = _selCategories.contains(c);
-                        return FilterChip(
-                          label: Text(c, style: TextStyle(fontSize: 12.5, color: selected ? Colors.white : kText, fontWeight: FontWeight.w600)),
-                          selected: selected,
-                          selectedColor: kPrimary,
-                          backgroundColor: Colors.white,
-                          checkmarkColor: Colors.white,
-                          side: BorderSide(color: selected ? kPrimary : kBorder),
-                          onSelected: (sel) => setState(() {
-                            if (sel) { _selCategories.add(c); } else { _selCategories.remove(c); }
-                          }),
-                        );
-                      }).toList(),
-                    ),
+                  : _specialtyField(),
           const SizedBox(height: 16),
           const Text("Phone", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
@@ -1851,6 +1760,74 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
         placeholder: (_, __) => fallback(), errorWidget: (_, __, ___) => fallback()));
     }
     return fallback();
+  }
+
+  /// Multi-select dropdown for Primary Specialty — same `_selCategories` set
+  /// and `_categories` source as before; selected values show as small chips.
+  Widget _specialtyField() {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: _pickSpecialties,
+      child: InputDecorator(
+        decoration: _dec("Select specialties").copyWith(
+          suffixIcon: const Icon(Icons.arrow_drop_down_rounded, color: kMuted)),
+        isEmpty: _selCategories.isEmpty,
+        child: _selCategories.isEmpty
+            ? const SizedBox.shrink()
+            : Wrap(spacing: 6, runSpacing: 6, children: [
+                for (final c in _selCategories)
+                  InputChip(
+                    label: Text(c, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                    backgroundColor: OffroColors.mintSoft,
+                    side: BorderSide.none,
+                    visualDensity: VisualDensity.compact,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    deleteIconColor: OffroColors.primary,
+                    onDeleted: () => setState(() => _selCategories.remove(c)),
+                  ),
+              ]),
+      ),
+    );
+  }
+
+  Future<void> _pickSpecialties() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setSheet) => SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const SizedBox(height: 16),
+            const Text("Primary Specialty", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+            const SizedBox(height: 4),
+            Flexible(child: ListView(shrinkWrap: true, children: [
+              for (final c in _categories)
+                CheckboxListTile(
+                  value: _selCategories.contains(c),
+                  activeColor: kPrimary,
+                  title: Text(c, style: const TextStyle(fontSize: 14, color: kText)),
+                  onChanged: (v) {
+                    setState(() { if (v == true) { _selCategories.add(c); } else { _selCategories.remove(c); } });
+                    setSheet(() {});
+                  },
+                ),
+            ])),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: SizedBox(width: double.infinity, child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: kPrimary,
+                  padding: const EdgeInsets.symmetric(vertical: 12), shape: const StadiumBorder()),
+                child: const Text("Done", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+              )),
+            ),
+          ]),
+        ),
+      )),
+    );
   }
 
   InputDecoration _dec(String hint) => InputDecoration(
