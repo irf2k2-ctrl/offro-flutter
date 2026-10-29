@@ -804,8 +804,8 @@ class OpportunityCard extends StatelessWidget {
                 : "Closed";
     return OffroCard(
       onTap: onTap,
-      shadow: !accepted,
-      color: accepted ? OffroColors.mint.withValues(alpha: .22) : OffroColors.surface,
+      shadow: true,
+      color: OffroColors.surface, // Accepted card is white too (was mint)
       padding: const EdgeInsets.all(16),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -815,7 +815,7 @@ class OpportunityCard extends StatelessWidget {
               const SizedBox(width: 5),
             ],
             Text(label.toUpperCase(),
-                style: OffroText.eyebrow.copyWith(color: accepted ? OffroColors.primary : OffroColors.sageStrong)),
+                style: OffroText.eyebrow.copyWith(color: accepted ? OffroColors.primary : OffroColors.sageStrong, fontWeight: accepted ? FontWeight.w700 : null)),
           ]),
           const SizedBox(height: 8),
           Text((r["title"] ?? "").toString(), style: OffroText.cardTitle.copyWith(fontSize: 16)),

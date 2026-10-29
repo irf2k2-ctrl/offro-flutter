@@ -139,22 +139,10 @@ class _NavButton extends StatelessWidget {
                   item.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: OffroText.navLabel.copyWith(color: color),
+                  style: OffroText.navLabel.copyWith(color: color, decoration: TextDecoration.none),
                 ),
               ],
             ),
-            if (active)
-              Positioned(
-                top: 10,
-                child: Container(
-                  width: 20,
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: OffroColors.primary,
-                    borderRadius: OffroRadii.pillRadius,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

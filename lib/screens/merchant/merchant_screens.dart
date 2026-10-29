@@ -4346,9 +4346,12 @@ class _SubscribeState extends State<SubscribePage> {
             Container(
               padding:const EdgeInsets.all(10),
               decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
-              child:const Text(
-                "✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.",
-                style:TextStyle(fontSize:12,color:kMerchantPrimary,height:1.5),
+              child:Text(
+                // ₹0 payable (100% discount): no payment instruction.
+                orderAmt <= 0
+                    ? "✅  Your subscription request has been submitted."
+                    : "✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.",
+                style:const TextStyle(fontSize:12,color:kMerchantPrimary,height:1.5),
               ),
             ),
           ]),

@@ -10,6 +10,9 @@ import '../../core/constants/india_locations.dart' show kIndiaStates, kIndiaCiti
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../auth/login_screen.dart' show SwitchModeSheet;
+import '../../main.dart' show MyApp;
+import '../../core/services/prefs_service.dart';
+import '../../core/services/fcm_service.dart';
 import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones, OffroBottomNav, OffroNavVariant, OffroNavItem, OffroScreenHeader;
 import '../../core/widgets/brand_logo.dart' show buildImageLogo;
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
@@ -169,6 +172,15 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         ),
       );
 
+  /// Same logout sequence the Customer profile uses (Prefs.clear, FCM reset,
+  /// cache clear, then MyApp.goOnboarding) — no new auth logic.
+  Future<void> _logout() async {
+    await Prefs.clear();
+    FcmService.reset();
+    Api.clearCache();
+    MyApp.goOnboarding();
+  }
+
   bool get _hasProfile => !_loading && _error == null && (_profile ?? {}).isNotEmpty;
 
   List<Widget> _headerActions() => [
@@ -220,9 +232,6 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       case 1:
         return InfluencerOpportunitiesView(
           token: widget.token,
-          headerTrailing: widget.onSwitchMode == null
-              ? null
-              : Row(mainAxisSize: MainAxisSize.min, children: _headerActions()),
         );
       case 2:
         return _buildBody();
@@ -282,12 +291,6 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
               Row(children: [
                 buildImageLogo(height: 26),
                 const Spacer(),
-                if (widget.onSwitchMode != null)
-                  IconButton(
-                    icon: const Icon(Icons.swap_horiz_rounded, color: OffroColors.primary),
-                    tooltip: "Switch Mode",
-                    onPressed: _openSwitchMode,
-                  ),
               ]),
               const SizedBox(height: 28),
               Text('CREATOR WORKSPACE', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
@@ -385,6 +388,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       onProfileUpdated: _applyProfileUpdate,
       phone: widget.phone,
       onSwitchMode: widget.onSwitchMode == null ? null : _openSwitchMode,
+      onLogout: _logout,
       // Delete (rule 4 — permanent): returning to the empty state ({}) is
       // exactly what InfluencerModuleScreen already renders for "no profile
       // yet" — the same _buildEmptyState() a brand-new influencer sees. A
@@ -441,11 +445,13 @@ class _MyInfluencerProfileView extends StatefulWidget {
   final VoidCallback onProfileDeleted;
   final String phone;
   final VoidCallback? onSwitchMode; // null = no Switch Mode row (no parent handler)
+  final VoidCallback onLogout;
   const _MyInfluencerProfileView({
     required this.token,
     required this.profile,
     required this.onProfileUpdated,
     required this.onProfileDeleted,
+    required this.onLogout,
     this.phone = '',
     this.onSwitchMode,
   });
@@ -708,7 +714,16 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
               const SizedBox(height: 28),
               _eyebrow("My profile"),
 
-              _sectionTitle("Business Details"),
+              Padding(
+                padding: const EdgeInsets.only(top: 20, bottom: 10),
+                child: Row(children: [
+                  Expanded(child: Text("Business Details", style: OffroText.cardTitle.copyWith(fontSize: 13))),
+                  GestureDetector(
+                    onTap: _openEdit,
+                    child: Text("Edit", style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: OffroColors.primary)),
+                  ),
+                ]),
+              ),
               _card([
                 _infoRow(const OffroIcon(OffroIcons.user, size: 16, color: OffroColors.primary), "Display Name", name),
                 _infoRow(const OffroIcon(OffroIcons.message, size: 16, color: OffroColors.primary), "Bio", bio, maxLines: 3),
@@ -738,9 +753,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
 
               _sectionTitle("Account Details"),
               _card([
-                _actionRow(
-                  icon: const OffroIcon(OffroIcons.user, size: 16, color: OffroColors.primary),
-                  label: "Edit", note: "Update your profile details", onTap: _openEdit),
                 _actionRow(
                   icon: Icon(_isActive ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 16, color: OffroColors.primary),
                   label: _isActive ? "Disable" : "Enable",
@@ -783,18 +795,21 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
               else
                 ..._reviews.map((r) => _reviewCard(r)),
 
-              // ── ACCOUNT — Switch Mode only (same SwitchModeSheet as Customer/Merchant) ──
-              if (widget.onSwitchMode != null) ...[
-                const SizedBox(height: 28),
-                _eyebrow("Account"),
-                const SizedBox(height: _eyebrowGap),
-                _card([
+              // ── ACCOUNT — Switch Mode + Logout (same SwitchModeSheet / logout as Customer & Merchant) ──
+              const SizedBox(height: 28),
+              _eyebrow("Account"),
+              const SizedBox(height: _eyebrowGap),
+              _card([
+                if (widget.onSwitchMode != null)
                   _actionRow(
                     icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: OffroColors.primary),
                     label: "Switch Mode", note: "Switch to your Customer account",
-                    onTap: widget.onSwitchMode, last: true),
-                ]),
-              ],
+                    onTap: widget.onSwitchMode),
+                _actionRow(
+                  icon: const OffroIcon(OffroIcons.arrow, size: 16, color: OffroColors.error),
+                  label: "Logout", destructive: true, last: true,
+                  onTap: widget.onLogout),
+              ]),
             ]),
           ),
         ],
