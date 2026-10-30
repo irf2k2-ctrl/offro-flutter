@@ -811,11 +811,12 @@ class OpportunityCard extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisSize: MainAxisSize.min, children: [
             if (accepted) ...[
-              const OffroIcon(OffroIcons.check, size: 12, color: OffroColors.primary),
+              const OffroIcon(OffroIcons.check, size: 12, color: OffroColors.success),
               const SizedBox(width: 5),
             ],
             Text(label.toUpperCase(),
-                style: OffroText.eyebrow.copyWith(color: accepted ? OffroColors.primary : OffroColors.sageStrong, fontWeight: accepted ? FontWeight.w700 : null)),
+                // Accepted: the TEXT itself is OffrO green (no filled background); bold.
+                style: OffroText.eyebrow.copyWith(color: accepted ? OffroColors.success : OffroColors.sageStrong, fontWeight: accepted ? FontWeight.w700 : null)),
           ]),
           const SizedBox(height: 8),
           Text((r["title"] ?? "").toString(), style: OffroText.cardTitle.copyWith(fontSize: 16)),

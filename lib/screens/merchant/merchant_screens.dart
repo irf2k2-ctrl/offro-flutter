@@ -335,7 +335,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                 child: Padding(
                   padding: OffroSpacing.gutterH,
                   child: Row(children: [
-                    _statTile('${_stores.length}', 'Stores'),
+                    _statTile('$_activeStores', 'Live stores'),
                     const SizedBox(width: 8),
                     _statTile('$_liveBanners', 'Live banners'),
                     const SizedBox(width: 8),

@@ -15,5 +15,7 @@
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/white</item>
+        <!-- Fullscreen parent hides the status bar (black strip on notch/punch-hole phones, no clock/icons) -->
+        <item name="android:windowFullscreen">false</item>
     </style>
 </resources>

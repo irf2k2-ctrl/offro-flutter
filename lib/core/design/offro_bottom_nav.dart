@@ -131,31 +131,32 @@ class _NavButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                item.iconBuilder != null
-                    ? item.iconBuilder!(active)
-                    // Selected state: dark-green glyph on a soft mint pill drawn BEHIND the icon
-                    // (Stack + negative inset, so layout/spacing is unchanged) — clearly visible
-                    // against the #54776A inactive items. No top bar/line.
-                    : SizedBox(
-                        width: iconSize, height: iconSize,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          clipBehavior: Clip.none,
-                          children: [
-                            if (active)
-                              Positioned(
-                                left: -13, right: -13, top: -5, bottom: -4,
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: OffroColors.mint,
-                                    borderRadius: OffroRadii.pillRadius,
-                                  ),
-                                ),
-                              ),
-                            OffroIcon(item.icon, size: iconSize, color: color, filled: active && item.fillWhenActive),
-                          ],
+                // Selected state (ALL items, incl. a custom iconBuilder such as the Customer profile
+                // avatar): dark-green glyph on a soft mint pill drawn BEHIND the icon (Stack + negative
+                // inset, so layout/spacing is unchanged). No top bar/line.
+                SizedBox(
+                  width: iconSize, height: iconSize,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (active)
+                        Positioned(
+                          left: -13, right: -13, top: -5, bottom: -4,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: OffroColors.mint,
+                              borderRadius: OffroRadii.pillRadius,
+                            ),
+                          ),
                         ),
-                      ),
+                      item.iconBuilder != null
+                          // OverflowBox: a custom glyph (e.g. avatar) keeps its own size inside the icon slot
+                          ? OverflowBox(maxWidth: 40, maxHeight: 40, child: item.iconBuilder!(active))
+                          : OffroIcon(item.icon, size: iconSize, color: color, filled: active && item.fillWhenActive),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   item.label,

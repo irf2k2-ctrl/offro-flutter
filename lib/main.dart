@@ -324,7 +324,9 @@ Future<void> main() async {
   } catch (e) { }
 
   try {
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.light));
+    // Default for every screen: transparent bar, DARK clock/icons (the app background is cream). Screens with
+    // a dark hero (onboarding) set their own style.
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.dark, statusBarBrightness: Brightness.light));
   } catch (e) { }
   runApp(const MyApp());
 }
@@ -1230,13 +1232,16 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         List<Map<String,dynamic>> mb = [];
         final mbRaw = defaults["merchant_banner"];
         // The ONE default media the admin ticked "Explore City Name" on (empty = none).
-        final mbExploreUrl = (defaults["merchant_banner_explore_url"] ?? "").toString().trim();
+        // Compared on a normalised key (trimmed, percent-decoded) so an equivalent URL always matches.
+        String mbKey(String v) { final t = v.trim(); try { return Uri.decodeFull(t); } catch (_) { return t; } }
+        final mbExploreUrl = mbKey((defaults["merchant_banner_explore_url"] ?? "").toString());
+        if (kDebugMode) debugPrint("[Offro] hero explore flag set=${mbExploreUrl.isNotEmpty} media=${mbRaw is List ? mbRaw.length : 0}");
         if (mbRaw is List) {
           mb = mbRaw.where((u) => u is String && okImg(u)).map<Map<String,dynamic>>((u) {
             final uid = "mb_${(u as String).hashCode.abs()}";
             return {"id": uid, "title": "", "subtitle": "", "image": u, "image_url": u,
               "link_url": "", "bg_color": "", "sort_order": 0, "city": "",
-              if (mbExploreUrl.isNotEmpty && u == mbExploreUrl) "_explore_city": true};
+              if (mbExploreUrl.isNotEmpty && mbKey(u) == mbExploreUrl) "_explore_city": true};
           }).toList();
         } else if (mbRaw is String && mbRaw.startsWith("http")) {
           mb = [{"id":"default","title":"","subtitle":"","image":mbRaw,"image_url":mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
@@ -4794,6 +4799,15 @@ class _CityHeroSection extends StatelessWidget {
           IgnorePointer(child: Stack(fit: StackFit.expand, children: [
             // Only the default media the admin ticked "Explore City Name" on. City = the Home's
             // GPS/saved-location city; hidden when the city is unknown (never a wrong/placeholder city).
+            if (exploreCity && city.trim().isNotEmpty)
+              // soft local dark fade so the white text stays readable on bright media
+              Positioned(
+                left: 0, right: 0, bottom: 0, height: 150,
+                child: DecoratedBox(decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                    colors: [Colors.black.withValues(alpha: .45), Colors.black.withValues(alpha: 0)]))),
+              ),
             if (exploreCity && city.trim().isNotEmpty)
               Positioned(
                 left: 24, right: 24, bottom: 24,

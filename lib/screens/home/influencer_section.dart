@@ -1,5 +1,6 @@
 import '../../core/design/design.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -627,6 +628,17 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
     _displayReviewCount = (widget.influencer["review_count"] as num?)?.toInt() ?? 0;
     _loadReal();
     _loadFavStatus();
+    _recordView();
+  }
+
+  /// Profile-view tracking: the backend increments `view_count` on every public single-profile
+  /// GET (/influencers/{id}), but nothing in the app ever called it, so the owner's "Profile views"
+  /// stayed 0. Opening this screen now makes that one request (once per opening — initState only);
+  /// the owner's count is then read back from the backend, never incremented locally.
+  void _recordView() {
+    final id = _influencerId;
+    if (id.isEmpty) return;
+    unawaited(Api.getInfluencerProfile(id));
   }
 
   Future<void> _loadFavStatus() async {
