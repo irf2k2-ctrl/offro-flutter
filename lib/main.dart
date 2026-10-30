@@ -1186,6 +1186,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       final Future<void> defaultsApplied = (() async {
         final Map<String,dynamic> defaults = await _defaults();
         if (!mounted || myGen != _supplementaryGen) return;
+        if (defaults.isEmpty) {
+          // Request failed: keep whatever banners are already on screen (a successful response
+          // with an empty merchant_banner list still clears them, i.e. deleted media disappears).
+          if (_heroImageLoading) setState(() { _heroImageLoading = false; });
+          return;
+        }
 
         List<String> cityImgs = [];
         final cityVal = defaults["city"];
@@ -1786,6 +1792,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     _cachedStores = [];
     _cacheTime    = null;
     Api.clearCache();
+    // Home memoizes /default-images for its whole lifetime (_defaultsFuture), which is why newly
+    // added / deleted / re-ticked default banners only showed after logout+login. Drop it so this
+    // refresh re-reads the latest config. _loadNoStoreContent and _loadSupplementary still share
+    // the ONE new request (same memoized future), so there is no duplicate call.
+    _defaultsFuture = null;
     await _loadAll(c);
   }
 
@@ -1879,6 +1890,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                         token: widget.token,
                         onAdvance: _heroVideoDone,
                         onVideoPlayStarted: _onHeroVideoPlayStarted,
+                        onManualChange: _startSliderAutoPlay, // re-arms the SAME single timer from the shown slide
                       ),
                     )),
 
@@ -4645,6 +4657,7 @@ class _CityHeroSection extends StatelessWidget {
   final String token;
   final VoidCallback onAdvance; // a promo video finished → show the next slide
   final VoidCallback? onVideoPlayStarted; // customer tapped play on a hero video
+  final VoidCallback? onManualChange; // customer swiped to another slide (Home re-arms its single autoplay timer)
   const _CityHeroSection({
     required this.city, required this.cityImageUrl,
     this.imageLoading = false, required this.onCtaTap,
@@ -4652,6 +4665,7 @@ class _CityHeroSection extends StatelessWidget {
     required this.sliderPageNotifier, required this.token,
     required this.onAdvance,
     this.onVideoPlayStarted,
+    this.onManualChange,
   });
 
   static const double _heroH = 296;
@@ -4674,7 +4688,19 @@ class _CityHeroSection extends StatelessWidget {
   Widget _heroCard() {
     return Padding(
       padding: OffroSpacing.gutterH,
-      child: ClipRRect(
+      // Swipe LEFT = next slide, RIGHT = previous. Uses the same sliderPageNotifier the
+      // autoplay drives (no second carousel); taps/video buttons inside are unaffected.
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onHorizontalDragEnd: (d) {
+          final v = d.primaryVelocity ?? 0;
+          final n = sliders.length;
+          if (n < 2 || v.abs() < 250) return;
+          final cur = sliderPageNotifier.value % n;
+          sliderPageNotifier.value = v < 0 ? (cur + 1) % n : (cur - 1 + n) % n;
+          onManualChange?.call();
+        },
+        child: ClipRRect(
         borderRadius: BorderRadius.circular(OffroRadii.hero),
         child: SizedBox(
           height: _heroH,
@@ -4694,7 +4720,7 @@ class _CityHeroSection extends StatelessWidget {
                     children: [...previous, if (current != null) current],
                   ),
                   child: KeyedSubtree(
-                    key: ValueKey<int>(idx),
+                    key: ValueKey<String>("$idx|${sliders[idx]["image_url"] ?? sliders[idx]["image"] ?? ""}"),
                     child: _slideContent(Map<String,dynamic>.from(sliders[idx])),
                   ),
                 );
@@ -4702,6 +4728,7 @@ class _CityHeroSection extends StatelessWidget {
             ),
           ]),
         ),
+      ),
       ),
     );
   }

@@ -1081,7 +1081,9 @@ class _AddBannerState extends State<AddBannerPage> {
                 const SizedBox(height: 6),
                 const Text("Tap to select banner video", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
                 const SizedBox(height: 3),
-                _InfoChip("Max 15 seconds · Max 10 MB"),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  _InfoChip("📐 1080×1080px (1:1)"), const SizedBox(width: 6), _InfoChip("Max 15 sec · 10 MB"),
+                ]),
               ]),
       ));
   }
@@ -1553,7 +1555,7 @@ class _AddBannerState extends State<AddBannerPage> {
                 const Text("Tap to upload banner image",style:TextStyle(color:kMerchantMuted,fontSize:13)),
                 const SizedBox(height:3),
                 Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  _InfoChip("📐 1200×400px"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
+                  _InfoChip("📐 1080×1080px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
                 ]),
               ]),
         ))
