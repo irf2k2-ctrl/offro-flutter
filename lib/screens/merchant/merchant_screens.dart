@@ -3507,7 +3507,17 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   // and Image.memory only for genuine base64.
   String? _imgUrl; String? _img2Url;
   List<dynamic> _categories = [];
-  String? _selState; String? _selCity;
+  // City / State are now editable text fields (same "Location captured"
+  // card). _selState/_selCity keep their old String? API so every existing
+  // read/write (GPS, Maps resolve, edit-store populate, _save) is unchanged,
+  // but they are backed by controllers so a manual edit is exactly what
+  // Create Store submits.
+  final _cityC = TextEditingController();
+  final _stateC = TextEditingController();
+  String? get _selCity => _cityC.text.trim().isEmpty ? null : _cityC.text.trim();
+  set _selCity(String? v) => _cityC.text = v ?? '';
+  String? get _selState => _stateC.text.trim().isEmpty ? null : _stateC.text.trim();
+  set _selState(String? v) => _stateC.text = v ?? '';
   bool _locLoading = false; bool _locConfirmed = false;
   bool _locDenied = false; // true after a denial THIS attempt — button stays enabled, tapping again retries
   // Location-specific error, shown directly under the "Current Location"
@@ -3515,6 +3525,9 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   // Create Store validation) so a GPS/permission problem never appears at
   // the bottom of the whole form.
   String _locMsg = "";
+  // Maps-link resolve error — shown directly under the URL field / Resolve
+  // button (NOT in the form-wide _msg at the bottom).
+  String _mapsMsg = "";
   final _mapsUrlCtrl = TextEditingController();
   bool _mapsResolving = false;
   bool _mapsApplied = false;
@@ -3628,6 +3641,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     setState(() {
       _mapsResolving = true;
       _mapsApplied = false;
+      _mapsMsg = '';
       _resolvedPlaceName = '';
       _resolvedAddress = '';
     });
@@ -3638,8 +3652,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _mapsResolving = false;
         _resolvedPlaceName = '';
         _resolvedAddress = '';
-        _msg = res['error']?.toString().isNotEmpty == true
-            ? res['error'].toString()
+        // Friendly text only: a server detail / raw URL is never shown.
+        final e = res['error']?.toString() ?? '';
+        _mapsMsg = (e.isNotEmpty && e.startsWith('Network error'))
+            ? e
             : 'Could not resolve this Maps link. Try the Share button → Copy Link in Google Maps.';
       });
     } else {
@@ -3650,6 +3666,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _lat.text = res['lat'].toString();
         _lng.text = res['lng'].toString();
         _mapsApplied  = true;
+        _mapsMsg = '';
         _locConfirmed = true;
       });
       // Auto-fill address fields from resolved location
@@ -3677,6 +3694,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           if (ad.isNotEmpty) _addr.text = ad;
         });
       }
+      // Safety net: coordinates resolved but city/state still empty →
+      // fill them through the same reverse-geocode used for GPS.
+      if (mounted && (_selCity == null || _selState == null)) {
+        final la = double.tryParse(res['lat'].toString());
+        final ln = double.tryParse(res['lng'].toString());
+        if (la != null && ln != null) await _reverseGeocode(la, ln);
+      }
     }
   }
 
@@ -3692,6 +3716,28 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     ]),
   );
 
+  /// Editable variant of [_locTile] — same look, but a text field so the
+  /// merchant can correct the captured value. Whatever is typed is what
+  /// Create Store submits.
+  Widget _locEdit(String label, TextEditingController c) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      Text(label.toUpperCase(),
+          style: OffroText.caption.copyWith(fontSize: 8.5, letterSpacing: .8, color: OffroColors.secondarySolid)),
+      const SizedBox(height: 2),
+      TextField(
+        controller: c,
+        maxLines: 1,
+        onChanged: (_) => setState(() {}),
+        style: OffroText.value.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+        decoration: const InputDecoration(
+          isDense: true, border: InputBorder.none,
+          contentPadding: EdgeInsets.zero, hintText: '—'),
+      ),
+    ]),
+  );
+
   /// Compact result card shown once a location exists (GPS, resolved Maps
   /// link, or an already-saved store). Display only: it reads the same
   /// state/city/area/address values the form already holds; lat/lng stay in
@@ -3701,20 +3747,20 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         ? _addr.text.trim()
         : (_resolvedAddress.trim().isNotEmpty ? _resolvedAddress.trim() : _resolvedPlaceName.trim());
     final pin = RegExp(r'\b\d{6}\b').firstMatch(addr)?.group(0) ?? '';
-    final tiles = <(String, String)>[
-      ('City', _selCity ?? ''),
-      ('State', _selState ?? ''),
-      ('Area', _area.text.trim()),
-      if (pin.isNotEmpty) ('Postal code', pin),
+    final tiles = <Widget>[
+      _locEdit('City', _cityC),
+      _locEdit('State', _stateC),
+      _locEdit('Area', _area),
+      if (pin.isNotEmpty) _locTile('Postal code', pin),
     ];
     final rows = <Widget>[];
     for (var k = 0; k < tiles.length; k += 2) {
       rows.add(Padding(
         padding: EdgeInsets.only(top: k == 0 ? 0 : 6),
         child: Row(children: [
-          Expanded(child: _locTile(tiles[k].$1, tiles[k].$2)),
+          Expanded(child: tiles[k]),
           const SizedBox(width: 6),
-          Expanded(child: k + 1 < tiles.length ? _locTile(tiles[k + 1].$1, tiles[k + 1].$2) : const SizedBox.shrink()),
+          Expanded(child: k + 1 < tiles.length ? tiles[k + 1] : const SizedBox.shrink()),
         ]),
       ));
     }
@@ -3813,7 +3859,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       }
     } catch (_) {}
   }
-  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose(); super.dispose(); }
+  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose();_cityC.dispose();_stateC.dispose(); super.dispose(); }
 
   Future<void> _loadCategories() async { _categories = await Api.fetchCategories(token: widget.token); if (mounted) setState((){}); }
 
@@ -3968,7 +4014,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               border: Border.all(
                 color: _mapsApplied
                     ? OffroColors.statusLive
-                    : _msg.contains('resolve') || _msg.contains('Could not')
+                    : _mapsMsg.isNotEmpty
                         ? const Color(0xFFc0392b)
                         : kMerchantBorder,
               ),
@@ -3996,7 +4042,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                   ),
                   onSubmitted: (v) => _resolveMapsLink(v),
                   onChanged: (v) {
-                    if (_mapsApplied) setState(() { _mapsApplied = false; _resolvedPlaceName = ''; _resolvedAddress = ''; });
+                    if (_mapsApplied || _mapsMsg.isNotEmpty) setState(() { _mapsApplied = false; _mapsMsg = ''; _resolvedPlaceName = ''; _resolvedAddress = ''; });
                   },
                 ),
               ),
@@ -4005,6 +4051,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                   onTap: () => setState(() {
                     _mapsUrlCtrl.clear();
                     _mapsApplied = false;
+                    _mapsMsg = '';
                     _resolvedPlaceName = '';
                     _resolvedAddress = '';
                   }),
@@ -4033,6 +4080,11 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                     : const Text("Resolve Location", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ),
+          // Resolve error — directly under the URL field / Resolve button.
+          if (_mapsMsg.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(_mapsMsg, style: const TextStyle(color: Color(0xFFc0392b), fontSize: 12)),
+          ],
           // ── Compact captured-location card (GPS, Maps link, or saved store) ──
           if (_locConfirmed || (_lat.text.trim().isNotEmpty && _lng.text.trim().isNotEmpty)) _capturedLocationCard(),
           const SizedBox(height: 10),
@@ -4042,7 +4094,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             Expanded(child: _field(_lng, "Longitude", Icons.gps_not_fixed, type: TextInputType.number)),
           ]),
           const SizedBox(height: 4),
-          const Text("Auto-filled by GPS or Google Maps, or enter manually.",
+          const Text("Auto-filled by GPS or Google Maps — you can edit any value. Edited values are saved as entered.",
               style: TextStyle(color: kMerchantMuted, fontSize: 11)),
         ]),
       ),

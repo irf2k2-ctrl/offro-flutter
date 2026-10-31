@@ -903,7 +903,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
-    _loadRadius(); // load saved radius preference
+    // Distance filter always starts at "Any distance" (_radiusKm = 0.0) on a
+    // fresh Home init. A previously saved radius is intentionally NOT restored.
     _loadUnreadCount(); // Issue 8: load notification badge
     _loadFavStores(); // load fav store ids for home screen hearts
     // Sync badge with real-time notifier (updates from FCM foreground messages)
@@ -959,15 +960,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // location first). Ask for one on the Location screen; never read GPS.
       _requireLocation();
     }
-  }
-
-  Future<void> _loadRadius() async {
-    final r = await Prefs.getRadius();
-    if (mounted) {
-        _radiusKm = r;
-        _recomputeDistances();
-        setState(() {});
-      }
   }
 
   Future<void> _loadUnreadCount() async {
@@ -1921,8 +1913,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       radiusKm: _radiusKm,
                       token: widget.token,
                       onRadiusChanged: (km) async {
-                        setState(() => _radiusKm = km);
-                        await Prefs.saveRadius(km);
+                        setState(() => _radiusKm = km); // session-only; not persisted
                       },
                       onViewAll: () => _viewAll(context, "Nearby Stores", nearbyStores),
                       onStoreTap: (s) => Navigator.push(context, appRoute(
