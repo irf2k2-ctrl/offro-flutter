@@ -561,6 +561,23 @@ class Api {
 
   /// Fetch default fallback images — tries /admin/default-images then /default-images
   /// Returns a map with keys: city_image_url, store_image_url, product_image_url, etc.
+  // ── Early /default-images prefetch (hero startup) ──
+  static Future<Map<String,dynamic>>? _prefetchedDefaults;
+  static DateTime? _prefetchedAt;
+  /// Last session's /default-images payload (loaded from Prefs in main()).
+  static Map<String,dynamic> cachedHeroDefaults = {};
+  static void prefetchDefaultImages() {
+    _prefetchedAt = DateTime.now();
+    _prefetchedDefaults = getDefaultImages();
+  }
+  /// One-shot: returns the prefetched request if it is recent, else null.
+  static Future<Map<String,dynamic>>? takePrefetchedDefaults() {
+    final f = _prefetchedDefaults, t = _prefetchedAt;
+    _prefetchedDefaults = null; _prefetchedAt = null;
+    if (f == null || t == null || DateTime.now().difference(t) > const Duration(minutes: 2)) return null;
+    return f;
+  }
+
   static Future<Map<String,dynamic>> getDefaultImages() async {
     for (final path in ["/default-images"]) {
       try {

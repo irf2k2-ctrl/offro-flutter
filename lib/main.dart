@@ -170,6 +170,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   // ── STEP 0: Flutter binding MUST be first ──
   WidgetsFlutterBinding.ensureInitialized();
+  // Start /default-images NOW (Home reuses it) and load last session's copy for an instant hero.
+  Api.prefetchDefaultImages();
+  try { Api.cachedHeroDefaults = await Prefs.loadHeroDefaults(); } catch (_) {}
 
   FlutterError.onError = (FlutterErrorDetails details) {
   };
@@ -922,6 +925,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // FAB: show when scrolled down > 120px
       _fabVisible.value = offset > 120;
     });
+    // Last session's hero/default config (saved by Prefs.saveHeroDefaults) is applied
+    // right here so the admin/default banners are on the FIRST frame; the fresh
+    // /default-images response then replaces it only if something actually changed.
+    if (Api.cachedHeroDefaults.isNotEmpty) {
+      try { _applyDefaults(Api.cachedHeroDefaults, inInit: true); } catch (_) {}
+    }
     unawaited(_loadSavedLocation());
     unawaited(_loadNoStoreContent());
     // Silent GPS check AFTER the first frame, so it can never delay Home.
@@ -1076,6 +1085,80 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Applies a /default-images payload to the hero / default-product / no-service
+  /// state. Used for BOTH the fresh response and the last-session cached copy
+  /// (applied in initState so the admin hero is there on the first frame).
+  /// [inInit]: called from initState — assigns fields directly (no setState, no timers).
+  void _applyDefaults(Map<String,dynamic> defaults, {bool inInit = false}) {
+    List<String> cityImgs = [];
+    final cityVal = defaults["city"];
+    bool okHero(String v) => v.startsWith("http") || v.startsWith("data:image");
+    if (cityVal is List) {
+      cityImgs = cityVal.map((v) => v.toString().trim()).where(okHero).toList();
+    } else if (cityVal is String && okHero(cityVal.trim())) {
+      cityImgs = [cityVal.trim()];
+    }
+    if (cityImgs.isEmpty) {
+      for (final key in ["city_image_url", "city_image", "hero_image_url", "image_url"]) {
+        final v = (defaults[key] ?? "").toString().trim();
+        if (okHero(v)) { cityImgs = [v]; break; }
+      }
+    }
+    final nsImgs = defaults["no_service_url"];
+    String nsUrl = "";
+    if (nsImgs is List && nsImgs.isNotEmpty) {
+      nsUrl = nsImgs.last.toString().trim();
+    } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
+      nsUrl = nsImgs.trim();
+    }
+    final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
+    final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
+    // Default product images: full configured list (tolerates a legacy
+    // single-string response).
+    final defProdVal = defaults["product"];
+    List<String> defProd = [];
+    bool okImg(String v) => v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video");
+    if (defProdVal is List) {
+      defProd = defProdVal.map((v) => v.toString().trim()).where(okImg).toList();
+    } else if (defProdVal is String && defProdVal.trim().isNotEmpty && okImg(defProdVal.trim())) {
+      defProd = [defProdVal.trim()];
+    }
+    // merchant_banner: array of URLs (images or mp4 videos)
+    List<Map<String,dynamic>> mb = [];
+    final mbRaw = defaults["merchant_banner"];
+    // The ONE default media the admin ticked "Explore City Name" on (empty = none).
+    // Compared on a normalised key (trimmed, percent-decoded) so an equivalent URL always matches.
+    String mbKey(String v) { final t = v.trim(); try { return Uri.decodeFull(t); } catch (_) { return t; } }
+    final mbExploreUrl = mbKey((defaults["merchant_banner_explore_url"] ?? "").toString());
+    if (kDebugMode) debugPrint("[Offro] hero explore flag set=${mbExploreUrl.isNotEmpty} media=${mbRaw is List ? mbRaw.length : 0}");
+    if (mbRaw is List) {
+      mb = mbRaw.where((u) => u is String && okImg(u)).map<Map<String,dynamic>>((u) {
+        final uid = "mb_${(u as String).hashCode.abs()}";
+        return {"id": uid, "title": "", "subtitle": "", "image": u, "image_url": u,
+          "link_url": "", "bg_color": "", "sort_order": 0, "city": "",
+          if (mbExploreUrl.isNotEmpty && mbKey(u) == mbExploreUrl) "_explore_city": true};
+      }).toList();
+    } else if (mbRaw is String && mbRaw.startsWith("http")) {
+      mb = [{"id":"default","title":"","subtitle":"","image":mbRaw,"image_url":mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
+    }
+    void apply() {
+      _heroImageLoading = false;
+      // Only replace when the list actually changed (keeps the shown hero + rotation stable).
+      if (cityImgs.isNotEmpty && !_sameStrings(_cityImageUrls, cityImgs)) {
+        _cityImageUrls = cityImgs; _cityImageUrl = cityImgs[0]; _heroImgIndex = 0;
+      }
+      if ((nsUrl.startsWith("http") || nsUrl.startsWith("data:image"))) _noServiceImg = nsUrl;
+      if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
+      if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
+      if (defProd.isNotEmpty) _defaultProductImageUrls = defProd;
+      _mbFallbackSliders = mb;
+    }
+    if (inInit) { apply(); return; } // initState: no setState, no timers yet
+    setState(apply);
+    _startHeroRotation();
+    if (_sliderTimer == null || !_sliderTimer!.isActive) _startSliderAutoPlay();
+  }
+
   /// Single shared /default-images request with ONE automatic retry.
   /// `Api.getDefaultImages()` returns `{}` only on failure (a reachable
   /// server always sends a non-empty map, even when nothing is configured),
@@ -1085,6 +1168,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<Map<String,dynamic>> _defaults() {
     return _defaultsFuture ??= (() async {
       Map<String,dynamic> d = {};
+      // Reuse the request main() fired at process start (one-shot, <2 min old) —
+      // so Home does not start /default-images only after splash + location + stores.
+      final early = Api.takePrefetchedDefaults();
+      if (early != null) {
+        try { d = await early.timeout(const Duration(seconds: 10)); } catch (_) { d = {}; }
+        if (d.isNotEmpty) return d;
+      }
       for (int attempt = 1; attempt <= 2; attempt++) {
         try {
           d = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
@@ -1187,71 +1277,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           return;
         }
 
-        List<String> cityImgs = [];
-        final cityVal = defaults["city"];
-        bool okHero(String v) => v.startsWith("http") || v.startsWith("data:image");
-        if (cityVal is List) {
-          cityImgs = cityVal.map((v) => v.toString().trim()).where(okHero).toList();
-        } else if (cityVal is String && okHero(cityVal.trim())) {
-          cityImgs = [cityVal.trim()];
-        }
-        if (cityImgs.isEmpty) {
-          for (final key in ["city_image_url", "city_image", "hero_image_url", "image_url"]) {
-            final v = (defaults[key] ?? "").toString().trim();
-            if (okHero(v)) { cityImgs = [v]; break; }
-          }
-        }
-        final nsImgs = defaults["no_service_url"];
-        String nsUrl = "";
-        if (nsImgs is List && nsImgs.isNotEmpty) {
-          nsUrl = nsImgs.last.toString().trim();
-        } else if (nsImgs is String && nsImgs.trim().isNotEmpty) {
-          nsUrl = nsImgs.trim();
-        }
-        final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
-        final nsMsg   = (defaults["no_service_message"] ?? "").toString().trim();
-        // Default product images: full configured list (tolerates a legacy
-        // single-string response).
-        final defProdVal = defaults["product"];
-        List<String> defProd = [];
-        bool okImg(String v) => v.startsWith("http") || v.startsWith("data:image") || v.startsWith("data:video");
-        if (defProdVal is List) {
-          defProd = defProdVal.map((v) => v.toString().trim()).where(okImg).toList();
-        } else if (defProdVal is String && defProdVal.trim().isNotEmpty && okImg(defProdVal.trim())) {
-          defProd = [defProdVal.trim()];
-        }
-        // merchant_banner: array of URLs (images or mp4 videos)
-        List<Map<String,dynamic>> mb = [];
-        final mbRaw = defaults["merchant_banner"];
-        // The ONE default media the admin ticked "Explore City Name" on (empty = none).
-        // Compared on a normalised key (trimmed, percent-decoded) so an equivalent URL always matches.
-        String mbKey(String v) { final t = v.trim(); try { return Uri.decodeFull(t); } catch (_) { return t; } }
-        final mbExploreUrl = mbKey((defaults["merchant_banner_explore_url"] ?? "").toString());
-        if (kDebugMode) debugPrint("[Offro] hero explore flag set=${mbExploreUrl.isNotEmpty} media=${mbRaw is List ? mbRaw.length : 0}");
-        if (mbRaw is List) {
-          mb = mbRaw.where((u) => u is String && okImg(u)).map<Map<String,dynamic>>((u) {
-            final uid = "mb_${(u as String).hashCode.abs()}";
-            return {"id": uid, "title": "", "subtitle": "", "image": u, "image_url": u,
-              "link_url": "", "bg_color": "", "sort_order": 0, "city": "",
-              if (mbExploreUrl.isNotEmpty && mbKey(u) == mbExploreUrl) "_explore_city": true};
-          }).toList();
-        } else if (mbRaw is String && mbRaw.startsWith("http")) {
-          mb = [{"id":"default","title":"","subtitle":"","image":mbRaw,"image_url":mbRaw,"link_url":"","bg_color":"","sort_order":0,"city":""}];
-        }
-        setState(() {
-          _heroImageLoading = false;
-          // Only replace when the list actually changed (keeps the shown hero + rotation stable).
-          if (cityImgs.isNotEmpty && !_sameStrings(_cityImageUrls, cityImgs)) {
-            _cityImageUrls = cityImgs; _cityImageUrl = cityImgs[0]; _heroImgIndex = 0;
-          }
-          if ((nsUrl.startsWith("http") || nsUrl.startsWith("data:image"))) _noServiceImg = nsUrl;
-          if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
-          if (nsMsg.isNotEmpty)   _noServiceMsg   = nsMsg;
-          if (defProd.isNotEmpty) _defaultProductImageUrls = defProd;
-          _mbFallbackSliders = mb;
-        });
-        _startHeroRotation();
-        if (_sliderTimer == null || !_sliderTimer!.isActive) _startSliderAutoPlay();
+        _applyDefaults(defaults);
+        Prefs.saveHeroDefaults(defaults); // cache for the next cold start
       })().catchError((_) {
         // A malformed /default-images payload must never leave the hero
         // shimmer spinning or block the fallback decision below.

@@ -3656,7 +3656,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         final e = res['error']?.toString() ?? '';
         _mapsMsg = (e.isNotEmpty && e.startsWith('Network error'))
             ? e
-            : 'Could not resolve this Maps link. Try the Share button → Copy Link in Google Maps.';
+            : 'Unable to identify the exact location from this Google Maps link. Please open Google Maps, drop a pin on the exact location, tap Share → Copy link, and try again.';
       });
     } else {
       setState(() {

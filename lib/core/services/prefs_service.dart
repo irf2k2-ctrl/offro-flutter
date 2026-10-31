@@ -21,6 +21,26 @@ class Prefs {
   static const _kMerchantId   = 'merchant_id';      // merchant's _id
   static const _kRoles        = 'account_roles';    // comma-separated: 'user,merchant'
 
+  // ─── Hero / default-images cache (instant Home hero on cold start) ───
+  static const _kHeroDefaults = 'hero_defaults_cache';
+  static Future<void> saveHeroDefaults(Map<String, dynamic> d) async {
+    try {
+      final enc = json.encode(d);
+      if (enc.length > 200000) return; // never store huge inline base64 payloads
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kHeroDefaults, enc);
+    } catch (_) {}
+  }
+  static Future<Map<String, dynamic>> loadHeroDefaults() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(_kHeroDefaults);
+      if (raw == null || raw.isEmpty) return {};
+      final d = json.decode(raw);
+      return d is Map ? Map<String, dynamic>.from(d) : {};
+    } catch (_) { return {}; }
+  }
+
   // ─── Nearby Radius ───
   static const _kRadius = 'nearby_radius_km';
 
