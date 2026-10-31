@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import '../../../core/utils/store_hours.dart';
+import '../../../core/utils/image_url.dart' show resolveImageUrl;
 import '../../../core/design/design.dart';
 
 class StoreHeader extends StatelessWidget {
@@ -151,6 +152,30 @@ class StoreHeader extends StatelessWidget {
       child: Text(text, style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: fg)),
     );
 
+    // Store Logo (merchant "Store Logo" = store['image2'], already returned by
+    // the store-detail API). Placed in a small rounded square to the LEFT of
+    // the store info. No logo → null → the info column renders exactly as
+    // before (no box, no spacing, no layout shift).
+    final logoRaw = store['image2']?.toString().trim() ?? '';
+    final logoResolved = (logoRaw.isEmpty || logoRaw.toLowerCase() == 'null') ? '' : resolveImageUrl(logoRaw);
+    final String? logo = (logoResolved.startsWith('http') || logoResolved.startsWith('data:image')) ? logoResolved : null;
+    Widget logoRow(Widget info) => logo == null
+        ? info
+        : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Container(
+              width: 64, height: 64,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: OffroColors.mintSoft,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: OffroColors.borderSoft),
+              ),
+              child: _buildImage(logo),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: info),
+          ]);
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SizedBox(
         height: heroH,
@@ -195,13 +220,14 @@ class StoreHeader extends StatelessWidget {
             borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            logoRow(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              if (category.isNotEmpty) pill(category, bg: OffroColors.mintSoft),
-              if (badge != null) ...[
-                const SizedBox(width: 8),
-                pill(badge, bg: OffroColors.beige, fg: OffroColors.text),
-              ],
-              const Spacer(),
+              // Wrap (not a plain Row) so a long category + badge never overflows
+              // when the logo narrows the info column.
+              Expanded(child: Wrap(spacing: 8, runSpacing: 6, children: [
+                if (category.isNotEmpty) pill(category, bg: OffroColors.mintSoft),
+                if (badge != null) pill(badge, bg: OffroColors.beige, fg: OffroColors.text),
+              ])),
               if (rating > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -218,7 +244,10 @@ class StoreHeader extends StatelessWidget {
                 ),
             ]),
             const SizedBox(height: 14),
-            Text(name, style: OffroText.display.copyWith(fontSize: 28, letterSpacing: -1.6, height: 1.1)),
+            Text(name,
+              maxLines: logo == null ? null : 3,
+              overflow: logo == null ? null : TextOverflow.ellipsis,
+              style: OffroText.display.copyWith(fontSize: logo == null ? 28 : 22, letterSpacing: -1.6, height: 1.1)),
             if (locationText.isNotEmpty || distText.isNotEmpty) ...[
               const SizedBox(height: 8),
               Row(children: [
@@ -255,6 +284,7 @@ class StoreHeader extends StatelessWidget {
                 ),
               );
             }),
+            ])),
 
             const SizedBox(height: 20),
             _ActionButtonsRow(store: store),

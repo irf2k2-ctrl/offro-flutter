@@ -4668,6 +4668,17 @@ class _CityHeroSection extends StatelessWidget {
 
   @override Widget build(BuildContext context) {
     if (sliders.isEmpty) {
+      // Hero data (default merchant banners / city image / merchant banners) has not
+      // resolved yet: reserve the hero's exact space but draw NOTHING. Previously the
+      // "Explore <City>" fallback card (shimmer + white text) was rendered here, which
+      // was the brief light "Explore Bellary" flash on every cold start. Once loading
+      // finishes with no media at all, the normal city card below is still shown.
+      if (imageLoading) {
+        return const Padding(
+          padding: OffroSpacing.gutterH,
+          child: SizedBox(height: _heroH, width: double.infinity),
+        );
+      }
       return Padding(
         padding: OffroSpacing.gutterH,
         child: _cityCard(),

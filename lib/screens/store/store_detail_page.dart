@@ -186,7 +186,9 @@ class _StoreDetailPageState extends State<StoreDetailPage>
     final resolve = (String u) => resolveImageUrl(u);
     final all = [
       if (main.isNotEmpty) resolve(main),
-      if (img2.isNotEmpty) resolve(img2),
+      // Store Logo (image2) is shown beside the store name in StoreHeader; it is
+      // only a gallery fallback when the store has no main photo at all.
+      if (img2.isNotEmpty && main.isEmpty) resolve(img2),
       ...imgs.map(resolve),
     ];
     final seen = <String>{};

@@ -120,7 +120,7 @@ class StoreScanQrCard extends StatelessWidget {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Scan the store QR', style: OffroText.cardTitle.copyWith(fontSize: 13)),
                 const SizedBox(height: 4),
-                Text('Verify your visit and earn $visitPoints reward points.',
+                Text('Verify your visit/purchase and earn $visitPoints reward points.',
                   style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.4,
                     color: OffroColors.primary.withValues(alpha: .65))),
               ])),

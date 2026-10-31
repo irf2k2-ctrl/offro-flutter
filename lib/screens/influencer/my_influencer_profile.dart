@@ -112,8 +112,10 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
     _load();
   }
 
+  int _reviewsTick = 0; // bumped on every (re)load so Home's reviews refresh too
+
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() { _loading = true; _error = null; _reviewsTick++; });
     try {
       final p = await Api.getMyInfluencerProfile(widget.token);
       if (!mounted) return;
@@ -349,6 +351,12 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
                 token: widget.token,
                 onSeeAll: () => setState(() => _tab = 1),
               ),
+              const SizedBox(height: 28),
+              _MyReviewsSection(
+                influencerId: p["_id"]?.toString() ?? "",
+                name: name,
+                reloadTick: _reviewsTick,
+              ),
             ]),
           ),
         ],
@@ -466,35 +474,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
   String get token => widget.token;
   Map<String, dynamic> get profile => widget.profile;
   void Function(Map<String,dynamic>) get onProfileUpdated => widget.onProfileUpdated;
-
-  // ── Reviews (real data, never hardcoded — same endpoints already used by
-  // the public InfluencerProfileScreen) ──
-  List<Map<String, dynamic>> _reviews = [];
-  bool _loadingReviews = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadReviews();
-  }
-
-  String get _influencerId => profile["_id"]?.toString() ?? "";
-
-  Future<void> _loadReviews() async {
-    final id = _influencerId;
-    if (id.isEmpty) { if (mounted) setState(() => _loadingReviews = false); return; }
-    try {
-      final resp = await Api.getInfluencerReviews(id, limit: 3);
-      if (!mounted) return;
-      final list = resp["reviews"];
-      setState(() {
-        _reviews = list is List ? List<Map<String, dynamic>>.from(list) : [];
-        _loadingReviews = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _loadingReviews = false);
-    }
-  }
 
   Widget _avatar(double size) {
     final name = profile["name"]?.toString() ?? "?";
@@ -681,7 +660,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           final fresh = await Api.getMyInfluencerProfile(token);
           onProfileUpdated(fresh);
         } catch (_) {}
-        await _loadReviews();
       },
       child: ListView(
         padding: EdgeInsets.only(top: topPad, bottom: 28),
@@ -764,37 +742,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
                   onTap: _busy ? null : _confirmDelete),
               ]),
 
-              // ── Reviews (real data — never hardcoded example businesses) ──
-              const SizedBox(height: 28),
-              Row(children: [
-                Expanded(child: _eyebrow("Reviews")),
-                if (_reviews.isNotEmpty)
-                  GestureDetector(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => _MyInfluencerAllReviewsScreen(influencerId: _influencerId, name: name))),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: const [
-                      Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
-                      Icon(Icons.chevron_right_rounded, size: 16, color: kPrimary),
-                    ]),
-                  ),
-              ]),
-              const SizedBox(height: _eyebrowGap),
-              if (_loadingReviews)
-                const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
-              else if (_reviews.isEmpty)
-                _card([
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(children: [
-                      _iconCircle(const Icon(Icons.star_border_rounded, size: 16, color: OffroColors.primary)),
-                      const SizedBox(width: 12),
-                      Text("No reviews yet", style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint)),
-                    ]),
-                  ),
-                ])
-              else
-                ..._reviews.map((r) => _reviewCard(r)),
-
               // ── ACCOUNT — Switch Mode + Logout (same SwitchModeSheet / logout as Customer & Merchant) ──
               const SizedBox(height: 28),
               _eyebrow("Account"),
@@ -827,67 +774,6 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           child: Text(c, style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
         ),
     ]);
-  }
-
-  /// Real review card — reviewer name/rating/date/text, sourced entirely
-  /// from Api.getInfluencerReviews (the same data the public profile screen
-  /// shows). No example/placeholder reviews are ever rendered here. A
-  /// trailing chevron was added purely as a visual affordance (matches the
-  /// reference) — the card isn't tappable, same as before.
-  /// The optional review image (`image_url`/`photo_url`, whichever the
-  /// payload happens to carry) is shown only "where available" — current
-  /// review submissions never attach one, so this stays dormant until/
-  /// unless the backend starts sending it; nothing here requires that field.
-  Widget _reviewCard(Map<String, dynamic> r) {
-    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? "Anonymous";
-    final stars = (r["rating"] as num?)?.toInt() ?? 0;
-    final text = r["text"]?.toString() ?? "";
-    final ts = r["created_at"]?.toString() ?? "";
-    final ago = ts.isNotEmpty ? _reviewTimeAgo(ts) : "";
-    final imageUrl = (r["image_url"] ?? r["photo_url"])?.toString() ?? "";
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (imageUrl.startsWith("http")) ...[
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: CachedNetworkImage(imageUrl: imageUrl, width: 46, height: 46, fit: BoxFit.cover,
-              placeholder: (_, __) => Container(width: 46, height: 46, color: kLight),
-              errorWidget: (_, __, ___) => Container(width: 46, height: 46, color: kLight)),
-          ),
-          const SizedBox(width: 12),
-        ] else ...[
-          Container(
-            width: 38, height: 38,
-            decoration: const BoxDecoration(shape: BoxShape.circle, color: kLight),
-            alignment: Alignment.center,
-            child: Text(reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : "?",
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kPrimary)),
-          ),
-          const SizedBox(width: 12),
-        ],
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Expanded(child: Text(reviewerName, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kText))),
-            Row(children: List.generate(5, (i) => Icon(
-              i < stars ? Icons.star_rounded : Icons.star_border_rounded, size: 12, color: const Color(0xFFFFB800)))),
-          ]),
-          if (ago.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(ago, style: const TextStyle(fontSize: 10.5, color: kMuted)),
-          ],
-          if (text.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(text, style: const TextStyle(fontSize: 12, color: kText, height: 1.35)),
-          ],
-        ])),
-        const SizedBox(width: 4),
-        const Icon(Icons.chevron_right_rounded, size: 18, color: kMuted),
-      ]),
-    );
   }
 
   // Missing payment_status/publish_status/is_active (any profile that
@@ -972,6 +858,158 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+/// Reviews block for Influencer HOME (moved here from the Profile tab).
+/// Same real data (Api.getInfluencerReviews, 3-card preview + "See all"),
+/// same cards, same empty state — rendered once, on Home only.
+class _MyReviewsSection extends StatefulWidget {
+  final String influencerId;
+  final String name;
+  final int reloadTick; // bumped by Home on pull-to-refresh / reload
+  const _MyReviewsSection({required this.influencerId, required this.name, required this.reloadTick});
+
+  @override
+  State<_MyReviewsSection> createState() => _MyReviewsSectionState();
+}
+
+class _MyReviewsSectionState extends State<_MyReviewsSection> {
+  List<Map<String, dynamic>> _reviews = [];
+  bool _loadingReviews = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MyReviewsSection old) {
+    super.didUpdateWidget(old);
+    if (old.reloadTick != widget.reloadTick || old.influencerId != widget.influencerId) _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    final id = widget.influencerId;
+    if (id.isEmpty) { if (mounted) setState(() => _loadingReviews = false); return; }
+    try {
+      final resp = await Api.getInfluencerReviews(id, limit: 3);
+      if (!mounted) return;
+      final list = resp["reviews"];
+      setState(() {
+        _reviews = list is List ? List<Map<String, dynamic>>.from(list) : [];
+        _loadingReviews = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingReviews = false);
+    }
+  }
+
+  Widget _card(List<Widget> rows) => Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(color: OffroColors.surface, borderRadius: BorderRadius.circular(22)),
+        child: Column(children: rows),
+      );
+
+  /// Real review card — reviewer name/rating/date/text, sourced entirely
+  /// from Api.getInfluencerReviews (the same data the public profile screen
+  /// shows). No example/placeholder reviews are ever rendered here. A
+  /// trailing chevron was added purely as a visual affordance (matches the
+  /// reference) — the card isn't tappable, same as before.
+  /// The optional review image (`image_url`/`photo_url`, whichever the
+  /// payload happens to carry) is shown only "where available" — current
+  /// review submissions never attach one, so this stays dormant until/
+  /// unless the backend starts sending it; nothing here requires that field.
+  Widget _reviewCard(Map<String, dynamic> r) {
+    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? "Anonymous";
+    final stars = (r["rating"] as num?)?.toInt() ?? 0;
+    final text = r["text"]?.toString() ?? "";
+    final ts = r["created_at"]?.toString() ?? "";
+    final ago = ts.isNotEmpty ? _reviewTimeAgo(ts) : "";
+    final imageUrl = (r["image_url"] ?? r["photo_url"])?.toString() ?? "";
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: kBorder)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (imageUrl.startsWith("http")) ...[
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: CachedNetworkImage(imageUrl: imageUrl, width: 46, height: 46, fit: BoxFit.cover,
+              placeholder: (_, __) => Container(width: 46, height: 46, color: kLight),
+              errorWidget: (_, __, ___) => Container(width: 46, height: 46, color: kLight)),
+          ),
+          const SizedBox(width: 12),
+        ] else ...[
+          Container(
+            width: 38, height: 38,
+            decoration: const BoxDecoration(shape: BoxShape.circle, color: kLight),
+            alignment: Alignment.center,
+            child: Text(reviewerName.isNotEmpty ? reviewerName[0].toUpperCase() : "?",
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kPrimary)),
+          ),
+          const SizedBox(width: 12),
+        ],
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(reviewerName, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kText))),
+            Row(children: List.generate(5, (i) => Icon(
+              i < stars ? Icons.star_rounded : Icons.star_border_rounded, size: 12, color: const Color(0xFFFFB800)))),
+          ]),
+          if (ago.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(ago, style: const TextStyle(fontSize: 10.5, color: kMuted)),
+          ],
+          if (text.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(text, style: const TextStyle(fontSize: 12, color: kText, height: 1.35)),
+          ],
+        ])),
+        const SizedBox(width: 4),
+        const Icon(Icons.chevron_right_rounded, size: 18, color: kMuted),
+      ]),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(child: Text('REVIEWS', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong))),
+        if (_reviews.isNotEmpty)
+          GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => _MyInfluencerAllReviewsScreen(influencerId: widget.influencerId, name: widget.name))),
+            child: Row(mainAxisSize: MainAxisSize.min, children: const [
+              Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
+              Icon(Icons.chevron_right_rounded, size: 16, color: kPrimary),
+            ]),
+          ),
+      ]),
+      const SizedBox(height: 12),
+      if (_loadingReviews)
+        const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: kPrimary)))
+      else if (_reviews.isEmpty)
+        _card([
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
+              Container(
+                width: 36, height: 36, alignment: Alignment.center,
+                decoration: const BoxDecoration(color: OffroColors.mintSoft, shape: BoxShape.circle),
+                child: const Icon(Icons.star_border_rounded, size: 16, color: OffroColors.primary),
+              ),
+              const SizedBox(width: 12),
+              Text("No reviews yet", style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint)),
+            ]),
+          ),
+        ])
+      else
+        ..._reviews.map((r) => _reviewCard(r)),
+    ]);
   }
 }
 
