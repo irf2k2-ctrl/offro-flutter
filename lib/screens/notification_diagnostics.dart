@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../core/design/offro_tokens.dart' show OffroColors;
 
 class NotificationDiagnosticsScreen extends StatefulWidget {
   const NotificationDiagnosticsScreen({super.key});
@@ -271,7 +272,7 @@ class _NotificationDiagnosticsScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notification Diagnostics'),
-        backgroundColor: const Color(0xFF3E5F55),
+        backgroundColor: OffroColors.primary,
         foregroundColor: Colors.white,
       ),
       body: Column(
@@ -366,7 +367,7 @@ class _NotificationDiagnosticsScreenState
                         : const Icon(Icons.refresh),
                     label: Text(_isRunning ? 'Checking...' : 'Refresh'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3E5F55),
+                      backgroundColor: OffroColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
@@ -379,8 +380,8 @@ class _NotificationDiagnosticsScreenState
                     icon: const Icon(Icons.copy),
                     label: const Text('Copy'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFA9CDBA),
-                      foregroundColor: const Color(0xFF2c3e35),
+                      backgroundColor: OffroColors.accent,
+                      foregroundColor: OffroColors.text,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),

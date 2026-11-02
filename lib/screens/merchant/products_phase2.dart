@@ -1,435 +1,20 @@
 // lib/screens/merchant/products_phase2.dart
-// PHASE 2 — Upgrade, Renew, Analytics, History screens
+// PHASE 2 — Renew, Analytics, History screens
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 
 // ══════════════════════════════════════════════════════════════════════
-// UPGRADE STANDARD → PREMIUM PAGE
-// ══════════════════════════════════════════════════════════════════════
-class UpgradeProductPage extends StatefulWidget {
-  final String token;
-  final Map<String,dynamic> product;
-  const UpgradeProductPage({super.key, required this.token, required this.product});
-  @override State<UpgradeProductPage> createState() => _UpgradeProductPageState();
-}
-class _UpgradeProductPageState extends State<UpgradeProductPage> {
-  final _daysC        = TextEditingController(text: "30");
-  final _discountCtrl = TextEditingController();
-  bool _loading       = false;
-  bool _pricingLoaded = false;
-  String _msg         = "";
-  String _discountMsg = "";
-  bool _discountApplied = false;
-  double _discountAmt = 0;
-  String _discountType = "VALUE";
-  Map<String,dynamic>? _pendingOrder;
-  DateTime _fromDate  = DateTime.now();
-  late Razorpay _razorpay;
-
-  double _pricePerDay = 0;
-  double _gstPct      = 0;
-
-  String get _pid => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
-  int    get _days => int.tryParse(_daysC.text.trim()) ?? 0;
-  DateTime get _endDate => _fromDate.add(Duration(days: _days));
-
-  double get _base  => _pricePerDay * _days;
-  double get _gstAmt => _base * _gstPct / 100;
-  double get _subtotal => _base + _gstAmt;
-  double get _total => (_subtotal - _discountAmt).clamp(0, double.infinity);
-
-  String _fmtDate(DateTime dt) =>
-    "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
-  String _apiDate(DateTime dt) =>
-    "${dt.year}-${dt.month.toString().padLeft(2,'0')}-${dt.day.toString().padLeft(2,'0')}";
-  String _fmtAmt(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
-
-  @override void initState() {
-    super.initState();
-    _daysC.addListener(() => setState((){}));
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPayError);
-    _fetchPricing();
-  }
-  @override void dispose() { _daysC.dispose(); _discountCtrl.dispose(); _razorpay.clear(); super.dispose(); }
-
-  Future<void> _fetchPricing() async {
-    try {
-      final p = await Api.getProductPricing(widget.token);
-      if (mounted) setState(() {
-        _pricePerDay = (p["price_per_day"] as num?)?.toDouble() ?? 10;
-        _gstPct      = (p["gst_pct"] as num?)?.toDouble() ?? 0;
-        _pricingLoaded = true;
-      });
-    } catch (_) {
-      if (mounted) setState(() { _pricePerDay = 10; _gstPct = 0; _pricingLoaded = true; });
-    }
-  }
-
-  Future<void> _applyDiscount() async {
-    final code = _discountCtrl.text.trim();
-    if (code.isEmpty) return;
-    setState(() { _discountMsg = "Checking…"; _discountApplied = false; _discountAmt = 0; });
-    try {
-      final res = await Api.validateDiscountCode(widget.token, code);
-      final val = (res["value"] as num?)?.toDouble() ?? 0;
-      final type = (res["type"]?.toString() ?? "VALUE").toUpperCase();
-      // Backend is authoritative — only display a ₹ amount for VALUE codes.
-      // PERCENTAGE codes are confirmed applied, but the actual ₹ discount
-      // is calculated server-side when the order is created.
-      if (mounted) setState(() {
-        _discountType     = type;
-        _discountAmt      = type == "PERCENTAGE" ? 0 : val;
-        _discountApplied = true;
-        _discountMsg     = res["message"]?.toString() ?? "Discount applied!";
-      });
-    } catch (e) {
-      if (mounted) setState(() {
-        _discountMsg = friendlyError(e);
-        _discountApplied = false; _discountAmt = 0; _discountType = "VALUE";
-      });
-    }
-  }
-
-  Future<void> _proceed() async {
-    if (_days < 1) { setState(() => _msg = "Enter a valid number of days"); return; }
-    // Show summary BEFORE API call using Flutter-calculated values
-    final bool isFree = _total <= 0;
-    final confirmed = await _showProductSummaryDialog(
-      from: _fromDate, to: _endDate,
-      note: isFree
-          ? "Total is ₹0. Your upgrade will be submitted for admin approval."
-          : "Razorpay opens. Product goes live after admin approval.",
-    );
-    if (!confirmed || !mounted) return;
-
-    setState(() { _loading = true; _msg = ""; });
-    try {
-      final order = await Api.upgradeProductOrder(widget.token, _pid, {
-        "days":      _days,
-        "from_date": _apiDate(_fromDate),
-        if (_discountApplied) "discount_code": _discountCtrl.text.trim().toUpperCase(),
-      });
-      if (!mounted) return;
-      final rzpKey     = order["key"]?.toString() ?? "";
-      final rzpOrderId = order["order_id"]?.toString() ?? "";
-      final amtRupees  = (order["amount"] as num?)?.toDouble() ?? 0;
-      final paise      = (amtRupees * 100).toInt();
-
-      if (!isFree && rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
-        _pendingOrder = Map<String,dynamic>.from(order);
-        _razorpay.open({
-          "key":         rzpKey,
-          "amount":      paise,
-          "name":        "OFFRO",
-          "description": "Product Upgrade – $_days Days",
-          "order_id":    rzpOrderId,
-          "prefill":     {"contact": "", "email": ""},
-          "theme":       {"color": "#3E5F55"},
-        });
-        return;
-      } else if (isFree || paise == 0) {
-        // Free order (₹0 after discount) — call verify endpoint directly
-        // to move the product to premium + create admin approval request.
-        try {
-          final result = await Api.verifyUpgradePayment(widget.token, _pid, {
-            "razorpay_order_id":   rzpOrderId,
-            "razorpay_payment_id": "",
-            "razorpay_signature":  "",
-            "plan":                "1month",
-          });
-          if (mounted) {
-            showDialog(context: context, barrierDismissible: false, builder: (ctx) => AlertDialog(
-              title: const Text("Upgrade Submitted", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
-              content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(result["message"]?.toString() ?? "Your premium upgrade request has been submitted for admin review.", style: const TextStyle(fontSize: 14, color: kText)),
-                const SizedBox(height: 12),
-                const Text("The product will go live once approved by the admin team.", style: TextStyle(fontSize: 12, color: kMuted)),
-              ]),
-              actions: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
-                  onPressed: () { Navigator.pop(ctx); Navigator.pop(context, true); },
-                  child: const Text("OK", style: TextStyle(color: Colors.white))),
-              ],
-            ));
-          }
-        } catch (e) {
-          if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
-        }
-      } else {
-        if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
-      }
-    } catch (e) {
-      if (mounted) setState(() => _msg = friendlyError(e));
-    }
-    if (mounted) setState(() => _loading = false);
-  }
-
-  // ── Summary dialog — same format as "New Product" ────────────────────
-  Future<bool> _showProductSummaryDialog({
-    required DateTime from,
-    required DateTime to,
-    String note = "",
-  }) async {
-    final result = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text("Product Order Summary",
-          style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _dRow("Title",  widget.product["title"]?.toString() ?? ""),
-          _dRow("Offer",  widget.product["offer_text"]?.toString() ?? ""),
-          _dRow("Duration", "$_days Days"),
-          _dRow("Period",   "${_fmtDateFull(from)} → ${_fmtDateFull(to)}"),
-          _dRow("Rate",     "₹$_pricePerDay/day"),
-          const Divider(),
-          _dRow("Base",   "₹${_base.toStringAsFixed(1)}"),
-          if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
-            _dRow("Discount",
-              _discountType == "PERCENTAGE" ? "Code applied (calculated at checkout)" : "−₹${_discountAmt.toStringAsFixed(1)}",
-              color: const Color(0xFF1a6640)),
-          _dRow("GST (${_gstPct.toStringAsFixed(1)}%)", "₹${_gstAmt.toStringAsFixed(1)}"),
-          _dRow("Total",  "₹${_total.toStringAsFixed(1)}", bold: true),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: kLight.withValues(alpha: .4),
-              borderRadius: BorderRadius.circular(8)),
-            child: Text(note,
-              style: const TextStyle(fontSize: 12, color: kPrimary))),
-        ]),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: kMuted))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(_total <= 0 ? "Submit for Approval" : "Pay ₹${_total.toStringAsFixed(1)}",
-              style: const TextStyle(color: Colors.white))),
-        ],
-      ),
-    );
-    return result == true;
-  }
-
-  Widget _dRow(String k, String v, {bool bold = false, Color? color}) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(children: [
-      Expanded(child: Text(k, style: const TextStyle(color: kMuted, fontSize: 13))),
-      Text(v, style: TextStyle(
-        fontSize: 13,
-        fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-        color: color ?? (bold ? kPrimary : kText))),
-    ]));
-
-  String _fmtDateFull(DateTime dt) {
-    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "${dt.day.toString().padLeft(2,'0')} ${m[dt.month-1]} ${dt.year}";
-  }
-
-  void _onPaySuccess(PaymentSuccessResponse res) async {
-    if (_pendingOrder == null || !mounted) return;
-    final order = _pendingOrder!; _pendingOrder = null;
-    try {
-      final result = await Api.verifyUpgradePayment(widget.token, _pid, {
-        "order_id":            order["order_id"],
-        "razorpay_payment_id": res.paymentId ?? "",
-        "razorpay_order_id":   res.orderId   ?? "",
-        "razorpay_signature":  res.signature  ?? "",
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(result["message"] ?? "Upgraded!"),
-          backgroundColor: const Color(0xFF1a6640)));
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
-    }
-  }
-  void _onPayError(PaymentFailureResponse res) {
-    if (mounted) setState(() { _msg = "Payment failed: ${friendlyRazorpayError(res.message)}"; _loading = false; });
-  }
-
-  @override Widget build(BuildContext context) {
-    final hasDays = _days > 0 && _pricingLoaded;
-    return Scaffold(
-      backgroundColor: kBg,
-      appBar: AppBar(
-        title: const Text("Upgrade to Premium", style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white, foregroundColor: kText,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── Benefits banner ──
-          _UpgradeInfoCard(),
-          const SizedBox(height: 16),
-
-          // ── Duration & Start Date ──
-          _CheckoutCard(
-            title: "Duration & Start Date",
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                // Days input
-                Expanded(child: _DateBox(
-                  icon: Icons.calendar_month_rounded,
-                  label: "Number of Da…",
-                  child: TextField(
-                    controller: _daysC, keyboardType: TextInputType.number,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kText),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none, isDense: true,
-                      contentPadding: EdgeInsets.zero),
-                  ),
-                )),
-                const SizedBox(width: 12),
-                // From date
-                GestureDetector(
-                  onTap: () async {
-                    final p = await showDatePicker(context: context,
-                      initialDate: _fromDate, firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                      builder: (c, child) => Theme(
-                        data: Theme.of(c).copyWith(colorScheme: const ColorScheme.light(primary: kPrimary)),
-                        child: child!));
-                    if (p != null) setState(() => _fromDate = p);
-                  },
-                  child: _DateBox(
-                    icon: Icons.calendar_today_rounded,
-                    label: "From Date",
-                    child: Text(_fmtDate(_fromDate),
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: kText)),
-                  ),
-                ),
-              ]),
-              if (hasDays) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: kPrimary.withValues(alpha: .07),
-                    borderRadius: BorderRadius.circular(10)),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text("Active period:", style: TextStyle(color: kMuted, fontSize: 13)),
-                    Text("${_fmtDate(_fromDate)} → ${_fmtDate(_endDate)}",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
-                  ]),
-                ),
-                const SizedBox(height: 8),
-                Text("${_fmtAmt(_pricePerDay)}/day × $_days days",
-                  style: const TextStyle(color: kMuted, fontSize: 12)),
-              ],
-            ]),
-          ),
-          const SizedBox(height: 14),
-
-          // ── Pricing breakdown ──
-          if (hasDays)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFe8f4ef),
-                borderRadius: BorderRadius.circular(14)),
-              child: Column(children: [
-                _PriceRow("Base Price", _fmtAmt(_base)),
-                _PriceRow("GST (${_gstPct.toInt()}%)", _fmtAmt(_gstAmt)),
-                if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
-                  _PriceRow("Discount",
-                    _discountType == "PERCENTAGE" ? "Code applied (at checkout)" : "− ${_fmtAmt(_discountAmt)}",
-                    color: const Color(0xFF1a6640)),
-                const Divider(height: 20, color: Color(0xFFB0CFC0)),
-                _PriceRow("Total", _fmtAmt(_total), bold: true),
-              ]),
-            ),
-          const SizedBox(height: 14),
-
-          // ── Discount Code ──
-          _CheckoutCard(
-            title: "Discount Code",
-            subtitle: "Have a promo code? Enter it below.",
-            child: Row(children: [
-              Expanded(child: TextField(
-                controller: _discountCtrl,
-                textCapitalization: TextCapitalization.characters,
-                style: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 1.2),
-                decoration: InputDecoration(
-                  hintText: "e.g. OFFRO20",
-                  hintStyle: const TextStyle(color: kMuted, fontWeight: FontWeight.normal, letterSpacing: 0),
-                  prefixIcon: const Icon(Icons.local_offer_outlined, color: kMuted, size: 20),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  filled: true, fillColor: kBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                ),
-              )),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white, foregroundColor: kText,
-                  elevation: 1,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: kBorder))),
-                onPressed: _applyDiscount,
-                child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.w700))),
-            ]),
-          ),
-          if (_discountMsg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 4),
-              child: Text(_discountMsg,
-                style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600,
-                  color: _discountApplied ? const Color(0xFF1a6640) : Colors.red))),
-
-          if (_msg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(_msg, style: const TextStyle(color: Colors.red, fontSize: 13))),
-          const SizedBox(height: 24),
-
-          // ── Proceed to Checkout ──
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kText,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            onPressed: (_loading || !_pricingLoaded) ? null : _proceed,
-            child: _loading
-              ? const SizedBox(width: 20, height: 20,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.arrow_forward_rounded, size: 20),
-                  SizedBox(width: 10),
-                  Text("Proceed to Checkout",
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                ]),
-          )),
-        ]),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// RENEW PREMIUM PAGE
+// RENEW PRODUCT PAGE
+// The merchant picks the new end date. The backend decides - at order time AND
+// again on confirmation - whether this renewal is free (a free product slot is
+// available) or charged at the configured price per day for the days added.
 // ══════════════════════════════════════════════════════════════════════
 class RenewProductPage extends StatefulWidget {
   final String token;
@@ -438,34 +23,36 @@ class RenewProductPage extends StatefulWidget {
   @override State<RenewProductPage> createState() => _RenewProductPageState();
 }
 class _RenewProductPageState extends State<RenewProductPage> {
-  final _daysC        = TextEditingController(text: "30");
   final _discountCtrl = TextEditingController();
   bool _loading       = false;
-  bool _pricingLoaded = false;
   String _msg         = "";
   String _discountMsg = "";
   bool _discountApplied = false;
-  double _discountAmt = 0;
-  String _discountType = "VALUE";
+  Map<String,dynamic>? _slots;           // renewal preview from the backend
   Map<String,dynamic>? _pendingOrder;
   late Razorpay _razorpay;
+  late DateTime _newEnd;
+  final _addDaysC = TextEditingController(text: "30");
 
-  double _pricePerDay = 0;
-  double _gstPct      = 0;
+  String get _pid => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
+  bool get _isFree => _slots == null ? true : (_slots!["next_is_free"] as bool? ?? true);
+  double get _pricePerDay => (_slots?["price_per_day"] as num?)?.toDouble() ?? 0;
+  /// Days being added (billable): new end date minus the day the extension starts from.
+  int get _addedDays => _newEnd.difference(_renewFrom).inDays;
+  // Preview only: price per day × added days. The order response is authoritative.
+  double get _price => _addedDays < 1 ? 0 : double.parse((_pricePerDay * _addedDays).toStringAsFixed(2));
+  double get _gstPct => (_slots?["gst_pct"] as num?)?.toDouble() ?? 18;
+  int get _maxDays => (_slots?["max_validity_days"] as num?)?.toInt() ?? 365;
+  double get _gstAmt => double.parse((_price * _gstPct / 100).toStringAsFixed(2));
+  double get _total => double.parse((_price + _gstAmt).toStringAsFixed(2));
 
-  String get _pid  => (widget.product["_id"] ?? widget.product["id"] ?? "").toString();
-  int    get _days => int.tryParse(_daysC.text.trim()) ?? 0;
-
-  double get _base     => _pricePerDay * _days;
-  double get _gstAmt   => _base * _gstPct / 100;
-  double get _subtotal => _base + _gstAmt;
-  double get _total    => (_subtotal - _discountAmt).clamp(0, double.infinity);
-
-  String _fmtDate(DateTime dt) =>
-    "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
+  String _fmtDate(DateTime dt) {
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${m[dt.month-1]} ${dt.year}";
+  }
+  String _ymd(DateTime d) => "${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}";
   String _fmtAmt(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
 
-  // Parses ISO "2026-07-04" OR "04 Jul 2026" OR "04-07-2026" → DateTime
   DateTime? _parseAnyDate(String raw) {
     if (raw.isEmpty) return null;
     try { return DateTime.parse(raw); } catch (_) {}
@@ -485,178 +72,139 @@ class _RenewProductPageState extends State<RenewProductPage> {
     return null;
   }
 
-  String get _curEnd {
-    final raw = widget.product["end_date"]?.toString() ?? "";
-    if (raw.isEmpty) return "—";
-    final dt = _parseAnyDate(raw);
-    return dt != null ? _fmtDate(dt) : raw;
-  }
-
+  DateTime get _curEnd => _parseAnyDate(widget.product["end_date"]?.toString() ?? "") ?? DateTime.now();
+  /// The last day already paid for (same rule as the backend): the current end date while the
+  /// product is live, yesterday once it has expired - so added days start the day after.
   DateTime get _renewFrom {
-    final raw = widget.product["end_date"]?.toString() ?? "";
-    if (raw.isEmpty) return DateTime.now();
-    final dt = _parseAnyDate(raw);
-    if (dt == null) return DateTime.now();
-    // If current listing hasn't expired yet, renewal starts the day AFTER
-    return dt.isAfter(DateTime.now()) ? dt.add(const Duration(days: 1)) : DateTime.now();
+    final t = DateTime.now();
+    final yesterday = DateTime(t.year, t.month, t.day).subtract(const Duration(days: 1));
+    final cur = DateTime(_curEnd.year, _curEnd.month, _curEnd.day);
+    return cur.isAfter(yesterday) ? cur : yesterday;
   }
-
-  DateTime get _newEnd => _renewFrom.add(Duration(days: _days));
 
   @override void initState() {
     super.initState();
-    _daysC.addListener(() => setState((){}));
+    _newEnd = _renewFrom.add(const Duration(days: 30));
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,   _onPayError);
-    _fetchPricing();
+    _loadSlots();
   }
-  @override void dispose() { _daysC.dispose(); _discountCtrl.dispose(); _razorpay.clear(); super.dispose(); }
+  @override void dispose() { _discountCtrl.dispose(); _addDaysC.dispose(); _razorpay.clear(); super.dispose(); }
 
-  Future<void> _fetchPricing() async {
-    try {
-      final p = await Api.getProductPricing(widget.token);
-      if (mounted) setState(() {
-        _pricePerDay = (p["price_per_day"] as num?)?.toDouble() ?? 10;
-        _gstPct      = (p["gst_pct"] as num?)?.toDouble() ?? 0;
-        _pricingLoaded = true;
-      });
-    } catch (_) {
-      if (mounted) setState(() { _pricePerDay = 10; _gstPct = 0; _pricingLoaded = true; });
-    }
+  void _setAddedDays(String raw) {
+    final n = int.tryParse(raw.trim());
+    if (n == null || n < 1) return;
+    setState(() => _newEnd = _renewFrom.add(Duration(days: n)));
+  }
+
+  Future<void> _loadSlots() async {
+    final s = await Api.getProductSlots(widget.token, excludeId: _pid);
+    if (mounted) setState(() => _slots = s);
+  }
+
+  Future<void> _pickEnd() async {
+    final first = _renewFrom.add(const Duration(days: 1));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _newEnd.isBefore(first) ? first : _newEnd,
+      firstDate: first,
+      lastDate: DateTime.now().add(Duration(days: _maxDays - 1)));
+    if (picked != null) setState(() { _newEnd = picked; _addDaysC.text = "$_addedDays"; });
   }
 
   Future<void> _applyDiscount() async {
     final code = _discountCtrl.text.trim();
     if (code.isEmpty) return;
-    setState(() { _discountMsg = "Checking…"; _discountApplied = false; _discountAmt = 0; });
+    setState(() { _discountMsg = "Checking…"; _discountApplied = false; });
     try {
-      final res = await Api.validateDiscountCode(widget.token, code);
-      final val = (res["value"] as num?)?.toDouble() ?? 0;
-      final type = (res["type"]?.toString() ?? "VALUE").toUpperCase();
-      // Backend is authoritative — only display a ₹ amount for VALUE codes.
-      // PERCENTAGE codes are confirmed applied, but the actual ₹ discount
-      // is calculated server-side when the order is created.
+      final res = await Api.validateDiscountCode(widget.token, code, scope: "PRODUCTS");
       if (mounted) setState(() {
-        _discountType     = type;
-        _discountAmt      = type == "PERCENTAGE" ? 0 : val;
         _discountApplied = true;
         _discountMsg     = res["message"]?.toString() ?? "Discount applied!";
       });
     } catch (e) {
-      if (mounted) setState(() {
-        _discountMsg = friendlyError(e);
-        _discountApplied = false; _discountAmt = 0; _discountType = "VALUE";
-      });
+      if (mounted) setState(() { _discountMsg = friendlyError(e); _discountApplied = false; });
     }
   }
 
   Future<void> _proceed() async {
-    if (_days < 1) { setState(() => _msg = "Enter a valid number of days"); return; }
-    final bool isFree = _total <= 0;
-    // Show summary BEFORE API call using Flutter-calculated values
-    final confirmed = await _showProductSummaryDialog(
-      from: _renewFrom, to: _newEnd,
-      note: isFree
-          ? "Total is ₹0. Your renewal will be applied instantly."
-          : "Razorpay opens. Listing renewed after payment.",
-    );
-    if (!confirmed || !mounted) return;
-
+    if (!_newEnd.isAfter(_renewFrom)) { setState(() => _msg = "Choose a later end date (add at least 1 day)"); return; }
     setState(() { _loading = true; _msg = ""; });
     try {
+      // The backend re-counts slots here - the preview above is only an estimate.
       final order = await Api.renewProductOrder(widget.token, _pid, {
-        "days": _days,
+        "end_date": _ymd(_newEnd),
         if (_discountApplied) "discount_code": _discountCtrl.text.trim().toUpperCase(),
       });
       if (!mounted) return;
       final rzpKey     = order["key"]?.toString() ?? "";
       final rzpOrderId = order["order_id"]?.toString() ?? "";
       final amtRupees  = (order["amount"] as num?)?.toDouble() ?? 0;
-      final paise      = (amtRupees * 100).toInt();
+      final paise      = (amtRupees * 100).round();
+      final isFree     = paise <= 0;
 
-      if (!isFree && rzpKey.isNotEmpty && rzpOrderId.isNotEmpty && paise > 0) {
+      final confirmed = await _showSummaryDialog(order, isFree);
+      if (!confirmed || !mounted) { setState(() => _loading = false); return; }
+
+      if (!isFree && rzpKey.isNotEmpty && rzpOrderId.isNotEmpty) {
         _pendingOrder = Map<String,dynamic>.from(order);
         _razorpay.open({
-          "key":         rzpKey,
-          "amount":      paise,
-          "name":        "OFFRO",
-          "description": "Premium Renewal – $_days Days",
-          "order_id":    rzpOrderId,
-          "prefill":     {"contact": "", "email": ""},
-          "theme":       {"color": "#3E5F55"},
+          "key": rzpKey, "amount": paise, "name": "OFFRO",
+          "description": "Product renewal",
+          "order_id": rzpOrderId,
+          "prefill": {"contact": "", "email": ""},
+          "theme": {"color": "#3E5F55"},
         });
         return;
-      } else if (isFree || paise == 0) {
-        // Free renewal (₹0 after discount) — call verify endpoint directly
-        try {
-          final result = await Api.verifyRenewalPayment(widget.token, _pid, {
-            "razorpay_order_id":   rzpOrderId,
-            "razorpay_payment_id": "",
-            "razorpay_signature":  "",
-            "plan":                "1month",
-          });
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(result["message"]?.toString() ?? "✅ Renewed successfully!"),
-              backgroundColor: const Color(0xFF1a6640)));
-            Navigator.pop(context, true);
-          }
-        } catch (e) {
-          if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
+      } else if (isFree) {
+        final result = await Api.verifyRenewalPayment(widget.token, _pid, {
+          "razorpay_order_id": "", "razorpay_payment_id": "", "razorpay_signature": "",
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(result["message"]?.toString() ?? "✅ Renewed successfully!"),
+            backgroundColor: OffroColors.statusLive));
+          Navigator.pop(context, true);
         }
+        return;
       } else {
         if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
       }
-    } catch(e) {
+    } catch (e) {
       if (mounted) setState(() => _msg = friendlyError(e));
     }
     if (mounted) setState(() => _loading = false);
   }
 
-  // ── Summary dialog — same format as "New Product" ────────────────────
-  Future<bool> _showProductSummaryDialog({
-    required DateTime from,
-    required DateTime to,
-    String note = "",
-  }) async {
+  Future<bool> _showSummaryDialog(Map order, bool isFree) async {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        title: const Text("Product Order Summary",
-          style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+        title: const Text("Renewal Summary",
+          style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _dRow("Title",  widget.product["title"]?.toString() ?? ""),
-          _dRow("Offer",  widget.product["offer_text"]?.toString() ?? ""),
-          _dRow("Duration", "$_days Days"),
-          _dRow("Period",   "${_fmtDateFull(from)} → ${_fmtDateFull(to)}"),
-          _dRow("Rate",     "₹$_pricePerDay/day"),
-          const Divider(),
-          _dRow("Base",   "₹${_base.toStringAsFixed(1)}"),
-          if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
-            _dRow("Discount",
-              _discountType == "PERCENTAGE" ? "Code applied (calculated at checkout)" : "−₹${_discountAmt.toStringAsFixed(1)}",
-              color: const Color(0xFF1a6640)),
-          _dRow("GST (${_gstPct.toStringAsFixed(1)}%)", "₹${_gstAmt.toStringAsFixed(1)}"),
-          _dRow("Total",  "₹${_total.toStringAsFixed(1)}", bold: true),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: kLight.withValues(alpha: .4),
-              borderRadius: BorderRadius.circular(8)),
-            child: Text(note,
-              style: const TextStyle(fontSize: 12, color: kPrimary))),
+          _dRow("Product", widget.product["title"]?.toString() ?? ""),
+          _dRow("New end date", order["end_date"]?.toString() ?? _fmtDate(_newEnd)),
+          _dRow("Plan", isFree ? "Free renewal" : "Additional product"),
+          if (!isFree) ...[
+            const Divider(),
+            _dRow("Price", "₹${order['base_price']}"),
+            if (((order['discount_amount'] as num?) ?? 0) > 0)
+              _dRow("Discount", "−₹${order['discount_amount']}", color: OffroColors.statusLive),
+            _dRow("GST (${order['gst_percent']}%)", "₹${order['gst_amount']}"),
+            _dRow("Total", "₹${order['amount_display']}", bold: true),
+          ],
         ]),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: kMuted))),
+            child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+            style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary),
             onPressed: () => Navigator.pop(context, true),
-            child: Text("Pay ₹${_total.toStringAsFixed(1)}",
+            child: Text(isFree ? "Renew free" : "Pay ₹${order['amount_display']}",
               style: const TextStyle(color: Colors.white))),
         ],
       ),
@@ -667,18 +215,12 @@ class _RenewProductPageState extends State<RenewProductPage> {
   Widget _dRow(String k, String v, {bool bold = false, Color? color}) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(children: [
-      Expanded(child: Text(k, style: const TextStyle(color: kMuted, fontSize: 13))),
+      Expanded(child: Text(k, style: const TextStyle(color: kMerchantMuted, fontSize: 13))),
       Text(v, style: TextStyle(
         fontSize: 13,
         fontWeight: bold ? FontWeight.bold : FontWeight.w500,
-        color: color ?? (bold ? kPrimary : kText))),
+        color: color ?? (bold ? kMerchantPrimary : kMerchantText))),
     ]));
-
-  String _fmtDateFull(DateTime dt) {
-    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    return "${dt.day.toString().padLeft(2,'0')} ${m[dt.month-1]} ${dt.year}";
-  }
-
 
   void _onPaySuccess(PaymentSuccessResponse res) async {
     if (_pendingOrder == null || !mounted) return;
@@ -693,7 +235,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(result["message"] ?? "Renewed!"),
-          backgroundColor: const Color(0xFF1a6640)));
+          backgroundColor: OffroColors.statusLive));
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -705,159 +247,151 @@ class _RenewProductPageState extends State<RenewProductPage> {
   }
 
   @override Widget build(BuildContext context) {
-    final hasDays = _days > 0 && _pricingLoaded;
+    final used  = (_slots?["used"] as num?)?.toInt() ?? 0;
+    final limit = (_slots?["free_limit"] as num?)?.toInt() ?? 0;
     return Scaffold(
-      backgroundColor: kBg,
-      appBar: AppBar(
-        title: const Text("Renew Premium", style: TextStyle(fontWeight: FontWeight.w800)),
-        backgroundColor: Colors.white, foregroundColor: kText,
-      ),
+      backgroundColor: kMerchantBg,
+      appBar: AppBar(title: const Text("Renew Product", style: TextStyle(fontWeight: FontWeight.w800))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // ── Current listing info ──
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.amber.shade50,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.amber.shade300)),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: kMerchantBorder)),
             child: Row(children: [
-              const Icon(Icons.autorenew_rounded, color: Color(0xFF856404), size: 22),
+              const Icon(Icons.autorenew_rounded, color: kMerchantPrimary, size: 22),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(widget.product["title"]?.toString() ?? "Product",
-                  style: const TextStyle(fontWeight: FontWeight.w700, color: kText)),
-                Text("Current listing ends: $_curEnd",
-                  style: const TextStyle(color: kMuted, fontSize: 12)),
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: kMerchantText)),
+                Text(widget.product["end_date"]?.toString().isNotEmpty == true
+                    ? "Current end date: ${_fmtDate(_curEnd)}" : "No end date",
+                  style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
               ])),
             ]),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // ── Duration & Start Date ──
-          _CheckoutCard(
-            title: "Duration & Extension",
+          // Free / paid notice (estimate - backend decides on confirm)
+          if (_slots != null) Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: OffroColors.mint,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: kMerchantBorder)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _DateBox(
-                icon: Icons.calendar_month_rounded,
-                label: "Number of Days",
-                child: TextField(
-                  controller: _daysC, keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: kText),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
-                ),
-              ),
-              if (hasDays) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: kPrimary.withValues(alpha: .07),
-                    borderRadius: BorderRadius.circular(10)),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text("Active period:", style: TextStyle(color: kMuted, fontSize: 13)),
-                    Text("${_fmtDate(_renewFrom)} → ${_fmtDate(_newEnd)}",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 13)),
-                  ]),
-                ),
-                const SizedBox(height: 8),
-                Text("${_fmtAmt(_pricePerDay)}/day × $_days days",
-                  style: const TextStyle(color: kMuted, fontSize: 12)),
-              ],
+              Text(_isFree ? "Free renewal" : "Additional product",
+                style: const TextStyle(fontWeight: FontWeight.w800, color: kMerchantText, fontSize: 14)),
+              const SizedBox(height: 4),
+              Text(_isFree
+                  ? "A free product slot is available ($used of $limit in use), so this renewal is free."
+                  : "You are using all $limit free product slots. Renewing costs ${_fmtAmt(_pricePerDay)} per day added + GST.",
+                style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
             ]),
           ),
           const SizedBox(height: 14),
 
-          // ── Pricing breakdown ──
-          if (hasDays)
+          _CheckoutCard(
+            title: "New end date",
+            subtitle: "Choose how long the product stays live.",
+            child: Column(children: [
+              TextField(
+                controller: _addDaysC,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: _setAddedDays,
+                decoration: InputDecoration(
+                  labelText: "Days to add",
+                  prefixIcon: const Icon(Icons.calendar_month_rounded, color: kMerchantMuted, size: 20),
+                  filled: true, fillColor: kMerchantBg,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14))),
+              const SizedBox(height: 10),
+              GestureDetector(
+              onTap: _pickEnd,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: kMerchantBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kMerchantBorder)),
+                child: Row(children: [
+                  const Icon(Icons.event_rounded, size: 18, color: kMerchantMuted),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(_fmtDate(_newEnd),
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kMerchantText))),
+                  const Icon(Icons.expand_more_rounded, color: kMerchantMuted),
+                ]),
+              ),
+            ),
+            ]),
+          ),
+
+          if (_slots != null && !_isFree) ...[
+            const SizedBox(height: 14),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFe8f4ef),
-                borderRadius: BorderRadius.circular(14)),
+              decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(14)),
               child: Column(children: [
-                _PriceRow("Base Price", _fmtAmt(_base)),
+                _PriceRow("$_addedDays ${_addedDays == 1 ? 'day' : 'days'} × ${_fmtAmt(_pricePerDay)}/day", _fmtAmt(_price)),
                 _PriceRow("GST (${_gstPct.toInt()}%)", _fmtAmt(_gstAmt)),
-                if (_discountApplied && (_discountAmt > 0 || _discountType == "PERCENTAGE"))
-                  _PriceRow("Discount",
-                    _discountType == "PERCENTAGE" ? "Code applied (at checkout)" : "− ${_fmtAmt(_discountAmt)}",
-                    color: const Color(0xFF1a6640)),
-                const Divider(height: 20, color: Color(0xFFB0CFC0)),
+                const Divider(height: 20),
                 _PriceRow("Total", _fmtAmt(_total), bold: true),
               ]),
             ),
-          const SizedBox(height: 14),
-
-          // ── Discount Code ──
-          _CheckoutCard(
-            title: "Discount Code",
-            subtitle: "Have a promo code? Enter it below.",
-            child: Row(children: [
-              Expanded(child: TextField(
-                controller: _discountCtrl,
-                textCapitalization: TextCapitalization.characters,
-                style: const TextStyle(fontWeight: FontWeight.w600, letterSpacing: 1.2),
-                decoration: InputDecoration(
-                  hintText: "e.g. OFFRO20",
-                  hintStyle: const TextStyle(color: kMuted, fontWeight: FontWeight.normal, letterSpacing: 0),
-                  prefixIcon: const Icon(Icons.local_offer_outlined, color: kMuted, size: 20),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  filled: true, fillColor: kBg,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                ),
-              )),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white, foregroundColor: kText,
-                  elevation: 1,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: kBorder))),
-                onPressed: _applyDiscount,
-                child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.w700))),
-            ]),
-          ),
-          if (_discountMsg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6, left: 4),
-              child: Text(_discountMsg,
-                style: TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w600,
-                  color: _discountApplied ? const Color(0xFF1a6640) : Colors.red))),
+            const SizedBox(height: 14),
+            _CheckoutCard(
+              title: "Discount Code",
+              subtitle: "Have a promo code? Enter it below.",
+              child: Row(children: [
+                Expanded(child: TextField(
+                  controller: _discountCtrl,
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: InputDecoration(
+                    hintText: "e.g. OFFRO20",
+                    prefixIcon: const Icon(Icons.local_offer_outlined, color: kMerchantMuted, size: 20),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    filled: true, fillColor: kMerchantBg,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                  ),
+                )),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13)),
+                  onPressed: _applyDiscount,
+                  child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.w700))),
+              ]),
+            ),
+            if (_discountMsg.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(_discountMsg,
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
+                    color: _discountApplied ? OffroColors.statusLive : Colors.red))),
+          ],
 
           if (_msg.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(_msg, style: const TextStyle(color: Colors.red, fontSize: 13))),
-          const SizedBox(height: 24),
-
-          // ── Proceed to Checkout ──
-          SizedBox(width: double.infinity, child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kText,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            onPressed: (_loading || !_pricingLoaded) ? null : _proceed,
-            child: _loading
-              ? const SizedBox(width: 20, height: 20,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Icon(Icons.arrow_forward_rounded, size: 20),
-                  SizedBox(width: 10),
-                  Text("Proceed to Checkout",
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                ]),
-          )),
+            Padding(padding: const EdgeInsets.only(top: 12),
+              child: Text(_msg, style: const TextStyle(color: Colors.red, fontSize: 12))),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            icon: _loading
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.autorenew_rounded),
+            label: Text(_slots == null ? "Renew" : (_isFree ? "Renew free" : "Renew · ${_fmtAmt(_total)}")),
+            style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(vertical: 14)),
+            onPressed: _loading ? null : _proceed,
+          ),
         ]),
       ),
     );
@@ -911,45 +445,45 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
+    backgroundColor: kMerchantBg,
     appBar: AppBar(
       title: const Text("Product Analytics", style: TextStyle(fontWeight: FontWeight.w800)),
-      backgroundColor: Colors.white, foregroundColor: kText,
+       
       actions: [
         IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
       ],
     ),
     body: _loading
-      ? const Center(child: CircularProgressIndicator(color: kPrimary))
+      ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
       : _failed
       ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.cloud_off_rounded, color: kMuted, size: 44),
+          const Icon(Icons.cloud_off_rounded, color: kMerchantMuted, size: 44),
           const SizedBox(height: 12),
-          const Text("Couldn't load analytics", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 16)),
+          const Text("Couldn't load analytics", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText, fontSize: 16)),
           const SizedBox(height: 6),
           const Text("Please check your connection and try again.", textAlign: TextAlign.center,
-              style: TextStyle(color: kMuted, fontSize: 13)),
+              style: TextStyle(color: kMerchantMuted, fontSize: 13)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded, size: 18),
             label: const Text("Retry"),
-            style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary, foregroundColor: Colors.white),
           ),
         ])))
       : SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(children: [
           // Product info card
-          Card(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          Card(elevation: 0, color: Colors.white, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: const BorderSide(color: OffroColors.border)),
             child: ListTile(
-              leading: const Icon(Icons.local_activity_rounded, color: kPrimary, size: 36),
+              leading: const Icon(Icons.local_activity_rounded, color: kMerchantPrimary, size: 36),
               title: Text(widget.product["title"]?.toString() ?? "Product",
-                style: const TextStyle(fontWeight: FontWeight.bold, color: kText)),
+                style: const TextStyle(fontWeight: FontWeight.bold, color: kMerchantText)),
               subtitle: const Text("Premium Listing Analytics",
-                style: TextStyle(color: kMuted, fontSize: 12)),
+                style: TextStyle(color: kMerchantMuted, fontSize: 12)),
             )),
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: _AnalyticsStat("👁️ Views",  "${_count('views', 'view')}", kPrimary)),
+            Expanded(child: _AnalyticsStat("👁️ Views",  "${_count('views', 'view')}", kMerchantPrimary)),
             const SizedBox(width: 12),
             Expanded(child: _AnalyticsStat("🔗 Shares", "${_count('shares', 'share')}", const Color(0xFF2563EB))),
           ]),
@@ -961,7 +495,7 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
           ]),
           const SizedBox(height: 8),
           const Text("Store Visits: customers who visited the store",
-            style: TextStyle(color: kMuted, fontSize: 11)),
+            style: TextStyle(color: kMerchantMuted, fontSize: 11)),
           const SizedBox(height: 14),
           _ConversionBar(_data),
         ])),
@@ -1013,15 +547,15 @@ class _ConversionBar extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text("Conversion Rate", style: TextStyle(fontWeight: FontWeight.w700, color: kText)),
+        const Text("Conversion Rate", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText)),
         const SizedBox(height: 4),
         Text("$pct% of viewers visited the store (tapped Sold by)",
-          style: const TextStyle(color: kMuted, fontSize: 12)),
+          style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
         const SizedBox(height: 10),
         LinearProgressIndicator(
           value: views > 0 ? opens / views : 0,
-          backgroundColor: kLight,
-          color: kPrimary,
+          backgroundColor: kMerchantLight,
+          color: kMerchantPrimary,
           minHeight: 8,
           borderRadius: BorderRadius.circular(8),
         ),
@@ -1081,13 +615,13 @@ class _SimilarProductsSectionState extends State<SimilarProductsSection> {
   @override Widget build(BuildContext context) {
     if (_loading) return const Padding(
       padding: EdgeInsets.all(16),
-      child: Center(child: CircularProgressIndicator(color: kPrimary)));
+      child: Center(child: CircularProgressIndicator(color: kMerchantPrimary)));
     if (_items.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Padding(
         padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Text("Similar Products",
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText))),
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kMerchantText))),
       SizedBox(height: 130, child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1099,24 +633,24 @@ class _SimilarProductsSectionState extends State<SimilarProductsSection> {
             child: Container(
               width: 110, margin: const EdgeInsets.only(right: 10),
               decoration: BoxDecoration(color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: kBorder)),
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: kMerchantBorder)),
               padding: const EdgeInsets.all(8),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(height: 60, width: double.infinity,
                   decoration: BoxDecoration(
-                    color: kLight,
+                    color: kMerchantLight,
                     borderRadius: BorderRadius.circular(8),
                     image: logo.startsWith("http")
                       ? DecorationImage(image: NetworkImage(logo), fit: BoxFit.cover)
                       : null,
                   ),
                   child: logo.startsWith("http") ? null
-                    : const Center(child: Icon(Icons.local_activity, color: kPrimary, size: 24))),
+                    : const Center(child: Icon(Icons.local_activity, color: kMerchantPrimary, size: 24))),
                 const SizedBox(height: 6),
                 Text(p["title"]?.toString() ?? "", maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMerchantText)),
               ]),
             ),
           );
@@ -1155,7 +689,7 @@ class _MoreFromStoreSectionState extends State<MoreFromStoreSection> {
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
         child: Text("More from ${widget.storeName.isNotEmpty ? widget.storeName : 'this store'}",
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kText))),
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kMerchantText))),
       SizedBox(height: 130, child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1166,22 +700,22 @@ class _MoreFromStoreSectionState extends State<MoreFromStoreSection> {
           return Container(
             width: 110, margin: const EdgeInsets.only(right: 10),
             decoration: BoxDecoration(color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: kBorder)),
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: kMerchantBorder)),
             padding: const EdgeInsets.all(8),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Container(height: 60, width: double.infinity,
-                decoration: BoxDecoration(color: kLight,
+                decoration: BoxDecoration(color: kMerchantLight,
                   borderRadius: BorderRadius.circular(8),
                   image: logo.startsWith("http")
                     ? DecorationImage(image: NetworkImage(logo), fit: BoxFit.cover)
                     : null),
                 child: logo.startsWith("http") ? null
-                  : const Center(child: Icon(Icons.local_activity, color: kPrimary, size: 24))),
+                  : const Center(child: Icon(Icons.local_activity, color: kMerchantPrimary, size: 24))),
               const SizedBox(height: 6),
               Text(p["title"]?.toString() ?? "", maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kText)),
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kMerchantText)),
             ]),
           );
         },
@@ -1208,10 +742,10 @@ class _CheckoutCard extends StatelessWidget {
       boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 8, offset: const Offset(0, 2))],
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: kText)),
+      Text(title, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: kMerchantText)),
       if (subtitle != null) ...[
         const SizedBox(height: 2),
-        Text(subtitle!, style: const TextStyle(color: kMuted, fontSize: 12)),
+        Text(subtitle!, style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
       ],
       const SizedBox(height: 14),
       child,
@@ -1219,31 +753,6 @@ class _CheckoutCard extends StatelessWidget {
   );
 }
 
-/// Date / number input box with icon and label
-class _DateBox extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Widget child;
-  const _DateBox({required this.icon, required this.label, required this.child});
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-    decoration: BoxDecoration(
-      border: Border.all(color: kBorder),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(icon, size: 14, color: kMuted),
-        const SizedBox(width: 6),
-        Text(label, style: const TextStyle(color: kMuted, fontSize: 11)),
-      ]),
-      const SizedBox(height: 6),
-      child,
-    ]),
-  );
-}
-
-/// A single pricing row in the green breakdown card
 class _PriceRow extends StatelessWidget {
   final String label, value;
   final bool bold;
@@ -1253,47 +762,13 @@ class _PriceRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
       Text(label, style: TextStyle(
-        color: color ?? (bold ? kText : kMuted),
+        color: color ?? (bold ? kMerchantText : kMerchantMuted),
         fontSize: bold ? 15 : 13,
         fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
       Text(value, style: TextStyle(
-        color: color ?? (bold ? kText : kText),
+        color: color ?? (bold ? kMerchantText : kMerchantText),
         fontSize: bold ? 15 : 13,
         fontWeight: bold ? FontWeight.w800 : FontWeight.w600)),
     ]),
   );
-}
-
-// ══════════════════════════════════════════════════════════════════════
-// SHARED HELPER WIDGETS
-// ══════════════════════════════════════════════════════════════════════
-class _UpgradeInfoCard extends StatelessWidget {
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(colors: [Color(0xFF3E5F55), Color(0xFF1a6640)]),
-      borderRadius: BorderRadius.circular(14),
-    ),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-      Row(children: [
-        Icon(Icons.star_rounded, color: Colors.amber, size: 20),
-        SizedBox(width: 8),
-        Text("Premium Listing Benefits", style: TextStyle(
-          color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
-      ]),
-      SizedBox(height: 10),
-      _Benefit("🔍 Featured in Discover Products"),
-      _Benefit("📊 Real-time view & share analytics"),
-      _Benefit("🔔 Expiry reminders"),
-      _Benefit("⭐ Priority placement in search"),
-    ]),
-  );
-}
-
-class _Benefit extends StatelessWidget {
-  final String text;
-  const _Benefit(this.text);
-  @override Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 4),
-    child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12)));
 }

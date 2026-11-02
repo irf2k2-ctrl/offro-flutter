@@ -15,6 +15,7 @@ import 'package:video_player/video_player.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:offro_user/screens/store/store_detail_page.dart';
 import 'package:offro_user/core/utils/navigation.dart';
+import '../design/offro_tokens.dart' show OffroColors, OffroShadows;
 
 // ── Open/close status helper ──────────────────────────────────────────────────
 ({bool? isOpen, String label, String sub}) _getStoreStatus(Map store) {
@@ -38,12 +39,25 @@ class PromoSliderCard extends StatefulWidget {
   final bool hideText;
   /// Called when a video finishes playing — use to advance to next slide.
   final VoidCallback? onVideoComplete;
+  /// Home hero: video slides do NOT autoplay - they show a play icon and start
+  /// only when the customer taps it. Default false keeps the old autoplay for
+  /// every other user of this widget.
+  final bool tapToPlay;
+  /// Called once when the customer starts a tap-to-play video.
+  final VoidCallback? onPlayStarted;
+  /// Opens the banner's CTA destination (Product / Deal / Store) when the
+  /// slider carries cta_type/cta_id. Returns true when it handled the tap;
+  /// false/null falls back to the original store_id behaviour.
+  final Future<bool> Function(BuildContext context, Map<String,dynamic> slider)? onOpenCta;
   const PromoSliderCard({
     required this.slider,
     this.token = "",
     this.squareCorners = false,
     this.hideText = false,
     this.onVideoComplete,
+    this.tapToPlay = false,
+    this.onPlayStarted,
+    this.onOpenCta,
     Key? key,
   }) : super(key: key);
   @override State<PromoSliderCard> createState() => _PromoSliderCardState();
@@ -52,6 +66,9 @@ class PromoSliderCard extends StatefulWidget {
 class _PromoSliderCardState extends State<PromoSliderCard> {
   VideoPlayerController? _vpc;
   bool _videoReady = false;
+  bool _started = false;      // tap-to-play: customer has pressed play
+  bool _playPending = false;  // tapped before the video finished loading
+  bool _userPaused = false;   // tap-to-play: customer tapped the playing video to pause it
 
   static bool _isVideo(String url) =>
       url.isNotEmpty && (
@@ -96,10 +113,15 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       ..initialize().then((_) {
         if (!mounted) return;
         _vpc!.setLooping(false); // no loop — advance to next slide on complete
-        _vpc!.setVolume(0); // muted for autoplay
-        _vpc!.play();
         _vpc!.addListener(_onVideoPositionChanged);
-        setState(() => _videoReady = true);
+        if (widget.tapToPlay) {
+          setState(() => _videoReady = true);
+          if (_playPending) _startPlayback();
+        } else {
+          _vpc!.setVolume(0); // muted for autoplay
+          _vpc!.play();
+          setState(() => _videoReady = true);
+        }
       }).catchError((e) {
         if (kDebugMode) debugPrint("[Offro] video init error: \$e (url: \$url)");
       });
@@ -116,10 +138,15 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
         ..initialize().then((_) {
           if (!mounted) return;
           _vpc!.setLooping(false);
-          _vpc!.setVolume(0);
-          _vpc!.play();
           _vpc!.addListener(_onVideoPositionChanged);
-          setState(() => _videoReady = true);
+          if (widget.tapToPlay) {
+            setState(() => _videoReady = true);
+            if (_playPending) _startPlayback();
+          } else {
+            _vpc!.setVolume(0);
+            _vpc!.play();
+            setState(() => _videoReady = true);
+          }
         }).catchError((e) {
           if (kDebugMode) debugPrint("[Offro] file video init error: \$e");
         });
@@ -129,6 +156,55 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
   }
 
   bool _videoEndFired = false;
+
+  /// Tap-to-play: begin playback (only ever called after the customer taps).
+  void _startPlayback() {
+    if (_started) return;
+    final c = _vpc;
+    if (c == null || !c.value.isInitialized) {
+      _playPending = true; // start as soon as the video is ready
+      if (mounted) setState(() {});
+      return;
+    }
+    _started = true;
+    _playPending = false;
+    c.setVolume(1.0);
+    c.play();
+    widget.onPlayStarted?.call();
+    if (mounted) setState(() {});
+  }
+
+  /// Tap-to-play hero video, after it has started: a tap on the video pauses it, another tap
+  /// resumes it. Uses the same controller; a paused video stays on its slide (the timed
+  /// rotation was cancelled in [_startPlayback]) and, once resumed, finishes -> onVideoComplete.
+  void _togglePause() {
+    final c = _vpc;
+    if (c == null || !c.value.isInitialized) return;
+    if (_userPaused) {
+      _userPaused = false;
+      c.play();
+    } else {
+      _userPaused = true;
+      c.pause();
+    }
+    if (mounted) setState(() {});
+  }
+
+  Widget _playOverlay() => Center(
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _startPlayback,
+      child: Container(
+        width: 56, height: 56,
+        decoration: const BoxDecoration(color: OffroColors.textDark, shape: BoxShape.circle),
+        alignment: Alignment.center,
+        child: _playPending
+            ? const SizedBox(width: 22, height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+      ),
+    ),
+  );
 
   void _onVideoPositionChanged() {
     if (_vpc == null || !_vpc!.value.isInitialized) return;
@@ -151,13 +227,13 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
   Widget _buildMedia(String url) {
     if (url.isEmpty) return Container(
       decoration: const BoxDecoration(
-        gradient: LinearGradient(colors: [Color(0xFF2c4a3e), Color(0xFF3E5F55)],
+        gradient: LinearGradient(colors: [Color(0xFF2c4a3e), OffroColors.primary],
           begin: Alignment.topLeft, end: Alignment.bottomRight)));
 
     // Video
     if (_isVideo(url)) {
       if (_videoReady && _vpc != null && _vpc!.value.isInitialized) {
-        return FittedBox(
+        final video = FittedBox(
           fit: BoxFit.cover,
           child: SizedBox(
             width: _vpc!.value.size.width,
@@ -165,9 +241,29 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
             child: VideoPlayer(_vpc!),
           ),
         );
+        if (widget.tapToPlay && !_started) {
+          return Stack(fit: StackFit.expand, children: [video, _playOverlay()]);
+        }
+        if (widget.tapToPlay && _userPaused) {
+          // Paused by tap: show a play icon (taps pass through to the card, which resumes).
+          return Stack(fit: StackFit.expand, children: [
+            video,
+            IgnorePointer(child: Center(child: Container(
+              width: 56, height: 56,
+              decoration: const BoxDecoration(color: OffroColors.textDark, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 34),
+            ))),
+          ]);
+        }
+        return video;
       }
-      // While video loads → green placeholder
-      return Container(color: const Color(0xFF3E5F55));
+      // While video loads → green placeholder (tap-to-play still shows the icon)
+      final ph = Container(color: OffroColors.primary);
+      if (widget.tapToPlay && !_started) {
+        return Stack(fit: StackFit.expand, children: [ph, _playOverlay()]);
+      }
+      return ph;
     }
 
     // base64 image
@@ -182,10 +278,10 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
       imageUrl: url, fit: BoxFit.cover,
       width: double.infinity, height: double.infinity, memCacheWidth: 900,
       alignment: Alignment.center,
-      placeholder: (_, __) => Container(color: const Color(0xFF3E5F55)),
+      placeholder: (_, __) => Container(color: OffroColors.primary),
       errorWidget: (_, __, ___) => Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(colors: [Color(0xFF2c4a3e), Color(0xFF3E5F55)],
+          gradient: LinearGradient(colors: [Color(0xFF2c4a3e), OffroColors.primary],
             begin: Alignment.topLeft, end: Alignment.bottomRight))),
     );
   }
@@ -197,9 +293,14 @@ class _PromoSliderCardState extends State<PromoSliderCard> {
     final subtitle = widget.slider["subtitle"]?.toString() ?? widget.slider["text"]?.toString() ?? "";
     final radius   = widget.squareCorners ? 0.0 : 20.0;
 
+    // Tap-to-play video that has already been started: tap = pause / resume (no navigation).
+    final videoToggle = widget.tapToPlay && _started && _isVideo(mediaUrl);
+
     return GestureDetector(
-      onTap: storeId.isNotEmpty ? () async {
+      onTap: videoToggle ? _togglePause : (storeId.isNotEmpty || widget.onOpenCta != null) ? () async {
         try {
+          if (widget.onOpenCta != null && await widget.onOpenCta!(context, widget.slider)) return;
+          if (storeId.isEmpty) return;
           final store = await Api.fetchStoreDetail(storeId);
           if (context.mounted) {
             Navigator.push(context, appRoute(
@@ -323,7 +424,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
             const SizedBox(height:2),
             Row(children:[
               if(rating>0)...[
-                const Icon(Icons.star_rounded,color:Color(0xFFFFD700),size:10),
+                const Icon(Icons.star_rounded,color:OffroColors.amber,size:10),
                 const SizedBox(width:2),
                 Text(rating.toStringAsFixed(1),style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.w700)),
                 const SizedBox(width:4),
@@ -354,7 +455,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
   }
 
   Widget _fallback(String name)=>Container(
-    color:const Color(0xFF3E5F55),
+    color:OffroColors.primary,
     child:Center(child:Icon(Icons.store,color:kLight,size:36)),
   );
 }
@@ -404,7 +505,7 @@ class TopStoreCard extends StatelessWidget {
       case "trending":  return const Color(0xFFe67e22);
       case "popular":   return const Color(0xFF8e44ad);
       case "just added":return const Color(0xFF111111);
-      default:          return const Color(0xFF3E5F55);
+      default:          return OffroColors.primary;
     }
   }
 
@@ -454,11 +555,8 @@ class TopStoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFd4e8de), width: 1.0),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: .05), blurRadius: 16, spreadRadius: 0, offset: const Offset(0,4)),
-          BoxShadow(color: const Color(0xFFA9CDBA).withValues(alpha: .12), blurRadius: 8, offset: const Offset(0,2)),
-        ],
+        border: Border.all(color: OffroColors.border, width: 1.0),
+        boxShadow: OffroShadows.card,
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Left image ──
@@ -489,7 +587,7 @@ class TopStoreCard extends StatelessWidget {
               // Name + badge chip
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Expanded(child: Text(name,
-                  style: const TextStyle(color: Color(0xFF2c3e35), fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
+                  style: const TextStyle(color: OffroColors.text, fontSize: 14, fontWeight: FontWeight.w800, height: 1.2),
                   maxLines: 1, overflow: TextOverflow.ellipsis)),
                 if (badgeLabel != null) ...[
                   const SizedBox(width: 6),
@@ -508,7 +606,7 @@ class TopStoreCard extends StatelessWidget {
               // Category · Area
               Text(
                 [if (category.isNotEmpty) category, if (locationStr.isNotEmpty) locationStr].join(" · "),
-                style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500),
+                style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w500),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),
               // Rating badge + distance + open tag
@@ -517,7 +615,7 @@ class TopStoreCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3E5F55),
+                      color: OffroColors.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -530,11 +628,11 @@ class TopStoreCard extends StatelessWidget {
                   const SizedBox(width: 6),
                 ],
                 if (distKm != null) ...[
-                  const Icon(Icons.near_me_rounded, color: Color(0xFF6b8c7e), size: 11),
+                  const Icon(Icons.near_me_rounded, color: OffroColors.secondarySolid, size: 11),
                   const SizedBox(width: 2),
                   Text(
                     distKm < 1 ? "${(distKm*1000).round()}m away" : "${distKm.toStringAsFixed(1)}km away",
-                    style: const TextStyle(color: Color(0xFF6b8c7e), fontSize: 11, fontWeight: FontWeight.w500)),
+                    style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w500)),
                 ],
                 const Spacer(),
                 // Dynamic open/close indicator — hidden when times not configured
@@ -560,16 +658,16 @@ class TopStoreCard extends StatelessWidget {
         // Chevron
         const Padding(
           padding: EdgeInsets.only(right: 12, top: 35),
-          child: Icon(Icons.chevron_right_rounded, color: Color(0xFFa9cdba), size: 20),
+          child: Icon(Icons.chevron_right_rounded, color: OffroColors.accent, size: 20),
         ),
       ]),
     );
   }
 
   Widget _fallback(String name) => Container(
-    color: const Color(0xFFA9CDBA),
+    color: OffroColors.accent,
     child: Center(child: Text(name.isNotEmpty ? name[0].toUpperCase() : "S",
-      style: const TextStyle(color: Color(0xFF3E5F55), fontWeight: FontWeight.w900, fontSize: 22))),
+      style: const TextStyle(color: OffroColors.primary, fontWeight: FontWeight.w900, fontSize: 22))),
   );
 }
 

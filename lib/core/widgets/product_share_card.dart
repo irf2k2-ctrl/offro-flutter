@@ -28,6 +28,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'base64_image.dart';
+import '../design/offro_tokens.dart' show OffroColors;
 
 // ─────────────────────────────────────────────────────────────────────────
 // Link helper — the ONLY place the share link is defined. It is the same
@@ -225,11 +226,11 @@ class ProductShareCard extends StatelessWidget {
   static const double outerWidth = cardWidth; // no margin around the card
   /// Only ever visible behind a photo that has transparent pixels (and as the
   /// no-photo fallback tint) — never white, never transparent.
-  static const Color _backdrop = Color(0xFFA9CDBA);
+  static const Color _backdrop = OffroColors.accent;
   /// Store Card ratio: cardW * 0.57 (rounded).
   static const double imageHeight = 182;
 
-  static const Color _green = Color(0xFF3E5F55);
+  static const Color _green = OffroColors.primary;
 
   final ProductShareData data;
 

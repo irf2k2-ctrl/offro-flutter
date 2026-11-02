@@ -12,11 +12,14 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/white</item>
         <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowFullscreen">false</item>
     </style>
 
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar.Fullscreen">
         <item name="android:windowBackground">@android:color/white</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/white</item>
+        <!-- Fullscreen parent hides the status bar (black strip, no clock/icons) -->
+        <item name="android:windowFullscreen">false</item>
     </style>
 </resources>

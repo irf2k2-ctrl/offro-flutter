@@ -9,6 +9,7 @@ import '../../core/widgets/brand_logo.dart';
 import '../store/store_detail_page.dart';
 import '../../core/widgets/store_cards.dart';
 import '../../core/utils/navigation.dart';
+import '../../core/design/design.dart';
 
 
 class FavoritesPage extends StatefulWidget {
@@ -24,90 +25,68 @@ class _FavoritesState extends State<FavoritesPage>{
     catch(_){if(mounted)setState(()=>_loading=false);}
   }
   @override Widget build(BuildContext ctx) {
-    return Scaffold(
-      backgroundColor: kBg,
-      body: CustomScrollView(slivers: [
-        // Glossy gradient app bar
-        SliverAppBar(
-          expandedHeight: 110,
-          pinned: true,
-          backgroundColor: Colors.white,
-          foregroundColor: kText,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          flexibleSpace: FlexibleSpaceBar(
-            title: const Text("My Favourites",
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17, color: kText)),
-            background: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-              ),
-              child: Stack(children: [
-                // Soft bottom border shine
-                Positioned(top: 0, left: 0, right: 0, child: Container(
-                  height: 55,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.white, Colors.white.withValues(alpha: .0)],
-                    ),
+    // Figma design system: Manrope + Lora accent, #FDFBF6 background, mint
+    // empty state. Loading / empty / grid / navigation logic is unchanged.
+    return OffroFontScope(child: Scaffold(
+      backgroundColor: OffroColors.background,
+      body: SafeArea(
+        bottom: false,
+        child: CustomScrollView(slivers: [
+          SliverToBoxAdapter(child: OffroScreenHeader(
+            eyebrow: "Saved for later",
+            title: "My Favourites",
+            description: _loading || _favs.isEmpty
+                ? null
+                : "${_favs.length} ${_favs.length == 1 ? 'place' : 'places'} you love, all in one spot.",
+            showBack: true,
+          )),
+          if (_loading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator(color: OffroColors.primary, strokeWidth: 2)))
+          else if (_favs.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(
+                    width: 88, height: 88,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(color: OffroColors.mint, shape: BoxShape.circle),
+                    child: const OffroIcon(OffroIcons.heart, size: 38, color: OffroColors.primary),
                   ),
-                )),
-                // Decorative heart icon
-                const Positioned(right: 20, bottom: 16, child:
-                  Icon(Icons.favorite_rounded, color: Colors.white12, size: 72)),
-              ]),
-            ),
-          ),
-        ),
-        if (_loading)
-          const SliverFillRemaining(
-            child: Center(child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2)))
-        else if (_favs.isEmpty)
-          SliverFillRemaining(
-            child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                width: 90, height: 90,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFFCDEBD6), Color(0xFFA9CDBA)],
+                  const SizedBox(height: 20),
+                  Text("No favourites yet", style: OffroText.title.copyWith(fontSize: 20)),
+                  const SizedBox(height: 8),
+                  Text("Tap the heart on any store to save it here",
+                    textAlign: TextAlign.center,
+                    style: OffroText.bodySmall.copyWith(fontSize: 13, color: OffroColors.textMuted)),
+                ]),
+              )),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 20, OffroSpacing.gutter, 40),
+              sliver: SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => GestureDetector(
+                    onTap: () => Navigator.push(ctx, appRoute(
+                      StoreDetailPage(store: Map<String,dynamic>.from(_favs[i] as Map), token: widget.token))),
+                    child: GridStoreCard(store: Map<String,dynamic>.from(_favs[i] as Map)),
                   ),
-                  shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: const Color(0xFF3E5F55).withValues(alpha: .2), blurRadius: 18, offset: const Offset(0,6))],
+                  childCount: _favs.length,
                 ),
-                child: const Icon(Icons.favorite_border_rounded, color: Color(0xFF3E5F55), size: 44),
-              ),
-              const SizedBox(height: 20),
-              const Text("No favourites yet",
-                style: TextStyle(color: kText, fontSize: 17, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              const Text("Tap ♡ on any store to save it here",
-                style: TextStyle(color: kMuted, fontSize: 13)),
-            ])),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.all(14),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) => GestureDetector(
-                  onTap: () => Navigator.push(ctx, appRoute(
-                    StoreDetailPage(store: Map<String,dynamic>.from(_favs[i] as Map), token: widget.token))),
-                  child: GridStoreCard(store: Map<String,dynamic>.from(_favs[i] as Map)),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 0.82,
                 ),
-                childCount: _favs.length,
-              ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 0.82,
               ),
             ),
-          ),
-      ]),
-    );
+        ]),
+      ),
+    ));
   }
 }
 

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../qr/qr_page.dart';
+import '../../../core/design/design.dart';
 
 class RewardPointsSection extends StatelessWidget {
   final int visitPoints;
@@ -26,9 +27,9 @@ class RewardPointsSection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(
               vertical: 28, horizontal: 16),
           decoration: BoxDecoration(
-            color: kLight.withValues(alpha: .45),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: kBorder, width: 1),
+            color: OffroColors.mint,
+            borderRadius: BorderRadius.circular(OffroRadii.card),
+            border: Border.all(color: OffroColors.border, width: 1),
           ),
           child: Column(children: [
             Icon(Icons.card_giftcard_outlined,
@@ -37,7 +38,7 @@ class RewardPointsSection extends StatelessWidget {
             const Text(
               'Rewards coming soon',
               style: TextStyle(
-                  color: kMuted,
+                  color: OffroColors.textMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w600),
             ),
@@ -58,7 +59,7 @@ class RewardPointsSection extends StatelessWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF3E5F55), Color(0xFF5A8A7A)],
+              colors: [OffroColors.primary, OffroColors.primary],
             ),
             borderRadius: BorderRadius.circular(24),
             boxShadow: [

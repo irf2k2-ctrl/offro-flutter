@@ -22,6 +22,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/design/design.dart' show OffroBottomNav, OffroNavVariant, OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones;
 import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
@@ -35,10 +36,44 @@ import '../auth/login_screen.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../payment/payment_success_screen.dart';
 import 'products_phase2.dart';
+import '../collab/collab_screens.dart' show CollabWorkspacePage;
 // Round 7 Item 2: reuse the existing full-screen image viewer for the Merchant
 // Deals list thumbnail tap-to-view — no duplicate viewer implementation.
 import '../store/widgets/store_header.dart' show FullScreenImageViewer;
 import '../../core/utils/navigation.dart';
+
+/// Figma-style page header for Merchant screens: eyebrow + headline on the
+/// cream background, flat (no elevation), optional trailing actions.
+PreferredSizeWidget merchantHeaderBar({
+  required String eyebrow,
+  required String title,
+  List<Widget>? actions,
+  bool back = true,
+  PreferredSizeWidget? bottom,
+}) {
+  return AppBar(
+    automaticallyImplyLeading: back,
+    toolbarHeight: 84,
+    centerTitle: false,
+    titleSpacing: back ? 0 : OffroSpacing.gutter,
+    backgroundColor: kMerchantBg,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    surfaceTintColor: Colors.transparent,
+    title: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(eyebrow.toUpperCase(), style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+        const SizedBox(height: 4),
+        Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: OffroText.headline.copyWith(fontSize: 26)),
+      ],
+    ),
+    actions: actions,
+    bottom: bottom,
+  );
+}
+
 
 /// PERMANENT HEADER REDESIGN: small circular filled "+" action button used
 /// in place of the old large outlined "New X" buttons across merchant list
@@ -51,7 +86,7 @@ Widget offroHeaderAddButton({
   double size = 44,
 }) {
   final btn = Material(
-    color: kPrimary,
+    color: kMerchantPrimary,
     shape: const CircleBorder(),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
@@ -75,9 +110,11 @@ class MerchantHomePage extends StatefulWidget {
   final String locationTitle;
   final String locationSubtitle;
   final VoidCallback? onLocationTap;
+  final String merchantName;
   const MerchantHomePage({
     super.key,
     required this.token,
+    this.merchantName = '',
     this.locationTitle = '',
     this.locationSubtitle = '',
     this.onLocationTap,
@@ -90,12 +127,54 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   List<Map<String,dynamic>> _products = [];
   bool _loading   = true;
   bool _loadError = false;
-  int  _stdLimit  = 10;  // admin-configured standard product slot limit
+  int? _freeLimit;  // admin-configured free product slots (from the backend; null until loaded)
+  int  _slotsUsed = 0;   // qualifying products (backend count)
+
+  // Data already on screen is kept while a refresh runs (no full-screen spinner after the
+  // first load), and overlapping loads share one request instead of firing duplicates.
+  bool _hasData = false;
+  Future<void>? _inFlight;
 
   @override void initState() { super.initState(); _load(); }
 
-  Future<void> _load({int retryCount = 0}) async {
-    setState(()=>_loading=true);
+  Future<void> _load({int retryCount = 0}) {
+    if (_inFlight != null && retryCount == 0) return _inFlight!;
+    final f = _loadAll(retryCount: retryCount);
+    if (retryCount == 0) {
+      _inFlight = f;
+      f.whenComplete(() { if (identical(_inFlight, f)) _inFlight = null; });
+    }
+    return f;
+  }
+
+  /// Refresh only the parts a sub-screen can have changed (instead of re-fetching everything
+  /// every time the merchant navigates back). Silent: current data stays visible.
+  Future<void> _refreshParts({bool stores = false, bool banners = false, bool products = false, bool slots = false}) async {
+    try {
+      final r = await Future.wait<dynamic>([
+        stores   ? Api.getMerchantStores(widget.token).timeout(const Duration(seconds: 15))   : Future<dynamic>.value(null),
+        banners  ? Api.getMerchantBanners(widget.token).timeout(const Duration(seconds: 10))  : Future<dynamic>.value(null),
+        products ? Api.getMerchantProducts(widget.token).timeout(const Duration(seconds: 10)) : Future<dynamic>.value(null),
+        slots    ? Api.getProductLimit(widget.token).timeout(const Duration(seconds: 10))     : Future<dynamic>.value(null),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        if (r[0] is Iterable) _stores   = List<Map<String,dynamic>>.from(r[0] as Iterable);
+        if (r[1] is Iterable) _banners  = List<Map<String,dynamic>>.from(r[1] as Iterable);
+        if (r[2] is Iterable) _products = List<Map<String,dynamic>>.from(r[2] as Iterable);
+        if (r[3] is Map) {
+          final limitMap = Map<String,dynamic>.from(r[3] as Map);
+          _freeLimit = (limitMap["free_limit"] as num?)?.toInt() ?? _freeLimit;
+          _slotsUsed = (limitMap["used"] as num?)?.toInt() ?? _slotsUsed;
+        }
+      });
+    } catch (e) {
+      debugPrint('[MerchantHome] partial refresh error: $e');   // keep what is on screen
+    }
+  }
+
+  Future<void> _loadAll({int retryCount = 0}) async {
+    if (!_hasData) setState(()=>_loading=true);
     try {
       final storesFuture   = Api.getMerchantStores(widget.token).timeout(const Duration(seconds: 15));
       final bannersFuture  = Api.getMerchantBanners(widget.token).timeout(const Duration(seconds: 10));
@@ -108,17 +187,19 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
         _banners  = List<Map<String,dynamic>>.from(results[1] as Iterable);
         _products = List<Map<String,dynamic>>.from(results[2] as Iterable);
         final limitMap = results[3] as Map<String,dynamic>;
-        _stdLimit = (limitMap["standard_product_limit"] as num?)?.toInt() ?? 10;
+        _freeLimit = (limitMap["free_limit"] as num?)?.toInt();
+        _slotsUsed = (limitMap["used"] as num?)?.toInt() ?? 0;
         _loading  = false;
         _loadError = false;
+        _hasData = true;
       });
     } catch(e) {
       debugPrint('[MerchantHome] _load error (attempt ${retryCount+1}): $e');
       if (retryCount == 0 && mounted) {
         await Future.delayed(const Duration(seconds: 2));
-        return _load(retryCount: 1);
+        return _loadAll(retryCount: 1);
       }
-      if (mounted) setState(() { _loading = false; _loadError = true; });
+      if (mounted) setState(() { _loading = false; _loadError = !_hasData; });
     }
   }
 
@@ -135,203 +216,230 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   // routers/admin.py's approve_store() sets — no new status system).
   bool get _hasActiveStore => !_loadError && _stores.any((s) => s["status"] == "active");
 
-  @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(
-      title: Row(children:[
-        buildImageLogo(height:24, white:true),
-        const SizedBox(width:8),
-        const Text("Merchant Home", style:TextStyle(fontWeight:FontWeight.w800)),
+  // Real counts only (from the same lists already loaded above).
+  int get _activeStores => _stores.where((s) => s['status'] == 'active').length;
+  int get _liveBanners => _banners.where((b) => (b['approval_status'] ?? b['status'] ?? '') == 'approved').length;
+  int get _liveProducts => _products.where((v) => (v['approval_status'] ?? v['status'] ?? '').toString() == 'approved').length;
+
+  String get _storeNote => _stores.isEmpty
+      ? "No stores yet — tap to add your first"
+      : "${_stores.length} Store${_stores.length > 1 ? 's' : ''} • $_activeStores Active";
+
+  String get _bannerNote {
+    if (!_hasActiveStore) return "Subscribe your store to create banners.";
+    if (_banners.isEmpty) return "No banners yet — promote your store";
+    final pend = _banners.where((b) {
+      final st = (b['approval_status'] ?? b['status'] ?? '').toString();
+      return st == 'pending' || st == 'pending_approval';
+    }).length;
+    final parts = <String>[];
+    if (_liveBanners > 0) parts.add("$_liveBanners Live");
+    if (pend > 0) parts.add("$pend Pending");
+    return "${_banners.length} Banner${_banners.length > 1 ? 's' : ''} • ${parts.isEmpty ? 'Submitted' : parts.join(' · ')}";
+  }
+
+  String get _productNote {
+    if (!_hasActiveStore) return "Subscribe your store to add products.";
+    if (_products.isEmpty) return "No products yet — add your first product";
+    final parts = <String>[if (_freeLimit != null) "$_slotsUsed/$_freeLimit free slots used"];
+    if (_liveProducts > 0) parts.add("$_liveProducts Live");
+    return parts.join('  ·  ');
+  }
+
+  void _lockedSnack(String msg) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+  Widget _hero() {
+    final first = widget.merchantName.trim().split(' ').first;
+    return Container(
+      width: double.infinity,
+      color: OffroColors.mint,
+      padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, MediaQuery.of(context).padding.top + 20, OffroSpacing.gutter, 36),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        buildImageLogo(height: 26),
+        const SizedBox(height: 32),
+        Text('MERCHANT WORKSPACE', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+        const SizedBox(height: 4),
+        Text(first.isEmpty ? 'Welcome back' : 'Welcome back, $first', style: OffroText.headline),
+        if (widget.onLocationTap != null) ...[
+          const SizedBox(height: 14),
+          InkWell(
+            onTap: widget.onLocationTap,
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary, filled: true),
+                const SizedBox(width: 8),
+                Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(widget.locationTitle.isEmpty ? 'Select location' : widget.locationTitle,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: OffroText.value.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
+                  if (widget.locationSubtitle.isNotEmpty)
+                    Text(widget.locationSubtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+                ])),
+                const SizedBox(width: 6),
+                const OffroIcon(OffroIcons.chevron, size: 13, color: OffroColors.secondarySolid),
+              ]),
+            ),
+          ),
+        ],
       ]),
-      backgroundColor: Colors.white, foregroundColor: kText,
-      automaticallyImplyLeading:false,
-      bottom: widget.onLocationTap == null ? null : PreferredSize(
-        preferredSize: const Size.fromHeight(52),
-        child: _MerchantLocationBar(
-          title: widget.locationTitle,
-          subtitle: widget.locationSubtitle,
-          onTap: widget.onLocationTap!,
-        ),
+    );
+  }
+
+  Widget _statTile(String value, String label) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: OffroColors.surface,
+        borderRadius: BorderRadius.circular(OffroRadii.card),
+        boxShadow: OffroShadows.card,
       ),
+      child: Column(children: [
+        Text(value, style: OffroText.title.copyWith(fontSize: 20)),
+        const SizedBox(height: 2),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+      ]),
     ),
+  );
+
+  @override Widget build(BuildContext context) => Scaffold(
+    backgroundColor: kMerchantBg,
     body: _loading
-      ? const Center(child:CircularProgressIndicator(color:kPrimary))
+      ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary))
       // FIX7: show retry instead of new-merchant flow when network failed
       : (_loadError && _stores.isEmpty)
-          ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const Icon(Icons.wifi_off_rounded, color: kMuted, size: 48),
-              const SizedBox(height: 16),
-              const Text("Couldn't load your dashboard", style: TextStyle(color: kText, fontSize: 16, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              const Text("Check your connection and try again", style: TextStyle(color: kMuted, fontSize: 13)),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: () => _load(),
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text("Retry"),
-                style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
-              ),
-            ]))
+          ? Center(child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
+                const SizedBox(height: 16),
+                Text("Couldn't load your dashboard", style: OffroText.title.copyWith(fontSize: 18)),
+                const SizedBox(height: 6),
+                Text("Check your connection and try again", style: OffroText.body),
+                const SizedBox(height: 20),
+                OffroButton.small(label: "Retry", onPressed: () => _load()),
+              ]),
+            ))
       : RefreshIndicator(
           onRefresh:_load,
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFFEEF7F2), Color(0xFFF9FBF9), Color(0xFFF4EFE8)],
-                stops: [0.0, 0.5, 1.0],
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              _hero(),
+              Transform.translate(
+                offset: const Offset(0, -14),
+                child: Padding(
+                  padding: OffroSpacing.gutterH,
+                  child: Row(children: [
+                    _statTile('$_activeStores', 'Live stores'),
+                    const SizedBox(width: 8),
+                    _statTile('$_liveBanners', 'Live banners'),
+                    const SizedBox(width: 8),
+                    _statTile('$_liveProducts', 'Live products'),
+                  ]),
+                ),
               ),
-            ),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-
-              // ── Section cards ──
-              _SectionCard(
-                icon: Icons.store_rounded,
-                color: kPrimary,
-                bgColor: const Color(0xFFe8f4ef),
-                title: "My Store",
-                subtitle: _stores.isEmpty
-                  ? "No stores yet — tap to add your first"
-                  : "${_stores.length} Store${_stores.length>1?'s':''} • ${_stores.where((s)=>s['status']=='active').length} Active",
-                onTap: ()=>Navigator.push(context,appRoute(MerchantStoresPage(token:widget.token))).then((_)=>_load()),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 14, OffroSpacing.gutter, 0),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('MANAGE YOUR BUSINESS', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+                  const SizedBox(height: 12),
+                  _SectionCard(
+                    icon: OffroIcons.store,
+                    bgColor: OffroColors.mint,
+                    title: "My Store",
+                    subtitle: _storeNote,
+                    onTap: () => Navigator.push(context, appRoute(MerchantStoresPage(token: widget.token))).then((_) => _refreshParts(stores: true, slots: true)),
+                  ),
+                  const SizedBox(height: 12),
+                  // Banner card — locked until a subscribed+active store exists
+                  _SectionCard(
+                    icon: OffroIcons.play,
+                    bgColor: OffroColors.beige,
+                    title: "My Banner",
+                    locked: !_hasActiveStore,
+                    subtitle: _bannerNote,
+                    onTap: _hasActiveStore
+                      ? () => Navigator.push(context, appRoute(MerchantBannersPage(token: widget.token))).then((_) => _refreshParts(banners: true))
+                      : () => _lockedSnack("Subscribe your store to create banners."),
+                  ),
+                  const SizedBox(height: 12),
+                  // Product card — locked until a subscribed+active store exists
+                  _SectionCard(
+                    icon: OffroIcons.tag,
+                    bgColor: OffroTones.electronics.background,
+                    title: "My Products",
+                    locked: !_hasActiveStore,
+                    subtitle: _productNote,
+                    onTap: _hasActiveStore
+                      ? () => Navigator.push(context, appRoute(MerchantProductsPage(token: widget.token))).then((_) => _refreshParts(products: true, slots: true))
+                      : () => _lockedSnack("Subscribe your store to add products."),
+                  ),
+                  const SizedBox(height: 12),
+                  // Creator collaborations — brief, match and manage local creators
+                  _SectionCard(
+                    icon: OffroIcons.sparkles,
+                    bgColor: OffroTones.fashion.background,
+                    title: "Creator collaborations",
+                    locked: !_hasActiveStore,
+                    subtitle: "Brief, match and manage local creators",
+                    onTap: _hasActiveStore
+                      ? () => Navigator.push(context, appRoute(CollabWorkspacePage(token: widget.token)))
+                      : () => _lockedSnack("Subscribe your store to work with creators."),
+                  ),
+                ]),
               ),
-              const SizedBox(height:12),
-
-              // Banner card — locked until a subscribed+active store exists
-              _SectionCard(
-                icon: Icons.view_carousel_rounded,
-                color: _hasActiveStore ? const Color(0xFFc0392b) : kMuted,
-                bgColor: _hasActiveStore ? const Color(0xFFfde8e8) : const Color(0xFFf0f0f0),
-                title: "My Banner",
-                locked: !_hasActiveStore,
-                subtitle: !_hasActiveStore
-                  ? "🔒 Subscribe your store to create banners."
-                  : _banners.isEmpty
-                    ? "No banners yet — promote your store"
-                    : ((){
-                        final live=_banners.where((b)=>(b['approval_status']??b['status']??'')=='approved').length;
-                        final pend=_banners.where((b){final st=(b['approval_status']??b['status']??'').toString();return st=='pending'||st=='pending_approval';}).length;
-                        final parts=<String>[];if(live>0)parts.add("$live Live");if(pend>0)parts.add("$pend Pending");
-                        return "${_banners.length} Banner${_banners.length>1?'s':''} • ${parts.isEmpty?'Submitted':parts.join(' · ')}";
-                      })(),
-                onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,appRoute(MerchantBannersPage(token:widget.token))).then((_)=>_load())
-                  : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Subscribe your store to create banners."),
-                      backgroundColor:Colors.orange)),
-              ),
-              const SizedBox(height:12),
-
-              // Product card — locked until a subscribed+active store exists
-              _SectionCard(
-                icon: Icons.local_activity_rounded,
-                color: _hasActiveStore ? const Color(0xFF856404) : kMuted,
-                bgColor: _hasActiveStore ? const Color(0xFFfff3cd) : const Color(0xFFf0f0f0),
-                title: "My Products",
-                locked: !_hasActiveStore,
-                subtitle: !_hasActiveStore
-                  ? "🔒 Subscribe your store to add products."
-                  : _products.isEmpty
-                    ? "No products yet — add your first product"
-                    : ((){
-                        final std  = _products.where((v)=>(v['product_type']??'')=='standard').length;
-                        final prem = _products.where((v)=>(v['product_type']??'premium')=='premium').length;
-                        final live = _products.where((v){
-                          final st=(v['approval_status']??v['status']??'').toString();
-                          return st=='approved';
-                        }).length;
-                        final parts=<String>[];
-                        parts.add("🟢 Std: $std/$_stdLimit");
-                        if(prem>0) parts.add("🟣 Prem: $prem");
-                        if(live>0) parts.add("$live Live");
-                        return parts.join('  ·  ');
-                      })(),
-                onTap: _hasActiveStore
-                  ? ()=>Navigator.push(context,appRoute(MerchantProductsPage(token:widget.token))).then((_)=>_load())
-                  : ()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:Text("Subscribe your store to add products."),
-                      backgroundColor:Colors.orange)),
-              ),
-
-
             ]),
-            ),  // SingleChildScrollView
-          ),    // Container (gradient)
-        ),      // RefreshIndicator
+          ),
+        ),
   );
 }
 
 class _SectionCard extends StatelessWidget {
-  final IconData icon; final Color color, bgColor;
+  final OffroIconData icon; final Color bgColor;
   final String title, subtitle; final VoidCallback onTap;
   // Item 1 (draft-store lock): when true, shows a "Locked" pill instead of
-  // "Open →" so the card visually communicates it can't be opened yet.
-  // Defaults to false so existing call sites (e.g. "My Store", which is
-  // never locked) don't need to change.
+  // "Open" so the card visually communicates it can't be opened yet.
   final bool locked;
-  const _SectionCard({required this.icon, required this.color, required this.bgColor,
+  const _SectionCard({required this.icon, required this.bgColor,
     required this.title, required this.subtitle, required this.onTap, this.locked = false});
 
-  @override Widget build(BuildContext context) => GestureDetector(
+  @override Widget build(BuildContext context) => OffroCard(
     onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: .22), width: 1.5),
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: .12), blurRadius: 20, offset: const Offset(0, 8)),
-          BoxShadow(color: color.withValues(alpha: .05), blurRadius: 6,  offset: const Offset(0, 2)),
-        ],
+    radius: 22,
+    padding: const EdgeInsets.all(16),
+    child: Row(children: [
+      Container(
+        width: 48, height: 48,
+        decoration: BoxDecoration(color: locked ? OffroColors.mint : bgColor, borderRadius: BorderRadius.circular(16)),
+        alignment: Alignment.center,
+        child: OffroIcon(icon, size: 20, color: OffroColors.primary),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Top row: icon + arrow ──
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            width: 56, height: 56,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: color.withValues(alpha: .12), blurRadius: 8, offset: const Offset(0, 3))],
-            ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (locked) ...[
-                Icon(Icons.lock_rounded, color: color, size: 12),
-                const SizedBox(width: 4),
-                Text("Locked", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-              ] else ...[
-                Text("Open", style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_forward_rounded, color: color, size: 13),
-              ],
-            ]),
-          ),
+      const SizedBox(width: 14),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: OffroText.value.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 3),
+        Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: OffroText.caption.copyWith(color: OffroColors.secondarySolid, height: 1.35)),
+      ])),
+      const SizedBox(width: 10),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(20)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (locked) ...[
+            const Icon(Icons.lock_rounded, color: OffroColors.primary, size: 11),
+            const SizedBox(width: 4),
+          ],
+          Text(locked ? "Locked" : "Manage",
+              style: OffroText.caption.copyWith(color: OffroColors.primary, fontSize: 10, fontWeight: FontWeight.w700)),
         ]),
-        const SizedBox(height: 14),
-        // ── Title ──
-        Text(title,
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: color, letterSpacing: -0.3)),
-        const SizedBox(height: 6),
-        // ── Subtitle / stats ──
-        Text(subtitle,
-          style: const TextStyle(color: kMuted, fontSize: 13, height: 1.4),
-          maxLines: 2, overflow: TextOverflow.ellipsis),
-      ]),
-    ),
+      ),
+    ]),
   );
 }
 
@@ -371,14 +479,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(
-      toolbarHeight:58,
-      titleSpacing:16,
-      centerTitle:true,
-      title:const Text("My Banners",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-      backgroundColor: Colors.white, foregroundColor: kText,
-      actions:[
+    backgroundColor:kMerchantBg,
+    appBar:merchantHeaderBar(eyebrow: "Promotions", title: "My Banners", back: true,
+              actions:[
         Padding(
           padding:const EdgeInsets.only(right:18),
           child:offroHeaderAddButton(
@@ -390,24 +493,24 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
       ],
     ),
     body:_loading
-      ? const Center(child:CircularProgressIndicator(color:kPrimary))
+      ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary))
       : _loadError
           ? Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
-              const Icon(Icons.wifi_off_rounded,color:kMuted,size:48),
+              const Icon(Icons.wifi_off_rounded,color:kMerchantMuted,size:48),
               const SizedBox(height:12),
-              const Text("Couldn't load banners",style:TextStyle(color:kText,fontSize:15,fontWeight:FontWeight.w700)),
+              const Text("Couldn't load banners",style:TextStyle(color:kMerchantText,fontSize:15,fontWeight:FontWeight.w700)),
               const SizedBox(height:8),
               ElevatedButton.icon(onPressed:()=>_load(),icon:const Icon(Icons.refresh),label:const Text("Retry"),
-                style:ElevatedButton.styleFrom(backgroundColor:kPrimary,foregroundColor:Colors.white)),
+                style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary,foregroundColor:Colors.white)),
             ]))
       : Column(children:[
           Expanded(child:_banners.isEmpty
             ? const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                Icon(Icons.view_carousel_outlined,size:64,color:kAccent),
+                Icon(Icons.view_carousel_outlined,size:64,color:kMerchantAccent),
                 SizedBox(height:12),
-                Text("No banners yet",style:TextStyle(color:kMuted,fontSize:16)),
+                Text("No banners yet",style:TextStyle(color:kMerchantMuted,fontSize:16)),
                 SizedBox(height:6),
-                Text("Tap + to create your first banner",style:TextStyle(color:kMuted,fontSize:13)),
+                Text("Tap + to create your first banner",style:TextStyle(color:kMerchantMuted,fontSize:13)),
               ]))
             : RefreshIndicator(
                 onRefresh:_load,
@@ -443,13 +546,13 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         : (!_bIsActive ? "off" : rawStatus);
 
                     final (Color sc, String sl, IconData si) = switch(displayStatus) {
-                      "approved"  => (const Color(0xFF1a6640),"Approved — Live", Icons.check_circle),
+                      "approved"  => (OffroColors.statusLive,"Approved — Live", Icons.check_circle),
                       "rejected"  => (Colors.red, "Rejected", Icons.cancel),
                       "expired"   => (Colors.grey.shade600, "Expired", Icons.event_busy_rounded),
                       "removed"   => (Colors.red.shade700, "Removed by Admin", Icons.block_rounded),
                       "off"       => (Colors.grey.shade500, "Turned Off", Icons.pause_circle_outline_rounded),
-                      "pending_approval" || "pending" => (const Color(0xFF856404),"Pending Approval", Icons.access_time_rounded),
-                      _ => (kMuted,"Submitted", Icons.hourglass_empty),
+                      "pending_approval" || "pending" => (OffroColors.statusPending,"Pending Approval", Icons.access_time_rounded),
+                      _ => (kMerchantMuted,"Submitted", Icons.hourglass_empty),
                     };
                     // FIX 2: prefer from_date/end_date, fallback start_date
                     final fromDate = b["from_date"]?.toString() ?? b["start_date"]?.toString() ?? "";
@@ -477,9 +580,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                           errorBuilder: (_, __, ___) => Container(
                             width: 80,
                             height: 80,
-                            color: kAccent,
+                            color: kMerchantAccent,
                             child: Center(
-                              child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
+                              child: Text(initialStr, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                             ),
                           ),
                         );
@@ -492,9 +595,9 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                           errorBuilder: (_, __, ___) => Container(
                             width: 80,
                             height: 80,
-                            color: kAccent,
+                            color: kMerchantAccent,
                             child: Center(
-                              child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
+                              child: Text(initialStr, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                             ),
                           ),
                         );
@@ -503,27 +606,27 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                       _thumb = Container(
                         width: 80,
                         height: 80,
-                        color: kAccent,
+                        color: kMerchantAccent,
                         child: Center(
-                          child: Text(initialStr, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
+                          child: Text(initialStr, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22)),
                         ),
                       );
                     }
 
-                    Widget _actionButtons = Row(children:[
+                    Widget _editAndToggleButtons = Row(children:[
                       Expanded(child:OutlinedButton.icon(
                         onPressed:() async {
                           final ctrl = TextEditingController(text:b["title"]??"");
                           final newTitle = await showDialog<String>(context:context,builder:(_)=>AlertDialog(
-                            title:const Text("Edit Banner Title",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                            title:const Text("Edit Banner Title",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
                             content:TextField(controller:ctrl,decoration:InputDecoration(
                               hintText:"Banner title",
-                              border:OutlineInputBorder(borderRadius:BorderRadius.circular(10)),
-                              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)))),
+                              border:OutlineInputBorder(borderRadius:BorderRadius.circular(16)),
+                              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)))),
                             actions:[
-                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
                               ElevatedButton(
-                                style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+                                style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
                                 onPressed:()=>Navigator.pop(context,ctrl.text.trim()),
                                 child:const Text("Save",style:TextStyle(color:Colors.white))),
                             ],
@@ -539,11 +642,11 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             }
                           }
                         },
-                        icon:const Icon(Icons.edit_rounded,size:14,color:kPrimary),
-                        label:const Text("Edit Title",style:TextStyle(color:kPrimary,fontSize:12)),
-                        style:OutlinedButton.styleFrom(
-                          side:const BorderSide(color:kPrimary),
-                          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+                        icon:const Icon(Icons.edit_rounded,size:14,color:kMerchantPrimary),
+                        label:const Text("Edit Title",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                        style:OutlinedButton.styleFrom(elevation: 0, 
+                          side:const BorderSide(color:kMerchantPrimary),
+                          shape: const StadiumBorder(),
                           padding:const EdgeInsets.symmetric(vertical:6),
                           minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
                       )),
@@ -555,16 +658,16 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             final confirm = await showDialog<bool>(context:context,
                               builder:(_)=>AlertDialog(
                                 title:Text(isOn?"Turn Off Banner?":"Turn On Banner?",
-                                  style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+                                  style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
                                 content:Text(isOn
                                   ?"This banner will be hidden from stores until you turn it back on."
                                   :"This banner will go live again in stores."),
                                 actions:[
                                   TextButton(onPressed:()=>Navigator.pop(context,false),
-                                    child:const Text("Cancel",style:TextStyle(color:kMuted))),
+                                    child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
                                   ElevatedButton(
-                                    style:ElevatedButton.styleFrom(
-                                      backgroundColor:isOn?Colors.orange:kPrimary),
+                                    style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), 
+                                      backgroundColor:isOn?Colors.orange:kMerchantPrimary),
                                     onPressed:()=>Navigator.pop(context,true),
                                     child:Text(isOn?"Turn Off":"Turn On",
                                       style:const TextStyle(color:Colors.white))),
@@ -582,40 +685,83 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             }
                           },
                           icon:Icon(_bIsActive?Icons.pause_circle_outline:Icons.play_circle_outline,
-                            size:14,color:_bIsActive?Colors.orange:kPrimary),
+                            size:14,color:_bIsActive?Colors.orange:kMerchantPrimary),
                           label:Text(_bIsActive?"Turn Off":"Turn On",
-                            style:TextStyle(color:_bIsActive?Colors.orange:kPrimary,fontSize:12)),
-                          style:OutlinedButton.styleFrom(
-                            side:BorderSide(color:_bIsActive?Colors.orange:kPrimary),
-                            shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),
+                            style:TextStyle(color:_bIsActive?Colors.orange:kMerchantPrimary,fontSize:12)),
+                          style:OutlinedButton.styleFrom(elevation: 0, 
+                            side:BorderSide(color:_bIsActive?Colors.orange:kMerchantPrimary),
+                            shape: const StadiumBorder(),
                             padding:const EdgeInsets.symmetric(vertical:6),
                             minimumSize:Size.zero, tapTargetSize:MaterialTapTargetSize.shrinkWrap),
                         )),
                       ],
                     ]);
 
+                    // Actions per banner state (existing lifecycle only — no new
+                    // backend actions). Real statuses: pending / approved /
+                    // rejected / expired / off / removed. There is no "draft"
+                    // banner: a banner is only created after the order is
+                    // paid/activated, so the closest state is "pending"
+                    // (submitted, awaiting admin approval).
+                    Widget _noteRow(String text, {Widget? action}) => Container(
+                      padding:EdgeInsets.fromLTRB(12,action==null?10:6,action==null?12:6,action==null?10:6),
+                      decoration:BoxDecoration(color:OffroColors.beige,borderRadius:BorderRadius.circular(16)),
+                      child:Row(children:[
+                        Expanded(child:Text(text,style:OffroText.caption.copyWith(color:OffroColors.text,fontSize:11,fontWeight:FontWeight.w600))),
+                        if(action!=null) ...[const SizedBox(width:8),action],
+                      ]),
+                    );
+                    final Widget _actionButtons;
+                    if (displayStatus == "expired") {
+                      // EXPIRED: no Edit Title. Renew = the existing paid banner
+                      // flow (Create Banner → order → payment → activate) with
+                      // the title prefilled; no separate banner-renewal API exists.
+                      _actionButtons = _noteRow("Expired · Choose a new start date",
+                        action:ElevatedButton(
+                          onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token,renewFrom:Map<String,dynamic>.from(b)))).then((_)=>_load()),
+                          style:ElevatedButton.styleFrom(elevation:0,shape:const StadiumBorder(),backgroundColor:OffroColors.primary,foregroundColor:Colors.white,
+                            padding:const EdgeInsets.symmetric(horizontal:18,vertical:9),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                          child:const Text("Renew",style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
+                    } else if (displayStatus == "rejected") {
+                      _actionButtons = _noteRow("Rejected · Create a new banner to resubmit",
+                        action:ElevatedButton(
+                          onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
+                          style:ElevatedButton.styleFrom(elevation:0,shape:const StadiumBorder(),backgroundColor:OffroColors.primary,foregroundColor:Colors.white,
+                            padding:const EdgeInsets.symmetric(horizontal:16,vertical:9),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
+                          child:const Text("Create new",style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
+                    } else if (displayStatus == "removed") {
+                      _actionButtons = _noteRow("Removed by admin");
+                    } else if (displayStatus == "pending" || displayStatus == "pending_approval") {
+                      _actionButtons = Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+                        _noteRow("Awaiting admin approval"),
+                        const SizedBox(height:8),
+                        _editAndToggleButtons,
+                      ]);
+                    } else {
+                      _actionButtons = _editAndToggleButtons;
+                    }
+
                     return Container(
-                      margin:const EdgeInsets.only(bottom:10),
+                      margin:const EdgeInsets.only(bottom:12),
                       decoration:BoxDecoration(
                         color:Colors.white,
-                        borderRadius:BorderRadius.circular(12),
-                        boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.06),blurRadius:8,offset:const Offset(0,2))],
+                        borderRadius:BorderRadius.circular(22),
+                        border:Border.all(color:OffroColors.border),
                       ),
                       child:IntrinsicHeight(
                         child:Row(
                           crossAxisAlignment:CrossAxisAlignment.start,
                           children:[
-                            Container(width:4,decoration:BoxDecoration(color:kPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
                             Padding(
-                              padding:const EdgeInsets.all(10),
-                              child:ClipRRect(borderRadius:BorderRadius.circular(10),child:_thumb),
+                              padding:const EdgeInsets.all(12),
+                              child:ClipRRect(borderRadius:BorderRadius.circular(16),child:_thumb),
                             ),
                             Expanded(child:Padding(
                               padding:const EdgeInsets.fromLTRB(0,10,12,10),
                               child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                                 // Row 1: Title + status badge
                                 Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                                  Expanded(child:Text(b["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kText),maxLines:1,overflow:TextOverflow.ellipsis)),
+                                  Expanded(child:Text(b["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:15,color:kMerchantText),maxLines:1,overflow:TextOverflow.ellipsis)),
                                   Container(
                                     padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
                                     decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),
@@ -629,27 +775,27 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 const SizedBox(height:4),
                                 // Duration + Amount row
                                 Row(children:[
-                                  const Icon(Icons.schedule_rounded,size:13,color:kMuted),
+                                  const Icon(Icons.schedule_rounded,size:13,color:kMerchantMuted),
                                   const SizedBox(width:4),
-                                  Text("${b['duration']??b['duration_days']??30} Days",style:const TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                  Text("${b['duration']??b['duration_days']??30} Days",style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
                                   const SizedBox(width:10),
-                                  const Icon(Icons.payments_outlined,size:13,color:kMuted),
+                                  const Icon(Icons.payments_outlined,size:13,color:kMerchantMuted),
                                   const SizedBox(width:4),
-                                  Text("₹${b['amount']??0}",style:const TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                  Text("₹${b['amount']??0}",style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
                                 ]),
                                 if (fromDate.isNotEmpty || endDate.isNotEmpty) ...[
                                   const SizedBox(height:4),
                                   Container(
                                     padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),
-                                    decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(6)),
+                                    decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(6)),
                                     child:Row(children:[
-                                      const Icon(Icons.calendar_month_rounded,size:12,color:kPrimary),
+                                      const Icon(Icons.calendar_month_rounded,size:12,color:kMerchantPrimary),
                                       const SizedBox(width:5),
                                       Expanded(child:Text(
                                         fromDate.isNotEmpty && endDate.isNotEmpty
                                           ? "Start: $fromDate   →   End: $endDate"
                                           : fromDate.isNotEmpty ? "From: $fromDate" : "Until: $endDate",
-                                        style:const TextStyle(color:kPrimary,fontSize:10,fontWeight:FontWeight.w600),
+                                        style:const TextStyle(color:kMerchantPrimary,fontSize:10,fontWeight:FontWeight.w600),
                                         maxLines:1,
                                         overflow:TextOverflow.ellipsis,
                                       )),
@@ -658,10 +804,10 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 ],
                                 if ((b["invoice_no"]??"").isNotEmpty) ...[
                                   const SizedBox(height:3),
-                                  Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMuted,fontSize:10)),
+                                  Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                                 ],
                                 const SizedBox(height:8),
-                                const Divider(height:1,thickness:.5,color:Color(0xFFd4e8de)),
+                                const Divider(height:1,thickness:.5,color:OffroColors.border),
                                 const SizedBox(height:8),
                                 _actionButtons,
                               ]),
@@ -681,8 +827,8 @@ class _InfoChip extends StatelessWidget {
   const _InfoChip(this.text);
   @override Widget build(BuildContext context) => Container(
     padding:const EdgeInsets.symmetric(horizontal:7,vertical:3),
-    decoration:BoxDecoration(color:kLight.withValues(alpha:.6),borderRadius:BorderRadius.circular(6)),
-    child:Text(text,style:const TextStyle(fontSize:10,color:kPrimary,fontWeight:FontWeight.w600)),
+    decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.6),borderRadius:BorderRadius.circular(6)),
+    child:Text(text,style:const TextStyle(fontSize:10,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
   );
 }
 
@@ -712,7 +858,11 @@ double previewDiscountAmount(double basePrice, String? discountType, double disc
 
 class AddBannerPage extends StatefulWidget {
   final String token;
-  const AddBannerPage({super.key, required this.token});
+  /// When set (Renew on an expired banner), the existing Create Banner flow
+  /// opens with that banner's title prefilled. Everything else (media, store,
+  /// dates, payment) is chosen again exactly as for a new banner.
+  final Map<String,dynamic>? renewFrom;
+  const AddBannerPage({super.key, required this.token, this.renewFrom});
   @override State<AddBannerPage> createState() => _AddBannerState();
 }
 class _AddBannerState extends State<AddBannerPage> {
@@ -720,6 +870,8 @@ class _AddBannerState extends State<AddBannerPage> {
   final _daysC     = TextEditingController(text:"30");
   final _discountC = TextEditingController();
   String? _imgB64; bool _loading = false; String _msg = "";
+  // Renew: the existing banner's image (CDN url) stays in use unless the merchant replaces/removes it.
+  String? _existingImgUrl;
   // Banner media: "image" (default, unchanged) or "video" (max 15 s / 10 MB).
   static const int _kVideoMaxBytes = 10 * 1024 * 1024;
   static const Duration _kVideoMaxDuration = Duration(seconds: 15);
@@ -735,6 +887,13 @@ class _AddBannerState extends State<AddBannerPage> {
   List<Map<String,dynamic>> _stores = [];
   Map<String,dynamic>? _selectedBannerStore;
   bool _storesLoading = false;
+  // ── CTA destination (Store / Deal / Product). Only Deal/Product records
+  // that really exist for this merchant are offered; Store is always valid. ──
+  String _ctaType = "store";
+  Map<String,dynamic>? _ctaItem;
+  List<Map<String,dynamic>> _ctaDeals = [];
+  List<Map<String,dynamic>> _ctaProducts = [];
+  bool _ctaLoading = true;
   // Discount code state
   String? _appliedCode; double _appliedDiscount = 0; String? _appliedDiscountType;
   String _discountMsg = ""; bool _discountOk = false; bool _applyingCode = false;
@@ -782,7 +941,7 @@ class _AddBannerState extends State<AddBannerPage> {
   }
 
   // What gets sent as the banner media: the CDN video url, or the image data URI.
-  String? get _mediaPayload => _mediaType == "video" ? _videoUrl : _imgB64;
+  String? get _mediaPayload => _mediaType == "video" ? _videoUrl : (_imgB64 ?? _existingImgUrl);
 
   void _videoError(String message) {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -864,14 +1023,14 @@ class _AddBannerState extends State<AddBannerPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: sel ? kPrimary : Colors.white,
+          color: sel ? kMerchantPrimary : Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: sel ? kPrimary : kBorder)),
+          border: Border.all(color: sel ? kMerchantPrimary : kMerchantBorder)),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 18, color: sel ? Colors.white : kMuted),
+          Icon(icon, size: 18, color: sel ? Colors.white : kMerchantMuted),
           const SizedBox(width: 6),
           Text(label, style: TextStyle(
-            color: sel ? Colors.white : kText, fontSize: 13, fontWeight: FontWeight.w700)),
+            color: sel ? Colors.white : kMerchantText, fontSize: 13, fontWeight: FontWeight.w700)),
         ]))));
   }
 
@@ -879,16 +1038,16 @@ class _AddBannerState extends State<AddBannerPage> {
     final c = _videoCtrl;
     final has = c != null && c.value.isInitialized;
     return GestureDetector(
-      onTap: has ? null : _pickVideo,
+      onTap: has ? null : _pickVideo,   // (an existing renewed video is replaced by tapping)
       child: Container(
         height: 110,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: has ? kPrimary : kBorder, width: has ? 2 : 1)),
+          border: Border.all(color: has ? kMerchantPrimary : kMerchantBorder, width: has ? 2 : 1)),
         child: _videoBusy
           ? const Center(child: SizedBox(width: 24, height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary)))
+              child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary)))
           : has
             ? Stack(children: [
                 ClipRRect(borderRadius: BorderRadius.circular(11),
@@ -902,12 +1061,29 @@ class _AddBannerState extends State<AddBannerPage> {
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                     child: const Icon(Icons.close, color: Colors.white, size: 14)))),
               ])
+            : (_videoUrl != null && _videoPath == null)
+            ? Stack(children: [
+                Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.check_circle_outline, size: 34, color: kMerchantPrimary),
+                  const SizedBox(height: 6),
+                  const Text("Existing banner video will be reused", style: TextStyle(color: kMerchantText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 3),
+                  const Text("Tap to replace", style: TextStyle(color: kMerchantMuted, fontSize: 11)),
+                ])),
+                Positioned(top: 6, right: 6, child: GestureDetector(
+                  onTap: _removeVideo,
+                  child: Container(padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: const Icon(Icons.close, color: Colors.white, size: 14)))),
+              ])
             : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Icon(Icons.video_library_outlined, size: 36, color: kAccent),
+                const Icon(Icons.video_library_outlined, size: 36, color: kMerchantAccent),
                 const SizedBox(height: 6),
-                const Text("Tap to select banner video", style: TextStyle(color: kMuted, fontSize: 13)),
+                const Text("Tap to select banner video", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
                 const SizedBox(height: 3),
-                _InfoChip("Max 15 seconds · Max 10 MB"),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  _InfoChip("📐 1080×1080px (1:1)"), const SizedBox(width: 6), _InfoChip("Max 15 sec · 10 MB"),
+                ]),
               ]),
       ));
   }
@@ -917,8 +1093,8 @@ class _AddBannerState extends State<AddBannerPage> {
     if (_selectedBannerStore==null) { setState(()=>_msg="Please select a store"); return; }
     if (_selCity==null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city"); return; }
     if (_mediaType=="video") {
-      if (_videoPath==null) { setState(()=>_msg="Please select a banner video"); return; }
-    } else if (_imgB64==null) { setState(()=>_msg="Please upload a banner image"); return; }
+      if (_videoPath==null && _videoUrl==null) { setState(()=>_msg="Please select a banner video"); return; }
+    } else if (_imgB64==null && _existingImgUrl==null) { setState(()=>_msg="Please upload a banner image"); return; }
     if (_days<1) { setState(()=>_msg="Enter number of days (minimum 1)"); return; }
     setState((){_loading=true; _msg="";});
     try {
@@ -955,12 +1131,13 @@ class _AddBannerState extends State<AddBannerPage> {
             "city":      _selCity??"",
             "store_id":  (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
             "store_name":(_selectedBannerStore?["store_name"] ?? "").toString(),
+            ..._ctaPayload,
           });
           if (mounted) {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content:Text("✅ Banner submitted! ${res['message']??''}"),
-              backgroundColor:const Color(0xFF1a6640)));
+              backgroundColor:OffroColors.statusLive));
           }
         }
       } else {
@@ -978,8 +1155,21 @@ class _AddBannerState extends State<AddBannerPage> {
 
   @override void initState() {
     super.initState();
+    if (widget.renewFrom != null) {
+      _titleC.text = widget.renewFrom!["title"]?.toString() ?? "";
+      // Load the existing banner media so the merchant does not have to upload it again.
+      final url = (widget.renewFrom!["image_url"] ?? "").toString().trim();
+      if (url.isNotEmpty) {
+        final low = url.toLowerCase();
+        final isVideo = (widget.renewFrom!["media_type"]?.toString() == "video") ||
+            low.endsWith(".mp4") || low.contains(".mp4?") || low.contains("video/mp4") || url.startsWith("data:video");
+        if (isVideo) { _mediaType = "video"; _videoUrl = url; }
+        else { _existingImgUrl = url; }
+      }
+    }
     _loadPricing();
     _loadBannerStores();
+    _loadCtaOptions();
     _daysC.addListener(()=>setState((){}));
     _razorpay = Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaySuccess);
@@ -999,6 +1189,129 @@ class _AddBannerState extends State<AddBannerPage> {
     } catch (_) {
       if (mounted) setState(() => _storesLoading = false);
     }
+  }
+
+  static String _ctaId(Map<String,dynamic> m) => (m["_id"] ?? m["id"] ?? "").toString();
+  static String _ctaName(Map<String,dynamic> m, String type) {
+    for (final k in const ["title", "deal_title", "name", "product_name", "voucher_name"]) {
+      final v = (m[k] ?? "").toString().trim();
+      if (v.isNotEmpty) return v;
+    }
+    return type == "deal" ? "Untitled deal" : "Untitled product";
+  }
+
+  Future<void> _loadCtaOptions() async {
+    try {
+      final r = await Future.wait([
+        Api.getMerchantDeals(widget.token),
+        Api.getMerchantProducts(widget.token),
+      ]);
+      Map<String,dynamic> m(e) => Map<String,dynamic>.from(e as Map);
+      // Same "usable" rule the backend enforces: active deals; products that
+      // are not deleted/inactive/rejected.
+      final deals = (r[0] as List).where((e) => e is Map).map(m)
+          .where((d) => _ctaId(d).isNotEmpty && (d["status"] ?? "active").toString() == "active").toList();
+      final prods = (r[1] as List).where((e) => e is Map).map(m)
+          .where((p) {
+            final st = (p["approval_status"] ?? p["status"] ?? "").toString();
+            return _ctaId(p).isNotEmpty && p["is_active"] != false && p["is_deleted"] != true
+                && st != "deleted" && st != "rejected";
+          }).toList();
+      if (!mounted) return;
+      setState(() {
+        _ctaDeals = deals; _ctaProducts = prods; _ctaLoading = false;
+        // Preferred order Product → Deal → Store, only when records exist.
+        _ctaType = prods.isNotEmpty ? "product" : deals.isNotEmpty ? "deal" : "store";
+      });
+    } catch (_) {
+      if (mounted) setState(() { _ctaLoading = false; _ctaType = "store"; });
+    }
+  }
+
+  /// Destination actually sent to the backend. Falls back to the selected
+  /// Store whenever no valid Product/Deal is chosen.
+  Map<String,dynamic> get _ctaPayload {
+    final storeId = _ctaId(_selectedBannerStore ?? {});
+    if (_ctaType != "store" && _ctaItem != null) {
+      final id = _ctaId(_ctaItem!);
+      final list = _ctaType == "deal" ? _ctaDeals : _ctaProducts;
+      if (id.isNotEmpty && list.any((e) => _ctaId(e) == id)) {
+        return {"cta_type": _ctaType, "cta_id": id};
+      }
+    }
+    return {"cta_type": "store", "cta_id": storeId};
+  }
+
+  Widget _ctaChip(String label, IconData icon, String value, bool enabled) {
+    final sel = _ctaType == value;
+    return Expanded(child: GestureDetector(
+      onTap: enabled ? () => setState(() { _ctaType = value; _ctaItem = null; }) : null,
+      child: Opacity(opacity: enabled ? 1 : 0.45, child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: sel ? OffroColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: sel ? OffroColors.primary : OffroColors.border)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 16, color: sel ? Colors.white : OffroColors.secondarySolid),
+          const SizedBox(width: 5),
+          Text(label, style: OffroText.caption.copyWith(
+            color: sel ? Colors.white : OffroColors.text, fontWeight: FontWeight.w700)),
+        ])))));
+  }
+
+  Widget _ctaSection() {
+    if (_ctaLoading) return const SizedBox.shrink();
+    final isDeal = _ctaType == "deal";
+    final list = isDeal ? _ctaDeals : _ctaProducts;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: OffroColors.mint.withOpacity(0.45),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: OffroColors.border)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text("CTA destination", style: OffroText.title),
+        const SizedBox(height: 2),
+        Text("Choose where this banner should take the customer.",
+          style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+        const SizedBox(height: 10),
+        Row(children: [
+          _ctaChip("Product", Icons.local_activity_outlined, "product", _ctaProducts.isNotEmpty),
+          const SizedBox(width: 8),
+          _ctaChip("Deal", Icons.local_offer_outlined, "deal", _ctaDeals.isNotEmpty),
+          const SizedBox(width: 8),
+          _ctaChip("Store", Icons.storefront_outlined, "store", true),
+        ]),
+        if (_ctaType != "store") ...[
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            isExpanded: true,
+            value: _ctaItem == null ? null : _ctaId(_ctaItem!),
+            hint: Text(isDeal ? "Select Deal" : "Select Product"),
+            items: list.map((e) => DropdownMenuItem<String>(
+              value: _ctaId(e),
+              child: Text(_ctaName(e, _ctaType), overflow: TextOverflow.ellipsis))).toList(),
+            onChanged: (id) => setState(() {
+              _ctaItem = list.firstWhere((e) => _ctaId(e) == id, orElse: () => <String,dynamic>{});
+              if (_ctaItem!.isEmpty) _ctaItem = null;
+            }),
+            decoration: InputDecoration(
+              filled: true, fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: OffroColors.border)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: OffroColors.border)))),
+        ],
+        const SizedBox(height: 8),
+        Text(
+          _ctaType == "store"
+            ? "Customers will open the selected store."
+            : (_ctaItem == null
+                ? "Nothing selected yet — the banner will open the store."
+                : "If this ${isDeal ? 'deal' : 'product'} is later removed, the banner opens the store instead."),
+          style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+      ]),
+    );
   }
 
   void _onBannerStoreSelected(Map<String,dynamic> store) {
@@ -1074,6 +1387,7 @@ class _AddBannerState extends State<AddBannerPage> {
         "city":               _selCity??"",
         "store_id":           (_selectedBannerStore?["_id"] ?? _selectedBannerStore?["id"] ?? "").toString(),
         "store_name":         (_selectedBannerStore?["store_name"] ?? "").toString(),
+        ..._ctaPayload,
         "razorpay_payment_id": res.paymentId,
         "razorpay_order_id":  res.orderId,
         "razorpay_signature": res.signature,
@@ -1099,7 +1413,7 @@ class _AddBannerState extends State<AddBannerPage> {
 
   Future<bool?> _showBannerSummaryDialog(Map order, {required bool manual}) async =>
     showDialog<bool>(context:context, builder:(_)=>AlertDialog(
-      title:const Text("Banner Order Summary",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+      title:const Text("Banner Order Summary",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
         _dRow("Title",    _titleC.text.trim()),
         _dRow("Duration", "${order['days']} Days"),
@@ -1108,21 +1422,21 @@ class _AddBannerState extends State<AddBannerPage> {
         const Divider(),
         _dRow("Base Price","₹${order['base_price']}"),
         if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
-          color:const Color(0xFF1a6640)),
+          color:OffroColors.statusLive),
         _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
         _dRow("Total","₹${order['amount_display']}",bold:true),
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
-          decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+          decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
           child:Text(manual
             ? "Your banner will be submitted for admin review after confirmation."
             : "Razorpay checkout will open. Banner goes live after admin approval.",
-            style:const TextStyle(fontSize:12,color:kPrimary))),
+            style:const TextStyle(fontSize:12,color:kMerchantPrimary))),
       ]),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
-          style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+          style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
           child:Text(manual?"Confirm Submit":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
       ],
@@ -1131,25 +1445,25 @@ class _AddBannerState extends State<AddBannerPage> {
   Widget _dRow(String k,String v,{bool bold=false,Color? color}) => Padding(
     padding:const EdgeInsets.symmetric(vertical:3),
     child:Row(children:[
-      Expanded(child:Text(k,style:const TextStyle(color:kMuted,fontSize:13))),
-      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kPrimary:kText))),
+      Expanded(child:Text(k,style:const TextStyle(color:kMerchantMuted,fontSize:13))),
+      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kMerchantPrimary:kMerchantText))),
     ]));
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(title:const Text("Create Banner"),backgroundColor: Colors.white, foregroundColor: kText),
+    backgroundColor:kMerchantBg,
+    appBar:AppBar(title:Text(widget.renewFrom != null ? "Renew Banner" : "Create Banner")),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
 
       // Title field
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Banner Title *",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Banner Title *",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
           TextField(controller:_titleC,decoration:InputDecoration(
             hintText:"e.g. 50% OFF at Raj Store",isDense:true,
             contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-            border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-            enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
+            border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+            enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
           )),
         ])),
       const SizedBox(height:12),
@@ -1159,7 +1473,7 @@ class _AddBannerState extends State<AddBannerPage> {
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Center(child: SizedBox(width: 20, height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))),
+            child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary))),
         )
       else
         DropdownButtonFormField<Map<String,dynamic>>(
@@ -1173,32 +1487,35 @@ class _AddBannerState extends State<AddBannerPage> {
           )).toList(),
           onChanged: (s) { if (s != null) _onBannerStoreSelected(s); },
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
+            prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
             filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
 
       // ── City (auto-filled from store) ──
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F9F6),
-          border: Border.all(color: kBorder),
+          color: OffroColors.mint,
+          border: Border.all(color: kMerchantBorder),
           borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
-          const Icon(Icons.location_city, color: kMuted, size: 20),
+          const Icon(Icons.location_city, color: kMerchantMuted, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Text(
             (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
             style: TextStyle(
-              color: (_selCity != null && _selCity!.isNotEmpty) ? kText : kMuted,
+              color: (_selCity != null && _selCity!.isNotEmpty) ? kMerchantText : kMerchantMuted,
               fontSize: 15))),
           if (_selCity != null && _selCity!.isNotEmpty)
-            const Icon(Icons.check_circle, color: kPrimary, size: 18),
+            const Icon(Icons.check_circle, color: kMerchantPrimary, size: 18),
         ]),
       ),
       const SizedBox(height: 12),
+
+      // ── CTA destination ──
+      _ctaSection(),
 
       // Banner type: Image / Video
       Row(children:[
@@ -1216,26 +1533,29 @@ class _AddBannerState extends State<AddBannerPage> {
           decoration:BoxDecoration(
             color:Colors.white,
             borderRadius:BorderRadius.circular(12),
-            border:Border.all(color:_imgB64!=null?kPrimary:kBorder,
-              style:_imgB64!=null?BorderStyle.solid:BorderStyle.solid,width:_imgB64!=null?2:1),
+            border:Border.all(color:(_imgB64!=null||_existingImgUrl!=null)?kMerchantPrimary:kMerchantBorder,
+              style:BorderStyle.solid,width:(_imgB64!=null||_existingImgUrl!=null)?2:1),
           ),
-          child:_imgB64!=null
+          child:(_imgB64!=null||_existingImgUrl!=null)
             ? Stack(children:[
                 ClipRRect(borderRadius:BorderRadius.circular(11),
-                  child:Image.memory(base64Decode(_imgB64!.split(",").last),width:double.infinity,height:110,fit:BoxFit.cover)),
+                  child:_imgB64!=null
+                    ? Image.memory(base64Decode(_imgB64!.split(",").last),width:double.infinity,height:110,fit:BoxFit.cover)
+                    : Image.network(_existingImgUrl!,width:double.infinity,height:110,fit:BoxFit.cover,
+                        errorBuilder:(_,__,___)=>const Center(child:Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:32)))),
                 Positioned(top:6,right:6,child:GestureDetector(
-                  onTap:()=>setState(()=>_imgB64=null),
+                  onTap:()=>setState((){_imgB64=null;_existingImgUrl=null;}),
                   child:Container(padding:const EdgeInsets.all(4),
                     decoration:const BoxDecoration(color:Colors.red,shape:BoxShape.circle),
                     child:const Icon(Icons.close,color:Colors.white,size:14)))),
               ])
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                const Icon(Icons.add_photo_alternate_outlined,size:36,color:kAccent),
+                const Icon(Icons.add_photo_alternate_outlined,size:36,color:kMerchantAccent),
                 const SizedBox(height:6),
-                const Text("Tap to upload banner image",style:TextStyle(color:kMuted,fontSize:13)),
+                const Text("Tap to upload banner image",style:TextStyle(color:kMerchantMuted,fontSize:13)),
                 const SizedBox(height:3),
                 Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  _InfoChip("📐 1200×400px"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
+                  _InfoChip("📐 1080×1080px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
                 ]),
               ]),
         ))
@@ -1243,9 +1563,9 @@ class _AddBannerState extends State<AddBannerPage> {
       const SizedBox(height:12),
 
       // Duration + From Date
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
             Expanded(child:TextField(
@@ -1254,10 +1574,10 @@ class _AddBannerState extends State<AddBannerPage> {
               onChanged:(_)=>setState((){}),
               decoration:InputDecoration(
                 labelText:"Number of Days",hintText:"e.g. 7",
-                prefixIcon:const Icon(Icons.today_rounded,color:kMuted,size:18),
-                filled:true,fillColor:kBg,isDense:true,
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
+                prefixIcon:const Icon(Icons.today_rounded,color:kMerchantMuted,size:18),
+                filled:true,fillColor:kMerchantBg,isDense:true,
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:10),
@@ -1265,13 +1585,13 @@ class _AddBannerState extends State<AddBannerPage> {
               onTap:_pickFromDate,
               child:Container(
                 padding:const EdgeInsets.symmetric(horizontal:12,vertical:13),
-                decoration:BoxDecoration(color:kBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kBorder)),
+                decoration:BoxDecoration(color:kMerchantBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kMerchantBorder)),
                 child:Row(children:[
-                  const Icon(Icons.event_rounded,size:18,color:kMuted),
+                  const Icon(Icons.event_rounded,size:18,color:kMerchantMuted),
                   const SizedBox(width:8),
                   Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                    const Text("From Date",style:TextStyle(fontSize:11,color:kMuted)),
-                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kText,fontWeight:FontWeight.w600)),
+                    const Text("From Date",style:TextStyle(fontSize:11,color:kMerchantMuted)),
+                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kMerchantText,fontWeight:FontWeight.w600)),
                   ])),
                 ]),
               ),
@@ -1279,21 +1599,21 @@ class _AddBannerState extends State<AddBannerPage> {
           ]),
           if(_days>0) Padding(padding:const EdgeInsets.only(top:10),
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
               child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
-                const Text("Active period:",style:TextStyle(fontSize:12,color:kMuted)),
-                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kPrimary,fontWeight:FontWeight.w600)),
+                const Text("Active period:",style:TextStyle(fontSize:12,color:kMerchantMuted)),
+                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
               ]),
             )),
           if(_pricing!=null && _days>0) Padding(padding:const EdgeInsets.only(top:6),
             child:Text("₹${_pricePerDay.toStringAsFixed(0)}/day × $_days days",
-              style:const TextStyle(fontSize:12,color:kMuted))),
+              style:const TextStyle(fontSize:12,color:kMerchantMuted))),
         ])),
       const SizedBox(height:12),
 
       // Price summary
       if (_pricing!=null && _days>0)
-        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
+        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
             _dRow("Base Price","₹${_basePrice.toStringAsFixed(2)}"),
             _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
@@ -1310,11 +1630,11 @@ class _AddBannerState extends State<AddBannerPage> {
       // Item 6: Discount code field
       Container(
         padding:const EdgeInsets.all(14),
-        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
-          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMuted,fontSize:11)),
+          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMerchantMuted,fontSize:11)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
@@ -1323,18 +1643,18 @@ class _AddBannerState extends State<AddBannerPage> {
               onChanged:(_){ if((_appliedCode ?? "").isNotEmpty) setState((){_appliedCode="";_appliedDiscount=0;_appliedDiscountType=null;_discountMsg="";_discountOk=false;}); },
               decoration:InputDecoration(
                 hintText:"e.g. OFFRO20",isDense:true,
-                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMuted,size:18),
+                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountOk?kPrimary:kBorder)),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:_discountOk?kMerchantPrimary:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_applyingCode?null:_applyDiscountCode,
-              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
+              style:ElevatedButton.styleFrom(elevation: 0,  
                 padding:const EdgeInsets.symmetric(horizontal:14,vertical:12),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                shape: const StadiumBorder()),
               child:_applyingCode
                 ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
                 : const Text("Apply",style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
@@ -1342,19 +1662,19 @@ class _AddBannerState extends State<AddBannerPage> {
           ]),
           if (_discountMsg.isNotEmpty) ...[
             const SizedBox(height:6),
-            Text(_discountMsg,style:TextStyle(color:_discountOk?const Color(0xFF1a6640):Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
+            Text(_discountMsg,style:TextStyle(color:_discountOk?OffroColors.statusLive:Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
           ],
           if (_appliedDiscount > 0) ...[
             const SizedBox(height:6),
             Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
               child:Row(children:[
-                const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
+                const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
                 Text(_appliedDiscountType == "PERCENTAGE"
                       ? "−₹${_discountAmt.toStringAsFixed(2)} (${_appliedDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
                       : "−₹${_appliedDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
-                  style:const TextStyle(color:Color(0xFF1a6640),fontWeight:FontWeight.w700,fontSize:12)),
+                  style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
           ],
@@ -1366,8 +1686,8 @@ class _AddBannerState extends State<AddBannerPage> {
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
         label:const Text("Proceed to Checkout"),
-        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
+        style:ElevatedButton.styleFrom(elevation: 0,  
+          shape: const StadiumBorder(),
           padding:const EdgeInsets.symmetric(vertical:14)),
         onPressed:_loading?null:_proceed,
       ),
@@ -1388,11 +1708,14 @@ class MerchantProductsPage extends StatefulWidget {
 class _MerchantProductsState extends State<MerchantProductsPage> {
   List<Map<String,dynamic>> _products = [];
   List<Map<String,dynamic>> _filtered = [];
-  List<Map<String,dynamic>> _stores   = [];   // for standard product store expiry
+  Map<String,dynamic>? _slots;                 // free-slot usage + additional price (backend)
   bool _loading = true;
 
   final _searchCtrl = TextEditingController();
   String _activeFilter = "All";
+  // Store filter: "" = All Stores, otherwise a store id of THIS merchant (the stores API only returns their own).
+  String _storeFilter = "";
+  List<Map<String,dynamic>> _myStores = [];
 
   List<dynamic> _expiryWarnings = [];
 
@@ -1407,12 +1730,16 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       final results = await Future.wait([
         Api.getMerchantProducts(widget.token).timeout(const Duration(seconds:15)),
         Api.checkProductExpiry(widget.token).timeout(const Duration(seconds:10)),
-        Api.getMerchantStores(widget.token).timeout(const Duration(seconds:10)),
+        Api.getProductSlots(widget.token).timeout(const Duration(seconds:10)),
+        Api.getMerchantStores(widget.token).timeout(const Duration(seconds:15)),
       ]);
       _products = List<Map<String,dynamic>>.from(results[0] as Iterable);
+      _myStores = List<Map<String,dynamic>>.from((results[3] as Iterable).map((e) => Map<String,dynamic>.from(e as Map)));
+      // A store that no longer exists cannot stay selected.
+      if (_storeFilter.isNotEmpty && !_myStores.any((st) => (st["_id"] ?? "").toString() == _storeFilter)) _storeFilter = "";
       final exp = results[1];
       _expiryWarnings = exp is Map ? ((exp["items"] ?? []) as List) : <dynamic>[];
-      _stores = List<Map<String,dynamic>>.from(results[2] as Iterable);
+      _slots = results[2] is Map ? Map<String,dynamic>.from(results[2] as Map) : null;
       _applyFilters();
       if (mounted) setState(() { _loading = false; _loadError = false; });
     } catch(e) {
@@ -1424,31 +1751,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       _applyFilters();
       if (mounted) setState(() { _loading = false; _loadError = true; });
     }
-  }
-
-  // Returns formatted expiry label for a STANDARD product from the store's subscription_end.
-  // subscription_end can be ISO "2026-07-22T00:00:00" or pre-formatted "22 Jul 2026".
-  String _storeExpiryLabel(Map<String,dynamic> v) {
-    final storeId = (v["store_id"] ?? "").toString();
-    if (storeId.isEmpty) return "";
-    try {
-      final store = _stores.firstWhere((s) =>
-        (s["_id"] ?? s["id"] ?? "").toString() == storeId);
-      final raw = (store["subscription_end"] ?? "").toString().trim();
-      if (raw.isEmpty) return "";
-      return _parseDateLabel(raw);
-    } catch (_) { return ""; }
-  }
-
-  // Parses any date string into "dd-mm-yyyy". Falls back to stripping the time portion.
-  String _parseDateLabel(String raw) {
-    if (raw.isEmpty) return "";
-    try {
-      final dt = DateTime.parse(raw);  // handles ISO: "2026-07-22T00:00:00"
-      return "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
-    } catch (_) {}
-    // Already a readable string like "22 Jul 2026" — just strip any trailing time part
-    return raw.contains("T") ? raw.split("T").first : raw;
   }
 
   // Parses ISO "2026-07-04" OR "04 Jul 2026" OR "04-07-2026" → DateTime
@@ -1480,38 +1782,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                               "submitted", "new", "under_review", "in_review"};
     if (pendingVariants.contains(st)) st = "pending_approval";
     if (st == "approved") {
-      final isStandard = (v["product_type"]?.toString() ?? "") == "standard";
-      // FIX: Standard products always have end_date:"" from the backend — their
-      // real expiry is the PARENT STORE's subscription_end, not the product's
-      // own end_date (that field is only populated for Premium products). Not
-      // checking the store date meant a Standard product kept showing "Live"
-      // forever, even after the store's subscription lapsed.
-      final endRaw = isStandard ? _storeExpiryRaw(v) : (v["end_date"]?.toString() ?? "");
-      if (endRaw.isNotEmpty) {
-        final dt = _parseAnyDate(endRaw);
-        if (dt != null) {
-          // FIX: expires at END of the end_date day (23:59:59), not start.
-          // e.g. "20-07-2026" means live all day July 20, expires July 21 00:00.
-          final endOfDay = DateTime(dt.year, dt.month, dt.day, 23, 59, 59);
-          if (DateTime.now().isAfter(endOfDay)) st = "expired";
+      // Backend flags expiry (valid through the end date). Fall back to the
+      // product's own end_date; products with no end date never expire.
+      if (v["is_expired"] == true) {
+        st = "expired";
+      } else {
+        final dt = _parseAnyDate(v["end_date"]?.toString() ?? "");
+        if (dt != null && DateTime.now().isAfter(DateTime(dt.year, dt.month, dt.day, 23, 59, 59))) {
+          st = "expired";
         }
       }
     }
     return st;
-  }
-
-  // Returns the RAW (unformatted) store subscription_end string for a standard
-  // product — used by _effectiveStatus() for expiry comparison. Unlike
-  // _storeExpiryLabel(), this does not reformat the date, so _parseAnyDate can
-  // parse either ISO or "dd MMM yyyy" forms directly.
-  String _storeExpiryRaw(Map<String,dynamic> v) {
-    final storeId = (v["store_id"] ?? "").toString();
-    if (storeId.isEmpty) return "";
-    try {
-      final store = _stores.firstWhere((s) =>
-        (s["_id"] ?? s["id"] ?? "").toString() == storeId);
-      return (store["subscription_end"] ?? "").toString().trim();
-    } catch (_) { return ""; }
   }
 
   void _applyFilters() {
@@ -1519,12 +1801,10 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     _filtered = _products.where((v) {
       final title = (v["title"] ?? "").toString().toLowerCase();
       final offer = (v["offer_text"] ?? "").toString().toLowerCase();
-      final ptype = (v["product_type"] ?? "premium").toString();
       final st    = _effectiveStatus(v);
       if (q.isNotEmpty && !title.contains(q) && !offer.contains(q)) return false;
+      if (_storeFilter.isNotEmpty && (v["store_id"] ?? "").toString() != _storeFilter) return false;
       switch (_activeFilter) {
-        case "Standard":        return ptype == "standard";
-        case "Premium":         return ptype != "standard";
         case "approved":        return st == "approved";
         case "pending_approval":return st == "pending_approval";
         case "expired":         return st == "expired";
@@ -1541,21 +1821,22 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   // ── Filter bottom sheet ──────────────────────────────────
   void _openFilter() {
     final opts = [
-      ("All",              "All Products",         Icons.grid_view_rounded,         kText),
-      ("Standard",         "Standard Only",        Icons.inventory_2_rounded,        const Color(0xFF1a6640)),
-      ("Premium",          "Premium Only",         Icons.workspace_premium_rounded,  const Color(0xFF6B2FAA)),
-      ("approved",         "Live",                 Icons.check_circle_rounded,       const Color(0xFF1a6640)),
-      ("pending_approval", "Pending Approval",     Icons.hourglass_top_rounded,      const Color(0xFF856404)),
+      ("All",              "All Products",         Icons.grid_view_rounded,         kMerchantText),
+      ("approved",         "Live",                 Icons.check_circle_rounded,       OffroColors.statusLive),
+      ("pending_approval", "Pending Approval",     Icons.hourglass_top_rounded,      OffroColors.statusPending),
       ("expired",          "Expired",              Icons.event_busy_rounded,         Colors.red),
     ];
+    final storeOpts = <(String, String)>[("", "All Stores"),
+      ..._myStores.map((st) => ((st["_id"] ?? "").toString(), (st["store_name"] ?? "Store").toString()))];
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (_) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text("Filter Products", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kText)),
+            const Text("Filter Products", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kMerchantText)),
             const SizedBox(height: 14),
             ...opts.map((o) {
               final selected = _activeFilter == o.$1;
@@ -1564,11 +1845,11 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                 leading: CircleAvatar(
                   radius: 18,
-                  backgroundColor: (selected ? o.$4 : kBorder).withValues(alpha: .15),
-                  child: Icon(o.$3, color: selected ? o.$4 : kMuted, size: 18)),
+                  backgroundColor: (selected ? o.$4 : kMerchantBorder).withValues(alpha: .15),
+                  child: Icon(o.$3, color: selected ? o.$4 : kMerchantMuted, size: 18)),
                 title: Text(o.$2, style: TextStyle(
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  color: selected ? o.$4 : kText, fontSize: 14)),
+                  color: selected ? o.$4 : kMerchantText, fontSize: 14)),
                 trailing: selected ? Icon(Icons.check_rounded, color: o.$4, size: 20) : null,
                 onTap: () {
                   setState(() { _activeFilter = o.$1; _applyFilters(); });
@@ -1576,8 +1857,33 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 },
               );
             }),
+            if (_myStores.isNotEmpty) ...[
+              const Divider(height: 20),
+              const Text("Store", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kMerchantText)),
+              const SizedBox(height: 6),
+              ...storeOpts.map((o) {
+                final selected = _storeFilter == o.$1;
+                return ListTile(
+                  dense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: (selected ? kMerchantPrimary : kMerchantBorder).withValues(alpha: .15),
+                    child: Icon(o.$1.isEmpty ? Icons.storefront_outlined : Icons.store_rounded,
+                      color: selected ? kMerchantPrimary : kMerchantMuted, size: 18)),
+                  title: Text(o.$2, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? kMerchantPrimary : kMerchantText, fontSize: 14)),
+                  trailing: selected ? const Icon(Icons.check_rounded, color: kMerchantPrimary, size: 20) : null,
+                  onTap: () {
+                    setState(() { _storeFilter = o.$1; _applyFilters(); });
+                    Navigator.pop(context);
+                  },
+                );
+              }),
+            ],
           ]),
-        ),
+        )),
       ),
     );
   }
@@ -1621,7 +1927,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
 
   // ── More actions bottom sheet ────────────────────────────
   void _openMore(Map<String,dynamic> v, String pid) {
-    final isStd = (v["product_type"] ?? "premium").toString() == "standard";
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
@@ -1630,19 +1935,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(v["title"] ?? "Product",
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kMerchantText)),
             const SizedBox(height: 4),
             const Divider(),
             ListTile(
-              leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFe8f4ef),
-                child: Icon(Icons.edit_rounded, color: kPrimary, size: 18)),
+              leading: const CircleAvatar(radius: 18, backgroundColor: OffroColors.mint,
+                child: Icon(Icons.edit_rounded, color: kMerchantPrimary, size: 18)),
               title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
-            // FIX3: Analytics only for Premium
-            if (pid.isNotEmpty && !isStd)
+            if (pid.isNotEmpty)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFF3CD),
-                  child: Icon(Icons.bar_chart_rounded, color: Color(0xFF856404), size: 18)),
+                  child: Icon(Icons.bar_chart_rounded, color: OffroColors.statusPending, size: 18)),
                 title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
                   Navigator.push(context, appRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
@@ -1660,35 +1964,32 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final hasFilter = _activeFilter != "All";
+    final hasFilter = _activeFilter != "All" || _storeFilter.isNotEmpty;
+    final storeLabel = _storeFilter.isEmpty ? "" : (_myStores.firstWhere(
+        (st) => (st["_id"] ?? "").toString() == _storeFilter, orElse: () => <String,dynamic>{})["store_name"] ?? "Store").toString();
     return Scaffold(
-      backgroundColor: kBg,
-      appBar: AppBar(
-        toolbarHeight:58,
-        titleSpacing:16,
-        centerTitle:true,
-        title: const Text("My Products", overflow:TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kText,
-        actions: [
+      backgroundColor: kMerchantBg,
+      appBar: merchantHeaderBar(eyebrow: "Catalogue", title: "My Products", back: true,
+                actions: [
           // Filter button with active indicator — unchanged, kept before the + button
           Stack(clipBehavior: Clip.none, children: [
             IconButton(
               icon: const Icon(Icons.filter_list_rounded),
-              color: hasFilter ? kPrimary : kMuted,
+              color: hasFilter ? kMerchantPrimary : kMerchantMuted,
               tooltip: "Filter",
               onPressed: _openFilter,
             ),
             if (hasFilter)
               Positioned(top: 8, right: 8,
                 child: Container(width: 8, height: 8,
-                  decoration: const BoxDecoration(color: kPrimary, shape: BoxShape.circle))),
+                  decoration: const BoxDecoration(color: kMerchantPrimary, shape: BoxShape.circle))),
           ]),
           Padding(
             padding:const EdgeInsets.only(right:18),
             child:offroHeaderAddButton(
               icon:Icons.add,
               tooltip:"New Product",
-              onPressed:()=>_showProductTypeDialog(context, widget.token, _load),
+              onPressed:()=>Navigator.push(context, appRoute(AddProductPage(token: widget.token))).then((_) => _load()),
             ),
           ),
         ],
@@ -1701,6 +2002,8 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
           onRenewTap: () => setState(() { _activeFilter = "expired"; _applyFilters(); }),
         ),
 
+        _slotBanner(),
+
         // ── Search + active filter chip ──
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
@@ -1710,18 +2013,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               onChanged: (_) => setState(_applyFilters),
               decoration: InputDecoration(
                 hintText: "Search products…",
-                hintStyle: const TextStyle(color: kMuted, fontSize: 13),
-                prefixIcon: const Icon(Icons.search, color: kMuted, size: 20),
+                hintStyle: const TextStyle(color: kMerchantMuted, fontSize: 13),
+                prefixIcon: const Icon(Icons.search, color: kMerchantMuted, size: 20),
                 suffixIcon: _searchCtrl.text.isNotEmpty
-                    ? IconButton(icon: const Icon(Icons.clear, size: 18, color: kMuted),
+                    ? IconButton(icon: const Icon(Icons.clear, size: 18, color: kMerchantMuted),
                         onPressed: () { _searchCtrl.clear(); setState(_applyFilters); })
                     : null,
                 isDense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 filled: true, fillColor: Colors.white,
-                border:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kPrimary, width: 1.5)),
+                border:        OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantPrimary, width: 1.5)),
               ),
             )),
           ]),
@@ -1731,54 +2034,73 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
             child: Row(children: [
-              Container(
+              if (_storeFilter.isNotEmpty) ...[
+                Flexible(child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: kMerchantPrimary.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: kMerchantPrimary.withValues(alpha: .3))),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.store_rounded, size: 13, color: kMerchantPrimary),
+                    const SizedBox(width: 5),
+                    Flexible(child: Text(storeLabel, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: kMerchantPrimary, fontWeight: FontWeight.w700))),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => setState(() { _storeFilter = ""; _applyFilters(); }),
+                      child: const Icon(Icons.close_rounded, size: 13, color: kMerchantPrimary)),
+                  ]),
+                )),
+                const SizedBox(width: 6),
+              ],
+              if (_activeFilter != "All") Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: kPrimary.withValues(alpha: .1),
+                decoration: BoxDecoration(color: kMerchantPrimary.withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: kPrimary.withValues(alpha: .3))),
+                  border: Border.all(color: kMerchantPrimary.withValues(alpha: .3))),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.filter_list_rounded, size: 13, color: kPrimary),
+                  const Icon(Icons.filter_list_rounded, size: 13, color: kMerchantPrimary),
                   const SizedBox(width: 5),
                   Text(_activeFilter == "approved" ? "Live"
                     : _activeFilter == "pending_approval" ? "Pending"
                     : _activeFilter == "expired" ? "Expired"
                     : _activeFilter,
-                    style: const TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w700)),
+                    style: const TextStyle(fontSize: 12, color: kMerchantPrimary, fontWeight: FontWeight.w700)),
                   const SizedBox(width: 6),
                   GestureDetector(
                     onTap: () => setState(() { _activeFilter = "All"; _applyFilters(); }),
-                    child: const Icon(Icons.close_rounded, size: 13, color: kPrimary)),
+                    child: const Icon(Icons.close_rounded, size: 13, color: kMerchantPrimary)),
                 ]),
               ),
               const Spacer(),
               Text("${_filtered.length} result${_filtered.length == 1 ? '' : 's'}",
-                style: const TextStyle(fontSize: 12, color: kMuted)),
+                style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
             ]),
           ),
         const SizedBox(height: 8),
 
         // ── List ──
         Expanded(child: _loading
-          ? const Center(child: CircularProgressIndicator(color: kPrimary))
+          ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
           : _loadError
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.wifi_off_rounded, color: kMuted, size: 48),
+                  const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
                   const SizedBox(height: 12),
-                  const Text("Couldn't load products", style: TextStyle(color: kText, fontSize: 15, fontWeight: FontWeight.w700)),
+                  const Text("Couldn't load products", style: TextStyle(color: kMerchantText, fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   ElevatedButton.icon(onPressed: ()=>_load(), icon: const Icon(Icons.refresh), label: const Text("Retry"),
-                    style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white)),
+                    style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary, foregroundColor: Colors.white)),
                 ]))
           : _filtered.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Icon(Icons.local_activity_outlined, size: 64, color: kAccent),
+                  const Icon(Icons.local_activity_outlined, size: 64, color: kMerchantAccent),
                   const SizedBox(height: 12),
                   Text(_products.isEmpty ? "No products yet" : "No matching products",
-                    style: const TextStyle(color: kMuted, fontSize: 16)),
+                    style: const TextStyle(color: kMerchantMuted, fontSize: 16)),
                   if (_products.isEmpty)
                     const Padding(padding: EdgeInsets.only(top: 6),
                       child: Text("Tap + New Product to get started",
-                        style: TextStyle(color: kMuted, fontSize: 13))),
+                        style: TextStyle(color: kMerchantMuted, fontSize: 13))),
                 ]))
               : RefreshIndicator(
                   onRefresh: _load,
@@ -1793,41 +2115,75 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     );
   }
 
+  /// "8 / 10 free product slots used" + the additional-product price once
+  /// every free slot is taken. Numbers come from the backend (never hard-coded).
+  Widget _slotBanner() {
+    final s = _slots;
+    if (s == null) return const SizedBox.shrink();
+    final used  = (s["used"] as num?)?.toInt() ?? 0;
+    final limit = (s["free_limit"] as num?)?.toInt();
+    if (limit == null) return const SizedBox.shrink();   // limit unknown → show nothing, never a made-up number
+    final ppd = (s["price_per_day"] as num?)?.toDouble() ?? 0;
+    final allUsed = used >= limit;
+    final priceTxt = ppd == ppd.truncate() ? "₹${ppd.toInt()}" : "₹${ppd.toStringAsFixed(2)}";
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: OffroColors.mint,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: kMerchantBorder)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.inventory_2_outlined, size: 16, color: kMerchantPrimary),
+          const SizedBox(width: 8),
+          Text("$used / $limit free product slots used",
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kMerchantText)),
+        ]),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: limit <= 0 ? 1 : (used / limit).clamp(0.0, 1.0),
+            minHeight: 6,
+            backgroundColor: Colors.white,
+            valueColor: const AlwaysStoppedAnimation<Color>(kMerchantPrimary))),
+        if (allUsed) ...[
+          const SizedBox(height: 8),
+          Text("Additional products are charged at $priceTxt per day of validity.",
+            style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
+        ],
+      ]),
+    );
+  }
+
+  String _shortDate(String raw) {
+    final dt = _parseAnyDate(raw);
+    if (dt == null) return "";
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return "${dt.day} ${m[dt.month-1]} ${dt.year}";
+  }
+
   Widget _buildCard(Map<String,dynamic> v) {
-    final pType    = (v["product_type"] ?? "premium").toString();
-    final isStd    = pType == "standard";
     final pid      = _pid(v);
     final status   = _effectiveStatus(v);
     final endRaw   = v["end_date"]?.toString() ?? "";
     final isActive = v["is_active"] as bool? ?? true;
-
     final isExpired  = status == "expired";
-    final isApproved = status == "approved";
+    final isFree   = (v["pricing_tier"] ?? "free").toString() == "free";
 
     // ── Status badge ──
-    final (Color sc, String sl, IconData si) = isStd
-        ? switch(status) {
-            "approved"             => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
-            "expired"              => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
-            "subscription_expired" => (Colors.grey.shade600,    "Paused",  Icons.pause_circle_rounded),
-            _                      => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
-          }
-        : switch(status) {
-            "approved"         => (const Color(0xFF1a6640), "Live",    Icons.check_circle_rounded),
-            "rejected"         => (Colors.red,              "Rejected",Icons.cancel_rounded),
-            "expired"          => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
-            "pending_approval" => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
-            _                  => (const Color(0xFF856404), "Pending", Icons.hourglass_top_rounded),
-          };
+    final (Color sc, String sl, IconData si) = switch(status) {
+      "approved"         => (OffroColors.statusLive, "Live",    Icons.check_circle_rounded),
+      "rejected"         => (Colors.red,              "Rejected",Icons.cancel_rounded),
+      "expired"          => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
+      "subscription_expired" => (Colors.grey.shade600, "Paused", Icons.pause_circle_rounded),
+      _                  => (OffroColors.statusPending, "Pending", Icons.hourglass_top_rounded),
+    };
+    final deactivated = !isActive && !isExpired && status == "approved";
 
-    // Expiry: standard → store subscription end, premium → product end_date
-    String expiryLabel = "";
-    if (isStd) {
-      expiryLabel = _storeExpiryLabel(v);
-    } else if (endRaw.isNotEmpty) {
-      expiryLabel = _parseDateLabel(endRaw);
-    }
-
+    final expiryLabel = _shortDate(endRaw);
     final logoUrl = v["logo_url"]?.toString() ?? "";
 
     return Container(
@@ -1835,19 +2191,14 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isStd
-            ? const Color(0xFF1a6640).withValues(alpha: .18)
-            : const Color(0xFF6B2FAA).withValues(alpha: .18)),
+        border: Border.all(color: kMerchantBorder),
         boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .06), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-          // ── Row 1: image + info + More button ──
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // FIX2: Square image — tap to enlarge
             GestureDetector(
               onTap: () => _showImageFullscreen(context, logoUrl),
               child: ClipRRect(
@@ -1860,38 +2211,38 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             ),
             const SizedBox(width: 12),
 
-            // Info column
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Type badge + status badge
-              Row(children: [
-                _TypeBadge(isStd: isStd),
-                const SizedBox(width: 6),
+              Wrap(spacing: 6, runSpacing: 4, children: [
                 _StatusBadge(label: sl, color: sc, icon: si),
+                _StatusBadge(
+                  label: isFree ? "Free" : "Paid",
+                  color: isFree ? OffroColors.statusLive : OffroColors.primary,
+                  icon: isFree ? Icons.redeem_rounded : Icons.payments_outlined),
+                if (deactivated)
+                  _StatusBadge(label: "Deactivated", color: Colors.grey.shade600, icon: Icons.pause_circle_outline_rounded),
               ]),
               const SizedBox(height: 6),
               Text(v["title"] ?? "",
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kText),
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: kMerchantText),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
               if ((v["offer_text"] ?? "").toString().isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(v["offer_text"].toString(),
-                  style: const TextStyle(fontSize: 12, color: kMuted),
+                  style: const TextStyle(fontSize: 12, color: kMerchantMuted),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
-              // FIX1: Expiry for both std and premium (if end_date exists)
               if (expiryLabel.isNotEmpty) ...[
                 const SizedBox(height: 3),
                 Row(children: [
                   Icon(Icons.event_rounded, size: 11,
-                    color: isExpired ? Colors.red : kMuted),
+                    color: isExpired ? Colors.red : kMerchantMuted),
                   const SizedBox(width: 3),
-                  Text("Expires: $expiryLabel",
+                  Text(isExpired ? "Expired $expiryLabel" : "Expires $expiryLabel",
                     style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w600,
-                      color: isExpired ? Colors.red : kMuted)),
+                      color: isExpired ? Colors.red : kMerchantMuted)),
                 ]),
               ],
-              // Store name + city below expiry
               Builder(builder: (_ctx) {
                 final sName = (v["store_name"] ?? "").toString().trim();
                 final sCity = (v["city"] ?? "").toString().trim();
@@ -1902,84 +2253,63 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Row(children: [
-                    Icon(Icons.store_mall_directory_rounded, size: 11, color: kMuted),
+                    Icon(Icons.store_mall_directory_rounded, size: 11, color: kMerchantMuted),
                     const SizedBox(width: 3),
                     Expanded(child: Text(label,
-                      style: const TextStyle(fontSize: 11, color: kMuted),
+                      style: const TextStyle(fontSize: 11, color: kMerchantMuted),
                       maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                 );
               }),
-              // FIX1: price line removed
             ])),
 
-            // More button + FIX4: On/Off toggle stacked vertically
             Column(children: [
               GestureDetector(
                 onTap: () => _openMore(v, pid),
                 child: Container(
                   width: 32, height: 32,
                   decoration: BoxDecoration(
-                    color: kBg,
+                    color: kMerchantBg,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: kBorder)),
-                  child: const Icon(Icons.more_vert_rounded, size: 18, color: kMuted),
+                    border: Border.all(color: kMerchantBorder)),
+                  child: const Icon(Icons.more_vert_rounded, size: 18, color: kMerchantMuted),
                 ),
               ),
               const SizedBox(height: 6),
-              // FIX4: On/Off switch
+              // An expired product cannot be switched back on - it has to be renewed.
               Transform.scale(
                 scale: 0.75,
                 child: Switch(
-                  value: isActive,
-                  onChanged: pid.isEmpty ? null : (_) => _toggleActive(v, pid),
-                  activeColor: kPrimary,
+                  value: isActive && !isExpired,
+                  onChanged: (pid.isEmpty || isExpired) ? null : (_) => _toggleActive(v, pid),
+                  activeColor: kMerchantPrimary,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
-              Text(isActive ? "On" : "Off",
+              Text(isActive && !isExpired ? "On" : "Off",
                 style: TextStyle(
                   fontSize: 9, fontWeight: FontWeight.w700,
-                  color: isActive ? kPrimary : kMuted)),
+                  color: isActive && !isExpired ? kMerchantPrimary : kMerchantMuted)),
             ]),
           ]),
 
-          // ── Row 2: CTA buttons ──
-          const SizedBox(height: 10),
-          if (isStd && v["upgraded"] != true)
+          if (isExpired) ...[
+            const SizedBox(height: 10),
             SizedBox(width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF856404),
+                  backgroundColor: kMerchantPrimary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  elevation: 0,
-                ),
-                icon: const Icon(Icons.upgrade_rounded, size: 16),
-                label: const Text("Upgrade Now", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                onPressed: () => Navigator.push(context,
-                  appRoute(UpgradeProductPage(token: widget.token, product: v))).then((_) => _load()),
-              )),
-          if (!isStd && (isApproved || isExpired))
-            SizedBox(width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isExpired ? Colors.red.shade600 : const Color(0xFF856404),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: const StadiumBorder(),
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.autorenew_rounded, size: 16),
-                label: Text(
-                  expiryLabel.isNotEmpty
-                    ? "Renew Now  ·  Expires: $expiryLabel"
-                    : "Renew Now",
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                label: const Text("Renew", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 onPressed: () => Navigator.push(context,
                   appRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
+          ],
         ]),
       ),
     );
@@ -1991,7 +2321,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     final opCtrl = TextEditingController(text: (v["original_price"] ?? v["original_amount"] ?? "").toString());
     final prCtrl = TextEditingController(text: (v["price"] ?? v["offer_price"] ?? v["amount"] ?? "").toString());
     final saved  = await showDialog<Map<String,dynamic>>(context: context, builder: (_) => AlertDialog(
-      title: const Text("Edit Product", style: TextStyle(color: kPrimary, fontWeight: FontWeight.bold)),
+      title: const Text("Edit Product", style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
         _EditField(ctrl: tCtrl,  label: "Title"),
         const SizedBox(height: 10),
@@ -2002,9 +2332,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         _EditField(ctrl: prCtrl, label: "Offer Price",    type: TextInputType.number),
       ])),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: kMuted))),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: kPrimary),
+          style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary),
           onPressed: () {
             final opVal = double.tryParse(opCtrl.text.trim());
             final prVal = double.tryParse(prCtrl.text.trim());
@@ -2025,7 +2355,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         await Api.updateMerchantProduct(widget.token, pid, saved);
         _load();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Product updated!"), backgroundColor: Color(0xFF1a6640)));
+          const SnackBar(content: Text("Product updated!"), backgroundColor: OffroColors.statusLive));
       } catch (e) {
         debugPrint('[MerchantProducts] update error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -2035,15 +2365,16 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   }
 
   Future<void> _confirmDelete(Map<String,dynamic> v, String pid) async {
-    final confirm = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text("Delete Product?", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-      content: Text("Delete \"${v['title'] ?? 'this product'}\"? This cannot be undone."),
+    final confirm = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => AlertDialog(
+      title: const Text("Delete this product?", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+      content: Text("\"${v['title'] ?? 'This product'}\" will be permanently removed and cannot be reactivated. "
+          "Any payment already made for this product will not be refunded."),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel", style: TextStyle(color: kMuted))),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: Colors.red),
           onPressed: () => Navigator.pop(context, true),
-          child: const Text("Delete", style: TextStyle(color: Colors.white))),
+          child: const Text("Delete Product", style: TextStyle(color: Colors.white))),
       ],
     ));
     if (confirm == true && mounted) {
@@ -2058,30 +2389,6 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
           SnackBar(content: Text("Error deleting: ${friendlyError(e)}"), backgroundColor: Colors.red));
       }
     }
-  }
-}
-
-// ── Compact type badge ──────────────────────────────────────────────────────
-class _TypeBadge extends StatelessWidget {
-  final bool isStd;
-  const _TypeBadge({required this.isStd});
-  @override Widget build(BuildContext context) {
-    final color = isStd ? const Color(0xFF1a6640) : const Color(0xFF6B2FAA);
-    final label = isStd ? "Standard" : "Premium";
-    final icon  = isStd ? Icons.inventory_2_rounded : Icons.workspace_premium_rounded;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: .1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: .3)),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 10, color: color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w700)),
-      ]),
-    );
   }
 }
 
@@ -2106,81 +2413,6 @@ class _StatusBadge extends StatelessWidget {
   );
 }
 
-// ── Product type choice dialog + navigation ──────────────────────────────────
-void _showProductTypeDialog(BuildContext context, String token, VoidCallback onRefresh) {
-  showModalBottomSheet(
-    context: context,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-    builder: (_) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text("Choose Product Type", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: kText)),
-          const SizedBox(height:6),
-          const Text("Select the type of product you want to create.", style: TextStyle(color: kMuted, fontSize: 13)),
-          const SizedBox(height: 20),
-          // Standard product option
-          InkWell(
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, appRoute(StandardProductPage(token: token))).then((_) => onRefresh());
-            },
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .4)),
-                borderRadius: BorderRadius.circular(14),
-                color: const Color(0xFFf0faf4),
-              ),
-              child: Row(children: [
-                Container(width:44,height:44,decoration:BoxDecoration(color:const Color(0xFF1a6640),borderRadius:BorderRadius.circular(12)),
-                  child:const Icon(Icons.inventory_2_rounded, color:Colors.white, size:24)),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
-                  const SizedBox(height:3),
-                  const Text("Free • Linked to your store subscription\nAdmin approval required, no payment needed", style: TextStyle(fontSize: 12, color: kMuted)),
-                ])),
-                const Icon(Icons.chevron_right_rounded, color: kMuted),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Premium product option
-          InkWell(
-            onTap: () {
-              Navigator.pop(context);
-              Navigator.push(context, appRoute(AddProductPage(token: token))).then((_) => onRefresh());
-            },
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFF6B2FAA).withValues(alpha: .4)),
-                borderRadius: BorderRadius.circular(14),
-                color: const Color(0xFFF5F0FF),
-              ),
-              child: Row(children: [
-                Container(width:44,height:44,decoration:BoxDecoration(color:const Color(0xFF6B2FAA),borderRadius:BorderRadius.circular(12)),
-                  child:const Icon(Icons.workspace_premium_rounded, color:Colors.white, size:24)),
-                const SizedBox(width: 14),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text("🟣 Premium Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kText)),
-                  const SizedBox(height:3),
-                  const Text("Paid • Featured in Discover Products section\nAdmin approval required after payment", style: TextStyle(fontSize: 12, color: kMuted)),
-                ])),
-                const Icon(Icons.chevron_right_rounded, color: kMuted),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ]),
-      ),
-    ),
-  );
-}
-
 // ── Inline edit field helper ──
 class _EditField extends StatelessWidget {
   final TextEditingController ctrl;
@@ -2192,8 +2424,8 @@ class _EditField extends StatelessWidget {
     decoration: InputDecoration(
       labelText: label, isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
     ));
 }
 
@@ -2204,8 +2436,8 @@ class _ProductThumb extends StatelessWidget {
   @override Widget build(BuildContext context) {
     if (logoUrl.isEmpty) {
       return Container(width:48,height:48,
-        decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
-        child:const Icon(Icons.local_activity,color:kPrimary,size:24));
+        decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
+        child:const Icon(Icons.local_activity,color:kMerchantPrimary,size:24));
     }
     if (logoUrl.startsWith("data:image")) {
       try {
@@ -2213,17 +2445,17 @@ class _ProductThumb extends StatelessWidget {
         return ClipRRect(borderRadius:BorderRadius.circular(10),
           child:Image.memory(bytes,width:48,height:48,fit:BoxFit.cover,
             errorBuilder:(_,__,___) => Container(width:48,height:48,
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
-              child:const Icon(Icons.local_activity,color:kPrimary,size:24))));
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
+              child:const Icon(Icons.local_activity,color:kMerchantPrimary,size:24))));
       } catch (_) {
         return Container(width:48,height:48,
-          decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
-          child:const Icon(Icons.local_activity,color:kPrimary,size:24));
+          decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(10)),
+          child:const Icon(Icons.local_activity,color:kMerchantPrimary,size:24));
       }
     }
     return Container(width:48,height:48,
       decoration:BoxDecoration(
-        color:kLight.withValues(alpha:.5),
+        color:kMerchantLight.withValues(alpha:.5),
         borderRadius:BorderRadius.circular(10),
         image:DecorationImage(image:NetworkImage(logoUrl),fit:BoxFit.cover),
       ));
@@ -2231,291 +2463,9 @@ class _ProductThumb extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════
-// STANDARD PRODUCT PAGE — free, subscription-linked, no payment
+// ADD PRODUCT — one product type. Free while free slots remain, otherwise the
+// backend-configured additional-product price. The backend makes the final call.
 // ══════════════════════════════════════════════════════════
-
-class StandardProductPage extends StatefulWidget {
-  final String token;
-  const StandardProductPage({super.key, required this.token});
-  @override State<StandardProductPage> createState() => _StandardProductState();
-}
-class _StandardProductState extends State<StandardProductPage> {
-  final _titleC       = TextEditingController();
-  final _offerC       = TextEditingController();
-  final _priceC       = TextEditingController();
-  final _origPriceC   = TextEditingController();
-  String? _logoB64;
-  String? _selCity;
-  List<Map<String,dynamic>> _stores = [];
-  Map<String,dynamic>? _selectedStore;
-  bool _loading = false;
-  bool _storesLoading = false;
-  String _msg = "";
-  Map<String,dynamic> _limitInfo = {"standard_product_limit":10,"standard_count":0};
-
-  @override void initState() {
-    super.initState();
-    _loadStores();
-    _loadLimit();
-  }
-
-  @override void dispose() {
-    _titleC.dispose(); _offerC.dispose(); _priceC.dispose(); _origPriceC.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadStores() async {
-    if (!mounted) return;
-    setState(() => _storesLoading = true);
-    try {
-      final list = await Api.getMerchantStores(widget.token);
-      if (mounted) setState(() {
-        _stores = List<Map<String,dynamic>>.from(list);
-        if (_stores.length == 1) _onStoreSelected(_stores.first);
-        _storesLoading = false;
-      });
-    } catch (_) {
-      if (mounted) setState(() => _storesLoading = false);
-    }
-  }
-
-  Future<void> _loadLimit() async {
-    try {
-      final info = await Api.getProductLimit(widget.token);
-      if (mounted) setState(() => _limitInfo = info);
-    } catch (_) {}
-  }
-
-  void _onStoreSelected(Map<String,dynamic> store) {
-    final city = (store["city"] ?? "").toString().trim();
-    setState(() {
-      _selectedStore = store;
-      if (city.isNotEmpty) _selCity = city;
-    });
-  }
-
-  Future<void> _pickLogo() async {
-    final picker = ImagePicker();
-    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80, maxWidth: 400);
-    if (img == null) return;
-    final bytes = await File(img.path).readAsBytes();
-    if (bytes.length > 1 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Logo too large. Max 1MB."), backgroundColor: Colors.red));
-      return;
-    }
-    setState(() => _logoB64 = "data:image/jpeg;base64,${base64Encode(bytes)}");
-  }
-
-  Future<void> _submit() async {
-    if (_titleC.text.trim().isEmpty) { setState(() => _msg = "Product title required"); return; }
-    if (_selectedStore == null) { setState(() => _msg = "Please select a store for this product"); return; }
-    if (_logoB64 == null) { setState(() => _msg = "Please upload a product image"); return; }
-
-    final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
-    final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
-    if (count >= limit) {
-      setState(() => _msg = "Standard product limit reached ($limit). Delete an existing product or use Premium.");
-      return;
-    }
-
-    setState(() { _loading = true; _msg = ""; });
-    try {
-      final storeId = (_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString();
-      final result = await Api.createStandardProduct(widget.token, {
-        "title":          _titleC.text.trim(),
-        "offer_text":     _offerC.text.trim(),
-        "logo_url":       _logoB64 ?? "",
-        "price":          _priceC.text.trim(),
-        "original_price": _origPriceC.text.trim(),
-        "store_id":       storeId,
-        "store_name":     (_selectedStore?["store_name"] ?? "").toString(),
-        "city":           _selCity ?? "",
-        "is_active":      true,
-      });
-      if (mounted) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("✅ ${result['message'] ?? 'Standard product created!'}"),
-            backgroundColor: const Color(0xFF1a6640)));
-      }
-    } catch (e) {
-      setState(() => _msg = friendlyError(e));
-    }
-    if (mounted) setState(() => _loading = false);
-  }
-
-  @override Widget build(BuildContext context) {
-    final limit = (_limitInfo["standard_product_limit"] as num?)?.toInt() ?? 10;
-    final count = (_limitInfo["standard_count"] as num?)?.toInt() ?? 0;
-    return Scaffold(
-      backgroundColor: kBg,
-      appBar: AppBar(
-        title: Row(children: [
-          buildImageLogo(height: 24, white: true),
-          const SizedBox(width: 8),
-          const Text("Standard Product", style: TextStyle(fontWeight: FontWeight.w800)),
-        ]),
-        backgroundColor: Colors.white, foregroundColor: kText,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Info banner
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFf0faf4),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .3)),
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("🟢 Standard Product", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF1a6640))),
-              const SizedBox(height: 4),
-              const Text("• Free — no payment required\n• Linked to your store subscription\n• Admin approval required before going live\n• Paused automatically when subscription expires", style: TextStyle(fontSize: 12, color: kMuted)),
-              const SizedBox(height: 8),
-              Text("Usage: $count / $limit standard products", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: kText)),
-            ]),
-          ),
-          const SizedBox(height: 20),
-          // Store selector
-          const Text("Select Store *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
-          const SizedBox(height: 6),
-          _storesLoading
-              ? const Center(child: CircularProgressIndicator(color: kPrimary))
-              : _stores.isEmpty
-                  ? const Text("No stores found. Create a store first.", style: TextStyle(color: Colors.red, fontSize: 13))
-                  : DropdownButtonFormField<Map<String,dynamic>>(
-                      value: _selectedStore,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                      ),
-                      hint: const Text("Select a store"),
-                      items: _stores.map((s) => DropdownMenuItem(value: s, child: Text(s["store_name"]?.toString() ?? ""))).toList(),
-                      onChanged: (s) { if (s != null) _onStoreSelected(s); },
-                    ),
-          const SizedBox(height: 16),
-          // Product title
-          const Text("Product Title *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _titleC,
-            decoration: InputDecoration(
-              hintText: "e.g. Flat 20% Off on All Items",
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Offer text
-          const Text("Offer Text", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _offerC,
-            decoration: InputDecoration(
-              hintText: "e.g. Valid on all products",
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Price row
-          Row(children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("Offer Price", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _priceC,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: "₹ 99",
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                ),
-              ),
-            ])),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text("Original Price", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _origPriceC,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: "₹ 199",
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: kBorder)),
-                ),
-              ),
-            ])),
-          ]),
-          const SizedBox(height: 16),
-          // Logo
-          const Text("Product Image *", style: TextStyle(fontWeight: FontWeight.w600, color: kText, fontSize: 13)),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _pickLogo,
-            child: Container(
-              height: 80, width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFFf5f5f5),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: kBorder),
-              ),
-              child: _logoB64 != null
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.memory(base64Decode(_logoB64!.split(',').last), fit: BoxFit.cover))
-                  : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.add_photo_alternate_outlined, color: kMuted, size: 28),
-                      const SizedBox(height: 4),
-                      const Text("Tap to upload", style: TextStyle(color: kMuted, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [_InfoChip("📐 400×400px (1:1)"), SizedBox(width: 6), _InfoChip("📦 Max 1MB")]),
-                    ]),
-            ),
-          ),
-          if (_msg.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            Text(_msg, style: const TextStyle(color: Colors.red, fontSize: 13)),
-          ],
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1a6640),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: _loading
-                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text("Create Standard Product", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-            ),
-          ),
-          const SizedBox(height: 20),
-        ]),
-      ),
-    );
-  }
-}
-
-// ══════════════════════════════════════════════════════════
-// ADD PRODUCT PAGE — with checkout flow
-// ══════════════════════════════════════════════════════════
-
 class AddProductPage extends StatefulWidget {
   final String token;
   const AddProductPage({super.key, required this.token});
@@ -2526,11 +2476,13 @@ class _AddProductState extends State<AddProductPage> {
   final _offerC          = TextEditingController();
   final _priceC          = TextEditingController();
   final _originalPriceC  = TextEditingController();
-  final _daysC      = TextEditingController(text:"30");
   final _discountVC = TextEditingController(); // discount code input
   String? _logoB64; bool _loading=false; String _msg="";
   DateTime _fromDate = DateTime.now();
-  Map<String,dynamic>? _pricing;
+  // Merchant-chosen end date (valid through that day).
+  DateTime _endDate  = DateTime.now().add(const Duration(days:29));
+  final _daysC = TextEditingController(text:"30");   // subscription length in days (synced with end date)
+  Map<String,dynamic>? _slots;   // free-slot usage + price per day (estimate; backend decides)
   String? _selCity;
   // ── Store selection ──
   List<Map<String,dynamic>> _stores = [];
@@ -2548,9 +2500,8 @@ class _AddProductState extends State<AddProductPage> {
 
   @override void initState() {
     super.initState();
-    _loadPricing();
+    _loadSlots();
     _loadStores();
-    _daysC.addListener(()=>setState((){}));
     _razorpay=Razorpay();
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS,_onPaySuccess);
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR,  _onPayError);
@@ -2576,32 +2527,67 @@ class _AddProductState extends State<AddProductPage> {
     setState(() {
       _selectedStore = store;
       if (city.isNotEmpty) _selCity = city;
+      _slots = null;                      // quota belongs to the store: reload for the new one
     });
+    _loadSlots();
   }
-  @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_daysC.dispose();_discountVC.dispose(); _razorpay.clear(); super.dispose(); }
+  @override void dispose(){ _titleC.dispose();_offerC.dispose();_priceC.dispose();_originalPriceC.dispose();_discountVC.dispose(); _daysC.dispose(); _razorpay.clear(); super.dispose(); }
 
-  Future<void> _loadPricing() async {
-    try{ final p=await Api.getProductPricing(widget.token); if(mounted) setState(()=>_pricing=Map<String,dynamic>.from(p)); }catch(_){}
+  // Free slots are counted PER STORE, so the quota is loaded for the selected store.
+  String get _selectedStoreId => (_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString();
+  String _slotsForStore = "";
+  Future<void> _loadSlots() async {
+    final sid = _selectedStoreId;
+    if (sid.isEmpty) { if (mounted) setState(() { _slots = null; _slotsForStore = ""; }); return; }
+    final sl = await Api.getProductSlots(widget.token, storeId: sid);
+    if (mounted && sid == _selectedStoreId) setState(() { _slots = sl; _slotsForStore = sid; });
   }
 
-  int get _days => int.tryParse(_daysC.text.trim()) ?? 0;
-  double get _pricePerDay=>(_pricing?["price_per_day"] as num?)?.toDouble()??10;
-  double get _basePrice => double.parse((_pricePerDay * _days).toStringAsFixed(2));
-  double get _gstPct=>(_pricing?["gst_pct"] as num?)?.toDouble()??18;
+  DateTime get _fromDay => DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
+  // Inclusive: a product is live THROUGH its end date (start == end is 1 day).
+  int get _days => DateTime(_endDate.year, _endDate.month, _endDate.day).difference(_fromDay).inDays + 1;
+  bool get _slotsKnown => _slots != null && _slotsForStore == _selectedStoreId;
+  bool get _nextIsFree => !_slotsKnown ? true : (_slots!["next_is_free"] as bool? ?? true);
+  int get _freeLimit => (_slots?["free_limit"] as num?)?.toInt() ?? 0;
+  int get _freeRemaining => (_slots?["free_remaining"] as num?)?.toInt() ?? 0;
+  int get _maxDays => (_slots?["max_validity_days"] as num?)?.toInt() ?? 365;
+  double get _pricePerDay => (_slots?["price_per_day"] as num?)?.toDouble() ?? 0;
+  String _money(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
+  // Preview only: price = configured per-day price × days. The order response is authoritative.
+  double get _basePrice => _nextIsFree || _days < 1 ? 0 : double.parse((_pricePerDay * _days).toStringAsFixed(2));
+  double get _gstPct=>(_slots?["gst_pct"] as num?)?.toDouble()??18;
   double get _discountVAmt => previewDiscountAmount(_basePrice, _appliedVDiscountType, _appliedVDiscount);
   double get _taxableV => (_basePrice - _discountVAmt) < 0 ? 0 : (_basePrice - _discountVAmt);
   double get _gst=>double.parse((_taxableV*_gstPct/100).toStringAsFixed(2));
   double get _total=>double.parse((_taxableV+_gst).toStringAsFixed(2));
 
   String get _fromDateStr=>"${_fromDate.year}-${_fromDate.month.toString().padLeft(2,'0')}-${_fromDate.day.toString().padLeft(2,'0')}";
+  String get _endDateStr=>"${_endDate.year}-${_endDate.month.toString().padLeft(2,'0')}-${_endDate.day.toString().padLeft(2,'0')}";
   String get _fromDateDisplay=>"${_fromDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_fromDate.month-1]} ${_fromDate.year}";
-  DateTime get _endDate=>_fromDate.add(Duration(days:_days));
   String get _endDateDisplay=>"${_endDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_endDate.month-1]} ${_endDate.year}";
 
   Future<void> _pickFromDate() async {
     final picked=await showDatePicker(context:context,initialDate:_fromDate,
       firstDate:DateTime.now(),lastDate:DateTime.now().add(const Duration(days:365)));
-    if(picked!=null) setState(()=>_fromDate=picked);
+    if(picked!=null) setState((){
+      final keep=_days<1?30:_days;          // keep the chosen number of days when the start moves
+      _fromDate=picked;
+      _endDate=DateTime(picked.year,picked.month,picked.day).add(Duration(days:keep-1));
+    });
+  }
+
+  void _setDaysFromText(String raw){
+    final n=int.tryParse(raw.trim());
+    if(n==null||n<1) return;
+    setState((){ _endDate=_fromDay.add(Duration(days:n-1)); });
+  }
+
+  Future<void> _pickEndDate() async {
+    final first=_fromDay;
+    final picked=await showDatePicker(context:context,
+      initialDate:_endDate.isBefore(first)?first:_endDate,
+      firstDate:first,lastDate:_fromDay.add(Duration(days:_maxDays-1)));
+    if(picked!=null) setState((){ _endDate=picked; _daysC.text="$_days"; });
   }
 
   Future<void> _pickLogo() async {
@@ -2655,7 +2641,8 @@ class _AddProductState extends State<AddProductPage> {
     if(_selectedStore==null){setState(()=>_msg="Please select a store for this product");return;}
     if(_selCity==null||_selCity!.trim().isEmpty){setState(()=>_msg="Please select a city for this product");return;}
     if(_logoB64==null){setState(()=>_msg="Please upload a product image");return;}
-    if(_days<1){setState(()=>_msg="Enter number of days (minimum 1)");return;}
+    if(_days<1){setState(()=>_msg="Enter the number of days (minimum 1)");return;}
+    if(_slotsKnown && _days>_maxDays){setState(()=>_msg="Maximum validity is $_maxDays days");return;}
     setState((){_loading=true;_msg="";});
     try{
       // Item 1 (draft-store lock): send store_id here too so a draft/
@@ -2663,10 +2650,13 @@ class _AddProductState extends State<AddProductPage> {
       // (backend's create_voucher_order() treats it as optional) instead of
       // only at activation — activate_free_voucher()/verify_voucher_payment()
       // still enforce it regardless.
+      // Free vs paid and the price are decided by the backend from the live slot
+      // count - the client only sends the validity the merchant picked.
       final order=await Api.createProductOrder(widget.token,{
-        "days":_days,
         "from_date":_fromDateStr,
-        "discount_code":_appliedVCode,
+        "end_date":_endDateStr,
+        "days":_days,
+        "discount_code":_nextIsFree?"":_appliedVCode,
         "store_id":(_selectedStore?["_id"] ?? _selectedStore?["id"] ?? "").toString(),
       });
       if(!mounted)return;
@@ -2691,7 +2681,7 @@ class _AddProductState extends State<AddProductPage> {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content:Text("✅ Product submitted! ${res['message']??''}"),
-              backgroundColor:const Color(0xFF1a6640)));
+              backgroundColor:OffroColors.statusLive));
           }
         }
       } else {
@@ -2716,7 +2706,7 @@ class _AddProductState extends State<AddProductPage> {
       "key":rzpKey,
       "amount":(order["amount_paise"] as num?)?.toInt()??0,
       "name":"OFFRO",
-      "description":"Product – ${order['days']} Days",
+      "description":"Additional product",
       "order_id":rzpOrderId,
       "prefill":{"contact":"","email":""},
       "theme":{"color":"#3E5F55"},
@@ -2765,45 +2755,48 @@ class _AddProductState extends State<AddProductPage> {
 
   Future<bool?> _showProductSummaryDialog(Map order,{required bool manual})=>
     showDialog<bool>(context:context,builder:(_)=>AlertDialog(
-      title:const Text("Product Order Summary",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+      title:const Text("Product Order Summary",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
         _dRow("Title",_titleC.text.trim()),
         _dRow("Offer",_offerC.text.trim()),
-        _dRow("Duration","${order['days']} Days"),
+        _dRow("Plan",order['pricing_tier']=="free"?"Free product":"Additional product"),
         _dRow("Period","${order['from_date']} → ${order['end_date']}"),
-        _dRow("Rate","₹${order['price_per_day']}/day"),
-        const Divider(),
-        _dRow("Base","₹${order['base_price']}"),
-        if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
-          color:const Color(0xFF1a6640)),
-        _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
-        _dRow("Total","₹${order['amount_display']}",bold:true),
+        if(order['pricing_tier']!="free") ...[
+          const Divider(),
+          _dRow("Price","₹${order['base_price']}"),
+          if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
+            color:OffroColors.statusLive),
+          _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
+          _dRow("Total","₹${order['amount_display']}",bold:true),
+        ],
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
-          decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
-          child:Text(manual?"Product will go to admin review.":"Razorpay opens. Product live after admin approval.",
-            style:const TextStyle(fontSize:12,color:kPrimary))),
+          decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+          child:Text(manual?"Product will go to admin review. No payment needed.":"Razorpay opens. Product live after admin approval.",
+            style:const TextStyle(fontSize:12,color:kMerchantPrimary))),
       ]),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
-          style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+          style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
-          child:Text(manual?"Submit":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
+          child:Text(manual?"Save Product":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
       ],
     ));
 
   Widget _dRow(String k,String v,{bool bold=false,Color? color})=>Padding(
     padding:const EdgeInsets.symmetric(vertical:3),
     child:Row(children:[
-      Expanded(child:Text(k,style:const TextStyle(color:kMuted,fontSize:13))),
-      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kPrimary:kText))),
+      Expanded(child:Text(k,style:const TextStyle(color:kMerchantMuted,fontSize:13))),
+      Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:color??(bold?kMerchantPrimary:kMerchantText))),
     ]));
 
   @override Widget build(BuildContext context)=>Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(title:const Text("Create Product"),backgroundColor: Colors.white, foregroundColor: kText),
+    backgroundColor:kMerchantBg,
+    appBar:AppBar(title:const Text("Add Product"), ),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      // Free / additional notice - shown BEFORE the form so the price is never a surprise
+      _pricingNotice(),
       // Fields
       _field(_titleC,"Product Title *","e.g. Raj Store ₹50 Off",Icons.confirmation_number),
       const SizedBox(height:12),
@@ -2820,7 +2813,7 @@ class _AddProductState extends State<AddProductPage> {
       const Padding(
         padding:EdgeInsets.only(left:4,bottom:8),
         child:Text("Discount is auto-calculated from prices",
-          style:TextStyle(color:kMuted,fontSize:11)),
+          style:TextStyle(color:kMerchantMuted,fontSize:11)),
       ),
 
       // ── Store selection (mandatory, above city) ──
@@ -2828,7 +2821,7 @@ class _AddProductState extends State<AddProductPage> {
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: Center(child: SizedBox(width: 20, height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))),
+            child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary))),
         )
       else
         DropdownButtonFormField<Map<String,dynamic>>(
@@ -2842,29 +2835,29 @@ class _AddProductState extends State<AddProductPage> {
           )).toList(),
           onChanged: (s) { if (s != null) _onStoreSelected(s); },
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
+            prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
             filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
 
       // ── City (auto-filled from store, read-only) ──
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF4F9F6),
-          border: Border.all(color: kBorder),
+          color: OffroColors.mint,
+          border: Border.all(color: kMerchantBorder),
           borderRadius: BorderRadius.circular(12)),
         child: Row(children: [
-          const Icon(Icons.location_city, color: kMuted, size: 20),
+          const Icon(Icons.location_city, color: kMerchantMuted, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Text(
             (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
             style: TextStyle(
-              color: (_selCity != null && _selCity!.isNotEmpty) ? kText : kMuted,
+              color: (_selCity != null && _selCity!.isNotEmpty) ? kMerchantText : kMerchantMuted,
               fontSize: 15))),
           if (_selCity != null && _selCity!.isNotEmpty)
-            const Icon(Icons.check_circle, color: kPrimary, size: 18),
+            const Icon(Icons.check_circle, color: kMerchantPrimary, size: 18),
         ]),
       ),
       const SizedBox(height: 12),
@@ -2874,7 +2867,7 @@ class _AddProductState extends State<AddProductPage> {
         onTap:_pickLogo,
         child:Container(
           height:90,
-          decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:_logoB64!=null?kPrimary:kBorder,width:_logoB64!=null?2:1)),
+          decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:_logoB64!=null?kMerchantPrimary:kMerchantBorder,width:_logoB64!=null?2:1)),
           child:_logoB64!=null
             ? Stack(children:[
                 Center(child:ClipRRect(borderRadius:BorderRadius.circular(11),
@@ -2884,66 +2877,58 @@ class _AddProductState extends State<AddProductPage> {
                     child:const Icon(Icons.close,color:Colors.white,size:12)))),
               ])
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                const Icon(Icons.image_rounded,size:28,color:kAccent),
+                const Icon(Icons.image_rounded,size:28,color:kMerchantAccent),
                 const SizedBox(height:4),
-                const Text("Upload Image",style:TextStyle(color:kMuted,fontSize:12)),
+                const Text("Upload Image",style:TextStyle(color:kMerchantMuted,fontSize:12)),
                 Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 400×400px"),const SizedBox(width:6),_InfoChip("📦 Max 1MB")]),
               ]),
         )),
       const SizedBox(height:12),
 
-      // Duration input + From Date picker
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      // Start date + end date (merchant decides how long the product stays live)
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Validity (Days)",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
-            Expanded(child:TextField(
-              controller:_daysC,
-              keyboardType:TextInputType.number,
-              decoration:InputDecoration(
-                labelText:"Number of Days",hintText:"e.g. 30",
-                prefixIcon:const Icon(Icons.calendar_today_outlined,color:kMuted,size:18),
-                filled:true,fillColor:kBg,isDense:true,
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-              ),
-            )),
+            Expanded(child:_dateTile("Start date",_fromDateDisplay,_pickFromDate)),
             const SizedBox(width:10),
-            Expanded(child:GestureDetector(
-              onTap:_pickFromDate,
-              child:Container(
-                padding:const EdgeInsets.symmetric(horizontal:12,vertical:13),
-                decoration:BoxDecoration(color:kBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kBorder)),
-                child:Row(children:[
-                  const Icon(Icons.event_rounded,size:18,color:kMuted),
-                  const SizedBox(width:8),
-                  Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                    const Text("From Date",style:TextStyle(fontSize:11,color:kMuted)),
-                    Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kText,fontWeight:FontWeight.w600)),
-                  ])),
-                ]),
-              ),
-            )),
+            Expanded(child:_dateTile("End date",_endDateDisplay,_pickEndDate)),
           ]),
+          const SizedBox(height:10),
+          TextField(
+            controller:_daysC,
+            keyboardType:TextInputType.number,
+            inputFormatters:[FilteringTextInputFormatter.digitsOnly],
+            onChanged:_setDaysFromText,
+            decoration:InputDecoration(
+              labelText:"Number of days",
+              hintText:"e.g. 30",
+              helperText:_slotsKnown?"Maximum $_maxDays days":null,
+              prefixIcon:const Icon(Icons.calendar_month_rounded,color:kMerchantMuted,size:20),
+              filled:true,fillColor:Colors.white,
+              border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+              enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+              contentPadding:const EdgeInsets.symmetric(horizontal:16,vertical:14))),
           if(_days>0) Padding(padding:const EdgeInsets.only(top:10),
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
               child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
-                Text("Active period:",style:const TextStyle(fontSize:12,color:kMuted)),
-                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kPrimary,fontWeight:FontWeight.w600)),
+                const Text("Live period:",style:TextStyle(fontSize:12,color:kMerchantMuted)),
+                Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
               ]),
             )),
-          if(_pricing!=null && _days>0) Padding(padding:const EdgeInsets.only(top:6),
-            child:Text("₹${_pricePerDay.toStringAsFixed(0)}/day × $_days days",
-              style:const TextStyle(fontSize:12,color:kMuted))),
         ])),
       const SizedBox(height:12),
 
-      if (_pricing!=null && _days>0)
-        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
+      if (_slotsKnown && _nextIsFree && _days>0)
+        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
+          child:_dRow("$_days ${_days==1?'day':'days'}","Free (₹0)",bold:true)),
+      if (_slotsKnown && !_nextIsFree && _days>0)
+        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
-            _dRow("Base Price","₹${_basePrice.toStringAsFixed(2)}"),
+            _dRow("$_days ${_days==1?'day':'days'} × ${_money(_pricePerDay)}/day",_money(_basePrice)),
+            if(_discountVAmt>0) _dRow("Discount","−${_money(_discountVAmt)}",color:OffroColors.statusLive),
             _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
             const Divider(height:16),
             _dRow("Total","₹${_total.toStringAsFixed(2)}",bold:true),
@@ -2954,15 +2939,14 @@ class _AddProductState extends State<AddProductPage> {
         child:Text(_msg,style:const TextStyle(color:Colors.red,fontSize:12))),
       const SizedBox(height:12),
 
-      // FIX 5: Discount field
-      // Item 6: Discount code field — product
-      Container(
+      // Discount code - only relevant for an additional (paid) product
+      if (_slotsKnown && !_nextIsFree) Container(
         padding:const EdgeInsets.all(14),
-        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+        decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kText,fontSize:13)),
+          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
-          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMuted,fontSize:11)),
+          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMerchantMuted,fontSize:11)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
@@ -2971,18 +2955,18 @@ class _AddProductState extends State<AddProductPage> {
               onChanged:(_){ if(_appliedVCode.isNotEmpty) setState((){_appliedVCode="";_appliedVDiscount=0;_appliedVDiscountType=null;_discountVMsg="";_discountVOk=false;}); },
               decoration:InputDecoration(
                 hintText:"e.g. OFFRO20",isDense:true,
-                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMuted,size:18),
+                prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
-                border:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:const BorderSide(color:kBorder)),
-                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(10),borderSide:BorderSide(color:_discountVOk?kPrimary:kBorder)),
+                border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+                enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:_discountVOk?kMerchantPrimary:kMerchantBorder)),
               ),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_applyingVCode?null:_applyVDiscountCode,
-              style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
+              style:ElevatedButton.styleFrom(elevation: 0,  
                 padding:const EdgeInsets.symmetric(horizontal:14,vertical:12),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+                shape: const StadiumBorder()),
               child:_applyingVCode
                 ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
                 : const Text("Apply",style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
@@ -2990,19 +2974,19 @@ class _AddProductState extends State<AddProductPage> {
           ]),
           if (_discountVMsg.isNotEmpty) ...[
             const SizedBox(height:6),
-            Text(_discountVMsg,style:TextStyle(color:_discountVOk?const Color(0xFF1a6640):Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
+            Text(_discountVMsg,style:TextStyle(color:_discountVOk?OffroColors.statusLive:Colors.red,fontWeight:FontWeight.w600,fontSize:12)),
           ],
           if (_appliedVDiscount > 0) ...[
             const SizedBox(height:6),
             Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),
-              decoration:BoxDecoration(color:kLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(8)),
               child:Row(children:[
-                const Icon(Icons.check_circle,color:Color(0xFF1a6640),size:14),
+                const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
                 Text(_appliedVDiscountType == "PERCENTAGE"
                       ? "−₹${_discountVAmt.toStringAsFixed(2)} (${_appliedVDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
                       : "−₹${_appliedVDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
-                  style:const TextStyle(color:Color(0xFF1a6640),fontWeight:FontWeight.w700,fontSize:12)),
+                  style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
           ],
@@ -3011,9 +2995,9 @@ class _AddProductState extends State<AddProductPage> {
       const SizedBox(height:12),
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
-        label:const Text("Proceed to Checkout"),
-        style:ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: kText,
-          shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12)),
+        label:Text(_nextIsFree?"Save Product":"Proceed to Checkout"),
+        style:ElevatedButton.styleFrom(elevation: 0,  
+          shape: const StadiumBorder(),
           padding:const EdgeInsets.symmetric(vertical:14)),
         onPressed:_loading?null:_proceed,
       ),
@@ -3021,13 +3005,51 @@ class _AddProductState extends State<AddProductPage> {
     ])),
   );
 
+  Widget _dateTile(String label,String value,VoidCallback onTap)=>GestureDetector(
+    onTap:onTap,
+    child:Container(
+      padding:const EdgeInsets.symmetric(horizontal:12,vertical:13),
+      decoration:BoxDecoration(color:kMerchantBg,borderRadius:BorderRadius.circular(10),border:Border.all(color:kMerchantBorder)),
+      child:Row(children:[
+        const Icon(Icons.event_rounded,size:18,color:kMerchantMuted),
+        const SizedBox(width:8),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(label,style:const TextStyle(fontSize:11,color:kMerchantMuted)),
+          Text(value,style:const TextStyle(fontSize:13,color:kMerchantText,fontWeight:FontWeight.w600)),
+        ])),
+      ]),
+    ));
+
+  /// Pricing notice: free slots remaining, or the additional-product price.
+  Widget _pricingNotice(){
+    if(!_slotsKnown) return const SizedBox.shrink();
+    final free=_nextIsFree;
+    return Container(
+      margin:const EdgeInsets.only(bottom:14),
+      padding:const EdgeInsets.all(14),
+      decoration:BoxDecoration(color:OffroColors.mint,borderRadius:BorderRadius.circular(16),border:Border.all(color:kMerchantBorder)),
+      child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Icon(free?Icons.redeem_rounded:Icons.payments_outlined,color:kMerchantPrimary,size:22),
+        const SizedBox(width:12),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(free?"Free product":"Additional product",
+            style:const TextStyle(fontWeight:FontWeight.w800,fontSize:14,color:kMerchantText)),
+          const SizedBox(height:3),
+          Text(free
+            ? "You have $_freeRemaining of $_freeLimit free product slots remaining."
+            : "You have used all $_freeLimit free product slots.\nPrice is ${_money(_pricePerDay)} per day + GST for the days you choose.",
+            style:const TextStyle(fontSize:12,color:kMerchantMuted)),
+        ])),
+      ]));
+  }
+
   Widget _field(TextEditingController c,String label,String hint,IconData icon,{TextInputType keyboardType=TextInputType.text})=>TextField(
     controller:c,
     decoration:InputDecoration(
-      labelText:label,hintText:hint,prefixIcon:Icon(icon,color:kMuted,size:20),
+      labelText:label,hintText:hint,prefixIcon:Icon(icon,color:kMerchantMuted,size:20),
       filled:true,fillColor:Colors.white,
-      border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
-      enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
+      border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+      enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
     ));
 }
 
@@ -3098,14 +3120,23 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_autoRefreshLocation());
     });
+    // Same silent check, repeated while the app stays open (service throttles).
+    _locTimer = Timer.periodic(const Duration(minutes: 3), (_) {
+      if (mounted && _lifecycle == AppLifecycleState.resumed) unawaited(_autoRefreshLocation());
+    });
   }
 
+  Timer? _locTimer;
+  AppLifecycleState _lifecycle = AppLifecycleState.resumed;
+
   @override void dispose() {
+    _locTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override void didChangeAppLifecycleState(AppLifecycleState state) {
+    _lifecycle = state;
     // Silent GPS check on return to the app (throttled inside the service).
     if (state == AppLifecycleState.resumed) unawaited(_autoRefreshLocation());
   }
@@ -3181,6 +3212,7 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
   List<Widget> get _pages => [
     MerchantHomePage(
       token: widget.token,
+      merchantName: widget.merchant['name']?.toString() ?? '',
       locationTitle: _loc?.title ?? '',
       locationSubtitle: _loc?.subtitle ?? '',
       onLocationTap: () => _chooseLocation(mandatory: false),
@@ -3196,66 +3228,27 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
       return const PopScope(
         canPop: false,
         child: Scaffold(
-          backgroundColor: kBg,
-          body: Center(child: CircularProgressIndicator(color: kPrimary)),
+          backgroundColor: kMerchantBg,
+          body: Center(child: CircularProgressIndicator(color: kMerchantPrimary)),
         ),
       );
     }
     return PopScope(
       canPop: false,
       child: Scaffold(
+        backgroundColor: kMerchantBg,
         body: _pages[_idx],
-        bottomNavigationBar: BottomNavigationBar(
+        bottomNavigationBar: OffroBottomNav(
+          variant: OffroNavVariant.merchant,
+          items: OffroBottomNav.merchantItems,
           currentIndex: _idx,
-          onTap: (i) => setState(()=>_idx=i),
-          selectedItemColor: kPrimary, unselectedItemColor: kMuted,
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(icon:Icon(Icons.home_rounded),label:"Home"),
-            BottomNavigationBarItem(icon:Icon(Icons.local_offer),label:"Deals"),
-            BottomNavigationBarItem(icon:Icon(Icons.receipt_long),label:"Invoices"),
-            BottomNavigationBarItem(icon:Icon(Icons.history),label:"Activity"),
-            BottomNavigationBarItem(icon:Icon(Icons.person),label:"Profile"),
-          ],
+          onTap: (i) => setState(() => _idx = i),
         ),
       ),
     );
   }
 }
 
-/// Tappable location header on Merchant Home (opens the shared Location screen).
-class _MerchantLocationBar extends StatelessWidget {
-  final String title, subtitle; final VoidCallback onTap;
-  const _MerchantLocationBar({required this.title, required this.subtitle, required this.onTap});
-  @override Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    child: Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: kBorder), bottom: BorderSide(color: kBorder)),
-      ),
-      child: Row(children: [
-        const Icon(Icons.location_on_rounded, color: kPrimary, size: 22),
-        const SizedBox(width: 8),
-        Expanded(child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title.isEmpty ? 'Select location' : title,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
-            if (subtitle.isNotEmpty)
-              Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11.5, color: kMuted)),
-          ],
-        )),
-        const Icon(Icons.keyboard_arrow_down_rounded, color: kMuted),
-      ]),
-    ),
-  );
-}
 class MerchantStoresPage extends StatefulWidget {
   final String token;
   const MerchantStoresPage({super.key, required this.token});
@@ -3273,18 +3266,9 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(
-        toolbarHeight:58,
-        titleSpacing:16,
-        centerTitle:true,
-        title:const Text("My Stores",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kText,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions:[
+    backgroundColor: kMerchantBg,
+    appBar: merchantHeaderBar(eyebrow: "Your business", title: "My Stores", back: true,
+                actions:[
           Padding(
             padding:const EdgeInsets.only(right:18),
             child:offroHeaderAddButton(
@@ -3294,11 +3278,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
             ),
           ),
         ]),
-    body: loading ? const Center(child:CircularProgressIndicator(color:kPrimary)) :
+    body: loading ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary)) :
       stores.isEmpty ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-        buildLogo(44,kAccent), const SizedBox(height:12),
-        const Text("No stores yet",style:TextStyle(color:kMuted,fontSize:16)),
-        const SizedBox(height:8), const Text("Tap + to add your first store",style:TextStyle(color:kMuted,fontSize:13)),
+        buildLogo(44,kMerchantAccent), const SizedBox(height:12),
+        const Text("No stores yet",style:TextStyle(color:kMerchantMuted,fontSize:16)),
+        const SizedBox(height:8), const Text("Tap + to add your first store",style:TextStyle(color:kMerchantMuted,fontSize:13)),
       ])) :
       RefreshIndicator(onRefresh:_load,child:ListView.builder(
         padding:const EdgeInsets.all(14),
@@ -3307,15 +3291,15 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           final s = stores[i] as Map;
           final status = s["status"]??"draft";
           // Status badge config — small, consistent, colored
-          Color sc = kMuted;
+          Color sc = kMerchantMuted;
           String sl = status;
-          if (status=="active") { sc=const Color(0xFF1a6640); sl="Active"; }
+          if (status=="active") { sc=OffroColors.statusLive; sl="Active"; }
           else if (status=="expired") { sc=Colors.red.shade700; sl="Expired"; }
-          else if (status=="waiting_approval") { sc=const Color(0xFF856404); sl="Pending"; }
-          else if (status=="paid") { sc=const Color(0xFF856404); sl="Paid"; }
-          else if (status=="draft") { sc=kMuted; sl="Draft"; }
+          else if (status=="waiting_approval") { sc=OffroColors.statusPending; sl="Pending"; }
+          else if (status=="paid") { sc=OffroColors.statusPending; sl="Paid"; }
+          else if (status=="draft") { sc=kMerchantMuted; sl="Draft"; }
           else if (status=="inactive") { sc=Colors.red.shade700; sl="Inactive"; }
-          else if (status=="pending") { sc=kMuted; sl="Pending"; }
+          else if (status=="pending") { sc=kMerchantMuted; sl="Pending"; }
           else if (status=="deleted") { sc=Colors.red.shade400; sl="Deleted"; }
           else if (status=="removed") { sc=Colors.red.shade400; sl="Removed"; }
 
@@ -3324,11 +3308,11 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           if (storeImg.isNotEmpty) {
             _thumb = storeImg.startsWith("data:")
               ? Image.memory(base64Decode(storeImg.split(",").last),width:80,height:80,fit:BoxFit.cover,
-                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22)))))
+                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kMerchantAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.w900,fontSize:22)))))
               : Image.network(storeImg,width:80,height:80,fit:BoxFit.cover,
-                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22)))));
+                  errorBuilder:(_,__,___) => Container(width:80,height:80,color:kMerchantAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.w900,fontSize:22)))));
           } else {
-            _thumb = Container(width:80,height:80,color:kAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.w900,fontSize:22))));
+            _thumb = Container(width:80,height:80,color:kMerchantAccent,child:Center(child:Text((s["store_name"]??"S").toString().isNotEmpty?(s["store_name"]??"S")[0]:"S",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.w900,fontSize:22))));
           }
 
           // Category icon mapping
@@ -3353,33 +3337,33 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           if (status=="draft"||status=="inactive"||status=="pending_subscription"||status=="expired") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:ElevatedButton.icon(
                 icon:const Icon(Icons.payment,size:15), label:const Text("Subscribe",style:TextStyle(fontSize:12)),
-                style:ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                style:ElevatedButton.styleFrom(elevation: 0, backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           } else if (status=="waiting_approval") {
-            _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:Color(0xFF856404),fontSize:11,fontWeight:FontWeight.w600))));
+            _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:OffroColors.statusPending,fontSize:11,fontWeight:FontWeight.w600))));
           } else if (status=="active") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.add_shopping_cart,size:15,color:kPrimary),label:const Text("Deals",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.add_shopping_cart,size:15,color:kMerchantPrimary),label:const Text("Deals",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantBorder),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
-                icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kPrimary),
-                label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kBorder),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kMerchantPrimary),
+                label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantBorder),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:(s["qr_code"]??'').isNotEmpty
                   ?()=>_showQR(context,s["store_name"]??"",s["qr_code"]??'')
                   :() async {
@@ -3394,8 +3378,8 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           } else {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kPrimary), label:const Text("Edit",style:TextStyle(color:kPrimary,fontSize:12)),
-                style:OutlinedButton.styleFrom(side:const BorderSide(color:kPrimary),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(vertical:7)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           }
@@ -3412,7 +3396,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                 crossAxisAlignment:CrossAxisAlignment.start,
                 children:[
                   // Green vertical accent line (4px)
-                  Container(width:4,decoration:BoxDecoration(color:kPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
+                  Container(width:4,decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
                   // Thumbnail
                   Padding(
                     padding:const EdgeInsets.all(10),
@@ -3424,7 +3408,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                     child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                       // Row 1: Store name + status badge
                       Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                        Expanded(child:Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:20,color:kText),maxLines:1,overflow:TextOverflow.ellipsis)),
+                        Expanded(child:Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,fontSize:20,color:kMerchantText),maxLines:1,overflow:TextOverflow.ellipsis)),
                         Container(
                           padding:const EdgeInsets.symmetric(horizontal:8,vertical:3),
                           decoration:BoxDecoration(color:sc.withValues(alpha:.12),borderRadius:BorderRadius.circular(12)),
@@ -3433,13 +3417,13 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                       ]),
                       const SizedBox(height:4),
                       // Location
-                      Text("${s['city']??''}, ${s['area']??''}",style:const TextStyle(color:kMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis),
+                      Text("${s['city']??''}, ${s['area']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis),
                       const SizedBox(height:2),
                       // Category with icon
                       Row(children:[
-                        Icon(catIcon,size:14,color:kMuted),
+                        Icon(catIcon,size:14,color:kMerchantMuted),
                         const SizedBox(width:4),
-                        Flexible(child:Text(s["category"]??"",style:const TextStyle(color:kMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis)),
+                        Flexible(child:Text(s["category"]??"",style:const TextStyle(color:kMerchantMuted,fontSize:12),maxLines:1,overflow:TextOverflow.ellipsis)),
                       ]),
                       const SizedBox(height:6),
                       // Compact deal + subscription badges
@@ -3459,18 +3443,18 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                           Container(
                             padding:const EdgeInsets.symmetric(horizontal:7,vertical:2),
                             decoration:BoxDecoration(
-                              color: status=="active" ? const Color(0xFFd1f0e0) : const Color(0xFFFFF3CD),
+                              color: status=="active" ? OffroColors.mint : const Color(0xFFFFF3CD),
                               borderRadius:BorderRadius.circular(6)),
                             child:Row(mainAxisSize:MainAxisSize.min,children:[
-                              Icon(Icons.event_available,size:11,color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404)),
+                              Icon(Icons.event_available,size:11,color: status=="active" ? OffroColors.statusLive : OffroColors.statusPending),
                               const SizedBox(width:3),
                               Text("${status=='active'?'Till':'Exp'}: ${(s['subscription_end']?.toString() ?? '').split('T').first}",
-                                style:TextStyle(color: status=="active" ? const Color(0xFF1a6640) : const Color(0xFF856404),fontSize:10,fontWeight:FontWeight.w700)),
+                                style:TextStyle(color: status=="active" ? OffroColors.statusLive : OffroColors.statusPending,fontSize:10,fontWeight:FontWeight.w700)),
                             ])),
                       ]),
                       // Divider above buttons
                       const SizedBox(height:8),
-                      const Divider(height:1,thickness:.5,color:Color(0xFFd4e8de)),
+                      const Divider(height:1,thickness:.5,color:OffroColors.border),
                       const SizedBox(height:8),
                       // Action buttons — computed above as a plain widget variable
                       _actionButtons,
@@ -3485,12 +3469,12 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
   );
 
   void _showQR(BuildContext ctx, String name, String qr) => showDialog(context:ctx, builder:(_)=>AlertDialog(
-    title:Text(name,style:const TextStyle(fontSize:15,color:kPrimary)),
+    title:Text(name,style:const TextStyle(fontSize:15,color:kMerchantPrimary)),
     content:Column(mainAxisSize:MainAxisSize.min,children:[
       qr.startsWith("data:image") ? Image.memory(base64Decode(qr.split(",").last),width:220,height:220) : const Icon(Icons.qr_code,size:100),
-      const SizedBox(height:8), const Text("Show this to customers to earn points",textAlign:TextAlign.center,style:TextStyle(color:kMuted,fontSize:12)),
+      const SizedBox(height:8), const Text("Show this to customers to earn points",textAlign:TextAlign.center,style:TextStyle(color:kMerchantMuted,fontSize:12)),
     ]),
-    actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text("Close",style:TextStyle(color:kPrimary)))],
+    actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text("Close",style:TextStyle(color:kMerchantPrimary)))],
   ));
 }
 
@@ -3523,8 +3507,17 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   // and Image.memory only for genuine base64.
   String? _imgUrl; String? _img2Url;
   List<dynamic> _categories = [];
-  String? _selState; String? _selCity;
-  List<String> _areas = []; bool _areasLoading = false;
+  // City / State are now editable text fields (same "Location captured"
+  // card). _selState/_selCity keep their old String? API so every existing
+  // read/write (GPS, Maps resolve, edit-store populate, _save) is unchanged,
+  // but they are backed by controllers so a manual edit is exactly what
+  // Create Store submits.
+  final _cityC = TextEditingController();
+  final _stateC = TextEditingController();
+  String? get _selCity => _cityC.text.trim().isEmpty ? null : _cityC.text.trim();
+  set _selCity(String? v) => _cityC.text = v ?? '';
+  String? get _selState => _stateC.text.trim().isEmpty ? null : _stateC.text.trim();
+  set _selState(String? v) => _stateC.text = v ?? '';
   bool _locLoading = false; bool _locConfirmed = false;
   bool _locDenied = false; // true after a denial THIS attempt — button stays enabled, tapping again retries
   // Location-specific error, shown directly under the "Current Location"
@@ -3532,6 +3525,9 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   // Create Store validation) so a GPS/permission problem never appears at
   // the bottom of the whole form.
   String _locMsg = "";
+  // Maps-link resolve error — shown directly under the URL field / Resolve
+  // button (NOT in the form-wide _msg at the bottom).
+  String _mapsMsg = "";
   final _mapsUrlCtrl = TextEditingController();
   bool _mapsResolving = false;
   bool _mapsApplied = false;
@@ -3623,14 +3619,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             ? kIndiaStates.firstWhere((s) => s.toLowerCase() == st.toLowerCase(), orElse: () => '')
             : '';
         if (matchedState.isNotEmpty) _selState = matchedState;
+        else if (st.isNotEmpty) _selState = st;
         // Case-insensitive city match within the matched state's city list
         if (ct.isNotEmpty) {
           final stateKey = matchedState.isNotEmpty ? matchedState : (_selState ?? '');
           final cities = kIndiaCities[stateKey] ?? [];
           final matchedCity = cities.firstWhere(
               (c) => c.toLowerCase() == ct.toLowerCase(), orElse: () => '');
-          if (matchedCity.isNotEmpty) { _selCity = matchedCity; _loadAreas(matchedCity); }
-          else if (cities.isEmpty) { _selCity = ct; _loadAreas(ct); }
+          _selCity = matchedCity.isNotEmpty ? matchedCity : ct;
         }
         if (ar.isNotEmpty) _area.text = ar;
         if (ad.isNotEmpty) _addr.text = ad;
@@ -3645,6 +3641,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     setState(() {
       _mapsResolving = true;
       _mapsApplied = false;
+      _mapsMsg = '';
       _resolvedPlaceName = '';
       _resolvedAddress = '';
     });
@@ -3655,9 +3652,11 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _mapsResolving = false;
         _resolvedPlaceName = '';
         _resolvedAddress = '';
-        _msg = res['error']?.toString().isNotEmpty == true
-            ? res['error'].toString()
-            : 'Could not resolve this Maps link. Try the Share button → Copy Link in Google Maps.';
+        // Friendly text only: a server detail / raw URL is never shown.
+        final e = res['error']?.toString() ?? '';
+        _mapsMsg = (e.isNotEmpty && e.startsWith('Network error'))
+            ? e
+            : 'Unable to identify the exact location from this Google Maps link. Please open Google Maps, drop a pin on the exact location, tap Share → Copy link, and try again.';
       });
     } else {
       setState(() {
@@ -3667,6 +3666,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _lat.text = res['lat'].toString();
         _lng.text = res['lng'].toString();
         _mapsApplied  = true;
+        _mapsMsg = '';
         _locConfirmed = true;
       });
       // Auto-fill address fields from resolved location
@@ -3681,20 +3681,109 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               ? kIndiaStates.firstWhere((s) => s.toLowerCase() == st.toLowerCase(), orElse: () => '')
               : '';
           if (matchedState.isNotEmpty) _selState = matchedState;
+          else if (st.isNotEmpty) _selState = st;
           // Case-insensitive city match within the matched state's city list
           if (ct.isNotEmpty) {
             final stateKey = matchedState.isNotEmpty ? matchedState : (_selState ?? '');
             final cities = kIndiaCities[stateKey] ?? [];
             final matchedCity = cities.firstWhere(
                 (c) => c.toLowerCase() == ct.toLowerCase(), orElse: () => '');
-            if (matchedCity.isNotEmpty) { _selCity = matchedCity; _loadAreas(matchedCity); }
-            else if (cities.isEmpty) { _selCity = ct; _loadAreas(ct); }
+            _selCity = matchedCity.isNotEmpty ? matchedCity : ct;
           }
           if (ar.isNotEmpty) _area.text = ar;
           if (ad.isNotEmpty) _addr.text = ad;
         });
       }
+      // Safety net: coordinates resolved but city/state still empty →
+      // fill them through the same reverse-geocode used for GPS.
+      if (mounted && (_selCity == null || _selState == null)) {
+        final la = double.tryParse(res['lat'].toString());
+        final ln = double.tryParse(res['lng'].toString());
+        if (la != null && ln != null) await _reverseGeocode(la, ln);
+      }
     }
+  }
+
+  Widget _locTile(String label, String value) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      Text(label.toUpperCase(),
+          style: OffroText.caption.copyWith(fontSize: 8.5, letterSpacing: .8, color: OffroColors.secondarySolid)),
+      const SizedBox(height: 2),
+      Text(value.isEmpty ? '—' : value, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: OffroText.value.copyWith(fontSize: 12, fontWeight: FontWeight.w600)),
+    ]),
+  );
+
+  /// Editable variant of [_locTile] — same look, but a text field so the
+  /// merchant can correct the captured value. Whatever is typed is what
+  /// Create Store submits.
+  Widget _locEdit(String label, TextEditingController c) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      Text(label.toUpperCase(),
+          style: OffroText.caption.copyWith(fontSize: 8.5, letterSpacing: .8, color: OffroColors.secondarySolid)),
+      const SizedBox(height: 2),
+      TextField(
+        controller: c,
+        maxLines: 1,
+        onChanged: (_) => setState(() {}),
+        style: OffroText.value.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+        decoration: const InputDecoration(
+          isDense: true, border: InputBorder.none,
+          contentPadding: EdgeInsets.zero, hintText: '—'),
+      ),
+    ]),
+  );
+
+  /// Compact result card shown once a location exists (GPS, resolved Maps
+  /// link, or an already-saved store). Display only: it reads the same
+  /// state/city/area/address values the form already holds; lat/lng stay in
+  /// their controllers and are saved exactly as before.
+  Widget _capturedLocationCard() {
+    final addr = _addr.text.trim().isNotEmpty
+        ? _addr.text.trim()
+        : (_resolvedAddress.trim().isNotEmpty ? _resolvedAddress.trim() : _resolvedPlaceName.trim());
+    final pin = RegExp(r'\b\d{6}\b').firstMatch(addr)?.group(0) ?? '';
+    final tiles = <Widget>[
+      _locEdit('City', _cityC),
+      _locEdit('State', _stateC),
+      _locEdit('Area', _area),
+      if (pin.isNotEmpty) _locTile('Postal code', pin),
+    ];
+    final rows = <Widget>[];
+    for (var k = 0; k < tiles.length; k += 2) {
+      rows.add(Padding(
+        padding: EdgeInsets.only(top: k == 0 ? 0 : 6),
+        child: Row(children: [
+          Expanded(child: tiles[k]),
+          const SizedBox(width: 6),
+          Expanded(child: k + 1 < tiles.length ? tiles[k + 1] : const SizedBox.shrink()),
+        ]),
+      ));
+    }
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(18)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const OffroIcon(OffroIcons.check, size: 13, color: OffroColors.primary),
+          const SizedBox(width: 6),
+          Text("Location captured",
+              style: OffroText.caption.copyWith(color: OffroColors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 8),
+        ...rows,
+        if (addr.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(addr, maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: OffroText.caption.copyWith(fontSize: 10, color: OffroColors.secondarySolid, height: 1.35)),
+        ],
+      ]),
+    );
   }
 
   bool get _isEdit => widget.store != null;
@@ -3739,7 +3828,6 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         orElse: () => rawCity,
       );
       _selCity = matchedCity;
-      if (matchedCity.isNotEmpty) _loadAreas(matchedCity);
     } else {
       _selCity = null;
     }
@@ -3771,18 +3859,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       }
     } catch (_) {}
   }
-  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose(); super.dispose(); }
+  @override void dispose() { _name.dispose();_area.dispose();_addr.dispose();_phone.dispose();_lat.dispose();_lng.dispose();_about.dispose();_mapsUrlCtrl.dispose();_cityC.dispose();_stateC.dispose(); super.dispose(); }
 
   Future<void> _loadCategories() async { _categories = await Api.fetchCategories(token: widget.token); if (mounted) setState((){}); }
 
-
-  Future<void> _loadAreas(String city) async {
-    if (city.trim().isEmpty) { setState(() { _areas = []; }); return; }
-    setState(() => _areasLoading = true);
-    final areas = await Api.fetchAreas(city.trim());
-    if (mounted) setState(() { _areas = areas; _areasLoading = false; });
-    // If current _area.text is not in the new list, keep it (custom value)
-  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -3813,8 +3893,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) { setState(()=>_msg="Store name required"); return; }
-    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg="Please select a state to continue"); return; }
-    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city to continue"); return; }
+    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg='Please set the store location using "Use current location" or a Google Maps link'); return; }
+    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg='Please set the store location using "Use current location" or a Google Maps link'); return; }
     final _phoneVal = _phone.text.trim();
     if (_phoneVal.isEmpty) { setState(()=>_msg="Mobile number is required"); return; }
     if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg="Enter a valid 10-digit mobile number (starts with 6–9)"); return; }
@@ -3863,12 +3943,12 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
+    backgroundColor: kMerchantBg,
     appBar: AppBar(
         title:Text(_isEdit?"Edit Store":"Add Store"),
-        backgroundColor: Colors.white, foregroundColor: kText,
+         
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kPrimary),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kMerchantPrimary),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -3884,10 +3964,22 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       // GPS location capture
       Container(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: kBorder)),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22), border: Border.all(color: kMerchantBorder)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          const Text("Store Location", style: TextStyle(fontWeight: FontWeight.w700, color: kText, fontSize: 13)),
-          const SizedBox(height: 10),
+          Row(children: [
+            Container(
+              width: 40, height: 40,
+              decoration: const BoxDecoration(color: OffroColors.mint, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary, filled: true),
+            ),
+            const SizedBox(width: 12),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Store location", style: OffroText.value.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
+              Text("Use GPS or paste a Maps link.", style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+            ])),
+          ]),
+          const SizedBox(height: 12),
           ElevatedButton.icon(
             // The button stays enabled even after a denial — tapping it
             // again retries the permission/location flow (see
@@ -3897,32 +3989,23 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             // surfaced only in the small message below the button.
             onPressed: _locLoading ? null : _captureGpsLocation,
             icon: _locLoading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: OffroColors.primary))
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: const Text("Current Location"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white, foregroundColor: kText,
+            label: const Text("Use current location"),
+            style: ElevatedButton.styleFrom(elevation: 0,
+              backgroundColor: OffroColors.mint, foregroundColor: OffroColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: const StadiumBorder(),
             ),
           ),
           if (_locMsg.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(_locMsg, style: const TextStyle(color: Colors.red, fontSize: 12)),
           ],
-          if (_locConfirmed && !_mapsApplied) ...[
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(color: kLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(8)),
-              child: const Text("✅ GPS location captured",
-                  style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
-            ),
-          ],
           const SizedBox(height: 14),
           // ── Blinkit-style Google Maps inline input ──────────────────
           const Text("or paste Google Maps link",
-              style: TextStyle(color: kMuted, fontSize: 11, fontWeight: FontWeight.w500)),
+              style: TextStyle(color: kMerchantMuted, fontSize: 11, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
           Container(
             decoration: BoxDecoration(
@@ -3930,10 +4013,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _mapsApplied
-                    ? const Color(0xFF1a6640)
-                    : _msg.contains('resolve') || _msg.contains('Could not')
+                    ? OffroColors.statusLive
+                    : _mapsMsg.isNotEmpty
                         ? const Color(0xFFc0392b)
-                        : kBorder,
+                        : kMerchantBorder,
               ),
             ),
             child: Row(children: [
@@ -3941,7 +4024,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: _mapsResolving
                     ? const SizedBox(width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))
+                        child: CircularProgressIndicator(strokeWidth: 2, color: kMerchantPrimary))
                     : Image.asset('assets/images/google_maps_pin.png',
                         width: 22, height: 22,
                         errorBuilder: (_, __, ___) =>
@@ -3950,16 +4033,16 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               Expanded(
                 child: TextField(
                   controller: _mapsUrlCtrl,
-                  style: const TextStyle(fontSize: 13, color: kText),
+                  style: const TextStyle(fontSize: 13, color: kMerchantText),
                   decoration: const InputDecoration(
                     hintText: 'Paste Google Maps link here',
-                    hintStyle: TextStyle(fontSize: 12, color: kMuted),
+                    hintStyle: TextStyle(fontSize: 12, color: kMerchantMuted),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(vertical: 14),
                   ),
                   onSubmitted: (v) => _resolveMapsLink(v),
                   onChanged: (v) {
-                    if (_mapsApplied) setState(() { _mapsApplied = false; _resolvedPlaceName = ''; _resolvedAddress = ''; });
+                    if (_mapsApplied || _mapsMsg.isNotEmpty) setState(() { _mapsApplied = false; _mapsMsg = ''; _resolvedPlaceName = ''; _resolvedAddress = ''; });
                   },
                 ),
               ),
@@ -3968,12 +4051,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                   onTap: () => setState(() {
                     _mapsUrlCtrl.clear();
                     _mapsApplied = false;
+                    _mapsMsg = '';
                     _resolvedPlaceName = '';
                     _resolvedAddress = '';
                   }),
                   child: const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Icon(Icons.close_rounded, size: 18, color: kMuted),
+                    child: Icon(Icons.close_rounded, size: 18, color: kMerchantMuted),
                   ),
                 ),
             ]),
@@ -3985,10 +4069,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _mapsResolving ? null : () => _resolveMapsLink(_mapsUrlCtrl.text),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary, foregroundColor: Colors.white,
+                style: ElevatedButton.styleFrom(elevation: 0, 
+                  backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: const StadiumBorder(),
                 ),
                 child: _mapsResolving
                     ? const SizedBox(width: 18, height: 18,
@@ -3996,54 +4080,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                     : const Text("Resolve Location", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ),
-          // ── Preview card (shows after successful resolve) ──
-          if (_resolvedPlaceName.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF1a6640).withValues(alpha: .4)),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: .04), blurRadius: 6, offset: const Offset(0, 2))],
-              ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF1a6640), size: 16),
-                  const SizedBox(width: 6),
-                  const Text("google.com",
-                      style: TextStyle(fontSize: 11, color: kMuted, fontWeight: FontWeight.w500)),
-                ]),
-                const SizedBox(height: 6),
-                Text(_resolvedPlaceName,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: kText)),
-                if (_resolvedAddress.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(_resolvedAddress,
-                      style: const TextStyle(fontSize: 12, color: kMuted)),
-                ],
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _mapsApplied ? null : () => _resolveMapsLink(_mapsUrlCtrl.text),
-                    icon: Icon(
-                      _mapsApplied ? Icons.check_rounded : Icons.location_on_rounded,
-                      size: 16),
-                    label: Text(
-                      _mapsApplied ? "✓ Location Applied" : "Apply Location",
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _mapsApplied ? const Color(0xFF1a6640) : kPrimary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-              ]),
-            ),
+          // Resolve error — directly under the URL field / Resolve button.
+          if (_mapsMsg.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(_mapsMsg, style: const TextStyle(color: Color(0xFFc0392b), fontSize: 12)),
           ],
+          // ── Compact captured-location card (GPS, Maps link, or saved store) ──
+          if (_locConfirmed || (_lat.text.trim().isNotEmpty && _lng.text.trim().isNotEmpty)) _capturedLocationCard(),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _field(_lat, "Latitude", Icons.gps_fixed, type: TextInputType.number)),
@@ -4051,63 +4094,26 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             Expanded(child: _field(_lng, "Longitude", Icons.gps_not_fixed, type: TextInputType.number)),
           ]),
           const SizedBox(height: 4),
-          const Text("Auto-filled by GPS or Google Maps, or enter manually.",
-              style: TextStyle(color: kMuted, fontSize: 11)),
+          const Text("Auto-filled by GPS or Google Maps — you can edit any value. Edited values are saved as entered.",
+              style: TextStyle(color: kMerchantMuted, fontSize: 11)),
         ]),
       ),
-      const SizedBox(height:12),
-      DropdownButtonFormField<String>(
-        isExpanded: true,
-        value: kIndiaStates.contains(_selState)?_selState:null,
-        items: kIndiaStates.map((s)=>DropdownMenuItem<String>(value:s,child:Text(s,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
-        onChanged:(v)=>setState((){_selState=v;_selCity=null;}),
-        decoration:_dec("State *",Icons.map),
-        hint:const Text("Select State",overflow:TextOverflow.ellipsis)),
-      const SizedBox(height:12),
-      DropdownButtonFormField<String>(
-        isExpanded: true,
-        value: (_selState!=null && (kIndiaCities[_selState]??[]).contains(_selCity))?_selCity:null,
-        items: (_selState==null?[]:kIndiaCities[_selState]??[]).map((c)=>DropdownMenuItem<String>(value:c,child:Text(c,style:const TextStyle(fontSize:13),overflow:TextOverflow.ellipsis))).toList(),
-        onChanged:(v){ setState(()=>_selCity=v); if(v!=null) _loadAreas(v); },
-        decoration:_dec("City *",Icons.location_city),
-        hint:Text(_selState==null?"Select State first":"Select City",overflow:TextOverflow.ellipsis)),
-      const SizedBox(height:12),
-      // ── Area / Locality Dropdown ──────────────────────────────────────
-      if (_areasLoading)
-        const LinearProgressIndicator(minHeight: 2, color: kPrimary)
-      else if (_areas.isNotEmpty)
-        DropdownButtonFormField<String>(
-          isExpanded: true,
-          // current value: if _area.text is in list use it, else null (show hint)
-          value: _areas.contains(_area.text) ? _area.text : null,
-          items: _areas.map((a) => DropdownMenuItem<String>(
-            value: a,
-            child: Text(a, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
-          )).toList(),
-          onChanged: (v) { if (v != null) setState(() => _area.text = v); },
-          decoration: _dec("Area / Locality", Icons.my_location),
-          hint: const Text("Select area", overflow: TextOverflow.ellipsis),
-        )
-      else
-        _field(_area, "Area / Locality", Icons.my_location),
-      const SizedBox(height:12),
-      _field(_addr,"Full Address",Icons.home),
       const SizedBox(height:12),
       _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
       const SizedBox(height: 16),
       // Image picker
-      GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder,style:BorderStyle.solid)),
+      GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
         child: _imgB64!=null
             ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_imgB64!.split(",").last),fit:BoxFit.cover,width:double.infinity))
             : (_imgUrl!=null && _imgUrl!.isNotEmpty)
                 ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_imgUrl!,fit:BoxFit.cover,width:double.infinity,
-                    errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMuted,size:36),const SizedBox(height:8),const Text("Tap to change image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600))])))
-                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+                    errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:36),const SizedBox(height:8),const Text("Tap to change image",style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600))])))
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMerchantMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // Second image picker — optional logo
-      const Text("Upload Logo [Optional]",style:TextStyle(color:kMuted,fontSize:12,fontWeight:FontWeight.w600)),
+      const Text("Upload Logo [Optional]",style:TextStyle(color:kMerchantMuted,fontSize:12,fontWeight:FontWeight.w600)),
       const SizedBox(height:6),
-      GestureDetector(onTap:_pickImage2,child:Container(height:110,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder,style:BorderStyle.solid)),
+      GestureDetector(onTap:_pickImage2,child:Container(height:110,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
         child: _img2B64!=null
             ? Stack(children:[
                 ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_img2B64!.split(",").last),fit:BoxFit.cover,width:double.infinity,height:110)),
@@ -4118,17 +4124,17 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             : (_img2Url!=null && _img2Url!.isNotEmpty)
                 ? Stack(children:[
                     ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_img2Url!,fit:BoxFit.cover,width:double.infinity,height:110,
-                      errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to change logo",style:TextStyle(color:kMuted,fontSize:12))]))),
+                      errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),const Text("Tap to change logo",style:TextStyle(color:kMerchantMuted,fontSize:12))]))),
                     Positioned(top:6,right:6,child:GestureDetector(
                       onTap:(){setState(()=>_img2Url=null);},
                       child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:Colors.black54,shape:BoxShape.circle),child:const Icon(Icons.close,color:Colors.white,size:14)))),
                   ])
-                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMerchantMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
       const SizedBox(height:12),
       // ── Opening & Closing Time ──────────────────────────────────────
       const SizedBox(height:12),
       const Text("Store Timings [Optional]",
-        style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+        style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       Row(children: [
         Expanded(
@@ -4165,7 +4171,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       const SizedBox(height:20),
       SizedBox(height:50,child:ElevatedButton(
         onPressed:_loading?null:_save,
-        style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
+        style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
         child:_loading?const SizedBox(width:20,height:20,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):
             Text(_isEdit?"Save Changes":"Create Store",style:const TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
@@ -4177,13 +4183,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     TextField(controller:c,keyboardType:type,maxLength:maxLen,decoration:_dec(hint,icon).copyWith(counterText:maxLen!=null?"":null));
   InputDecoration _dec(String hint, IconData icon) => InputDecoration(
     hintText:hint,
-    prefixIcon:Icon(icon,color:kMuted,size:20),
+    prefixIcon:Icon(icon,color:kMerchantMuted,size:20),
     filled:true,
     fillColor:Colors.white,
     contentPadding:const EdgeInsets.symmetric(vertical:14,horizontal:14),
-    border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
-    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kBorder)),
-    focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:kPrimary,width:2)));
+    border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+    enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
+    focusedBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantPrimary,width:2)));
 }
 
 // ─────────── Subscribe Page ───────────
@@ -4272,11 +4278,11 @@ class _SubscribeState extends State<SubscribePage> {
       builder: (_) => const Center(child: Card(
         color: Colors.white,
         child: Padding(padding: EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
-          CircularProgressIndicator(color: kPrimary),
+          CircularProgressIndicator(color: kMerchantPrimary),
           SizedBox(height: 16),
-          Text("Confirming payment...", style: TextStyle(fontWeight: FontWeight.w600, color: kText)),
+          Text("Confirming payment...", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText)),
           SizedBox(height: 4),
-          Text("Please wait a moment", style: TextStyle(color: kMuted, fontSize: 12)),
+          Text("Please wait a moment", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
         ])),
       )),
     );
@@ -4376,7 +4382,7 @@ class _SubscribeState extends State<SubscribePage> {
         final discAmt = (order["discount_amount"] as num?)?.toDouble() ?? 0;
         final discType = order["discount_type"]?.toString();
         showDialog(context:context,barrierDismissible:false,builder:(ctx)=>AlertDialog(
-          title:const Text("Subscription Request Sent",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+          title:const Text("Subscription Request Sent",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
           content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
             _row("Store", widget.store["store_name"]??''),
             _row("Plan",  order["plan_label"]??''),
@@ -4393,16 +4399,19 @@ class _SubscribeState extends State<SubscribePage> {
             const SizedBox(height:12),
             Container(
               padding:const EdgeInsets.all(10),
-              decoration:BoxDecoration(color:kLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
-              child:const Text(
-                "✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.",
-                style:TextStyle(fontSize:12,color:kPrimary,height:1.5),
+              decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
+              child:Text(
+                // ₹0 payable (100% discount): no payment instruction.
+                orderAmt <= 0
+                    ? "✅  Your subscription request has been submitted."
+                    : "✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.",
+                style:const TextStyle(fontSize:12,color:kMerchantPrimary,height:1.5),
               ),
             ),
           ]),
           actions:[
             ElevatedButton(
-              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(10))),
+              style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
               onPressed:() async {
                 Navigator.pop(ctx);
                 // If amount is 0, activate immediately via free endpoint
@@ -4433,7 +4442,7 @@ class _SubscribeState extends State<SubscribePage> {
       final fromD   = order["from_date"]?.toString() ?? "";
       final toD     = order["end_date"]?.toString() ?? "";
       showDialog(context:context,builder:(_)=>AlertDialog(
-        title:const Text("Confirm Payment",style:TextStyle(color:kPrimary,fontWeight:FontWeight.bold)),
+        title:const Text("Confirm Payment",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
         content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
           _row("Store", widget.store["store_name"]?.toString()??''),
           _row("Plan",  planLbl),
@@ -4444,13 +4453,13 @@ class _SubscribeState extends State<SubscribePage> {
           _row("GST ($gstPct%)","₹$gstAmt"),
           _row("Total","₹$totalD",bold:true),
           const SizedBox(height:12),
-          Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:kLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
-            child:const Text("Razorpay checkout will open. After payment, admin will approve your store.",style:TextStyle(fontSize:12,color:kPrimary))),
+          Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
+            child:const Text("Razorpay checkout will open. After payment, admin will approve your store.",style:TextStyle(fontSize:12,color:kMerchantPrimary))),
         ]),
         actions:[
-          TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMuted))),
+          TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
           ElevatedButton(
-            style:ElevatedButton.styleFrom(backgroundColor:kPrimary),
+            style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
             onPressed:() {
               Navigator.pop(context);
               _openRazorpay(_pendingOrder);
@@ -4465,47 +4474,47 @@ class _SubscribeState extends State<SubscribePage> {
   }
 
   Widget _row(String k,String v,{bool bold=false}) => Padding(padding:const EdgeInsets.symmetric(vertical:3),
-    child:Row(children:[Expanded(child:Text(k,style:const TextStyle(color:kMuted,fontSize:13))),Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:bold?kPrimary:kText))]));
+    child:Row(children:[Expanded(child:Text(k,style:const TextStyle(color:kMerchantMuted,fontSize:13))),Text(v,style:TextStyle(fontSize:13,fontWeight:bold?FontWeight.bold:FontWeight.w500,color:bold?kMerchantPrimary:kMerchantText))]));
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(title:const Text("Subscribe Store"),backgroundColor: Colors.white, foregroundColor: kText),
-    body:_loading?const Center(child:CircularProgressIndicator(color:kPrimary)):SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:kBorder)),
+    backgroundColor:kMerchantBg,
+    appBar:AppBar(title:const Text("Subscribe Store"), ),
+    body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+      Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Store",style:TextStyle(color:kMuted,fontSize:11,fontWeight:FontWeight.w600)),
-          Text(widget.store["store_name"]??"",style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:kText)),
-          Text("${widget.store['city']??''}, ${widget.store['area']??''}",style:const TextStyle(color:kMuted,fontSize:12)),
+          const Text("Store",style:TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
+          Text(widget.store["store_name"]??"",style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:kMerchantText)),
+          Text("${widget.store['city']??''}, ${widget.store['area']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12)),
         ])),
       const SizedBox(height:20),
-      const Text("Select Plan",style:TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:15)),
+      const Text("Select Plan",style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
       const SizedBox(height:10),
       ..._plans.map((p){
         final sel = _selectedPlan==p["id"];
         return GestureDetector(onTap:()=>setState((){_selectedPlan=p["id"];_selectedPlanData=Map.from(p);}),
           child:Container(margin:const EdgeInsets.only(bottom:10),padding:const EdgeInsets.all(16),
-            decoration:BoxDecoration(color:sel?kPrimary:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:sel?kPrimary:kBorder,width:sel?2:1)),
+            decoration:BoxDecoration(color:sel?kMerchantPrimary:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:sel?kMerchantPrimary:kMerchantBorder,width:sel?2:1)),
             child:Row(children:[
-              Icon(sel?Icons.radio_button_checked:Icons.radio_button_unchecked,color:sel?Colors.white:kMuted),
+              Icon(sel?Icons.radio_button_checked:Icons.radio_button_unchecked,color:sel?Colors.white:kMerchantMuted),
               const SizedBox(width:12),
               Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text(p["label"],style:TextStyle(fontWeight:FontWeight.bold,color:sel?Colors.white:kText)),
-                Text("₹${p['price']} + ${p['gst_percent']}% GST",style:TextStyle(fontSize:12,color:sel?kLight:kMuted)),
+                Text(p["label"],style:TextStyle(fontWeight:FontWeight.bold,color:sel?Colors.white:kMerchantText)),
+                Text("₹${p['price']} + ${p['gst_percent']}% GST",style:TextStyle(fontSize:12,color:sel?kMerchantLight:kMerchantMuted)),
               ])),
-              Text("₹${p['total']}",style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:sel?Colors.white:kPrimary)),
+              Text("₹${p['total']}",style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:sel?Colors.white:kMerchantPrimary)),
             ])));
       }).toList(),
       const SizedBox(height:16),
-      const Text("Start Date",style:TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:15)),
+      const Text("Start Date",style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
       const SizedBox(height:8),
       GestureDetector(
         onTap:() async {
           final d = await showDatePicker(context:context,initialDate:DateTime.now(),firstDate:DateTime.now(),lastDate:DateTime.now().add(const Duration(days:60)),
-            builder:(ctx,child)=>Theme(data:ThemeData(colorScheme:const ColorScheme.light(primary:kPrimary)),child:child!));
+            builder:(ctx,child)=>Theme(data:ThemeData(colorScheme:const ColorScheme.light(primary:kMerchantPrimary)),child:child!));
           if (d!=null) setState(()=>_fromDate=d.toIso8601String().substring(0,10));
         },
-        child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
-          child:Row(children:[const Icon(Icons.calendar_today,color:kPrimary,size:18),const SizedBox(width:10),Text(_fromDate,style:const TextStyle(color:kText,fontWeight:FontWeight.w600))]))),
+        child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
+          child:Row(children:[const Icon(Icons.calendar_today,color:kMerchantPrimary,size:18),const SizedBox(width:10),Text(_fromDate,style:const TextStyle(color:kMerchantText,fontWeight:FontWeight.w600))]))),
       if (_selectedPlanData!=null)...[
         const SizedBox(height:16),
         Builder(builder:(_) {
@@ -4515,7 +4524,7 @@ class _SubscribeState extends State<SubscribePage> {
           final taxable   = (basePrice - discAmt).clamp(0, basePrice);
           final gstAmt    = taxable * gstPct / 100.0;
           final total     = taxable + gstAmt;
-          return Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
+          return Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
             child:Column(children:[
               _row("Base Price","₹${basePrice.toStringAsFixed(2)}"),
               if (discAmt>0) _row("Discount","-₹${discAmt.toStringAsFixed(2)}"),
@@ -4527,30 +4536,30 @@ class _SubscribeState extends State<SubscribePage> {
       ],
       const SizedBox(height:16),
       // ── Discount Code ──
-      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+      Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Have a discount code?",style:TextStyle(fontWeight:FontWeight.w600,color:kText,fontSize:13)),
+          const Text("Have a discount code?",style:TextStyle(fontWeight:FontWeight.w600,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
               controller:_discC,
               textCapitalization:TextCapitalization.characters,
               onChanged:(_){ if(_appliedCode!=null) setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";}); },
-              decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(8),borderSide:BorderSide(color:kBorder))),
+              decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:kMerchantBorder))),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_validatingDisc?null:_validateDiscount,
-              style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8)),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
+              style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
               child:_validatingDisc?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Text("Apply",style:TextStyle(color:Colors.white,fontSize:13))),
           ]),
-          if (_discMsg.isNotEmpty)...[const SizedBox(height:6),Text(_discMsg,style:TextStyle(fontSize:12,color:_appliedCode!=null?const Color(0xFF1a6640):Colors.red.shade700))],
+          if (_discMsg.isNotEmpty)...[const SizedBox(height:6),Text(_discMsg,style:TextStyle(fontSize:12,color:_appliedCode!=null?OffroColors.statusLive:Colors.red.shade700))],
           if (_appliedCode!=null && _discountType!=null)...[
             const SizedBox(height:6),
             Row(children:[
-              const Text("Discount: ",style:TextStyle(fontSize:12,color:kMuted)),
+              const Text("Discount: ",style:TextStyle(fontSize:12,color:kMerchantMuted)),
               Text(_discountType=="PERCENTAGE" ? "- ${_discountValue.toStringAsFixed(0)}%" : "- ₹${_discountValue.toStringAsFixed(0)}",
-                style:const TextStyle(fontSize:12,color:Color(0xFF1a6640),fontWeight:FontWeight.bold)),
+                style:const TextStyle(fontSize:12,color:OffroColors.statusLive,fontWeight:FontWeight.bold)),
               const Spacer(),
               GestureDetector(onTap:(){setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";_discC.clear();});},child:const Text("Remove",style:TextStyle(fontSize:11,color:Colors.red,decoration:TextDecoration.underline)))]),
           ],
@@ -4558,7 +4567,7 @@ class _SubscribeState extends State<SubscribePage> {
       const SizedBox(height:24),
       SizedBox(height:52,child:ElevatedButton(
         onPressed:_loading?null:_subscribe,
-        style:ElevatedButton.styleFrom(backgroundColor:kPrimary,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14))),
+        style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
         child:const Text("Proceed to Pay",style:TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
       const SizedBox(height:24),
@@ -4735,41 +4744,39 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Invoices",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
+    backgroundColor:kMerchantBg,
+    appBar:merchantHeaderBar(eyebrow:"Billing & subscriptions",title:"Invoices",back:false,
       actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load,tooltip:"Refresh")],
     ),
-    body:_loading?const Center(child:CircularProgressIndicator(color:kPrimary)):
+    body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):
     RefreshIndicator(
-      color:kPrimary,onRefresh:_load,
+      color:kMerchantPrimary,onRefresh:_load,
       child:_invoices.isEmpty
         ? ListView(children:[SizedBox(height:MediaQuery.sizeOf(context).height*0.4,
             child:const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-              Icon(Icons.receipt_long_outlined,size:56,color:kAccent),
+              Icon(Icons.receipt_long_outlined,size:56,color:kMerchantAccent),
               SizedBox(height:12),
-              Text("No invoices yet",style:TextStyle(color:kMuted,fontSize:15)),
+              Text("No invoices yet",style:TextStyle(color:kMerchantMuted,fontSize:15)),
               SizedBox(height:6),
-              Text("Pull down to refresh",style:TextStyle(color:kMuted,fontSize:12)),
+              Text("Pull down to refresh",style:TextStyle(color:kMerchantMuted,fontSize:12)),
             ])))])
         : ListView.builder(
             padding:const EdgeInsets.all(14),
             itemCount:_invoices.length,
             itemBuilder:(_,i){
               final inv = _invoices[i] as Map;
-              return Card(elevation:1,margin:const EdgeInsets.only(bottom:10),
-                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(14)),
+              return Card(elevation:0,color:Colors.white,surfaceTintColor:Colors.transparent,margin:const EdgeInsets.only(bottom:12),
+                shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:const BorderSide(color:OffroColors.border)),
                 child:Padding(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                   Row(children:[
-                    const Icon(Icons.receipt_long,color:kPrimary,size:16),
+                    const Icon(Icons.receipt_long,color:kMerchantPrimary,size:16),
                     const SizedBox(width:6),
-                    Expanded(child:Text(inv["invoice_no"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:13))),
-                    Text(_fmtDateTime(inv["created_at"]?.toString()),style:const TextStyle(color:kMuted,fontSize:11)),
+                    Expanded(child:Text(inv["invoice_no"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantPrimary,fontSize:13))),
+                    Text(_fmtDateTime(inv["created_at"]?.toString()),style:const TextStyle(color:kMerchantMuted,fontSize:11)),
                   ]),
                   const Divider(height:14),
-                  Text(inv["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText)),
-                  Text("Plan: ${inv['plan']??''}  •  ${inv['from_date']??''} – ${inv['end_date']??''}",style:const TextStyle(color:kMuted,fontSize:12)),
+                  Text(inv["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText)),
+                  Text("Plan: ${inv['plan']??''}  •  ${inv['from_date']??''} – ${inv['end_date']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                   const SizedBox(height:6),
                   Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
                     // TASK 6: show discount info if present
@@ -4783,15 +4790,15 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Base: ₹${origAmt.toStringAsFixed(2)}  GST: ₹${gstAmt.toStringAsFixed(2)}",
-                            style:const TextStyle(color:kMuted,fontSize:12)),
+                            style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                           if(discCode.isNotEmpty && discAmt > 0)
                             Text("Discount ($discCode): −₹${discAmt.toStringAsFixed(2)}",
-                              style:const TextStyle(color:Color(0xFF1a6640),fontSize:11,fontWeight:FontWeight.w600)),
+                              style:const TextStyle(color:OffroColors.statusLive,fontSize:11,fontWeight:FontWeight.w600)),
                         ],
                       );
                     }),
                     Text("₹${((inv["total"]??0) as num).toStringAsFixed(2)}",
-                      style:const TextStyle(fontWeight:FontWeight.bold,color:kPrimary,fontSize:15)),
+                      style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantPrimary,fontSize:15)),
                   ]),
                   const SizedBox(height:12),
                   // FIX 14: Action buttons
@@ -4799,20 +4806,20 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                     Expanded(child:OutlinedButton.icon(
                       icon:const Icon(Icons.share_rounded,size:16),
                       label:const Text("Share",style:TextStyle(fontSize:12)),
-                      style:OutlinedButton.styleFrom(
-                        foregroundColor:kPrimary,side:const BorderSide(color:kPrimary),
+                      style:OutlinedButton.styleFrom(elevation: 0, 
+                        foregroundColor:kMerchantPrimary,side:const BorderSide(color:kMerchantPrimary),
                         padding:const EdgeInsets.symmetric(vertical:8),
-                        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+                        shape: const StadiumBorder()),
                       onPressed:()=>_shareInvoice(inv),
                     )),
                     const SizedBox(width:10),
                     Expanded(child:ElevatedButton.icon(
                       icon:const Icon(Icons.download_rounded,size:16),
                       label:const Text("Download PDF",style:TextStyle(fontSize:12)),
-                      style:ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white, foregroundColor: kText,
+                      style:ElevatedButton.styleFrom(elevation: 0, 
+                         
                         padding:const EdgeInsets.symmetric(vertical:8),
-                        shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(8))),
+                        shape: const StadiumBorder()),
                       onPressed:()=>_printInvoice(inv),
                     )),
                   ]),
@@ -4887,7 +4894,7 @@ class _TxnState extends State<MerchantTxnPage> {
     // Payments/subscriptions from txns
     for(final t in _txns) {
       events.add({
-        "type":"payment","icon":Icons.payment,"color":kPrimary,
+        "type":"payment","icon":Icons.payment,"color":kMerchantPrimary,
         "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??"Payment"),
         "subtitle":"₹${t['amount']??0}",
         "date":t["date"]??t["created_at"]??"",
@@ -4898,9 +4905,9 @@ class _TxnState extends State<MerchantTxnPage> {
     for(final b in _banners) {
       final st=(b["approval_status"]??b["status"]??"pending").toString();
       final (Color sc,IconData si) = switch(st){
-        "approved"   => (const Color(0xFF1a6640), Icons.check_circle_outline),
+        "approved"   => (OffroColors.statusLive, Icons.check_circle_outline),
         "rejected"   => (Colors.red, Icons.cancel_outlined),
-        _ => (const Color(0xFF856404), Icons.hourglass_top_rounded),
+        _ => (OffroColors.statusPending, Icons.hourglass_top_rounded),
       };
       events.add({
         "type":"banner","icon":Icons.photo_size_select_actual_outlined,"color":const Color(0xFF2980b9),
@@ -4917,9 +4924,9 @@ class _TxnState extends State<MerchantTxnPage> {
     for(final v in _products) {
       final st=(v["approval_status"]??v["status"]??"pending").toString();
       final (Color sc,IconData si) = switch(st){
-        "approved"   => (const Color(0xFF1a6640), Icons.check_circle_outline),
+        "approved"   => (OffroColors.statusLive, Icons.check_circle_outline),
         "rejected"   => (Colors.red, Icons.cancel_outlined),
-        _ => (const Color(0xFF856404), Icons.hourglass_top_rounded),
+        _ => (OffroColors.statusPending, Icons.hourglass_top_rounded),
       };
       events.add({
         "type":"product","icon":Icons.local_activity_outlined,"color":const Color(0xFF8e44ad),
@@ -4949,68 +4956,67 @@ class _TxnState extends State<MerchantTxnPage> {
   @override Widget build(BuildContext context) {
     final items = _filtered; // once per build (was recomputed, incl. a sort, for every row)
     return Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Activity",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false,
+    backgroundColor:kMerchantBg,
+    appBar:merchantHeaderBar(eyebrow:"Business timeline",title:"Activity",back:false,
       actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load)],
     ),
     body:Column(children:[
       // Filter tabs
-      Container(decoration:const BoxDecoration(color:kPrimary),padding:const EdgeInsets.fromLTRB(12,0,12,10),
+      Container(padding:const EdgeInsets.fromLTRB(OffroSpacing.gutter,4,OffroSpacing.gutter,10),
         child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
           GestureDetector(
             behavior:HitTestBehavior.opaque,
             onTap:()=>setState(()=>_tab=e.key),
             child:Container(
               margin:const EdgeInsets.only(right:8),
-              padding:const EdgeInsets.symmetric(horizontal:14,vertical:6),
+              padding:const EdgeInsets.symmetric(horizontal:16,vertical:9),
               decoration:BoxDecoration(
-                color:_tab==e.key?Colors.white:Colors.white.withValues(alpha:.18),
-                borderRadius:BorderRadius.circular(20)),
-              child:Text(e.value,style:TextStyle(
-                color:_tab==e.key?kPrimary:Colors.white,
-                fontSize:12,fontWeight:FontWeight.w700)),
+                color:_tab==e.key?OffroColors.primary:Colors.white,
+                borderRadius:BorderRadius.circular(20),
+                border:_tab==e.key?null:Border.all(color:OffroColors.border)),
+              child:Text(e.value,style:OffroText.caption.copyWith(
+                color:_tab==e.key?Colors.white:OffroColors.primary,
+                fontSize:11,fontWeight:FontWeight.w700)),
             ),
           )).toList())),
       ),  // close filter-tabs Container
       // Content
       Expanded(child:_loading
-        ? const Center(child:CircularProgressIndicator(color:kPrimary))
+        ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary))
         : RefreshIndicator(
-            color:kPrimary,onRefresh:_load,
+            color:kMerchantPrimary,onRefresh:_load,
             child:items.isEmpty
               ? ListView(children:[SizedBox(height:300,child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  const Icon(Icons.history,size:48,color:kAccent),
+                  const Icon(Icons.history,size:48,color:kMerchantAccent),
                   const SizedBox(height:12),
-                  const Text("No activity yet",style:TextStyle(color:kMuted,fontSize:15)),
+                  const Text("No activity yet",style:TextStyle(color:kMerchantMuted,fontSize:15)),
                 ])))])
               : ListView.builder(
                   padding:const EdgeInsets.fromLTRB(14,12,14,24),
                   itemCount:items.length,
                   itemBuilder:(_,i){
                     final t = items[i];
-                    final Color ic = t["color"] as Color? ?? kPrimary;
-                    final Color sc = t["subtitle_color"] as Color? ?? kMuted;
+                    final Color ic = t["color"] as Color? ?? kMerchantPrimary;
+                    final Color sc = t["subtitle_color"] as Color? ?? kMerchantMuted;
                     return Container(
                       margin:const EdgeInsets.only(bottom:8),
                       padding:const EdgeInsets.all(14),
-                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(12),border:Border.all(color:kBorder)),
+                      decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
                       child:Row(children:[
-                        CircleAvatar(backgroundColor:ic.withValues(alpha:.12),radius:20,
-                          child:Icon(t["icon"] as IconData,color:ic,size:18)),
+                        CircleAvatar(backgroundColor:OffroColors.mint,radius:22,
+                          child:Icon(t["icon"] as IconData,color:OffroColors.primary,size:18)),
                         const SizedBox(width:12),
                         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                          Text(t["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kText,fontSize:13)),
+                          Text(t["title"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:13)),
                           const SizedBox(height:2),
                           Text(t["subtitle"]??"",style:TextStyle(color:sc,fontSize:11,fontWeight:FontWeight.w600)),
                           if((t["from_date"]??"").isNotEmpty && (t["end_date"]??"").isNotEmpty)
-                            Text("${t['from_date']} → ${t['end_date']}",style:const TextStyle(color:kMuted,fontSize:10)),
+                            Text("${t['from_date']} → ${t['end_date']}",style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                           const SizedBox(height:2),
-                          Text(_fmtDateTime(t["date"]?.toString()),style:const TextStyle(color:kMuted,fontSize:10)),
+                          Text(_fmtDateTime(t["date"]?.toString()),style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                         ])),
                         if((t["amount"]??0)>0)
-                          Text("₹${t['amount']}",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold,fontSize:13)),
+                          Text("₹${t['amount']}",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold,fontSize:13)),
                       ]),
                     );
                   }),
@@ -5069,30 +5075,121 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
     if (mounted) setState(() => _uploading = false);
   }
 
+  Future<void> _contactOffro() async {
+    final s = await Api.getSocialLinks();
+    final rawWa = s["whatsapp"] ?? "";
+    if (rawWa.isNotEmpty) {
+      final digits = rawWa.replaceAll(RegExp(r'[^0-9]'), '');
+      final waNum = digits.length >= 10 ? (digits.length == 10 ? "91$digits" : digits) : digits;
+      await launchUrl(Uri.parse("https://wa.me/$waNum"), mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _openSwitchMode() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => SwitchModeSheet(
+        currentMode: 'merchant',
+        token: widget.token,
+        phone: widget.merchant['phone']?.toString() ?? '',
+        onSwitch: (role) {
+          if (role == 'user' || role == 'influencer') {
+            // Same goSwitchMode dispatch for User and Influencer (unchanged behaviour).
+            final token = widget.token;
+            final name  = widget.merchant['name']?.toString() ?? '';
+            final phone = widget.merchant['phone']?.toString() ?? '';
+            final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
+            Navigator.of(context).pop(); // close profile
+            MyApp.goSwitchMode(token, name, phone, uid, role);
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    await Prefs.clear(keepMode: false);
+    Api.clearCache();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => LoginScreen()),
+      (_) => false,
+    );
+  }
+
+  Widget _group(String eyebrow, List<Widget> rows) => Padding(
+    padding: const EdgeInsets.only(top: 12, bottom: 8),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(eyebrow.toUpperCase(),
+        style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.8, color: OffroColors.sage)),
+      const SizedBox(height: 12),
+      Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(color: OffroColors.surface, borderRadius: BorderRadius.circular(22)),
+        child: Column(children: rows),
+      ),
+    ]),
+  );
+
+  Widget _accountRow({
+    required Widget icon,
+    required String label,
+    String? note,
+    required VoidCallback onTap,
+    bool destructive = false,
+  }) => InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(children: [
+        Container(
+          width: 36, height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: destructive ? OffroColors.error.withValues(alpha: .10) : OffroColors.mintSoft,
+            shape: BoxShape.circle),
+          child: icon,
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: OffroText.cardTitle.copyWith(
+            fontSize: 13, color: destructive ? OffroColors.error : OffroColors.text)),
+          if (note != null) ...[
+            const SizedBox(height: 2),
+            Text(note, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
+          ],
+        ])),
+        if (!destructive) const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.sage),
+      ]),
+    ),
+  );
+
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor:kBg,
-    appBar:AppBar(
-      title:Row(children:[buildImageLogo(height:24,white:true),const SizedBox(width:8),const Text("Profile",style:TextStyle(fontWeight:FontWeight.w800))]),
-      backgroundColor: Colors.white, foregroundColor: kText,automaticallyImplyLeading:false),
+    backgroundColor:kMerchantBg,
+    appBar:merchantHeaderBar(eyebrow:"Merchant account",title:"Profile",back:false,),
     body:SingleChildScrollView(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:kPrimary,borderRadius:BorderRadius.circular(16)),
+      Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:OffroColors.mint,borderRadius:BorderRadius.circular(24)),
         child:Column(children:[
           GestureDetector(
             onTap: _pickProfileImage,
             child: Stack(alignment:Alignment.bottomRight,children:[
-              CircleAvatar(radius:44, backgroundColor:kAccent,
+              CircleAvatar(radius:44, backgroundColor:OffroColors.primary,
                 backgroundImage: _imgB64 != null && _imgB64!.startsWith("data:") ? MemoryImage(base64Decode(_imgB64!.split(",").last)) : null,
-                child: _imgB64 == null ? buildLogo(38,kLight) : null),
+                child: _imgB64 == null ? buildLogo(38,OffroColors.mint) : null),
               Container(width:26,height:26,decoration:const BoxDecoration(color:Colors.white,shape:BoxShape.circle),
-                child: _uploading ? const Padding(padding:EdgeInsets.all(4),child:CircularProgressIndicator(strokeWidth:2,color:kPrimary)) : const Icon(Icons.camera_alt,size:16,color:kPrimary)),
+                child: _uploading ? const Padding(padding:EdgeInsets.all(4),child:CircularProgressIndicator(strokeWidth:2,color:kMerchantPrimary)) : const Icon(Icons.camera_alt,size:16,color:kMerchantPrimary)),
             ])),
           const SizedBox(height:8),
-          Text(_merchantData["name"]??"",style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.bold)),
-          Text(_merchantData["phone"]??"",style:const TextStyle(color:kAccent)),
+          Text(_merchantData["name"]??"",style:OffroText.title.copyWith(fontSize:18)),
+          Text(_merchantData["phone"]??"",style:const TextStyle(color:OffroColors.secondarySolid)),
           if((_merchantData["city"]??'').isNotEmpty)
-            Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:kAccent,fontSize:12)),
+            Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:OffroColors.secondarySolid,fontSize:12)),
           const SizedBox(height:4),
-          const Text("Tap photo to change",style:TextStyle(color:kLight,fontSize:10)),
+          const Text("Tap photo to change",style:TextStyle(color:OffroColors.secondarySolid,fontSize:10)),
         ])),
       const SizedBox(height:20),
       _tile(context,Icons.info_outline,"About Us",() => _openAbout(context)),
@@ -5100,81 +5197,33 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
       _tile(context,Icons.privacy_tip,"Privacy Policy",() => Navigator.push(context,MaterialPageRoute(builder:(_)=>MerchantPrivacyPolicyPage(token:widget.token)))),
       _tile(context,Icons.receipt,"Refund Policy",() => _openPolicy(context,"Refund Policy",Api.fetchPolicy("refund"))),
       _tile(context,Icons.badge,"KYC Policy",() => _openPolicy(context,"KYC Policy",Api.fetchPolicy("kyc"))),
-      const SizedBox(height:8),
-      ListTile(tileColor:const Color(0xFFe8faf0),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:Color(0xFF25D366))),
-        leading:const CircleAvatar(backgroundColor:Color(0xFF25D366),child:Icon(Icons.chat_bubble,color:Colors.white)),
-        title:const Text("Contact Offro",style:TextStyle(fontWeight:FontWeight.bold,color:Color(0xFF1a7a3c))),
-        subtitle:const Text("Chat with us on WhatsApp",style:TextStyle(fontSize:11,color:Color(0xFF25D366))),
-        trailing:const Icon(Icons.chevron_right,color:Color(0xFF25D366)),
-        onTap:()async{final s=await Api.getSocialLinks();
-          final rawWa=s["whatsapp"]??"";
-          if(rawWa.isNotEmpty){
-            final digits=rawWa.replaceAll(RegExp(r'[^0-9]'),'');
-            final waNum=digits.length>=10?(digits.length==10?"91$digits":digits):digits;
-            await launchUrl(Uri.parse("https://wa.me/$waNum"),mode:LaunchMode.externalApplication);
-          }}),
-      const SizedBox(height:20),
-      // ── Switch Mode ──
-      SizedBox(height:48, child: OutlinedButton.icon(
-        icon: const Icon(Icons.swap_horiz_rounded, color: kPrimary),
-        label: const Text("Switch Mode", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: kPrimary),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => SwitchModeSheet(
-              currentMode: 'merchant',
-              token: widget.token,
-              phone: widget.merchant['phone']?.toString() ?? '',
-              onSwitch: (role) {
-                if (role == 'user') {
-                  // Switch to User → GPS loader
-                  final token = widget.token;
-                  final name  = widget.merchant['name']?.toString() ?? '';
-                  final phone = widget.merchant['phone']?.toString() ?? '';
-                  final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
-                  Navigator.of(context).pop(); // close profile
-                  MyApp.goSwitchMode(token, name, phone, uid, 'user');
-                } else if (role == 'influencer') {
-                  // C4: Merchant → Influencer, same goSwitchMode dispatch
-                  // pattern as the User branch above.
-                  final token = widget.token;
-                  final name  = widget.merchant['name']?.toString() ?? '';
-                  final phone = widget.merchant['phone']?.toString() ?? '';
-                  final uid   = widget.merchant['merchant_id']?.toString() ?? widget.merchant['_id']?.toString() ?? '';
-                  Navigator.of(context).pop(); // close profile
-                  MyApp.goSwitchMode(token, name, phone, uid, 'influencer');
-                }
-              },
-            ),
-          );
-        })),
-      const SizedBox(height:12),
-      SizedBox(height:48,child:OutlinedButton.icon(
-        icon:const Icon(Icons.logout,color:Colors.red),label:const Text("Logout",style:TextStyle(color:Colors.red)),
-        style:OutlinedButton.styleFrom(side:const BorderSide(color:Colors.red),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12))),
-        onPressed:() async {
-            await Prefs.clear(keepMode: false);
-            Api.clearCache();
-            if (!context.mounted) return;
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => LoginScreen()),
-              (_) => false,
-            );
-          })),
+      // ── ACCOUNT / SESSION — same grouped-card + row styling as the Customer profile
+      // (ProfileTab._group/_row). Behaviour of each action is unchanged. ──
+      _group("Account", [
+        _accountRow(
+          icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: OffroColors.primary),
+          label: "Switch Mode", note: "Switch between User, Merchant & Influencer",
+          onTap: _openSwitchMode),
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.message, size: 16, color: OffroColors.primary),
+          label: "Contact Offro", note: "Chat with us on WhatsApp",
+          onTap: _contactOffro),
+      ]),
+      _group("Session", [
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.arrow, size: 16, color: OffroColors.error),
+          label: "Logout", destructive: true,
+          onTap: _logout),
+      ]),
     ])),
   );
 
   Widget _tile(BuildContext ctx, IconData icon, String title, VoidCallback onTap) =>
-    ListTile(tileColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:kBorder)),
-      leading:CircleAvatar(backgroundColor:kLight,child:Icon(icon,color:kPrimary)),
-      title:Text(title,style:const TextStyle(fontWeight:FontWeight.bold,color:kText)),
-      trailing:const Icon(Icons.chevron_right,color:kPrimary),onTap:onTap,
-      contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:4));
+    Padding(padding:const EdgeInsets.only(bottom:10),child:ListTile(tileColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:const BorderSide(color:OffroColors.border)),
+      leading:CircleAvatar(backgroundColor:OffroColors.mint,child:Icon(icon,color:OffroColors.primary,size:20)),
+      title:Text(title,style:OffroText.value.copyWith(fontSize:13,fontWeight:FontWeight.w600)),
+      trailing:const Icon(Icons.chevron_right,color:OffroColors.secondarySolid),onTap:onTap,
+      contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:4)));
 
   void _openAbout(BuildContext ctx) async {
     final c = await Api.getAboutUs();
@@ -5186,7 +5235,7 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
     showDialog(context:ctx, barrierDismissible:false,
       builder:(_)=>FutureBuilder<String>(future:loader,
         builder:(c,snap){
-          if(snap.connectionState!=ConnectionState.done) return const AlertDialog(content:SizedBox(height:80,child:Center(child:CircularProgressIndicator(color:kPrimary))));
+          if(snap.connectionState!=ConnectionState.done) return const AlertDialog(content:SizedBox(height:80,child:Center(child:CircularProgressIndicator(color:kMerchantPrimary))));
           return OffroDialog(title:title,body:snap.data??"");
         }));
   }
@@ -5230,11 +5279,11 @@ class _UserProfileHeaderState extends State<UserProfileHeader> {
     leading: GestureDetector(
       onTap: _pickImage,
       child: Stack(alignment:Alignment.bottomRight, children:[
-        CircleAvatar(radius:24, backgroundColor:kLight,
+        CircleAvatar(radius:24, backgroundColor:kMerchantLight,
           backgroundImage: _imgB64 != null && _imgB64!.startsWith("data:")
             ? MemoryImage(base64Decode(_imgB64!.split(",").last)) : null,
-          child: _imgB64 == null ? const Icon(Icons.person, color:kPrimary) : null),
-        Container(width:16,height:16,decoration:const BoxDecoration(color:kPrimary,shape:BoxShape.circle),
+          child: _imgB64 == null ? const Icon(Icons.person, color:kMerchantPrimary) : null),
+        Container(width:16,height:16,decoration:const BoxDecoration(color:kMerchantPrimary,shape:BoxShape.circle),
           child: _uploading ? const Padding(padding:EdgeInsets.all(2),child:CircularProgressIndicator(strokeWidth:1.5,color:Colors.white)) : const Icon(Icons.camera_alt,size:10,color:Colors.white)),
       ])),
     title: Text(widget.name, style:const TextStyle(fontWeight:FontWeight.bold)),
@@ -5290,13 +5339,9 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(
-        toolbarHeight:58,
-        titleSpacing:16,
-        centerTitle:true,
-        title:const Text("My Deals",overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.w800,fontSize:17)),
-        backgroundColor: Colors.white, foregroundColor: kText, automaticallyImplyLeading:false,
+    backgroundColor: kMerchantBg,
+    appBar: merchantHeaderBar(eyebrow: "Merchant offers", title: "My Deals", back: false,
+        
         actions:[
           Padding(
             padding:const EdgeInsets.only(right:18),
@@ -5320,13 +5365,13 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
             ),
           ),
         ]),
-    body: _loading ? const Center(child: CircularProgressIndicator(color: kPrimary)) :
+    body: _loading ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary)) :
       _deals.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        const Icon(Icons.local_offer_outlined, size: 64, color: kAccent),
+        const Icon(Icons.local_offer_outlined, size: 64, color: kMerchantAccent),
         const SizedBox(height: 12),
-        const Text("No deals yet", style: TextStyle(color: kMuted, fontSize: 16)),
+        const Text("No deals yet", style: TextStyle(color: kMerchantMuted, fontSize: 16)),
         const SizedBox(height: 8),
-        const Text("Add deals to attract more customers", style: TextStyle(color: kMuted, fontSize: 13)),
+        const Text("Add deals to attract more customers", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
       ])) :
       RefreshIndicator(onRefresh: _load, child: ListView.builder(
         padding: const EdgeInsets.all(14),
@@ -5352,28 +5397,28 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                 child: dealImg.startsWith('data:image')
                     ? Image.memory(base64Decode(dealImg.split(',').last), width: 44, height: 44, fit: BoxFit.cover)
                     : CachedNetworkImage(imageUrl: dealImg, width: 44, height: 44, fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(width: 44, height: 44, color: kLight.withValues(alpha: .5)),
+                        placeholder: (_, __) => Container(width: 44, height: 44, color: kMerchantLight.withValues(alpha: .5)),
                         errorWidget: (_, __, ___) => Container(width: 44, height: 44,
-                          color: kLight.withValues(alpha: .5),
-                          child: const Icon(Icons.broken_image_outlined, color: kMuted, size: 18))),
+                          color: kMerchantLight.withValues(alpha: .5),
+                          child: const Icon(Icons.broken_image_outlined, color: kMerchantMuted, size: 18))),
               ),
             );
           } else {
             leadingWidget = Container(width: 44, height: 44,
-              decoration: BoxDecoration(color: kLight.withValues(alpha: .5), borderRadius: BorderRadius.circular(10)),
+              decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(14)),
               child: Center(child: hasDisc
-                  ? Text(discPct, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.bold, fontSize: 13))
-                  : const Icon(Icons.local_offer_outlined, color: kPrimary, size: 18)));
+                  ? Text(discPct, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold, fontSize: 13))
+                  : const Icon(Icons.local_offer_outlined, color: kMerchantPrimary, size: 18)));
           }
-          return Card(elevation: 2, margin: const EdgeInsets.only(bottom: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          return Card(elevation: 0, color: Colors.white, surfaceTintColor: Colors.transparent, margin: const EdgeInsets.only(bottom: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: const BorderSide(color: OffroColors.border)),
             child: ListTile(
               leading: leadingWidget,
-              title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kText)),
+              title: Text(d["title"] ?? "", style: const TextStyle(fontWeight: FontWeight.w600, color: kMerchantText)),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                  Text("${d['store_name'] ?? ''} • ${d['category'] ?? ''}", style: const TextStyle(color: kMuted, fontSize: 12)),
+                  Text("${d['store_name'] ?? ''} • ${d['category'] ?? ''}", style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
                   const SizedBox(height: 4),
                   Builder(builder: (_) {
                     final endStr = d["end_date"]?.toString() ?? "";
@@ -5386,9 +5431,9 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                         istNow.isAfter(DateTime.utc(endDt.year, endDt.month, endDt.day, 23, 59, 59));
                     return Row(mainAxisSize: MainAxisSize.min, children: [
                       if (endStr.isNotEmpty) ...[
-                        const Icon(Icons.calendar_today_rounded, size: 11, color: kMuted),
+                        const Icon(Icons.calendar_today_rounded, size: 11, color: kMerchantMuted),
                         const SizedBox(width: 4),
-                        Text("Ends ${_formatDealDate(endStr)}", style: const TextStyle(color: kMuted, fontSize: 11)),
+                        Text("Ends ${_formatDealDate(endStr)}", style: const TextStyle(color: kMerchantMuted, fontSize: 11)),
                         const SizedBox(width: 8),
                       ],
                       Container(
@@ -5406,7 +5451,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
               ),
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined, color: kPrimary),
+                  icon: const Icon(Icons.edit_outlined, color: kMerchantPrimary),
                   tooltip: "Edit Deal",
                   onPressed: () {
                     Navigator.push(context, appRoute(AddDealPage(
@@ -5426,7 +5471,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                         content: Text("Delete \"${d['title']}\"?"),
                         actions: [
                           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
-                          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          ElevatedButton(style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: Colors.red),
                             onPressed: () => Navigator.pop(context, true), child: const Text("Delete", style: TextStyle(color: Colors.white))),
                         ]));
                     if (confirm == true) {
@@ -5546,7 +5591,7 @@ class _AddDealState extends State<AddDealPage> {
       firstDate: now,
       lastDate: maxDate,
       builder: (ctx, child) => Theme(data: Theme.of(ctx).copyWith(
-        colorScheme: ColorScheme.light(primary: kPrimary, onPrimary: Colors.white),
+        colorScheme: ColorScheme.light(primary: kMerchantPrimary, onPrimary: Colors.white),
       ), child: child!),
     );
     if (picked != null) {
@@ -5587,6 +5632,8 @@ class _AddDealState extends State<AddDealPage> {
   Future<void> _save() async {
     if (_title.text.trim().isEmpty) { setState(() => _msg = "Deal title is required"); return; }
     if (_endDate.isEmpty)           { setState(() => _msg = "End date is required"); return; }
+    // Image is mandatory (new deal, or an edit that would leave the deal without one).
+    if ((_dealImgB64 ?? _dealImgUrl ?? "").isEmpty) { setState(() => _msg = "Please add an image before saving."); return; }
 
     if (_storeExpiryDate != null) {
       final endDt = DateTime.tryParse(_endDate);
@@ -5625,12 +5672,12 @@ class _AddDealState extends State<AddDealPage> {
         await Api.updateDeal(widget.token, widget.editDeal!["_id"].toString(), payload);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Deal updated!"), backgroundColor: Color(0xFF1a6640)));
+          content: Text("Deal updated!"), backgroundColor: OffroColors.statusLive));
       } else {
         await Api.addDeal(widget.token, payload);
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Deal added!"), backgroundColor: Color(0xFF1a6640)));
+          content: Text("Deal added!"), backgroundColor: OffroColors.statusLive));
       }
       Navigator.pop(context);
     } catch (e) { setState(() => _msg = friendlyError(e)); }
@@ -5638,8 +5685,8 @@ class _AddDealState extends State<AddDealPage> {
   }
 
   @override Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kBg,
-    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)), backgroundColor: Colors.white, foregroundColor: kText),
+    backgroundColor: kMerchantBg,
+    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)),  ),
     body: SingleChildScrollView(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.stores.length > 1) ...[
         DropdownButtonFormField<String>(
@@ -5649,36 +5696,36 @@ class _AddDealState extends State<AddDealPage> {
             DropdownMenuItem<String>(value: s["_id"]?.toString() ?? "",
               child: Text(s["store_name"]?.toString() ?? "", overflow: TextOverflow.ellipsis))).toList(),
           onChanged: (v) { if (v != null) { final s = widget.stores.firstWhere((s) => s["_id"] == v, orElse: () => <String,dynamic>{}); setState(() { _selectedStoreId = v; _selectedStoreName = s["store_name"] ?? ""; }); _loadStoreExpiry(); } },
-          decoration: InputDecoration(labelText: "Store", prefixIcon: const Icon(Icons.store, color: kMuted, size: 20),
-            filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+          decoration: InputDecoration(labelText: "Store", prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
+            filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
         const SizedBox(height: 14),
       ] else
         Container(padding: const EdgeInsets.all(12), margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(color: kLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(10)),
-          child: Row(children: [const Icon(Icons.store, color: kPrimary, size: 18), const SizedBox(width: 8),
-            Text(_selectedStoreName, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w600))])),
+          decoration: BoxDecoration(color: kMerchantLight.withValues(alpha: .4), borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [const Icon(Icons.store, color: kMerchantPrimary, size: 18), const SizedBox(width: 8),
+            Text(_selectedStoreName, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w600))])),
       TextField(controller: _title,
-        decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+        decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMerchantMuted, size: 20),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       DropdownButtonFormField<String>(
         isExpanded: true,
         value: _category.isEmpty ? null : _category,
         items: _categories.map((e) { final c=(e is Map?e['name']:e).toString(); return DropdownMenuItem<String>(value:c,child:Text(c)); }).toList(),
         onChanged: (v) => setState(() => _category = v ?? ""),
-        decoration: InputDecoration(hintText: "Category", prefixIcon: const Icon(Icons.category, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+        decoration: InputDecoration(hintText: "Category", prefixIcon: const Icon(Icons.category, color: kMerchantMuted, size: 20),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       TextField(controller: _desc, maxLines: 3,
-        decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMuted, size: 20),
-          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kBorder)))),
+        decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMerchantMuted, size: 20),
+          filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
-      // ── Item 3: Deal Image (optional) ──
-      const Text("Deal Image", style: TextStyle(color: kMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+      // ── Item 3: Deal Image (required) ──
+      const Text("Deal Image", style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       GestureDetector(
         onTap: _pickDealImage,
@@ -5687,7 +5734,7 @@ class _AddDealState extends State<AddDealPage> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: (_dealImgB64 != null || _dealImgUrl != null) ? kPrimary : kBorder),
+            border: Border.all(color: (_dealImgB64 != null || _dealImgUrl != null) ? kMerchantPrimary : kMerchantBorder),
           ),
           child: _dealImgB64 != null
               ? Stack(children: [
@@ -5704,9 +5751,9 @@ class _AddDealState extends State<AddDealPage> {
                       ClipRRect(borderRadius: BorderRadius.circular(11),
                         child: Image.network(_dealImgUrl!, width: double.infinity, height: 130, fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            const Icon(Icons.broken_image_outlined, color: kMuted, size: 32),
+                            const Icon(Icons.broken_image_outlined, color: kMerchantMuted, size: 32),
                             const SizedBox(height: 6),
-                            const Text("Tap to replace image", style: TextStyle(color: kMuted, fontSize: 12)),
+                            const Text("Tap to replace image", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
                           ]))),
                       Positioned(top: 6, right: 6, child: GestureDetector(
                         onTap: () => setState(() => _dealImgUrl = null),
@@ -5715,11 +5762,11 @@ class _AddDealState extends State<AddDealPage> {
                           child: const Icon(Icons.close, color: Colors.white, size: 14)))),
                     ])
                   : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      const Icon(Icons.add_photo_alternate_outlined, size: 32, color: kAccent),
+                      const Icon(Icons.add_photo_alternate_outlined, size: 32, color: kMerchantAccent),
                       const SizedBox(height: 6),
-                      const Text("[ Upload Image ]", style: TextStyle(color: kMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                      const Text("[ Upload Image ]", style: TextStyle(color: kMerchantMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
-                      _InfoChip("📦 Max 2MB · Optional"),
+                      _InfoChip("📦 Max 2MB · Required"),
                     ]),
         ),
       ),
@@ -5729,28 +5776,28 @@ class _AddDealState extends State<AddDealPage> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: kBorder)),
+            color: Colors.white, borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: kMerchantBorder)),
           child: Row(children: [
-            const Icon(Icons.calendar_today_rounded, color: kMuted, size: 20),
+            const Icon(Icons.calendar_today_rounded, color: kMerchantMuted, size: 20),
             const SizedBox(width: 12),
             Expanded(
               child: Text(_endDate.isEmpty ? "Select End Date" : _formatEndDateDisplay(),
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: _endDate.isEmpty ? kMuted : kText, fontSize: 14, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: _endDate.isEmpty ? kMerchantMuted : kMerchantText, fontSize: 14, fontWeight: FontWeight.w600)),
             ),
             if (_storeExpiryDate != null) ...[
               const SizedBox(width: 8),
               Text("Max: ${_storeExpiryDisplay()}",
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
-                style: const TextStyle(color: kMuted, fontSize: 10)),
+                style: const TextStyle(color: kMerchantMuted, fontSize: 10)),
             ],
           ]))),
       const SizedBox(height: 20),
       SizedBox(height: 50, child: ElevatedButton(
         onPressed: _loading ? null : _save,
-        style: ElevatedButton.styleFrom(backgroundColor: kPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+        style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: kMerchantPrimary, shape: const StadiumBorder()),
         child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
           : Text(_isEdit ? "Save Changes" : "Add Deal", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)))),
       if (_msg.isNotEmpty) ...[const SizedBox(height: 10),
@@ -5812,8 +5859,8 @@ class _BannerThumbVideoState extends State<_BannerThumbVideo> {
 
   @override Widget build(BuildContext context) {
     if (_failed) {
-      return Container(width: 80, height: 80, color: kAccent,
-        child: Center(child: Text(widget.initial, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w900, fontSize: 22))));
+      return Container(width: 80, height: 80, color: kMerchantAccent,
+        child: Center(child: Text(widget.initial, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w900, fontSize: 22))));
     }
     final c = _c;
     final ready = c != null && c.value.isInitialized;
@@ -5911,7 +5958,7 @@ class _BannerVideoTileState extends State<_BannerVideoTile> {
     // Loading placeholder
     return Container(
       width: double.infinity, height: 120,
-      color: const Color(0xFF3E5F55),
+      color: OffroColors.primary,
       child: const Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
     );
   }
@@ -6002,30 +6049,29 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
 
   @override Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
+         
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text("Privacy Policy", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
+          child: Divider(height: 1, color: kMerchantBorder),
         ),
       ),
       body: _loading
-        ? const Center(child: CircularProgressIndicator(color: kPrimary))
+        ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
         : SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (_content.isEmpty)
                 const Text("Privacy policy content is being updated. Please check back later.",
-                  style: TextStyle(color: kMuted, fontSize: 14))
+                  style: TextStyle(color: kMerchantMuted, fontSize: 14))
               else ...[
                 Text(
                   _expanded ? _content : (_content.length > 280 ? _content.substring(0, 280) + "..." : _content),
-                  style: const TextStyle(fontSize: 14, color: kText, height: 1.6),
+                  style: const TextStyle(fontSize: 14, color: kMerchantText, height: 1.6),
                 ),
                 if (_content.length > 280) ...[
                   const SizedBox(height: 8),
@@ -6033,13 +6079,13 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
                     onTap: () => setState(() => _expanded = !_expanded),
                     child: Text(
                       _expanded ? "Read Less" : "Read More",
-                      style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14),
+                      style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700, fontSize: 14),
                     ),
                   ),
                 ],
               ],
               const SizedBox(height: 32),
-              const Divider(height: 1, color: kBorder),
+              const Divider(height: 1, color: kMerchantBorder),
               const SizedBox(height: 16),
               GestureDetector(
                 onTap: () => Navigator.push(context,
@@ -6105,16 +6151,15 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
 
   @override Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBg,
+      backgroundColor: kMerchantBg,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        foregroundColor: kText,
+         
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         title: const Text("Delete Account", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Divider(height: 1, color: kBorder),
+          child: Divider(height: 1, color: kMerchantBorder),
         ),
       ),
       body: Column(children: [
@@ -6140,7 +6185,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
           child: Align(
             alignment: Alignment.centerLeft,
             child: Text("Select a reason for deleting your account",
-              style: TextStyle(fontSize: 13, color: kMuted, fontWeight: FontWeight.w500)),
+              style: TextStyle(fontSize: 13, color: kMerchantMuted, fontWeight: FontWeight.w500)),
           ),
         ),
         Expanded(child: ListView.builder(
@@ -6155,21 +6200,21 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 decoration: BoxDecoration(
-                  color: selected ? kPrimary.withOpacity(0.08) : Colors.white,
+                  color: selected ? kMerchantPrimary.withOpacity(0.08) : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: selected ? kPrimary : kBorder),
+                  border: Border.all(color: selected ? kMerchantPrimary : kMerchantBorder),
                 ),
                 child: Row(children: [
                   Icon(
                     selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                    color: selected ? kPrimary : kMuted, size: 22,
+                    color: selected ? kMerchantPrimary : kMerchantMuted, size: 22,
                   ),
                   const SizedBox(width: 10),
                   Expanded(child: Text(r,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                      color: selected ? kPrimary : kText,
+                      color: selected ? kMerchantPrimary : kMerchantText,
                     )),
                   ),
                 ]),
@@ -6185,12 +6230,12 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
               onPressed: _selectedReason == null ? null : () => _showConfirmDialog(),
               icon: const Icon(Icons.delete_forever_rounded, size: 20),
               label: const Text("Submit Delete Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-              style: ElevatedButton.styleFrom(
+              style: ElevatedButton.styleFrom(elevation: 0, 
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
                 disabledBackgroundColor: Colors.red.withOpacity(0.3),
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: const StadiumBorder(),
               ),
             ),
           ),
@@ -6205,24 +6250,24 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Delete Account?", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
+        title: const Text("Delete Account?", style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
         content: const Text(
           "Your merchant account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your stores, products and data cannot be retrieved. Are you absolutely sure?",
-          style: TextStyle(fontSize: 14, color: kText, height: 1.5),
+          style: TextStyle(fontSize: 14, color: kMerchantText, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel", style: TextStyle(color: kMuted, fontWeight: FontWeight.w600)),
+            child: const Text("Cancel", style: TextStyle(color: kMerchantMuted, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
               _submitDeletion();
             },
-            style: ElevatedButton.styleFrom(
+            style: ElevatedButton.styleFrom(elevation: 0, 
               backgroundColor: Colors.red, foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: const StadiumBorder(),
             ),
             child: const Text("Yes, Delete", style: TextStyle(fontWeight: FontWeight.w700)),
           ),
@@ -6241,10 +6286,10 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Deletion Requested", style: TextStyle(fontWeight: FontWeight.w800, color: kText)),
+          title: const Text("Deletion Requested", style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
           content: const Text(
             "Your account deletion request has been submitted. You have been logged out.",
-            style: TextStyle(fontSize: 14, color: kText),
+            style: TextStyle(fontSize: 14, color: kMerchantText),
           ),
           actions: [
             ElevatedButton(
@@ -6257,9 +6302,9 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
                   (_) => false,
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kPrimary, foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              style: ElevatedButton.styleFrom(elevation: 0, 
+                backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,
+                shape: const StadiumBorder(),
               ),
               child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w700)),
             ),
