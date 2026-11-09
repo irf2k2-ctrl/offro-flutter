@@ -17,6 +17,9 @@ import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/utils/navigation.dart';
 import '../../core/design/design.dart' show OffroColors, OffroShadows, OffroText, OffroRadii, OffroIcon, OffroIcons, OffroIconData;
+// STAGING-ONLY MSG91 probe (inactive unless OTP_TOKEN_PROBE=true + debug + exact Staging host)
+import '../../core/services/otp_probe_store.dart';
+import 'otp_probe_results_screen.dart';
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
 const _kWidgetId  = '36656f6a786e313430373338';
@@ -117,6 +120,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
     try {
       final resp = await OTPWidget.verifyOTP({'reqId': widget.reqId, 'otp': otp});
+      if (otpProbeEnabled) OtpProbeStore.instance.captureResponse(resp); // probe: redacted shape only
       if (resp != null && resp['type'] == 'success') {
         await widget.onVerified();
       } else {
@@ -127,6 +131,7 @@ class _OtpScreenState extends State<OtpScreen> {
       // Round 9: OTPWidget.verifyOTP (MSG91 SDK) exceptions — network/SDK
       // failures never reach the customer as raw technical text.
       debugPrint('[OffrO] OTP verify error: $e');
+      if (otpProbeEnabled) OtpProbeStore.instance.captureFailure(); // probe: nothing about e is kept
       if (mounted) setState(() {
         _msg = friendlyError(e, fallback: "Unable to verify OTP right now. Please try again.");
         _msgOk = false; _loading = false;
@@ -271,6 +276,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         color: _resendSecs > 0 ? OffroColors.textMuted : OffroColors.primary)),
                   ])),
             )),
+            if (otpProbeEnabled) const Center(child: OtpProbeLink()), // probe only
             const SizedBox(height: 24),
           ]),
         )),
@@ -1365,6 +1371,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                         style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.secondarySolid))),
                       const SizedBox(height: 10),
                       _socialBar(),
+                      if (otpProbeEnabled) const Center(child: OtpProbeLink()), // probe only
                     ]),
                   ),
                 ),
