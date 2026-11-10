@@ -6,6 +6,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:smart_auth/smart_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
 import '../../core/constants/app_constants.dart';
@@ -17,10 +19,173 @@ import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/utils/navigation.dart';
 import '../../core/design/design.dart' show OffroColors, OffroShadows, OffroText, OffroRadii, OffroIcon, OffroIcons, OffroIconData;
+// STAGING-ONLY MSG91 probe (inactive unless OTP_TOKEN_PROBE=true + debug + exact Staging host)
+import '../../core/services/otp_probe_store.dart';
+import 'otp_probe_results_screen.dart';
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
 const _kWidgetId  = '36656f6a786e313430373338';
 const _kTokenAuth = '516819TuGI7seX6a06f51cP1';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SMS USER CONSENT (Android) — OTP autofill helper
+//
+// Uses smart_auth 3.2.0 `getSmsWithUserConsentApi` (Google SMS User Consent API):
+//  • NO READ_SMS / RECEIVE_SMS permission is needed or declared;
+//  • Android shows its own "Allow OffrO to read this message?" dialog for the
+//    single incoming message; only if the user taps Allow does the app get it;
+//  • it autofills the boxes only. The code is still verified by MSG91
+//    (OTPWidget.verifyOTP) exactly like a hand-typed code.
+// Only one listener exists at a time: starting a new one, or cancel(), makes any
+// earlier result resolve to null (generation counter), so a stale SMS can never
+// be applied. Every failure path (declined, timeout, unsupported platform,
+// plugin error) resolves to null and leaves manual entry untouched.
+// The SMS text / code is never logged.
+// ══════════════════════════════════════════════════════════════════════════════
+final RegExp _kFourDigitToken = RegExp(r'(?<!\d)\d{4}(?!\d)');
+
+/// Exactly four digits, or null. Looks only at stand-alone 4-digit numbers in
+/// [sms]; if there are several different ones (ambiguous) it returns null
+/// instead of guessing. If [sms] is unavailable, falls back to [code] only when
+/// it is itself exactly four digits.
+String? extractFourDigitOtp({String? code, String? sms}) {
+  if (sms != null && sms.isNotEmpty) {
+    final found = _kFourDigitToken.allMatches(sms).map((m) => m.group(0)!).toSet();
+    return found.length == 1 ? found.first : null;
+  }
+  final c = code?.trim();
+  return (c != null && RegExp(r'^\d{4}$').hasMatch(c)) ? c : null;
+}
+
+/// A started SMS User Consent listening session. [code] completes with a valid
+/// 4-digit code, or null (declined / timeout / cancelled / superseded /
+/// unsupported / error). Never throws.
+class SmsConsentSession {
+  const SmsConsentSession._(this.code);
+  final Future<String?> code;
+}
+
+/// Thin seam over smart_auth so the sequencing logic can be tested with a fake.
+abstract class SmsConsentNative {
+  /// Removes the native SMS User Consent listener (no-op when none). Never throws.
+  Future<void> removeListener();
+  /// Issues the SMS User Consent request immediately and completes with a valid
+  /// 4-digit code, or null (declined / timeout / error). Never throws.
+  Future<String?> waitForCode();
+}
+
+class _SmartAuthNative implements SmsConsentNative {
+  const _SmartAuthNative();
+
+  /// Bounded (2 s) so a misbehaving plugin cannot stall the queue for long.
+  @override
+  Future<void> removeListener() async {
+    try {
+      await SmartAuth.instance.removeUserConsentApiListener().timeout(const Duration(seconds: 2));
+    } catch (_) {/* nothing to remove, or timed out */}
+  }
+
+  // The first statement runs synchronously: the native request is issued before
+  // this method returns its (pending) future.
+  @override
+  Future<String?> waitForCode() async {
+    try {
+      final res = await SmartAuth.instance.getSmsWithUserConsentApi(
+        matcher: r'(?<!\d)\d{4}(?!\d)',
+      );
+      if (res.isCanceled || !res.hasData) return null; // dialog dismissed, timeout or error
+      final sms = res.requireData;
+      return extractFourDigitOtp(code: sms.code, sms: sms.sms);
+    } catch (e) {
+      debugPrint('[OffrO] SMS consent unavailable: ${e.runtimeType}'); // type only, never content
+      return null;
+    }
+  }
+}
+
+class SmsConsentOtp {
+  SmsConsentOtp._();
+  static int _gen = 0;
+  static SmsConsentNative _native = const _SmartAuthNative();
+
+  /// Test hook: substitute the native layer (null restores the real one).
+  static set debugNative(SmsConsentNative? n) => _native = n ?? const _SmartAuthNative();
+
+  static bool get _supported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  // ALL native listener operations (remove / register) run through this queue, one at a
+  // time, in call order. An older removal can therefore never finish after a newer
+  // listener has been registered, and two removals never overlap. The queue only waits
+  // for the REMOVE and the issuing of the request - never for the SMS itself.
+  static Future<void> _tail = Future<void>.value();
+  static Future<T> _serial<T>(Future<T> Function() op) {
+    final result = _tail.then((_) => op());
+    _tail = result.then<void>((_) {}, onError: (Object _) {});
+    return result;
+  }
+
+  static SmsConsentSession _none() => SmsConsentSession._(Future<String?>.value(null));
+
+  /// Deterministic (re)start. Completes only AFTER the previous native listener has been
+  /// removed and the new SMS User Consent request has been issued, so callers can `await`
+  /// it and only then request the OTP. A session that was superseded by a later start()
+  /// or cancel() - before its turn in the queue or while it was removing - never registers
+  /// and its [SmsConsentSession.code] resolves to null.
+  static Future<SmsConsentSession> start() {
+    if (!_supported) return Future<SmsConsentSession>.value(_none());
+    final gen = ++_gen;
+    return _serial<SmsConsentSession>(() async {
+      if (gen != _gen) return _none();            // superseded before its turn: touches nothing
+      await _native.removeListener();             // 1) previous listener fully removed
+      if (gen != _gen) return _none();            // superseded/cancelled meanwhile: must not register
+      return SmsConsentSession._(_wait(gen));     // 2) only now register the new listener
+    });
+  }
+
+  /// Stops listening: pending/queued sessions resolve to null and the native listener
+  /// is removed (queued after any operation already in progress).
+  static Future<void> cancel() {
+    _gen++;
+    if (!_supported) return Future<void>.value();
+    return _serial<void>(() => _native.removeListener());
+  }
+
+  static Future<String?> _wait(int gen) async {
+    final code = await _native.waitForCode();
+    return gen == _gen ? code : null;             // cancelled or superseded meanwhile
+  }
+}
+
+enum SmsGateAction { apply, hold, drop }
+
+/// Pure decision logic for an incoming SMS code (no Flutter, unit-testable).
+///  • one result is used at most once per listener generation (duplicate protection);
+///  • a result from an older/cancelled listener is dropped;
+///  • while a verification is already running the result is dropped;
+///  • while a resend is in flight the result is HELD and applied when the resend finishes.
+class SmsAutofillGate {
+  int _gen = 0;
+  int _usedGen = 0;
+  String? _held;
+
+  /// A new listener starts (first send or resend): returns its generation.
+  int begin() { _held = null; return ++_gen; }
+
+  /// Cancel / dispose: nothing from earlier listeners may be applied any more.
+  void invalidate() { _held = null; _gen++; }
+
+  SmsGateAction onResult(int gen, String? code, {required bool verifying, required bool resending}) {
+    if (gen != _gen || _usedGen == gen) return SmsGateAction.drop;
+    if (code == null || !RegExp(r'^\d{4}$').hasMatch(code)) return SmsGateAction.drop;
+    if (verifying) return SmsGateAction.drop;
+    _usedGen = gen;
+    if (resending) { _held = code; return SmsGateAction.hold; }
+    return SmsGateAction.apply;
+  }
+
+  /// Returns (once) a code that was held during a resend.
+  String? takeHeld() { final c = _held; _held = null; return c; }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // OTP SCREEN  (dark gradient — unchanged design)
@@ -29,11 +194,15 @@ class OtpScreen extends StatefulWidget {
   final String phone;
   final String reqId;
   final Future<void> Function() onVerified;
+  /// Pending SMS User Consent result, started by LoginScreen BEFORE sendOTP.
+  /// Null on platforms/paths without autofill; manual entry always works.
+  final Future<String?>? smsCode;
   const OtpScreen({
     super.key,
     required this.phone,
     required this.reqId,
     required this.onVerified,
+    this.smsCode,
   });
   @override State<OtpScreen> createState() => _OtpScreenState();
 }
@@ -47,16 +216,20 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _msgOk     = false;
   int _resendSecs = 30;
   Timer? _resendTimer;
+  final SmsAutofillGate _smsGate = SmsAutofillGate(); // decides whether an SMS code is applied, held or dropped
 
   @override void initState() {
     super.initState();
     _startResendTimer();
+    _consumeSms(widget.smsCode);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) FocusScope.of(context).requestFocus(_foci[0]);
     });
   }
 
   @override void dispose() {
+    _smsGate.invalidate();     // ignore any late SMS result
+    SmsConsentOtp.cancel();    // release the Android listener
     for (var c in _ctls) c.dispose();
     for (var f in _foci) f.dispose();
     _resendTimer?.cancel();
@@ -74,6 +247,28 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   String get _enteredOtp => _ctls.map((c) => c.text).join();
+
+  // Waits for the SMS User Consent result and, if it is a valid 4-digit code,
+  // fills the boxes through the SAME path as a pasted code (_handleOtpChange),
+  // which then calls the existing _verify(). SmsAutofillGate decides: apply now,
+  // hold until an in-flight resend finishes, or drop (stale / duplicate / a
+  // verification is already running).
+  void _consumeSms(Future<String?>? pending) {
+    final gen = _smsGate.begin();
+    if (pending == null) return;
+    pending.then((code) {
+      if (!mounted) return;
+      final action = _smsGate.onResult(gen, code, verifying: _loading, resending: _resending);
+      if (action == SmsGateAction.apply && code != null) _handleOtpChange(0, code);
+    }).catchError((Object _) {/* manual entry remains available */});
+  }
+
+  // Applies an SMS code that arrived while a resend was still in flight.
+  void _applyHeldSms() {
+    final code = _smsGate.takeHeld();
+    if (code == null || !mounted || _loading || _resending) return;
+    _handleOtpChange(0, code);
+  }
 
   // Item 4: handles both a normal single-keystroke digit (unchanged
   // auto-advance behavior) and a multi-character value inserted all at
@@ -117,6 +312,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
     try {
       final resp = await OTPWidget.verifyOTP({'reqId': widget.reqId, 'otp': otp});
+      if (otpProbeEnabled) OtpProbeStore.instance.captureResponse(resp); // probe: redacted shape only
       if (resp != null && resp['type'] == 'success') {
         await widget.onVerified();
       } else {
@@ -127,6 +323,7 @@ class _OtpScreenState extends State<OtpScreen> {
       // Round 9: OTPWidget.verifyOTP (MSG91 SDK) exceptions — network/SDK
       // failures never reach the customer as raw technical text.
       debugPrint('[OffrO] OTP verify error: $e');
+      if (otpProbeEnabled) OtpProbeStore.instance.captureFailure(); // probe: nothing about e is kept
       if (mounted) setState(() {
         _msg = friendlyError(e, fallback: "Unable to verify OTP right now. Please try again.");
         _msgOk = false; _loading = false;
@@ -138,6 +335,11 @@ class _OtpScreenState extends State<OtpScreen> {
     if (_resendSecs > 0 || _resending) return;
     setState(() { _resending = true; _msg = ''; });
     try {
+      // Restart the listener BEFORE the new SMS is requested: start() returns only
+      // after the previous native listener is removed and the new one is registered.
+      final session = await SmsConsentOtp.start();
+      if (!mounted) return;
+      _consumeSms(session.code);
       final resp = await OTPWidget.retryOTP({'reqId': widget.reqId});
       for (var c in _ctls) c.clear();
       if (mounted) {
@@ -147,7 +349,14 @@ class _OtpScreenState extends State<OtpScreen> {
           _msg = ok ? 'OTP resent successfully.' : (resp?['message']?.toString() ?? 'Resend failed.');
           _resending = false;
         });
-        if (ok) { _startResendTimer(); FocusScope.of(context).requestFocus(_foci[0]); }
+        if (ok) {
+          _startResendTimer();
+          FocusScope.of(context).requestFocus(_foci[0]);
+          _applyHeldSms();                                // SMS that arrived while the (successful) resend was in flight
+        } else {
+          _smsGate.invalidate();                          // failed resend: discard any held code,
+          SmsConsentOtp.cancel();                         // and stop listening
+        }
       }
     } catch (e) {
       // Round 9: OTPWidget.retryOTP (MSG91 SDK) exceptions — same mapping
@@ -157,6 +366,8 @@ class _OtpScreenState extends State<OtpScreen> {
         _msg = friendlyError(e, fallback: "Unable to resend OTP right now. Please try again.");
         _msgOk = false; _resending = false;
       });
+      _smsGate.invalidate();                              // resend threw: discard any held code,
+      SmsConsentOtp.cancel();                             // and stop listening
     }
   }
 
@@ -271,6 +482,7 @@ class _OtpScreenState extends State<OtpScreen> {
                         color: _resendSecs > 0 ? OffroColors.textMuted : OffroColors.primary)),
                   ])),
             )),
+            if (otpProbeEnabled) const Center(child: OtpProbeLink()), // probe only
             const SizedBox(height: 24),
           ]),
         )),
@@ -1067,9 +1279,12 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         if (!check) { _setMsg('Number not registered. Please register first.'); setState(() => _loading = false); return; }
       }
 
-      // Send OTP
+      // Send OTP — start the SMS User Consent listener FIRST so the SMS
+      // cannot arrive before we are listening.
+      final smsFuture = (await SmsConsentOtp.start()).code;
       final sendResp = await OTPWidget.sendOTP({'identifier': e164});
       if (sendResp == null || sendResp['type'] != 'success') {
+        SmsConsentOtp.cancel();
         // Round 9: MSG91 SDK failure message — map through the same
         // classifier so a technical SDK/gateway dump never reaches the
         // customer, while a clean SDK message (if any) is preserved.
@@ -1080,13 +1295,14 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         _setMsg(err); return;
       }
       final reqId = sendResp['message']?.toString() ?? '';
-      if (!mounted) return;
+      if (!mounted) { SmsConsentOtp.cancel(); return; }
       setState(() => _loading = false);
 
       // Show OTP screen
       Navigator.push(context, appRoute(OtpScreen(
         phone: phone,
         reqId: reqId,
+        smsCode: smsFuture,
         onVerified: () async {
           // OTP passed → ACCOUNT LOGIN/LOAD ACCOUNT → CHECK ACCOUNT LOCATION
           // → LOCATION HANDLING IF REQUIRED, all before Role Selection.
@@ -1114,6 +1330,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       // HandshakeException leak — checkUserPhone/registerUser/OTPWidget
       // failures now always go through the shared classifier.
       debugPrint('[OffrO] send OTP flow error: $e');
+      SmsConsentOtp.cancel();
       _setMsg(friendlyError(e));
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -1365,6 +1582,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                         style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.secondarySolid))),
                       const SizedBox(height: 10),
                       _socialBar(),
+                      if (otpProbeEnabled) const Center(child: OtpProbeLink()), // probe only
                     ]),
                   ),
                 ),
