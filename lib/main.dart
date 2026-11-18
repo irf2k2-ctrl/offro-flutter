@@ -20,6 +20,7 @@ import 'firebase_options.dart';
 // ─────────────────────── SPLIT IMPORTS ───────────────────────
 import 'core/constants/app_constants.dart';
 import 'core/utils/image_url.dart';
+import 'core/utils/category_counts.dart';
 import 'core/utils/geo.dart';
 import 'core/utils/navigation.dart';
 import 'core/utils/store_hours.dart';
@@ -1923,14 +1924,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       padding: const EdgeInsets.only(top: 28),
                       child: _CategoryChipsRow(
                         cats: _richCats,
+                        stores: _stores,
                         token: widget.token,
                         userLat: _userLat,
                         userLng: _userLng,
                         selectedCity: city,
-                        onMoreTap: () => Navigator.push(context, appRoute(_BrowseAllCategoriesScreen(
-                          token: widget.token,
-                          userLat: _userLat, userLng: _userLng,
-                          selectedCity: city))),
                       ),
                     )),
 
@@ -3265,14 +3263,9 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
 
       final filtered = List<Map<String,dynamic>>.from(
         all.where((s) {
-          final sc = (s["category"] ?? "").toString().toLowerCase().trim();
-          if (sc.isEmpty) return false;
-          // Exact match → starts-with (handles plurals) → contains (handles compound names)
-          return sc == catLower
-              || sc.startsWith(catLower)
-              || catLower.startsWith(sc)
-              || sc.contains(catLower)
-              || catLower.contains(sc);
+          // Shared rule (core/utils/category_counts.dart) — the same one the home
+          // category store-count uses: exact → starts-with (plurals) → contains.
+          return storeMatchesCategory((s["category"] ?? "").toString(), catLower);
         }),
       );
 
@@ -5278,66 +5271,116 @@ OffroTone _categoryTone(String name) {
   );
 }
 
-class _CategoryChipsRow extends StatelessWidget {
+/// Home categories: a fixed 4-column grid (no horizontal scrolling). Only
+/// categories that have stores are shown, each with its store count in a small
+/// white pill at the top-right. 8 are shown first (2 rows x 4); when more exist a
+/// "See all" button reveals the rest. Tile look (shape, colours, icons, text)
+/// is unchanged.
+class _CategoryChipsRow extends StatefulWidget {
   final List<Map<String,dynamic>> cats;
+  final List<Map<String,dynamic>> stores;
   final String token;
-  final VoidCallback onMoreTap;
   final double? userLat;
   final double? userLng;
   final String? selectedCity;
-  const _CategoryChipsRow({required this.cats, required this.token, required this.onMoreTap, this.userLat, this.userLng, this.selectedCity});
+  const _CategoryChipsRow({required this.cats, required this.stores, required this.token, this.userLat, this.userLng, this.selectedCity});
+
+  @override State<_CategoryChipsRow> createState() => _CategoryChipsRowState();
+}
+
+class _CategoryChipsRowState extends State<_CategoryChipsRow> {
+  bool _expanded = false;
 
   @override Widget build(BuildContext context) {
     final names = <String>[];
-    for (final cat in cats) {
+    for (final cat in widget.cats) {
       final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
       if (name.isNotEmpty) names.add(name);
     }
-    if (names.isEmpty) return const SizedBox.shrink();
+    final used = usedCategoryCounts(names, widget.stores);
+    if (used.isEmpty) return const SizedBox.shrink();
+    final shown = visibleCategories(used, expanded: _expanded);
+    final rows = chunkRows(shown);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       OffroSectionTitle(
         eyebrow: "Find what you need",
         eyebrowColor: OffroColors.sageStrong,
         title: "Explore categories",
-        actionLabel: "See all",
-        onAction: onMoreTap,
       ),
       const SizedBox(height: 16),
-      // Every real category, swiped manually left/right (no auto-scroll, no
-      // carousel/page indicator).
-      SizedBox(
-        height: 92,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          padding: OffroSpacing.gutterH,
-          itemCount: names.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 14),
-          itemBuilder: (_, i) => SizedBox(width: 72, child: _tile(context, names[i])),
-        ),
+      Padding(
+        padding: OffroSpacing.gutterH,
+        child: Column(children: [
+          for (var r = 0; r < rows.length; r++) ...[
+            if (r > 0) const SizedBox(height: 16),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              for (var c = 0; c < kCategoryColumns; c++)
+                Expanded(
+                  child: c < rows[r].length
+                      ? _tile(context, rows[r][c])
+                      : const SizedBox.shrink(),
+                ),
+            ]),
+          ],
+        ]),
       ),
+      if (needsSeeAll(used))
+        Center(
+          child: InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: OffroRadii.pillRadius,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 14, 12, 2),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(_expanded ? "See less" : "See all", style: OffroText.caption),
+                const SizedBox(width: 2),
+                _expanded
+                    ? const RotatedBox(quarterTurns: 3, child: OffroIcon(OffroIcons.chevron, size: 13, color: OffroColors.primary))
+                    : const OffroIcon(OffroIcons.chevron, size: 13, color: OffroColors.primary),
+              ]),
+            ),
+          ),
+        ),
     ]);
   }
 
-  Widget _tile(BuildContext context, String name) {
+  Widget _tile(BuildContext context, CategoryCount cat) {
+    final name = cat.name;
     final tone = _categoryTone(name);
     return GestureDetector(
       onTap: () => Navigator.push(context, MaterialPageRoute(
         builder: (_) => _CategoryStoresScreen(
-          categoryName: name, token: token,
-          userLat: userLat, userLng: userLng,
-          selectedCity: selectedCity))),
+          categoryName: name, token: widget.token,
+          userLat: widget.userLat, userLng: widget.userLng,
+          selectedCity: widget.selectedCity))),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 56, height: 56,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: tone.background,
-            borderRadius: BorderRadius.circular(18),
+        Stack(clipBehavior: Clip.none, children: [
+          Container(
+            width: 56, height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: tone.background,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: OffroIcon(OffroIcons.forCategory(name), size: 24, color: tone.foreground),
           ),
-          child: OffroIcon(OffroIcons.forCategory(name), size: 24, color: tone.foreground),
-        ),
+          Positioned(
+            top: -4, right: -6,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: const [BoxShadow(color: Color(0x1F000000), blurRadius: 3, offset: Offset(0, 1))],
+              ),
+              child: Text(categoryCountLabel(cat.count),
+                style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, height: 1.2, color: OffroColors.text)),
+            ),
+          ),
+        ]),
         const SizedBox(height: 8),
         Text(name,
           maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
@@ -6282,6 +6325,9 @@ class _ExploreAreasSection extends StatelessWidget {
 
 
 // ─── 7. Browse All Categories Screen ─────────────────────────────
+// No longer opened from the home categories ("See all" now expands in place and only
+// lists categories that have stores). Kept for now; safe to delete in a later clean-up.
+// ignore: unused_element
 class _BrowseAllCategoriesScreen extends StatefulWidget {
   final String token;
   final double? userLat;
