@@ -1260,7 +1260,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     if (rawPhone.isEmpty) { _setMsg('Enter your mobile number'); return; }
     if (digits.length != 10) { _setMsg('Enter a valid 10-digit mobile number'); return; }
     if (_isReg && _nameC.text.trim().isEmpty) { _setMsg('Enter your name'); return; }
-    if (_isReg && !_agreed) { _setMsg('Please accept the Terms & Conditions and Privacy Policy to continue'); return; }
+    if (_isReg && !_agreed) { _setMsg('Please tick the box to accept the Terms & Conditions and Privacy Policy and consent to WhatsApp updates from OffrO, to continue'); return; }
 
     final phone = _normalisePhone(rawPhone);
     final e164  = phone.startsWith('+') ? phone.substring(1) : phone;
@@ -1272,7 +1272,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         // Registration: block if already registered
         final check = await Api.checkUserPhone(phone);
         if (check) { _setMsg('This number is already registered. Please login.'); setState(() => _loading = false); return; }
-        await Api.registerUser(_nameC.text.trim(), phone, consent: _agreed);
+        await Api.registerUser(_nameC.text.trim(), phone, consent: _agreed, whatsappConsent: _agreed);
       } else {
         // Login: block if NOT registered
         final check = await Api.checkUserPhone(phone);
@@ -1502,7 +1502,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                               _legalLink('Terms & Conditions', () => _showPolicy('Terms & Conditions', Api.fetchTerms('user'))),
                               Text(' and ', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
                               _legalLink('Privacy Policy', () => _showPolicy('Privacy Policy', Api.fetchPolicy('privacy'))),
-                              Text(' and consent to OffrO processing my information.', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
+                              Text(' and consent to receive updates and promotional messages from OffrO via WhatsApp.', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
                             ])),
                           ]),
                         ),

@@ -6,6 +6,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
+import '../../core/services/rewards_state.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../../core/design/design.dart';
 
@@ -26,7 +27,16 @@ class _WalletState extends State<WalletPage> {
   bool loading = true;
   List _history = [];
 
-  @override void initState() { super.initState(); _load(); }
+  @override void initState() {
+    super.initState();
+    _load();
+    RewardsState.instance.revision.addListener(_load); // a scan credited points while this tab stays alive
+  }
+
+  @override void dispose() {
+    RewardsState.instance.revision.removeListener(_load);
+    super.dispose();
+  }
 
   Future<void> _load() async {
     try {

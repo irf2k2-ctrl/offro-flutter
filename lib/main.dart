@@ -31,6 +31,7 @@ import 'screens/legal/privacy_policy_page.dart';
 import 'core/services/api_service.dart';
 import 'core/services/error_mapper.dart';
 import 'core/services/fav_state.dart';
+import 'core/services/rewards_state.dart';
 import 'core/services/prefs_service.dart';
 import 'core/services/fcm_service.dart';
 import 'core/models/offro_location.dart';
@@ -914,6 +915,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // Sync badge with real-time notifier (updates from FCM foreground messages)
     _unreadNotifier.addListener(_onUnreadChanged);
     FavState.instance.productRevision.addListener(_onFavChanged);
+    RewardsState.instance.revision.addListener(_refreshWalletPoints); // a QR scan credited points
     // FIX 1: scroll listener for FAB visibility
     // Item 3: the "hide bottom nav on scroll down" behavior (previously
     // toggling _navVisible here) has been removed — the existing bottom
@@ -1832,8 +1834,21 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _onFavChanged() { if (mounted) setState(() {}); }
 
+  /// Re-reads ONLY the points balance (same /user/wallet call the Rewards screen uses). Home used to get
+  /// it solely from _loadSupplementary(), so a scan done above Home - or a pull-to-refresh whose
+  /// supplementary load was superseded - left the old balance on screen. A failed request keeps the
+  /// current balance (never resets it to 0).
+  Future<void> _refreshWalletPoints() async {
+    if (widget.token.isEmpty || widget.isGuest) return;
+    try {
+      final pts = RewardsState.visitPointsFrom(await Api.getWallet(widget.token));
+      if (pts != null && mounted && pts != _walletPoints) setState(() => _walletPoints = pts);
+    } catch (_) { /* keep the balance already shown */ }
+  }
+
   @override void dispose() {
     FavState.instance.productRevision.removeListener(_onFavChanged);
+    RewardsState.instance.revision.removeListener(_refreshWalletPoints);
     _unreadNotifier.removeListener(_onUnreadChanged);
     _locTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -1850,6 +1865,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // Refresh unread badge when app comes back to foreground
     if (state == AppLifecycleState.resumed) {
       _loadUnreadCount();
+      unawaited(_refreshWalletPoints());
       if (mounted) setState(() => _unreadCount = _unreadNotifier.value);
       // Silent GPS check on return to the app (throttled inside the service).
       unawaited(_autoRefreshLocation());
@@ -1894,7 +1910,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                     onBellTap: () => _openNotifications(context),
                   ),
                   Expanded(child: RefreshIndicator(
-                  onRefresh: () { setState(() => _dealsNonce++); return _fetchStores(city); },
+                  onRefresh: () { setState(() => _dealsNonce++); return Future.wait([_fetchStores(city), _refreshWalletPoints()]); },
                   color: kPrimary,
                   child: CustomScrollView(controller: _scrollCtrl, slivers:[
 
@@ -5271,10 +5287,10 @@ OffroTone _categoryTone(String name) {
   );
 }
 
-/// Home categories: a fixed 4-column grid (no horizontal scrolling). Only
-/// categories that have stores are shown, each with its store count in a small
-/// white pill at the top-right. 8 are shown first (2 rows x 4); when more exist a
-/// "See all" button reveals the rest. Tile look (shape, colours, icons, text)
+/// Home categories: a fixed 4-column grid (no horizontal scrolling). Always 8 categories
+/// (zero-store ones fill the gaps), each with its store count in a small
+/// red pill (white number) at the top-right. The 8 categories with the most stores are shown (2 rows x 4), highest first;
+/// "See All" next to the heading opens the full Categories screen. Tile look (shape, colours, icons, text)
 /// is unchanged.
 class _CategoryChipsRow extends StatefulWidget {
   final List<Map<String,dynamic>> cats;
@@ -5289,7 +5305,8 @@ class _CategoryChipsRow extends StatefulWidget {
 }
 
 class _CategoryChipsRowState extends State<_CategoryChipsRow> {
-  bool _expanded = false;
+  /// Store-count pill: red fill, white number (only the pill's colours; counts and layout are unchanged).
+  static const Color _countPillRed = Color(0xFFD32F2F);
 
   @override Widget build(BuildContext context) {
     final names = <String>[];
@@ -5297,9 +5314,11 @@ class _CategoryChipsRowState extends State<_CategoryChipsRow> {
       final name = cat["name"]?.toString() ?? cat["category"]?.toString() ?? "";
       if (name.isNotEmpty) names.add(name);
     }
-    final used = usedCategoryCounts(names, widget.stores);
-    if (used.isEmpty) return const SizedBox.shrink();
-    final shown = visibleCategories(used, expanded: _expanded);
+    final all = allCategoryCounts(names, widget.stores); // includes categories with 0 stores
+    if (all.isEmpty) return const SizedBox.shrink();
+    // Always 8 (when 8 exist): most stores first, then alphabetical, padded with zero-store categories.
+    // "See All" opens the full Categories screen.
+    final shown = topCategoriesByStoreCount(all);
     final rows = chunkRows(shown);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -5307,6 +5326,11 @@ class _CategoryChipsRowState extends State<_CategoryChipsRow> {
         eyebrow: "Find what you need",
         eyebrowColor: OffroColors.sageStrong,
         title: "Explore categories",
+        actionLabel: "See All",
+        onAction: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => _BrowseAllCategoriesScreen(
+            token: widget.token, userLat: widget.userLat, userLng: widget.userLng,
+            selectedCity: widget.selectedCity))),
       ),
       const SizedBox(height: 16),
       Padding(
@@ -5325,23 +5349,6 @@ class _CategoryChipsRowState extends State<_CategoryChipsRow> {
           ],
         ]),
       ),
-      if (needsSeeAll(used))
-        Center(
-          child: InkWell(
-            onTap: () => setState(() => _expanded = !_expanded),
-            borderRadius: OffroRadii.pillRadius,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 14, 12, 2),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(_expanded ? "See less" : "See all", style: OffroText.caption),
-                const SizedBox(width: 2),
-                _expanded
-                    ? const RotatedBox(quarterTurns: 3, child: OffroIcon(OffroIcons.chevron, size: 13, color: OffroColors.primary))
-                    : const OffroIcon(OffroIcons.chevron, size: 13, color: OffroColors.primary),
-              ]),
-            ),
-          ),
-        ),
     ]);
   }
 
@@ -5372,12 +5379,12 @@ class _CategoryChipsRowState extends State<_CategoryChipsRow> {
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _countPillRed,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: const [BoxShadow(color: Color(0x1F000000), blurRadius: 3, offset: Offset(0, 1))],
               ),
               child: Text(categoryCountLabel(cat.count),
-                style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, height: 1.2, color: OffroColors.text)),
+                style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, height: 1.2, color: Colors.white)),
             ),
           ),
         ]),
@@ -6325,9 +6332,7 @@ class _ExploreAreasSection extends StatelessWidget {
 
 
 // ─── 7. Browse All Categories Screen ─────────────────────────────
-// No longer opened from the home categories ("See all" now expands in place and only
-// lists categories that have stores). Kept for now; safe to delete in a later clean-up.
-// ignore: unused_element
+// Opened by "See All" on the Home categories: lists EVERY admin category (not just the top 8).
 class _BrowseAllCategoriesScreen extends StatefulWidget {
   final String token;
   final double? userLat;

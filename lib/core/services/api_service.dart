@@ -162,8 +162,19 @@ class Api {
 
   /// Unified account login — checks users + merchants, returns one token + is_merchant flag
   static Future<Map<String,dynamic>> loginAccount(String phone) => _post("/user/account-login", {"phone": phone});
-  static Future<Map<String,dynamic>> registerUser(String name, String phone, {bool consent = false}) =>
-      _post("/user/register", {"name": name, "phone": phone, "city": "", if (consent) "consent": true});
+  /// Version id of the registration checkbox wording. MUST match
+  /// REGISTRATION_CONSENT_VERSION in the backend (services/wa_consent.py).
+  static const String registrationConsentVersion = "reg-wa-2026-11-18";
+  static Future<Map<String,dynamic>> registerUser(String name, String phone,
+          {bool consent = false, bool whatsappConsent = false}) =>
+      _post("/user/register", {
+        "name": name, "phone": phone, "city": "",
+        if (consent) "consent": true,
+        if (consent && whatsappConsent) ...{
+          "whatsapp_consent": true,
+          "consent_version": registrationConsentVersion,
+        },
+      });
   /// Check if phone is already registered as a user.
   /// Round 9 FIX: previously swallowed EVERY failure (including a network
   /// drop, a timeout, or a malformed server response) into `false`, which

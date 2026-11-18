@@ -15,6 +15,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/design/design.dart';
 import '../../core/services/api_service.dart';
+import 'support_info_note.dart';
 
 class ProfileEntry {
   final OffroIconData icon;
@@ -264,6 +265,7 @@ class _ProfileTabState extends State<ProfileTab> {
       children: [
         const OffroScreenHeader(eyebrow: "Your OffrO", title: "Profile", showBack: false),
         _identityCard(),
+        if (!widget.isGuest) const SupportInfoNote(),
         _stats(),
         _group("My activity", widget.activity, top: 32),
         _group("Account", widget.account),

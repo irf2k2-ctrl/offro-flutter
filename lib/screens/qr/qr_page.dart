@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
+import '../../core/services/rewards_state.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 
@@ -25,7 +26,7 @@ class _QRState extends State<QRPage>{
         String? sid=raw.contains("store_id=")?raw.split("store_id=").last.split("&").first.trim():null;
         if(sid==null||sid.isEmpty){if(!mounted)return;Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content:Text("❌ Invalid QR")));return;}
         try{
-          final res=await Api.redeemQR(sid,widget.token); widget.onDone?.call();
+          final res=await Api.redeemQR(sid,widget.token); RewardsState.instance.markChanged(); widget.onDone?.call();
           if(!mounted)return; Navigator.pop(ctx);
           showDialog(context:ctx,builder:(_)=>AlertDialog(shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
             title:Row(children:[const Icon(Icons.check_circle,color:kPrimary),const SizedBox(width:8),const Text("Points Added!")]),

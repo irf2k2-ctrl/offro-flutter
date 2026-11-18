@@ -74,8 +74,56 @@ List<CategoryCount> usedCategoryCounts(
   return out;
 }
 
+/// EVERY admin category (admin order, duplicates by name dropped) with its store count, including
+/// categories that currently have no stores (count 0). Same match rule and same counting as [usedCategoryCounts].
+List<CategoryCount> allCategoryCounts(
+  Iterable<String> categoryNames,
+  Iterable<Map<String, dynamic>> stores,
+) {
+  final storeCats = <String>[
+    for (final s in stores) (s['category'] ?? '').toString(),
+  ];
+  final seen = <String>{};
+  final out = <CategoryCount>[];
+  for (final raw in categoryNames) {
+    final name = raw.trim();
+    if (name.isEmpty || !seen.add(name.toLowerCase())) continue;
+    var n = 0;
+    for (final sc in storeCats) {
+      if (storeMatchesCategory(sc, name)) n++;
+    }
+    out.add(CategoryCount(name, n));
+  }
+  return out;
+}
+
+/// Categories ranked for the Home screen: most stores first. Equal counts are ordered by the
+/// category name (normalised, then as written) so the order is the same on every rebuild and device.
+/// Returns a new list; [all] is not modified.
+List<CategoryCount> rankedCategories(Iterable<CategoryCount> all) {
+  final out = List<CategoryCount>.of(all);
+  out.sort((a, b) {
+    final byCount = b.count.compareTo(a.count);
+    if (byCount != 0) return byCount;
+    final byNorm = normalizeCategoryName(a.name).compareTo(normalizeCategoryName(b.name));
+    if (byNorm != 0) return byNorm;
+    return a.name.compareTo(b.name);
+  });
+  return out;
+}
+
+/// The Home screen's categories: always [kCategoryInitialVisible] (8) when at least 8 exist. Highest store count
+/// first, equal counts alphabetical; when fewer than 8 categories have stores the remaining places are filled with
+/// the next categories in the same order, i.e. categories with 0 stores (alphabetical). Fewer than 8 are returned
+/// only when fewer than 8 categories exist in total. Pass [allCategoryCounts] (zero-store categories included).
+List<CategoryCount> topCategoriesByStoreCount(Iterable<CategoryCount> all) {
+  final ranked = rankedCategories(all);
+  return ranked.length <= kCategoryInitialVisible ? ranked : ranked.sublist(0, kCategoryInitialVisible);
+}
+
 /// The categories to draw: the first [kCategoryInitialVisible] until the user
-/// expands the list.
+/// expands the list. (No longer used by Home, which shows [topCategoriesByStoreCount] and opens the
+/// full Categories screen from "See All"; kept because it is unit-tested.)
 List<CategoryCount> visibleCategories(List<CategoryCount> all, {required bool expanded}) =>
     expanded || all.length <= kCategoryInitialVisible
         ? all

@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../main.dart' show MyApp;
+import '../home/support_info_note.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -5191,12 +5192,8 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
           const SizedBox(height:4),
           const Text("Tap photo to change",style:TextStyle(color:OffroColors.secondarySolid,fontSize:10)),
         ])),
-      const SizedBox(height:20),
-      _tile(context,Icons.info_outline,"About Us",() => _openAbout(context)),
-      _tile(context,Icons.description,"Terms & Conditions",() => _openPolicy(context,"Terms & Conditions",Api.getMerchantTerms())),
-      _tile(context,Icons.privacy_tip,"Privacy Policy",() => Navigator.push(context,MaterialPageRoute(builder:(_)=>MerchantPrivacyPolicyPage(token:widget.token)))),
-      _tile(context,Icons.receipt,"Refund Policy",() => _openPolicy(context,"Refund Policy",Api.fetchPolicy("refund"))),
-      _tile(context,Icons.badge,"KYC Policy",() => _openPolicy(context,"KYC Policy",Api.fetchPolicy("kyc"))),
+      const SupportInfoNote(padding: EdgeInsets.only(top: 12)),
+      const SizedBox(height:12),
       // ── ACCOUNT / SESSION — same grouped-card + row styling as the Customer profile
       // (ProfileTab._group/_row). Behaviour of each action is unchanged. ──
       _group("Account", [
@@ -5209,6 +5206,30 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
           label: "Contact Offro", note: "Chat with us on WhatsApp",
           onTap: _contactOffro),
       ]),
+      // ── ABOUT & LEGAL — moved below ACCOUNT; same grouped-card + row styling as the Customer profile.
+      // The five existing options and their actions are unchanged. ──
+      _group("About & legal", [
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.store, size: 16, color: OffroColors.primary),
+          label: "About Us",
+          onTap: () => _openAbout(context)),
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.tag, size: 16, color: OffroColors.primary),
+          label: "Terms & Conditions",
+          onTap: () => _openPolicy(context,"Terms & Conditions",Api.getMerchantTerms())),
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.shield, size: 16, color: OffroColors.primary),
+          label: "Privacy Policy",
+          onTap: () => Navigator.push(context,MaterialPageRoute(builder:(_)=>MerchantPrivacyPolicyPage(token:widget.token)))),
+        _accountRow(
+          icon: const OffroIcon(OffroIcons.route, size: 16, color: OffroColors.primary),
+          label: "Refund Policy",
+          onTap: () => _openPolicy(context,"Refund Policy",Api.fetchPolicy("refund"))),
+        _accountRow(
+          icon: const Icon(Icons.badge_outlined, size: 18, color: OffroColors.primary),
+          label: "KYC Policy",
+          onTap: () => _openPolicy(context,"KYC Policy",Api.fetchPolicy("kyc"))),
+      ]),
       _group("Session", [
         _accountRow(
           icon: const OffroIcon(OffroIcons.arrow, size: 16, color: OffroColors.error),
@@ -5217,13 +5238,6 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
       ]),
     ])),
   );
-
-  Widget _tile(BuildContext ctx, IconData icon, String title, VoidCallback onTap) =>
-    Padding(padding:const EdgeInsets.only(bottom:10),child:ListTile(tileColor:Colors.white,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(22),side:const BorderSide(color:OffroColors.border)),
-      leading:CircleAvatar(backgroundColor:OffroColors.mint,child:Icon(icon,color:OffroColors.primary,size:20)),
-      title:Text(title,style:OffroText.value.copyWith(fontSize:13,fontWeight:FontWeight.w600)),
-      trailing:const Icon(Icons.chevron_right,color:OffroColors.secondarySolid),onTap:onTap,
-      contentPadding:const EdgeInsets.symmetric(horizontal:14,vertical:4)));
 
   void _openAbout(BuildContext ctx) async {
     final c = await Api.getAboutUs();
