@@ -25,6 +25,7 @@ import '../../core/phone/phone_country.dart';
 import '../../core/phone/country_picker_sheet.dart';
 import '../../core/phone/phone_input.dart';
 import '../../core/phone/device_country.dart';
+import '../../core/services/staging_gate.dart';
 import 'otp_probe_results_screen.dart';
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
@@ -194,6 +195,20 @@ class SmsAutofillGate {
 // ══════════════════════════════════════════════════════════════════════════════
 // OTP SCREEN  (dark gradient — unchanged design)
 // ══════════════════════════════════════════════════════════════════════════════
+/// MSG91 retry channel for SMS (from the MSG91 OTP widget documentation).
+const int kMsg91SmsRetryChannel = 11;
+
+/// Body for OTPWidget.retryOTP. The normal Resend sends only the request id (unchanged); the SMS fallback adds retryChannel 11.
+Map<String, dynamic> otpRetryBody(String reqId, {bool smsFallback = false}) =>
+    {'reqId': reqId, if (smsFallback) 'retryChannel': kMsg91SmsRetryChannel};
+
+/// "Send code by SMS instead" is offered for the supported NON-India countries only. India (SMS already) and an unknown
+/// country keep the screen exactly as it was.
+bool showSmsFallback(String? countryIso) {
+  final iso = (countryIso ?? '').trim().toUpperCase();
+  return iso.isNotEmpty && iso != 'IN' && phoneCountryByIso(iso) != null;
+}
+
 class OtpScreen extends StatefulWidget {
   final String phone;
   final String reqId;
@@ -201,12 +216,16 @@ class OtpScreen extends StatefulWidget {
   /// Pending SMS User Consent result, started by LoginScreen BEFORE sendOTP.
   /// Null on platforms/paths without autofill; manual entry always works.
   final Future<String?>? smsCode;
+  /// Phase F2: ISO code of the country the number belongs to. The "Send code by SMS instead" option is offered for non-India
+  /// countries only; null (or 'IN') keeps the screen exactly as it was.
+  final String? countryIso;
   const OtpScreen({
     super.key,
     required this.phone,
     required this.reqId,
     required this.onVerified,
     this.smsCode,
+    this.countryIso,
   });
   @override State<OtpScreen> createState() => _OtpScreenState();
 }
@@ -308,7 +327,9 @@ class _OtpScreenState extends State<OtpScreen> {
     setState(() { _loading = true; _msg = ''; });
 
     // ── MASTER OTP bypass (admin use only) ──────────────────────────────────
-    if (otp == '1234') {
+    // Temporary testing arrangement, to be removed before international production launch.
+    // Phase F1: honoured ONLY when this build points at the exact staging host (see staging_gate.dart).
+    if (isMasterOtp(otp)) {
       await widget.onVerified();
       return;
     }
@@ -335,7 +356,9 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  Future<void> _resend() async {
+  /// Normal Resend: no channel is sent, so the widget's own configuration decides, exactly as before.
+  /// Phase F2: [smsFallback] true is the user-tapped "Send code by SMS instead" and asks MSG91 to retry over SMS.
+  Future<void> _resend({bool smsFallback = false}) async {
     if (_resendSecs > 0 || _resending) return;
     setState(() { _resending = true; _msg = ''; });
     try {
@@ -344,13 +367,13 @@ class _OtpScreenState extends State<OtpScreen> {
       final session = await SmsConsentOtp.start();
       if (!mounted) return;
       _consumeSms(session.code);
-      final resp = await OTPWidget.retryOTP({'reqId': widget.reqId});
+      final resp = await OTPWidget.retryOTP(otpRetryBody(widget.reqId, smsFallback: smsFallback));
       for (var c in _ctls) c.clear();
       if (mounted) {
         final ok = resp != null && resp['type'] == 'success';
         setState(() {
           _msgOk = ok;
-          _msg = ok ? 'OTP resent successfully.' : (resp?['message']?.toString() ?? 'Resend failed.');
+          _msg = ok ? (smsFallback ? 'Code sent by SMS.' : 'OTP resent successfully.') : (resp?['message']?.toString() ?? 'Resend failed.');
           _resending = false;
         });
         if (ok) {
@@ -486,6 +509,17 @@ class _OtpScreenState extends State<OtpScreen> {
                         color: _resendSecs > 0 ? OffroColors.textMuted : OffroColors.primary)),
                   ])),
             )),
+            if (showSmsFallback(widget.countryIso)) ...[
+              const SizedBox(height: 14),
+              Center(child: GestureDetector(
+                key: const ValueKey('sms_fallback_link'),
+                onTap: (_resendSecs == 0 && !_resending && !_loading) ? () => _resend(smsFallback: true) : null,
+                child: Text('Send code by SMS instead',
+                  style: OffroText.caption.copyWith(
+                    fontSize: 13, fontWeight: FontWeight.w700,
+                    color: (_resendSecs == 0 && !_resending) ? OffroColors.primary : OffroColors.textMuted)),
+              )),
+            ],
             if (otpProbeEnabled) const Center(child: OtpProbeLink()), // probe only
             const SizedBox(height: 24),
           ]),
@@ -1324,6 +1358,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         phone: phone,
         reqId: reqId,
         smsCode: smsFuture,
+        countryIso: iso,
         onVerified: () async {
           // OTP passed → ACCOUNT LOGIN/LOAD ACCOUNT → CHECK ACCOUNT LOCATION
           // → LOCATION HANDLING IF REQUIRED, all before Role Selection.
