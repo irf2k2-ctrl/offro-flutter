@@ -52,7 +52,7 @@ class OffroSectionTitle extends StatelessWidget {
               onTap: onAction,
               borderRadius: OffroRadii.pillRadius,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 6, 0, 2),
+                padding: const EdgeInsetsDirectional.fromSTEB(8, 6, 0, 2),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

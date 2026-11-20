@@ -18,8 +18,12 @@ import 'package:flutter/material.dart';
 
 class StoreHoursStatus {
   final bool isOpen;
-  final String subLabel; // e.g. "Closes 4:00 PM" or "Opens 2:30 AM"
-  const StoreHoursStatus(this.isOpen, this.subLabel);
+  final String subLabel; // e.g. "Closes 4:00 PM" or "Opens 2:30 AM" (English, kept for existing callers)
+  /// The same information as data, so a screen can write it in the app language: 'closes', 'opens' or '' (none).
+  final String subKind;
+  final int subHour;   // 0-23, the clock time that subKind refers to
+  final int subMinute;
+  const StoreHoursStatus(this.isOpen, this.subLabel, {this.subKind = '', this.subHour = 0, this.subMinute = 0});
 }
 
 String _fmt(int h, int m) {
@@ -69,15 +73,19 @@ StoreHoursStatus? computeStoreOpenStatus(String openTimeRaw, String closeTimeRaw
     }
 
     String sub;
+    String kind = '';
+    int subH = 0, subM = 0;
     if (isOpen) {
       sub = 'Closes ${_fmt(cH, cM)}';
+      kind = 'closes'; subH = cH; subM = cM;
     } else if (openMins >= 0) {
       sub = 'Opens ${_fmt(openMins ~/ 60, openMins % 60)}';
+      kind = 'opens'; subH = openMins ~/ 60; subM = openMins % 60;
     } else {
       sub = '';
     }
 
-    return StoreHoursStatus(isOpen, sub);
+    return StoreHoursStatus(isOpen, sub, subKind: kind, subHour: subH, subMinute: subM);
   } catch (_) {
     return null;
   }

@@ -387,5 +387,490 @@
   "@profileStatPoints": {
     "description": "Profile statistic label",
     "x-screen": "profile"
+  },
+  "navHome": "Home",
+  "@navHome": {
+    "description": "Bottom navigation: Home tab",
+    "x-screen": "nav"
+  },
+  "navExplore": "Explore",
+  "@navExplore": {
+    "description": "Bottom navigation: Explore tab",
+    "x-screen": "nav"
+  },
+  "navDeals": "Deals",
+  "@navDeals": {
+    "description": "Bottom navigation: Deals tab",
+    "x-screen": "nav"
+  },
+  "navRewards": "Rewards",
+  "@navRewards": {
+    "description": "Bottom navigation: Rewards tab",
+    "x-screen": "nav"
+  },
+  "navProfile": "Profile",
+  "@navProfile": {
+    "description": "Bottom navigation: Profile tab",
+    "x-screen": "nav"
+  },
+  "navInvoices": "Invoices",
+  "@navInvoices": {
+    "description": "Bottom navigation (merchant): Invoices tab",
+    "x-screen": "nav"
+  },
+  "navActivity": "Activity",
+  "@navActivity": {
+    "description": "Bottom navigation (merchant): Activity tab",
+    "x-screen": "nav"
+  },
+  "navOpportunities": "Opportunities",
+  "@navOpportunities": {
+    "description": "Bottom navigation (influencer): Opportunities tab",
+    "x-screen": "nav"
+  },
+  "homeExploring": "Exploring",
+  "@homeExploring": {
+    "description": "Home header: small label above the selected location",
+    "x-screen": "home"
+  },
+  "homeSelectLocation": "Select location",
+  "@homeSelectLocation": {
+    "description": "Home header: shown when no location is chosen yet",
+    "x-screen": "home"
+  },
+  "homeSearchHint": "Search stores, products or services",
+  "@homeSearchHint": {
+    "description": "Home search bar placeholder",
+    "x-screen": "home"
+  },
+  "homeViewArrow": "View →",
+  "@homeViewArrow": {
+    "description": "Small pill on the hero strip; the arrow points in reading direction",
+    "x-screen": "home"
+  },
+  "homeHeroBadge": "LOCAL DEALS & STORES",
+  "@homeHeroBadge": {
+    "description": "City hero card: small badge",
+    "x-screen": "home"
+  },
+  "homeExploreLead": "Explore",
+  "@homeExploreLead": {
+    "description": "City hero card heading, first word; the city name follows on the next line",
+    "x-screen": "home"
+  },
+  "homeHeroSubtitle": "Discover stores, deals & local favorites",
+  "@homeHeroSubtitle": {
+    "description": "City hero card subtitle",
+    "x-screen": "home"
+  },
+  "homeDiscoverStores": "Discover stores",
+  "@homeDiscoverStores": {
+    "description": "City hero card button",
+    "x-screen": "home"
+  },
+  "homeYourCity": "Your City",
+  "@homeYourCity": {
+    "description": "City hero card: fallback name when no city is known",
+    "x-screen": "home"
+  },
+  "homeDealEndsToday": "Ends today",
+  "@homeDealEndsToday": {
+    "description": "Deal card: ends today",
+    "x-screen": "home"
+  },
+  "homeDealOneDayLeft": "1 day left",
+  "@homeDealOneDayLeft": {
+    "description": "Deal card: one day left",
+    "x-screen": "home"
+  },
+  "homeDealDaysLeft": "{days} days left",
+  "@homeDealDaysLeft": {
+    "description": "Deal card: several days left; {days} is a number",
+    "x-screen": "home",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "homeExclusiveEyebrow": "Made for OffrO members",
+  "@homeExclusiveEyebrow": {
+    "description": "Exclusive deals section: small label",
+    "x-screen": "home"
+  },
+  "homeExclusiveTitle": "Exclusive deals",
+  "@homeExclusiveTitle": {
+    "description": "Exclusive deals section title",
+    "x-screen": "home"
+  },
+  "homeViewAll": "View all",
+  "@homeViewAll": {
+    "description": "Section action: View all",
+    "x-screen": "home"
+  },
+  "homeDealOffer": "Offer",
+  "@homeDealOffer": {
+    "description": "Deal card badge when there is no percentage",
+    "x-screen": "home"
+  },
+  "homePercentOff": "{percent}% off",
+  "@homePercentOff": {
+    "description": "Discount badge; {percent} is a number",
+    "x-screen": "home",
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "homeRewardsBadge": "OFFRO REWARDS",
+  "@homeRewardsBadge": {
+    "description": "Home rewards card: small badge",
+    "x-screen": "home"
+  },
+  "homePointsSuffix": "points",
+  "@homePointsSuffix": {
+    "description": "Home rewards card: word after the points number",
+    "x-screen": "home"
+  },
+  "homeRewardsTapToView": "Tap to view and redeem your rewards",
+  "@homeRewardsTapToView": {
+    "description": "Home rewards card: hint when the user has points",
+    "x-screen": "home"
+  },
+  "homeRewardsEarnHint": "Visit stores to start earning points",
+  "@homeRewardsEarnHint": {
+    "description": "Home rewards card: hint when the user has no points",
+    "x-screen": "home"
+  },
+  "homeCategoriesEyebrow": "Find what you need",
+  "@homeCategoriesEyebrow": {
+    "description": "Categories section: small label",
+    "x-screen": "home"
+  },
+  "homeCategoriesTitle": "Explore categories",
+  "@homeCategoriesTitle": {
+    "description": "Categories section title",
+    "x-screen": "home"
+  },
+  "homeSeeAll": "See All",
+  "@homeSeeAll": {
+    "description": "Section action: See All",
+    "x-screen": "home"
+  },
+  "homeSeeAllLower": "See all",
+  "@homeSeeAllLower": {
+    "description": "Section action: See all (stores)",
+    "x-screen": "home"
+  },
+  "catBakery": "Bakery",
+  "@catBakery": {
+    "description": "Category name shown to the user: Bakery",
+    "x-screen": "home"
+  },
+  "catAutomobile": "Automobile",
+  "@catAutomobile": {
+    "description": "Category name shown to the user: Automobile",
+    "x-screen": "home"
+  },
+  "catRestaurant": "Restaurant",
+  "@catRestaurant": {
+    "description": "Category name shown to the user: Restaurant",
+    "x-screen": "home"
+  },
+  "catGrocery": "Grocery",
+  "@catGrocery": {
+    "description": "Category name shown to the user: Grocery",
+    "x-screen": "home"
+  },
+  "homeProductsEyebrow": "Across local stores",
+  "@homeProductsEyebrow": {
+    "description": "Products section: small label",
+    "x-screen": "home"
+  },
+  "homeProductsTitle": "Products near you",
+  "@homeProductsTitle": {
+    "description": "Products section title",
+    "x-screen": "home"
+  },
+  "homeBrowseAll": "Browse all",
+  "@homeBrowseAll": {
+    "description": "Products section action",
+    "x-screen": "home"
+  },
+  "homeFavoriteSaveFailed": "Couldn't save favorite: {error}",
+  "@homeFavoriteSaveFailed": {
+    "description": "Error snackbar when a favourite could not be saved; {error} is the reason",
+    "x-screen": "home",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "homeNearbyEyebrow": "Around your neighbourhood",
+  "@homeNearbyEyebrow": {
+    "description": "Nearby stores section: small label",
+    "x-screen": "home"
+  },
+  "homeStoresNearTitle": "Stores near you",
+  "@homeStoresNearTitle": {
+    "description": "Nearby stores section title",
+    "x-screen": "home"
+  },
+  "homeNearbyStoresTitle": "Nearby Stores",
+  "@homeNearbyStoresTitle": {
+    "description": "Title of the full nearby stores list",
+    "x-screen": "home"
+  },
+  "homeBadgeNew": "NEW",
+  "@homeBadgeNew": {
+    "description": "Store badge: new store",
+    "x-screen": "home"
+  },
+  "homeOfferInline": "Offer · {offer}",
+  "@homeOfferInline": {
+    "description": "Store card offer line; {offer} is the offer text",
+    "x-screen": "home",
+    "placeholders": {
+      "offer": {
+        "type": "String"
+      }
+    }
+  },
+  "homeOpenNow": "Open now",
+  "@homeOpenNow": {
+    "description": "Store status: open",
+    "x-screen": "home"
+  },
+  "homeClosed": "Closed",
+  "@homeClosed": {
+    "description": "Store status: closed",
+    "x-screen": "home"
+  },
+  "homeDistanceAny": "Any distance",
+  "@homeDistanceAny": {
+    "description": "Distance filter chip: any distance",
+    "x-screen": "home"
+  },
+  "homeDistanceUnder": "Under {km} km",
+  "@homeDistanceUnder": {
+    "description": "Distance filter chip; {km} is a number of kilometres",
+    "x-screen": "home",
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "homeNoStoresWithin": "No stores within {km} km",
+  "@homeNoStoresWithin": {
+    "description": "Empty state when no store is within the radius; {km} is a number",
+    "x-screen": "home",
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "homeTryLargerRadius": "Try a larger radius or tap Any distance",
+  "@homeTryLargerRadius": {
+    "description": "Empty state hint; it names the Any distance chip",
+    "x-screen": "home"
+  },
+  "homeExploreAreasTitle": "Explore Areas",
+  "@homeExploreAreasTitle": {
+    "description": "Explore areas section title",
+    "x-screen": "home"
+  },
+  "homeExploreAreasSubtitle": "Discover great places nearby",
+  "@homeExploreAreasSubtitle": {
+    "description": "Explore areas section subtitle",
+    "x-screen": "home"
+  },
+  "homeViewAllArrow": "View all →",
+  "@homeViewAllArrow": {
+    "description": "Explore areas action; the arrow points in reading direction",
+    "x-screen": "home"
+  },
+  "homeStoreWord": "Store",
+  "@homeStoreWord": {
+    "description": "Explore areas card: label under the store count",
+    "x-screen": "home"
+  },
+  "homeFeatureRewards": "My Rewards",
+  "@homeFeatureRewards": {
+    "description": "Name of the Rewards feature inside the 'please login to use ...' message",
+    "x-screen": "home"
+  },
+  "homeBackToHome": "Back to Home",
+  "@homeBackToHome": {
+    "description": "Home error screen: button",
+    "x-screen": "home"
+  },
+  "homeContactSupport": "Contact Support",
+  "@homeContactSupport": {
+    "description": "Home error screen: button",
+    "x-screen": "home"
+  },
+  "homeNoInternet": "No internet connection",
+  "@homeNoInternet": {
+    "description": "Home error screen: title when offline",
+    "x-screen": "home"
+  },
+  "homeCheckConnection": "Check your connection and try again",
+  "@homeCheckConnection": {
+    "description": "Home error screen: hint when offline",
+    "x-screen": "home"
+  },
+  "homeServerSlow": "Server taking too long",
+  "@homeServerSlow": {
+    "description": "Home error screen: title on timeout",
+    "x-screen": "home"
+  },
+  "homeColdStart": "Cold start — please wait a moment and retry",
+  "@homeColdStart": {
+    "description": "Home error screen: hint on timeout",
+    "x-screen": "home"
+  },
+  "homeCouldntLoadStores": "Couldn't load stores",
+  "@homeCouldntLoadStores": {
+    "description": "Home error screen: title when stores failed to load",
+    "x-screen": "home"
+  },
+  "homePleaseTryAgain": "Please try again",
+  "@homePleaseTryAgain": {
+    "description": "Home error screen: hint",
+    "x-screen": "home"
+  },
+  "homeCouldntLoadPage": "Couldn't load this page",
+  "@homeCouldntLoadPage": {
+    "description": "Home error screen: title when the page content failed to load",
+    "x-screen": "home"
+  },
+  "commonRetry": "Retry",
+  "@commonRetry": {
+    "description": "Generic button: retry",
+    "x-screen": "common"
+  },
+  "commonTryAgain": "Try Again",
+  "@commonTryAgain": {
+    "description": "Generic button: try again",
+    "x-screen": "common"
+  },
+  "homePromoTitle": "Featured Banners",
+  "@homePromoTitle": {
+    "description": "Promo banners section title",
+    "x-screen": "home"
+  },
+  "homePromoSubtitle": "Latest offers from our stores",
+  "@homePromoSubtitle": {
+    "description": "Promo banners section subtitle",
+    "x-screen": "home"
+  },
+  "timeAm": "AM",
+  "@timeAm": {
+    "description": "Clock suffix before noon",
+    "x-screen": "home"
+  },
+  "timePm": "PM",
+  "@timePm": {
+    "description": "Clock suffix after noon",
+    "x-screen": "home"
+  },
+  "storeClosesAt": "Closes {time}",
+  "@storeClosesAt": {
+    "description": "Store status sub-label; {time} is a clock time such as 9 PM",
+    "x-screen": "home",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "storeOpensAt": "Opens {time}",
+  "@storeOpensAt": {
+    "description": "Store status sub-label; {time} is a clock time such as 9 AM",
+    "x-screen": "home",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "badgeJustOpened": "JUST OPENED",
+  "@badgeJustOpened": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "badgeNewlyAdded": "NEWLY ADDED",
+  "@badgeNewlyAdded": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "badgeNewlyOpened": "NEWLY OPENED",
+  "@badgeNewlyOpened": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "badgeTrending": "TRENDING",
+  "@badgeTrending": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "badgePopular": "POPULAR",
+  "@badgePopular": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "badgeTopRated": "TOP RATED",
+  "@badgeTopRated": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "badgeMustVisit": "MUST VISIT",
+  "@badgeMustVisit": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "badgeLimitedOffer": "LIMITED OFFER",
+  "@badgeLimitedOffer": {
+    "description": "Store badge",
+    "x-screen": "home"
+  },
+  "homeLoginRequiredTitle": "Login Required",
+  "@homeLoginRequiredTitle": {
+    "description": "Guest prompt: title",
+    "x-screen": "home"
+  },
+  "homeLoginRequiredBody": "Please login or register to use {feature}.",
+  "@homeLoginRequiredBody": {
+    "description": "Guest prompt: body; {feature} is the name of the feature, e.g. My Rewards",
+    "x-screen": "home",
+    "placeholders": {
+      "feature": {
+        "type": "String"
+      }
+    }
+  },
+  "homeLoginRegister": "Login / Register",
+  "@homeLoginRegister": {
+    "description": "Guest prompt: primary button",
+    "x-screen": "home"
+  },
+  "homeMaybeLater": "Maybe later",
+  "@homeMaybeLater": {
+    "description": "Guest prompt: dismiss button",
+    "x-screen": "home"
+  },
+  "homeUnableToConnect": "Unable to connect. Please check your internet connection and try again.",
+  "@homeUnableToConnect": {
+    "description": "Snackbar when a refresh failed because the device is offline",
+    "x-screen": "home"
+  },
+  "homeRefreshFailed": "Couldn't refresh stores. Please try again.",
+  "@homeRefreshFailed": {
+    "description": "Snackbar when the stores could not be refreshed",
+    "x-screen": "home"
   }
 }

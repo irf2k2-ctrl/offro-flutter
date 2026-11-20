@@ -1499,8 +1499,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           messenger.hideCurrentSnackBar();
           messenger.showSnackBar(SnackBar(
             content: Text(offline
-                ? "Unable to connect. Please check your internet connection and try again."
-                : "Couldn't refresh stores. Please try again."),
+                ? context.l10n.homeUnableToConnect
+                : context.l10n.homeRefreshFailed),
           ));
         }
       }
@@ -1704,7 +1704,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       (_loc != null && _loc!.sameCity(city))
           ? _loc!
           : OffroLocation(city: city, state: LocationService.stateForCity(city));
-  String get _locTitle => city.isEmpty ? "Select location" : _effectiveLoc.title;
+  String get _locTitle => city.isEmpty ? context.l10n.homeSelectLocation : _effectiveLoc.title;
   String get _locSubtitle => city.isEmpty ? "" : _effectiveLoc.subtitle;
 
   /// Loads the saved structured location for the header (never changes `city`).
@@ -1972,7 +1972,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                       onRadiusChanged: (km) async {
                         setState(() => _radiusKm = km); // session-only; not persisted
                       },
-                      onViewAll: () => _viewAll(context, "Nearby Stores", nearbyStores),
+                      onViewAll: () => _viewAll(context, context.l10n.homeNearbyStoresTitle, nearbyStores),
                       onStoreTap: (s) => Navigator.push(context, appRoute(
                         StoreDetailPage(store: _enrichStoreForDetail(Map<String,dynamic>.from(s)), token: widget.token, userName: "", onProductTap:(p,tk)=>Navigator.push(context,appRoute(ProductDetailsPage(product:p,token:tk)))))).then((_) => _loadFavStores()),
                     )),
@@ -2000,7 +2000,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                     SliverToBoxAdapter(child: _HomeRewardsCard(
                       points: _walletPoints,
                       onTap: () {
-                        if (!_requireLogin(context, 'My Rewards')) return;
+                        if (!_requireLogin(context, context.l10n.homeFeatureRewards)) return;
                         Navigator.push(context, appRoute(WalletPage(token: widget.token)));
                       },
                     )),
@@ -2035,8 +2035,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               ]),
 
             // Scroll-to-top FAB (Home tab only)
-            if (_navIdx == 0) Positioned(
-              bottom: 104, right: 16,
+            if (_navIdx == 0) PositionedDirectional(
+              bottom: 104, end: 16,
               child: ValueListenableBuilder<bool>(
                 valueListenable: _fabVisible,
                 builder: (_, visible, __) => AnimatedOpacity(
@@ -2101,7 +2101,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 14),
         // Category chips row
         Row(children: List.generate(4, (_) =>
-          Padding(padding: const EdgeInsets.only(right: 8),
+          Padding(padding: const EdgeInsetsDirectional.only(end: 8),
             child: _skeletonBox(70, 32, radius: 20)))),
         const SizedBox(height: 18),
         // Store cards
@@ -2178,11 +2178,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
             ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
-              Icon(Icons.home_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text('Back to Home',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.home_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(context.l10n.homeBackToHome,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
             ]),
           ),
         ),
@@ -2199,11 +2199,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
               side: const BorderSide(color: kPrimary, width: 1.5),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
             ),
-            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
-              Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 20),
-              SizedBox(width: 8),
-              Text('Contact Support',
-                style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
+            child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 20),
+              const SizedBox(width: 8),
+              Text(context.l10n.homeContactSupport,
+                style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 16)),
             ]),
           ),
         ),
@@ -2265,21 +2265,21 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           if (_netError) ...[
             const Icon(Icons.wifi_off_rounded, color: Colors.white54, size: 40),
             const SizedBox(height: 10),
-            const Text("No internet connection", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(context.l10n.homeNoInternet, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            const Text("Check your connection and try again", style: TextStyle(color: Colors.white60, fontSize: 13)),
+            Text(context.l10n.homeCheckConnection, style: const TextStyle(color: Colors.white60, fontSize: 13)),
           ] else if (_isTimeout) ...[
             const Icon(Icons.hourglass_empty_rounded, color: Colors.white54, size: 40),
             const SizedBox(height: 10),
-            const Text("Server taking too long", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(context.l10n.homeServerSlow, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            const Text("Cold start — please wait a moment and retry", style: TextStyle(color: Colors.white60, fontSize: 13)),
+            Text(context.l10n.homeColdStart, style: const TextStyle(color: Colors.white60, fontSize: 13)),
           ] else if (_fetchFailed) ...[
             const Icon(Icons.cloud_off_rounded, color: Colors.white54, size: 40),
             const SizedBox(height: 10),
-            const Text("Couldn't load stores", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(context.l10n.homeCouldntLoadStores, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
-            const Text("Please try again", style: TextStyle(color: Colors.white60, fontSize: 13)),
+            Text(context.l10n.homePleaseTryAgain, style: const TextStyle(color: Colors.white60, fontSize: 13)),
           ] else if (_noServiceMsg.isNotEmpty)
             // Successful load with zero stores → the Admin Dashboard "No
             // Store" message (same _noServiceMsg as before; no hard-coded
@@ -2290,12 +2290,12 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             // do NOT imply the Admin has no image configured.
             const Icon(Icons.cloud_off_rounded, color: Colors.white54, size: 40),
             const SizedBox(height: 10),
-            const Text("Couldn't load this page", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(context.l10n.homeCouldntLoadPage, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 14),
             OutlinedButton(
               onPressed: _retryNoStoreContent,
               style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
-              child: const Text('Retry'),
+              child: Text(context.l10n.commonRetry),
             ),
           ]
           else if (!_noStoreReady)
@@ -2316,10 +2316,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
-              child: Row(mainAxisSize: MainAxisSize.min, children: const [
-                Icon(Icons.refresh_rounded, size: 18),
-                SizedBox(width: 8),
-                Text('Try Again', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.refresh_rounded, size: 18),
+                const SizedBox(width: 8),
+                Text(context.l10n.commonTryAgain, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               ]),
             ),
           ],
@@ -2375,7 +2375,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // renders in place (the floating nav stays visible); Rewards is still
   // login-gated exactly as before.
   void _onNavTap(int i) {
-    if (i == 3 && !_requireLogin(context, 'My Rewards')) return;
+    if (i == 3 && !_requireLogin(context, context.l10n.homeFeatureRewards)) return;
     setState(() { _navIdx = i; _builtTabs.add(i); });
   }
 
@@ -2485,10 +2485,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
             decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
           const Icon(Icons.lock_outline_rounded, color: kPrimary, size: 40),
           const SizedBox(height: 16),
-          const Text('Login Required',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: OffroColors.text)),
+          Text(ctx.l10n.homeLoginRequiredTitle,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: OffroColors.text)),
           const SizedBox(height: 8),
-          Text('Please login or register to use $featureName.',
+          Text(ctx.l10n.homeLoginRequiredBody(featureName),
             style: const TextStyle(fontSize: 14, color: OffroColors.textMuted, height: 1.5)),
           const SizedBox(height: 24),
           SizedBox(width: double.infinity, height: 50,
@@ -2504,15 +2504,15 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              child: const Text('Login / Register',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              child: Text(ctx.l10n.homeLoginRegister,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
             ),
           ),
           const SizedBox(height: 12),
           SizedBox(width: double.infinity,
             child: TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Maybe later', style: TextStyle(color: OffroColors.textMuted, fontWeight: FontWeight.w600)),
+              child: Text(ctx.l10n.homeMaybeLater, style: const TextStyle(color: OffroColors.textMuted, fontWeight: FontWeight.w600)),
             ),
           ),
         ]),
@@ -4579,7 +4579,7 @@ class _HomeHeader extends StatelessWidget {
                 child: const OffroIcon(OffroIcons.bell, size: 18, color: OffroColors.text),
               ),
               if (unreadCount > 0)
-                Positioned(top: 9, right: 10,
+                PositionedDirectional(top: 9, end: 10,
                   child: Container(
                     width: 7, height: 7,
                     decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle),
@@ -4595,8 +4595,8 @@ class _HomeHeader extends StatelessWidget {
             const OffroIcon(OffroIcons.pin, size: 14, color: Color(0xFF61917A), filled: true),
             const SizedBox(width: 8),
             Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text("Exploring", style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
-              Text(locationTitle.isNotEmpty ? locationTitle : "Select location",
+              Text(context.l10n.homeExploring, style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
+              Text(locationTitle.isNotEmpty ? locationTitle : context.l10n.homeSelectLocation,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
                 style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.text)),
               if (locationSubtitle.isNotEmpty)
@@ -4634,7 +4634,7 @@ class _HomeSearchBar extends StatelessWidget {
           child: Row(children: [
             const OffroIcon(OffroIcons.search, size: 18, color: OffroColors.secondarySolid),
             const SizedBox(width: 12),
-            Expanded(child: Text("Search stores, products or services",
+            Expanded(child: Text(context.l10n.homeSearchHint,
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: OffroText.body.copyWith(fontSize: 14, color: OffroColors.secondarySolid))),
             const SizedBox(width: 8),
@@ -4683,7 +4683,7 @@ class _HeroStoreStripState extends State<_HeroStoreStrip> {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(999)),
-        child: Text("View →",
+        child: Text(context.l10n.homeViewArrow,
           style: OffroText.cardTitle.copyWith(fontSize: 14, fontWeight: FontWeight.w600, color: OffroColors.primary, height: 1.2)),
       ),
     ]);
@@ -4733,18 +4733,18 @@ class _CityHeroSection extends StatelessWidget {
       }
       return Padding(
         padding: OffroSpacing.gutterH,
-        child: _cityCard(),
+        child: _cityCard(context),
       );
     }
     // ONE fixed card (size, position, radius never change). Only the media +
     // its overlay text cross-fade when the active slide changes.
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _heroCard(),
+      _heroCard(context),
     ]);
   }
 
   // The single fixed hero card (unchanged structure).
-  Widget _heroCard() {
+  Widget _heroCard(BuildContext context) {
     return Padding(
       padding: OffroSpacing.gutterH,
       // Swipe LEFT = next slide, RIGHT = previous. Uses the same sliderPageNotifier the
@@ -4780,7 +4780,7 @@ class _CityHeroSection extends StatelessWidget {
                   ),
                   child: KeyedSubtree(
                     key: ValueKey<String>("$idx|${sliders[idx]["image_url"] ?? sliders[idx]["image"] ?? ""}"),
-                    child: _slideContent(Map<String,dynamic>.from(sliders[idx])),
+                    child: _slideContent(context, Map<String,dynamic>.from(sliders[idx])),
                   ),
                 );
               },
@@ -4829,7 +4829,7 @@ class _CityHeroSection extends StatelessWidget {
 
   // ── One promo slide: real media + Figma overlay. Text/CTA only appear when
   // the slide itself carries a title (never invented). ──
-  Widget _slideContent(Map<String,dynamic> sl) {
+  Widget _slideContent(BuildContext context, Map<String,dynamic> sl) {
     final promoter = (sl["store_name"] ?? sl["merchant_name"] ?? "").toString().trim();
     final storeId  = (sl["store_id"] ?? "").toString().trim();
     final hasStore = promoter.isNotEmpty || (storeId.isNotEmpty && storeId != "null");
@@ -4868,7 +4868,7 @@ class _CityHeroSection extends StatelessWidget {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 285),
                   child: OffroAccentText(
-                    before: "Explore\n",
+                    before: "${context.l10n.homeExploreLead}\n",
                     accent: city.trim(),
                     style: OffroText.headline.copyWith(
                       color: Colors.white, fontSize: 34,
@@ -4898,8 +4898,8 @@ class _CityHeroSection extends StatelessWidget {
   }
 
   // ── No promo sliders: city artwork hero ("Explore <City>") ──
-  Widget _cityCard() {
-    final displayCity = city.isNotEmpty ? city : "Your City";
+  Widget _cityCard(BuildContext context) {
+    final displayCity = city.isNotEmpty ? city : context.l10n.homeYourCity;
     Widget gradientBox() => const DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -4956,7 +4956,7 @@ class _CityHeroSection extends StatelessWidget {
                   Container(width: 6, height: 6,
                     decoration: const BoxDecoration(color: OffroColors.terracotta, shape: BoxShape.circle)),
                   const SizedBox(width: 6),
-                  Text("LOCAL DEALS & STORES",
+                  Text(context.l10n.homeHeroBadge,
                     style: OffroText.eyebrow.copyWith(color: Colors.white, fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w600)),
                 ]),
               ),
@@ -4964,7 +4964,7 @@ class _CityHeroSection extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 285),
                 child: OffroAccentText(
-                  before: "Explore\n",
+                  before: "${context.l10n.homeExploreLead}\n",
                   accent: displayCity,
                   style: OffroText.headline.copyWith(color: Colors.white, fontSize: 34),
                 ),
@@ -4972,7 +4972,7 @@ class _CityHeroSection extends StatelessWidget {
               const SizedBox(height: 12),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 250),
-                child: Text("Discover stores, deals & local favorites",
+                child: Text(context.l10n.homeHeroSubtitle,
                   style: OffroText.bodySmall.copyWith(fontSize: 12, height: 1.6, color: Colors.white.withValues(alpha: .70))),
               ),
               const Spacer(),
@@ -4985,7 +4985,7 @@ class _CityHeroSection extends StatelessWidget {
                     borderRadius: OffroRadii.pillRadius,
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text("Discover stores",
+                    Text(context.l10n.homeDiscoverStores,
                       style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                     const SizedBox(width: 6),
                     const OffroIcon(OffroIcons.arrow, size: 12, color: OffroColors.primary),
@@ -5061,8 +5061,8 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
     final end = _parseEnd((d["end_date"] ?? "").toString());
     if (end == null) return null;
     final days = end.add(const Duration(days: 1)).difference(DateTime.now()).inDays;
-    if (days <= 0) return "Ends today";
-    return days == 1 ? "1 day left" : "$days days left";
+    if (days <= 0) return context.l10n.homeDealEndsToday;
+    return days == 1 ? context.l10n.homeDealOneDayLeft : context.l10n.homeDealDaysLeft("$days");
   }
 
   void _open(BuildContext ctx, Map<String,dynamic> d) {
@@ -5094,10 +5094,10 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
       padding: const EdgeInsets.only(top: 36),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
-          eyebrow: "Made for OffrO members",
+          eyebrow: context.l10n.homeExclusiveEyebrow,
         eyebrowColor: OffroColors.sageStrong,
-          title: "Exclusive deals",
-          actionLabel: "View all",
+          title: context.l10n.homeExclusiveTitle,
+          actionLabel: context.l10n.homeViewAll,
           onAction: widget.onViewAll,
         ),
         const SizedBox(height: 16),
@@ -5106,7 +5106,7 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(left: OffroSpacing.gutter, right: 4),
+            padding: const EdgeInsetsDirectional.only(start: OffroSpacing.gutter, end: 4),
             itemCount: _deals.length,
             itemBuilder: (ctx, i) => _dealCard(ctx, _deals[i], cardW),
           ),
@@ -5143,7 +5143,7 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
       onTap: () => _open(ctx, d),
       child: Container(
         width: width,
-        margin: const EdgeInsets.only(right: 16),
+        margin: const EdgeInsetsDirectional.only(end: 16),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: OffroColors.surface,
@@ -5167,7 +5167,7 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
                   ),
                 ),
               ),
-              Positioned(left: 12, top: 12,
+              PositionedDirectional(start: 12, top: 12,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
@@ -5178,12 +5178,12 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     const OffroIcon(OffroIcons.tag, size: 12, color: Colors.white),
                     const SizedBox(width: 6),
-                    Text(discInt > 0 ? "$discInt% off" : "Offer",
+                    Text(discInt > 0 ? ctx.l10n.homePercentOff("$discInt") : ctx.l10n.homeDealOffer,
                       style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
                   ]),
                 )),
               if (left != null)
-                Positioned(right: 12, bottom: 12,
+                PositionedDirectional(end: 12, bottom: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -5244,8 +5244,8 @@ class _HomeRewardsCard extends StatelessWidget {
             color: OffroColors.beige,
             padding: const EdgeInsets.all(20),
             child: Stack(clipBehavior: Clip.hardEdge, children: [
-              Positioned(
-                right: -52, top: -52,
+              PositionedDirectional(
+                end: -52, top: -52,
                 child: Container(
                   width: 144, height: 144,
                   decoration: BoxDecoration(
@@ -5262,17 +5262,17 @@ class _HomeRewardsCard extends StatelessWidget {
                       color: Colors.white.withValues(alpha: .60),
                       borderRadius: OffroRadii.pillRadius,
                     ),
-                    child: Text("OFFRO REWARDS",
+                    child: Text(context.l10n.homeRewardsBadge,
                       style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                   ),
                   const SizedBox(height: 12),
                   Text.rich(TextSpan(children: [
                     TextSpan(text: _fmt(points), style: OffroText.titleSm),
-                    TextSpan(text: "  points",
+                    TextSpan(text: "  ${context.l10n.homePointsSuffix}",
                       style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
                   ])),
                   const SizedBox(height: 4),
-                  Text(points > 0 ? "Tap to view and redeem your rewards" : "Visit stores to start earning points",
+                  Text(points > 0 ? context.l10n.homeRewardsTapToView : context.l10n.homeRewardsEarnHint,
                     style: OffroText.caption.copyWith(fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
                 ])),
                 const SizedBox(width: 12),
@@ -5339,10 +5339,10 @@ class _CategoryChipsRowState extends State<_CategoryChipsRow> {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       OffroSectionTitle(
-        eyebrow: "Find what you need",
+        eyebrow: context.l10n.homeCategoriesEyebrow,
         eyebrowColor: OffroColors.sageStrong,
-        title: "Explore categories",
-        actionLabel: "See All",
+        title: context.l10n.homeCategoriesTitle,
+        actionLabel: context.l10n.homeSeeAll,
         onAction: () => Navigator.push(context, MaterialPageRoute(
           builder: (_) => _BrowseAllCategoriesScreen(
             token: widget.token, userLat: widget.userLat, userLng: widget.userLng,
@@ -5388,8 +5388,8 @@ class _CategoryChipsRowState extends State<_CategoryChipsRow> {
             ),
             child: OffroIcon(OffroIcons.forCategory(name), size: 24, color: tone.foreground),
           ),
-          Positioned(
-            top: -4, right: -6,
+          PositionedDirectional(
+            top: -4, end: -6,
             child: Container(
               constraints: const BoxConstraints(minWidth: 18),
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
@@ -5405,7 +5405,7 @@ class _CategoryChipsRowState extends State<_CategoryChipsRow> {
           ),
         ]),
         const SizedBox(height: 8),
-        Text(name,
+        Text(localizedCategoryName(context, name),
           maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
           style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: OffroColors.text)),
       ]),
@@ -5434,17 +5434,17 @@ class _DiscoverProductsSection extends StatelessWidget {
   // Skeleton shown while the real products are still being fetched — same
   // header + Bento footprint (1 large + 2 small), so nothing shifts when the
   // real cards replace it.
-  Widget _loadingSkeleton() {
+  Widget _loadingSkeleton(BuildContext context) {
     const double h = 270;
     BorderRadius r() => BorderRadius.circular(18);
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
-          eyebrow: "Across local stores",
+          eyebrow: context.l10n.homeProductsEyebrow,
         eyebrowColor: OffroColors.sageStrong,
-          title: "Products near you",
-          actionLabel: "Browse all",
+          title: context.l10n.homeProductsTitle,
+          actionLabel: context.l10n.homeBrowseAll,
           onAction: onViewAll,
           padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
@@ -5544,10 +5544,10 @@ class _DiscoverProductsSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
-          eyebrow: "Across local stores",
+          eyebrow: context.l10n.homeProductsEyebrow,
         eyebrowColor: OffroColors.sageStrong,
-          title: "Products near you",
-          actionLabel: "Browse all",
+          title: context.l10n.homeProductsTitle,
+          actionLabel: context.l10n.homeBrowseAll,
           onAction: onViewAll,
           padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
@@ -5623,7 +5623,7 @@ class _DiscoverProductsSection extends StatelessWidget {
             FavState.instance.toggleProduct(pid);
             if (ctx2.mounted) {
               ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
-                content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+                content: Text(ctx2.l10n.homeFavoriteSaveFailed(friendlyError(e))),
                 backgroundColor: Colors.red.shade700,
                 duration: const Duration(seconds: 12),
                 showCloseIcon: true));
@@ -5660,13 +5660,13 @@ class _DiscoverProductsSection extends StatelessWidget {
     String badge = "";
     if (saleP != null && origP != null && origP > 0) {
       final pct = ((1 - saleP / origP) * 100).round();
-      if (pct > 0) badge = "$pct% off";
+      if (pct > 0) badge = ctx.l10n.homePercentOff("$pct");
     }
     if (badge.isEmpty) {
       final offerText = v["text"]?.toString() ?? v["offer_text"]?.toString() ?? v["offer"]?.toString() ?? v["discount"]?.toString() ?? "";
       final m = RegExp(r'(\d+)%').firstMatch("$title $offerText");
       if (m != null) {
-        badge = "${m.group(1)}% off";
+        badge = ctx.l10n.homePercentOff("${m.group(1)}");
       } else {
         badge = v["discount_label"]?.toString() ?? "";
       }
@@ -5680,14 +5680,14 @@ class _DiscoverProductsSection extends StatelessWidget {
     final Widget imageBlock = Stack(fit: StackFit.expand, children: [
       _productImage(imgSrc, title),
       if (badge.isNotEmpty)
-        Positioned(top: 10, left: 10,
+        PositionedDirectional(top: 10, start: 10,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(color: OffroColors.primary, borderRadius: OffroRadii.pillRadius),
             child: Text(badge,
               style: OffroText.caption.copyWith(fontSize: 9, fontWeight: FontWeight.w600, color: Colors.white)),
           )),
-      Positioned(top: 10, right: 10, child: _productHeart(ctx, v)),
+      PositionedDirectional(top: 10, end: 10, child: _productHeart(ctx, v)),
     ]);
 
     final Widget details = Column(
@@ -5808,7 +5808,7 @@ class _DiscoverProductsSection extends StatelessWidget {
   @override Widget build(BuildContext context) {
     if (products.isEmpty) {
       // Real products still loading -> skeleton, never the default images.
-      if (loading) return _loadingSkeleton();
+      if (loading) return _loadingSkeleton(context);
       return defaultProductImageUrls.isNotEmpty
           ? _defaultProductPlaceholder(context)
           : const SizedBox.shrink();
@@ -5821,10 +5821,10 @@ class _DiscoverProductsSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(0, 36, 0, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
-          eyebrow: "Across local stores",
+          eyebrow: context.l10n.homeProductsEyebrow,
         eyebrowColor: OffroColors.sageStrong,
-          title: "Products near you",
-          actionLabel: "Browse all",
+          title: context.l10n.homeProductsTitle,
+          actionLabel: context.l10n.homeBrowseAll,
           onAction: onViewAll,
         ),
         const SizedBox(height: 16),
@@ -5893,7 +5893,7 @@ class _NearbyStoresSection extends StatelessWidget {
           FavState.instance.setStore(sid, prev); // restore
           if (ctx.mounted) {
             ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-              content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+              content: Text(ctx.l10n.homeFavoriteSaveFailed(friendlyError(e))),
               backgroundColor: Colors.red.shade700,
               duration: const Duration(seconds: 12),
               showCloseIcon: true));
@@ -5919,8 +5919,19 @@ class _NearbyStoresSection extends StatelessWidget {
   }
 
   /// Compact inline badge text from the shared badge key (emoji dropped; "new_store" -> "NEW").
-  static String _nearbyBadgeText(String key) {
-    if (key == "new_store") return "NEW";
+  static String _nearbyBadgeText(BuildContext context, String key) {
+    if (key == "new_store") return context.l10n.homeBadgeNew;
+    final l = context.l10n;
+    switch (key) {
+      case "just_opened": return l.badgeJustOpened;
+      case "newly_added": return l.badgeNewlyAdded;
+      case "newly_opened": case "newly_open": case "new_open": case "opened": return l.badgeNewlyOpened;
+      case "trending": return l.badgeTrending;
+      case "popular": return l.badgePopular;
+      case "top_rated": return l.badgeTopRated;
+      case "must_visit": return l.badgeMustVisit;
+      case "limited_offer": return l.badgeLimitedOffer;
+    }
     final label = _BannerStoresBlockState._badgeRibbonMeta[key]?["label"] ?? "";
     final i = label.indexOf(" ");
     return i < 0 ? label : label.substring(i + 1);
@@ -5940,7 +5951,7 @@ class _NearbyStoresSection extends StatelessWidget {
     // Same badge data/rules the other store cards use (admin badge, created < 10 days,
     // is_new_in_town / trending / popular). Shown inline after the store name.
     final badgeKey   = _BannerStoresBlockState._resolveStoreBadge(s);
-    final badgeLabel = badgeKey == null ? "" : _nearbyBadgeText(badgeKey);
+    final badgeLabel = badgeKey == null ? "" : _nearbyBadgeText(ctx, badgeKey);
     final status   = computeStoreOpenStatus(s["open_time"]?.toString() ?? "", s["close_time"]?.toString() ?? "");
     final imgSrc   = _resolveImg(s);
 
@@ -5949,7 +5960,7 @@ class _NearbyStoresSection extends StatelessWidget {
       onTap: () => onStoreTap(s),
       child: Container(
         width: width,
-        margin: const EdgeInsets.only(right: 16),
+        margin: const EdgeInsetsDirectional.only(end: 16),
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: OffroColors.surface,
@@ -5963,7 +5974,7 @@ class _NearbyStoresSection extends StatelessWidget {
             child: Stack(fit: StackFit.expand, children: [
               _storeImage(imgSrc, name),
               if (hasOffer)
-                Positioned(left: 12, bottom: 12,
+                PositionedDirectional(start: 12, bottom: 12,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: width - 24),
                     child: Container(
@@ -5972,13 +5983,13 @@ class _NearbyStoresSection extends StatelessWidget {
                         color: OffroColors.background,
                         borderRadius: OffroRadii.pillRadius,
                       ),
-                      child: Text("Offer · $offer",
+                      child: Text(ctx.l10n.homeOfferInline("$offer"),
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                     ),
                   )),
               if (distKm != null)
-                Positioned(left: 12, top: 12,
+                PositionedDirectional(start: 12, top: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
@@ -5992,7 +6003,7 @@ class _NearbyStoresSection extends StatelessWidget {
                         style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white)),
                     ]),
                   )),
-              Positioned(right: 12, top: 12, child: _storeHeart(ctx, s, sid)),
+              PositionedDirectional(end: 12, top: 12, child: _storeHeart(ctx, s, sid)),
             ]),
           ),
           Padding(
@@ -6060,8 +6071,8 @@ class _NearbyStoresSection extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(child: Text(
                       status.subLabel.isNotEmpty
-                          ? "${status.isOpen ? 'Open now' : 'Closed'} · ${status.subLabel}"
-                          : (status.isOpen ? "Open now" : "Closed"),
+                          ? "${status.isOpen ? ctx.l10n.homeOpenNow : ctx.l10n.homeClosed} · ${localizedStoreHoursSub(ctx, status)}"
+                          : (status.isOpen ? ctx.l10n.homeOpenNow : ctx.l10n.homeClosed),
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid))),
                   ]),
@@ -6075,11 +6086,11 @@ class _NearbyStoresSection extends StatelessWidget {
 
   @override Widget build(BuildContext context) {
     final chips = [
-      {"label": "Any distance", "val": 0.0},
-      {"label": "Under 1 km",   "val": 1.0},
-      {"label": "Under 3 km",   "val": 3.0},
-      {"label": "Under 5 km",   "val": 5.0},
-      {"label": "Under 10 km",  "val": 10.0},
+      {"label": context.l10n.homeDistanceAny,        "val": 0.0},
+      {"label": context.l10n.homeDistanceUnder("1"),  "val": 1.0},
+      {"label": context.l10n.homeDistanceUnder("3"),  "val": 3.0},
+      {"label": context.l10n.homeDistanceUnder("5"),  "val": 5.0},
+      {"label": context.l10n.homeDistanceUnder("10"), "val": 10.0},
     ];
     // One clean filter. "Any distance" or GPS unavailable → every city store;
     // a specific radius → strict filter (distance already computed + sorted by
@@ -6101,10 +6112,10 @@ class _NearbyStoresSection extends StatelessWidget {
       padding: const EdgeInsets.only(top: 36),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         OffroSectionTitle(
-          eyebrow: "Around your neighbourhood",
+          eyebrow: context.l10n.homeNearbyEyebrow,
         eyebrowColor: OffroColors.sageStrong,
-          title: "Stores near you",
-          actionLabel: "See all",
+          title: context.l10n.homeStoresNearTitle,
+          actionLabel: context.l10n.homeSeeAllLower,
           onAction: onViewAll,
         ),
         const SizedBox(height: 16),
@@ -6118,7 +6129,7 @@ class _NearbyStoresSection extends StatelessWidget {
               onTap: () => onRadiusChanged(c["val"] as double),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(right: 8),
+                margin: const EdgeInsetsDirectional.only(end: 8),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: isActive ? OffroColors.primary : OffroColors.surface,
@@ -6145,10 +6156,10 @@ class _NearbyStoresSection extends StatelessWidget {
                 border: Border.all(color: OffroColors.borderStrong),
               ),
               child: Column(children: [
-                Text("No stores within ${radiusKm.toInt()} km",
+                Text(context.l10n.homeNoStoresWithin("${radiusKm.toInt()}"),
                   style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.secondarySolid)),
                 const SizedBox(height: 4),
-                Text("Try a larger radius or tap Any distance",
+                Text(context.l10n.homeTryLargerRadius,
                   style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.secondarySolid)),
               ]),
             ),
@@ -6157,7 +6168,7 @@ class _NearbyStoresSection extends StatelessWidget {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(left: OffroSpacing.gutter, right: 4),
+            padding: const EdgeInsetsDirectional.only(start: OffroSpacing.gutter, end: 4),
             child: IntrinsicHeight(
               child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 for (int i = 0; i < shown; i++) _storeCard(context, filtered[i], cardW),
@@ -6192,18 +6203,18 @@ class _ExploreAreasSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("Explore Areas",
-              style: TextStyle(color: OffroColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
-            Text("Discover great places nearby",
-              style: TextStyle(color: OffroColors.secondarySolid, fontSize: 12)),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(context.l10n.homeExploreAreasTitle,
+              style: const TextStyle(color: OffroColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(context.l10n.homeExploreAreasSubtitle,
+              style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 12)),
           ]),
           const Spacer(),
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => _AllAreasScreen(stores: stores, token: token))),
-            child: const Text("View all →",
-              style: TextStyle(color: OffroColors.primary, fontSize: 13, fontWeight: FontWeight.w600)),
+            child: Text(context.l10n.homeViewAllArrow,
+              style: const TextStyle(color: OffroColors.primary, fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ]),
         const SizedBox(height: 12),
@@ -6239,7 +6250,7 @@ class _ExploreAreasSection extends StatelessWidget {
                     (s["area"]?.toString() ?? "").trim().toLowerCase() == area.toLowerCase()).toList(),
                   token: token))),
               child: Container(
-                margin: const EdgeInsets.only(right: 10, bottom: 4),
+                margin: const EdgeInsetsDirectional.only(end: 10, bottom: 4),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   // Solid dark — same visual as floating badge "Newly Added" black overlay
@@ -6273,9 +6284,9 @@ class _ExploreAreasSection extends StatelessWidget {
                           height: 1.1,
                         ),
                       ),
-                      const Text(
-                        "Store",
-                        style: TextStyle(
+                      Text(
+                        context.l10n.homeStoreWord,
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 9,
                           fontWeight: FontWeight.w600,

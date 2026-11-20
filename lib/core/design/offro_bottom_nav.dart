@@ -9,6 +9,7 @@
 // the screen passes [currentIndex] and handles [onTap].
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import 'offro_icons.dart';
 import 'offro_tokens.dart';
 import 'offro_typography.dart';
@@ -116,10 +117,11 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = active ? OffroColors.primary : OffroColors.secondarySolid; // solid #54776A (Test C)
+    final label = localizedNavLabel(context, item.label);
     return Semantics(
       button: true,
       selected: active,
-      label: item.label,
+      label: label,
       excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
@@ -159,7 +161,7 @@ class _NavButton extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  item.label,
+                  label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: OffroText.navLabel.copyWith(color: color, decoration: TextDecoration.none, fontWeight: active ? FontWeight.w700 : null),

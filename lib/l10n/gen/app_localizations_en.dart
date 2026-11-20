@@ -237,4 +237,287 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileStatPoints => 'Points';
+
+  @override
+  String get navHome => 'Home';
+
+  @override
+  String get navExplore => 'Explore';
+
+  @override
+  String get navDeals => 'Deals';
+
+  @override
+  String get navRewards => 'Rewards';
+
+  @override
+  String get navProfile => 'Profile';
+
+  @override
+  String get navInvoices => 'Invoices';
+
+  @override
+  String get navActivity => 'Activity';
+
+  @override
+  String get navOpportunities => 'Opportunities';
+
+  @override
+  String get homeExploring => 'Exploring';
+
+  @override
+  String get homeSelectLocation => 'Select location';
+
+  @override
+  String get homeSearchHint => 'Search stores, products or services';
+
+  @override
+  String get homeViewArrow => 'View →';
+
+  @override
+  String get homeHeroBadge => 'LOCAL DEALS & STORES';
+
+  @override
+  String get homeExploreLead => 'Explore';
+
+  @override
+  String get homeHeroSubtitle => 'Discover stores, deals & local favorites';
+
+  @override
+  String get homeDiscoverStores => 'Discover stores';
+
+  @override
+  String get homeYourCity => 'Your City';
+
+  @override
+  String get homeDealEndsToday => 'Ends today';
+
+  @override
+  String get homeDealOneDayLeft => '1 day left';
+
+  @override
+  String homeDealDaysLeft(String days) {
+    return '$days days left';
+  }
+
+  @override
+  String get homeExclusiveEyebrow => 'Made for OffrO members';
+
+  @override
+  String get homeExclusiveTitle => 'Exclusive deals';
+
+  @override
+  String get homeViewAll => 'View all';
+
+  @override
+  String get homeDealOffer => 'Offer';
+
+  @override
+  String homePercentOff(String percent) {
+    return '$percent% off';
+  }
+
+  @override
+  String get homeRewardsBadge => 'OFFRO REWARDS';
+
+  @override
+  String get homePointsSuffix => 'points';
+
+  @override
+  String get homeRewardsTapToView => 'Tap to view and redeem your rewards';
+
+  @override
+  String get homeRewardsEarnHint => 'Visit stores to start earning points';
+
+  @override
+  String get homeCategoriesEyebrow => 'Find what you need';
+
+  @override
+  String get homeCategoriesTitle => 'Explore categories';
+
+  @override
+  String get homeSeeAll => 'See All';
+
+  @override
+  String get homeSeeAllLower => 'See all';
+
+  @override
+  String get catBakery => 'Bakery';
+
+  @override
+  String get catAutomobile => 'Automobile';
+
+  @override
+  String get catRestaurant => 'Restaurant';
+
+  @override
+  String get catGrocery => 'Grocery';
+
+  @override
+  String get homeProductsEyebrow => 'Across local stores';
+
+  @override
+  String get homeProductsTitle => 'Products near you';
+
+  @override
+  String get homeBrowseAll => 'Browse all';
+
+  @override
+  String homeFavoriteSaveFailed(String error) {
+    return 'Couldn\'t save favorite: $error';
+  }
+
+  @override
+  String get homeNearbyEyebrow => 'Around your neighbourhood';
+
+  @override
+  String get homeStoresNearTitle => 'Stores near you';
+
+  @override
+  String get homeNearbyStoresTitle => 'Nearby Stores';
+
+  @override
+  String get homeBadgeNew => 'NEW';
+
+  @override
+  String homeOfferInline(String offer) {
+    return 'Offer · $offer';
+  }
+
+  @override
+  String get homeOpenNow => 'Open now';
+
+  @override
+  String get homeClosed => 'Closed';
+
+  @override
+  String get homeDistanceAny => 'Any distance';
+
+  @override
+  String homeDistanceUnder(String km) {
+    return 'Under $km km';
+  }
+
+  @override
+  String homeNoStoresWithin(String km) {
+    return 'No stores within $km km';
+  }
+
+  @override
+  String get homeTryLargerRadius => 'Try a larger radius or tap Any distance';
+
+  @override
+  String get homeExploreAreasTitle => 'Explore Areas';
+
+  @override
+  String get homeExploreAreasSubtitle => 'Discover great places nearby';
+
+  @override
+  String get homeViewAllArrow => 'View all →';
+
+  @override
+  String get homeStoreWord => 'Store';
+
+  @override
+  String get homeFeatureRewards => 'My Rewards';
+
+  @override
+  String get homeBackToHome => 'Back to Home';
+
+  @override
+  String get homeContactSupport => 'Contact Support';
+
+  @override
+  String get homeNoInternet => 'No internet connection';
+
+  @override
+  String get homeCheckConnection => 'Check your connection and try again';
+
+  @override
+  String get homeServerSlow => 'Server taking too long';
+
+  @override
+  String get homeColdStart => 'Cold start — please wait a moment and retry';
+
+  @override
+  String get homeCouldntLoadStores => 'Couldn\'t load stores';
+
+  @override
+  String get homePleaseTryAgain => 'Please try again';
+
+  @override
+  String get homeCouldntLoadPage => 'Couldn\'t load this page';
+
+  @override
+  String get commonRetry => 'Retry';
+
+  @override
+  String get commonTryAgain => 'Try Again';
+
+  @override
+  String get homePromoTitle => 'Featured Banners';
+
+  @override
+  String get homePromoSubtitle => 'Latest offers from our stores';
+
+  @override
+  String get timeAm => 'AM';
+
+  @override
+  String get timePm => 'PM';
+
+  @override
+  String storeClosesAt(String time) {
+    return 'Closes $time';
+  }
+
+  @override
+  String storeOpensAt(String time) {
+    return 'Opens $time';
+  }
+
+  @override
+  String get badgeJustOpened => 'JUST OPENED';
+
+  @override
+  String get badgeNewlyAdded => 'NEWLY ADDED';
+
+  @override
+  String get badgeNewlyOpened => 'NEWLY OPENED';
+
+  @override
+  String get badgeTrending => 'TRENDING';
+
+  @override
+  String get badgePopular => 'POPULAR';
+
+  @override
+  String get badgeTopRated => 'TOP RATED';
+
+  @override
+  String get badgeMustVisit => 'MUST VISIT';
+
+  @override
+  String get badgeLimitedOffer => 'LIMITED OFFER';
+
+  @override
+  String get homeLoginRequiredTitle => 'Login Required';
+
+  @override
+  String homeLoginRequiredBody(String feature) {
+    return 'Please login or register to use $feature.';
+  }
+
+  @override
+  String get homeLoginRegister => 'Login / Register';
+
+  @override
+  String get homeMaybeLater => 'Maybe later';
+
+  @override
+  String get homeUnableToConnect =>
+      'Unable to connect. Please check your internet connection and try again.';
+
+  @override
+  String get homeRefreshFailed => 'Couldn\'t refresh stores. Please try again.';
 }
