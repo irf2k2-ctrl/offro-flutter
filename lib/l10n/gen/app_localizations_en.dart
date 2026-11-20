@@ -3834,4 +3834,50 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get stateErrorMessage => 'Check your connection and try again.';
+
+  @override
+  String get notifDiagTitle => 'Notification Diagnostics';
+
+  @override
+  String get notifDiagRegStatusTitle => 'FCM Registration Status';
+
+  @override
+  String get notifDiagCopy => 'Copy';
+
+  @override
+  String get notifDiagRecheck => 'Re-check';
+
+  @override
+  String get notifDiagTokenCopied => 'FCM token copied';
+
+  @override
+  String get notifDiagCopiedToClipboard => 'Diagnostics copied to clipboard';
+
+  @override
+  String get notifDiagClear => 'Clear';
+
+  @override
+  String get notifDiagClearLogTitle => 'Clear Log?';
+
+  @override
+  String get notifDiagClearLogBody =>
+      'This will remove all notification event entries.';
+
+  @override
+  String get notifDiagEmptyTitle => 'No events logged yet';
+
+  @override
+  String get notifDiagEmptyHint =>
+      'Send a notification and check back\nto see which handlers fired';
+
+  @override
+  String get notifDiagRefresh => 'Refresh';
+
+  @override
+  String get notifDiagChecking => 'Checking...';
+
+  @override
+  String notifDiagSecondsAgo(String n) {
+    return '${n}s ago';
+  }
 }

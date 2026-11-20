@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../core/design/offro_tokens.dart' show OffroColors;
+import '../core/l10n/l10n.dart';
 
 const String _kNotifLog = 'offro_notif_event_log';
 const int _kMaxLogEntries = 100;
@@ -204,9 +205,9 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
       final dt = DateTime.parse(isoTs);
       final now = DateTime.now();
       final diff = now.difference(dt);
-      if (diff.inSeconds < 60) return diff.inSeconds.toString() + 's ago';
-      if (diff.inMinutes < 60) return diff.inMinutes.toString() + 'm ago';
-      if (diff.inHours < 24) return diff.inHours.toString() + 'h ago';
+      if (diff.inSeconds < 60) return context.l10n.notifDiagSecondsAgo(diff.inSeconds.toString());
+      if (diff.inMinutes < 60) return context.l10n.timeAgoMinutes(diff.inMinutes.toString());
+      if (diff.inHours < 24) return context.l10n.timeAgoHours(diff.inHours.toString());
       return dt.day.toString() + '/' + dt.month.toString() + ' ' +
         dt.hour.toString() + ':' + dt.minute.toString().padLeft(2, '0');
     } catch (_) {
@@ -345,7 +346,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
           Row(children: [
             const Icon(Icons.info_outline_rounded, size: 18, color: kPrimary),
             const SizedBox(width: 6),
-            const Text('FCM Registration Status',
+            Text(context.l10n.notifDiagRegStatusTitle,
               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kPrimary)),
             const Spacer(),
             Text(_reg.platform,
@@ -365,7 +366,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: _fullFcmToken!));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('FCM token copied'),
+                    SnackBar(content: Text(context.l10n.notifDiagTokenCopied),
                       duration: Duration(seconds: 2)),
                   );
                 },
@@ -375,7 +376,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                     color: kPrimary,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text('Copy', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
+                  child: Text(context.l10n.notifDiagCopy, style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600)),
                 ),
               ),
             ]),
@@ -390,10 +391,10 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                   color: kPrimary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.refresh_rounded, size: 14, color: kPrimary),
                   SizedBox(width: 4),
-                  Text('Re-check', style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
+                  Text(context.l10n.notifDiagRecheck, style: TextStyle(fontSize: 12, color: kPrimary, fontWeight: FontWeight.w600)),
                 ]),
               ),
             ),
@@ -423,7 +424,7 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         foregroundColor: kText,
-        title: const Text('Notification Diagnostics',
+        title: Text(context.l10n.notifDiagTitle,
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
         elevation: 0,
         actions: [
@@ -437,18 +438,18 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                 final confirm = await showDialog<bool>(
                   context: context,
                   builder: (_) => AlertDialog(
-                    title: const Text('Clear Log?'),
-                    content: const Text('This will remove all notification event entries.'),
+                    title: Text(context.l10n.notifDiagClearLogTitle),
+                    content: Text(context.l10n.notifDiagClearLogBody),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+                      TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.commonCancel)),
                       TextButton(onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Clear', style: TextStyle(color: kRed))),
+                        child: Text(context.l10n.notifDiagClear, style: TextStyle(color: kRed))),
                     ],
                   ),
                 );
                 if (confirm == true) await _clear();
               },
-              child: const Text('Clear',
+              child: Text(context.l10n.notifDiagClear,
                 style: TextStyle(color: kRed, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
         ],
@@ -465,10 +466,10 @@ class _NotifLogScreenState extends State<NotifLogScreen> {
                     child: Column(children: [
                       Icon(Icons.bug_report_outlined, size: 60, color: kMuted.withValues(alpha: 0.3)),
                       const SizedBox(height: 16),
-                      const Text('No events logged yet',
+                      Text(context.l10n.notifDiagEmptyTitle,
                         style: TextStyle(color: kMuted, fontSize: 15, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
-                      const Text('Send a notification and check back\nto see which handlers fired',
+                      Text(context.l10n.notifDiagEmptyHint,
                         textAlign: TextAlign.center,
                         style: TextStyle(color: kMuted, fontSize: 12)),
                     ]),

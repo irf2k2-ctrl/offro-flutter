@@ -1128,5 +1128,19 @@
   "splashTagline": "اكتشف · وفّر · اكسب",
   "commonBack": "رجوع",
   "stateErrorTitle": "تعذر تحميل هذا المحتوى",
-  "stateErrorMessage": "تحقق من اتصالك وحاول مرة أخرى."
+  "stateErrorMessage": "تحقق من اتصالك وحاول مرة أخرى.",
+  "notifDiagTitle": "تشخيص الإشعارات",
+  "notifDiagRegStatusTitle": "حالة تسجيل FCM",
+  "notifDiagCopy": "نسخ",
+  "notifDiagRecheck": "إعادة الفحص",
+  "notifDiagTokenCopied": "تم نسخ رمز FCM",
+  "notifDiagCopiedToClipboard": "تم نسخ التشخيص إلى الحافظة",
+  "notifDiagClear": "مسح",
+  "notifDiagClearLogTitle": "مسح السجل؟",
+  "notifDiagClearLogBody": "سيؤدي هذا إلى إزالة جميع سجلات أحداث الإشعارات.",
+  "notifDiagEmptyTitle": "لا توجد أحداث مسجّلة بعد",
+  "notifDiagEmptyHint": "أرسل إشعارًا ثم عد لاحقًا\nلمعرفة المعالجات التي عملت",
+  "notifDiagRefresh": "تحديث",
+  "notifDiagChecking": "جارٍ الفحص...",
+  "notifDiagSecondsAgo": "منذ {n} ث"
 }

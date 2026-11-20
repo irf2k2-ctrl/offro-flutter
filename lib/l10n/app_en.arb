@@ -6443,5 +6443,80 @@
   "@stateErrorMessage": {
     "description": "Default message of the shared error state",
     "x-screen": "common"
+  },
+  "notifDiagTitle": "Notification Diagnostics",
+  "@notifDiagTitle": {
+    "description": "Developer notification diagnostics screens: app bar title",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagRegStatusTitle": "FCM Registration Status",
+  "@notifDiagRegStatusTitle": {
+    "description": "Developer notification log: heading of the FCM registration status panel",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagCopy": "Copy",
+  "@notifDiagCopy": {
+    "description": "Developer notification diagnostics: copy button",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagRecheck": "Re-check",
+  "@notifDiagRecheck": {
+    "description": "Developer notification log: button that re-runs the registration check",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagTokenCopied": "FCM token copied",
+  "@notifDiagTokenCopied": {
+    "description": "Developer notification log: snackbar after copying the FCM token",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagCopiedToClipboard": "Diagnostics copied to clipboard",
+  "@notifDiagCopiedToClipboard": {
+    "description": "Developer notification diagnostics: snackbar after copying the report",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagClear": "Clear",
+  "@notifDiagClear": {
+    "description": "Developer notification log: clear button and dialog confirm action",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagClearLogTitle": "Clear Log?",
+  "@notifDiagClearLogTitle": {
+    "description": "Developer notification log: clear confirmation dialog title",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagClearLogBody": "This will remove all notification event entries.",
+  "@notifDiagClearLogBody": {
+    "description": "Developer notification log: clear confirmation dialog body",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagEmptyTitle": "No events logged yet",
+  "@notifDiagEmptyTitle": {
+    "description": "Developer notification log: empty state title",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagEmptyHint": "Send a notification and check back\nto see which handlers fired",
+  "@notifDiagEmptyHint": {
+    "description": "Developer notification log: empty state hint (contains a line break)",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagRefresh": "Refresh",
+  "@notifDiagRefresh": {
+    "description": "Developer notification diagnostics: refresh button",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagChecking": "Checking...",
+  "@notifDiagChecking": {
+    "description": "Developer notification diagnostics: refresh button label while running",
+    "x-screen": "notifDiag"
+  },
+  "notifDiagSecondsAgo": "{n}s ago",
+  "@notifDiagSecondsAgo": {
+    "description": "Developer notification log: relative time under one minute; {n} is a whole number of seconds",
+    "x-screen": "notifDiag",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
   }
 }

@@ -3814,4 +3814,50 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get stateErrorMessage => 'تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get notifDiagTitle => 'تشخيص الإشعارات';
+
+  @override
+  String get notifDiagRegStatusTitle => 'حالة تسجيل FCM';
+
+  @override
+  String get notifDiagCopy => 'نسخ';
+
+  @override
+  String get notifDiagRecheck => 'إعادة الفحص';
+
+  @override
+  String get notifDiagTokenCopied => 'تم نسخ رمز FCM';
+
+  @override
+  String get notifDiagCopiedToClipboard => 'تم نسخ التشخيص إلى الحافظة';
+
+  @override
+  String get notifDiagClear => 'مسح';
+
+  @override
+  String get notifDiagClearLogTitle => 'مسح السجل؟';
+
+  @override
+  String get notifDiagClearLogBody =>
+      'سيؤدي هذا إلى إزالة جميع سجلات أحداث الإشعارات.';
+
+  @override
+  String get notifDiagEmptyTitle => 'لا توجد أحداث مسجّلة بعد';
+
+  @override
+  String get notifDiagEmptyHint =>
+      'أرسل إشعارًا ثم عد لاحقًا\nلمعرفة المعالجات التي عملت';
+
+  @override
+  String get notifDiagRefresh => 'تحديث';
+
+  @override
+  String get notifDiagChecking => 'جارٍ الفحص...';
+
+  @override
+  String notifDiagSecondsAgo(String n) {
+    return 'منذ $n ث';
+  }
 }

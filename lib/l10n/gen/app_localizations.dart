@@ -6865,6 +6865,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check your connection and try again.'**
   String get stateErrorMessage;
+
+  /// Developer notification diagnostics screens: app bar title
+  ///
+  /// In en, this message translates to:
+  /// **'Notification Diagnostics'**
+  String get notifDiagTitle;
+
+  /// Developer notification log: heading of the FCM registration status panel
+  ///
+  /// In en, this message translates to:
+  /// **'FCM Registration Status'**
+  String get notifDiagRegStatusTitle;
+
+  /// Developer notification diagnostics: copy button
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get notifDiagCopy;
+
+  /// Developer notification log: button that re-runs the registration check
+  ///
+  /// In en, this message translates to:
+  /// **'Re-check'**
+  String get notifDiagRecheck;
+
+  /// Developer notification log: snackbar after copying the FCM token
+  ///
+  /// In en, this message translates to:
+  /// **'FCM token copied'**
+  String get notifDiagTokenCopied;
+
+  /// Developer notification diagnostics: snackbar after copying the report
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics copied to clipboard'**
+  String get notifDiagCopiedToClipboard;
+
+  /// Developer notification log: clear button and dialog confirm action
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get notifDiagClear;
+
+  /// Developer notification log: clear confirmation dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Log?'**
+  String get notifDiagClearLogTitle;
+
+  /// Developer notification log: clear confirmation dialog body
+  ///
+  /// In en, this message translates to:
+  /// **'This will remove all notification event entries.'**
+  String get notifDiagClearLogBody;
+
+  /// Developer notification log: empty state title
+  ///
+  /// In en, this message translates to:
+  /// **'No events logged yet'**
+  String get notifDiagEmptyTitle;
+
+  /// Developer notification log: empty state hint (contains a line break)
+  ///
+  /// In en, this message translates to:
+  /// **'Send a notification and check back\nto see which handlers fired'**
+  String get notifDiagEmptyHint;
+
+  /// Developer notification diagnostics: refresh button
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get notifDiagRefresh;
+
+  /// Developer notification diagnostics: refresh button label while running
+  ///
+  /// In en, this message translates to:
+  /// **'Checking...'**
+  String get notifDiagChecking;
+
+  /// Developer notification log: relative time under one minute; {n} is a whole number of seconds
+  ///
+  /// In en, this message translates to:
+  /// **'{n}s ago'**
+  String notifDiagSecondsAgo(String n);
 }
 
 class _AppLocalizationsDelegate

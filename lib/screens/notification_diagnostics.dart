@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../core/design/offro_tokens.dart' show OffroColors;
+import '../core/l10n/l10n.dart';
 
 class NotificationDiagnosticsScreen extends StatefulWidget {
   const NotificationDiagnosticsScreen({super.key});
@@ -221,8 +222,8 @@ class _NotificationDiagnosticsScreenState
     final text = _buildDiagnosticsText();
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Diagnostics copied to clipboard'),
+      SnackBar(
+        content: Text(context.l10n.notifDiagCopiedToClipboard),
         duration: Duration(seconds: 2),
       ),
     );
@@ -271,7 +272,7 @@ class _NotificationDiagnosticsScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notification Diagnostics'),
+        title: Text(context.l10n.notifDiagTitle),
         backgroundColor: OffroColors.primary,
         foregroundColor: Colors.white,
       ),
@@ -365,7 +366,7 @@ class _NotificationDiagnosticsScreenState
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.refresh),
-                    label: Text(_isRunning ? 'Checking...' : 'Refresh'),
+                    label: Text(_isRunning ? context.l10n.notifDiagChecking : context.l10n.notifDiagRefresh),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: OffroColors.primary,
                       foregroundColor: Colors.white,
@@ -378,7 +379,7 @@ class _NotificationDiagnosticsScreenState
                   child: ElevatedButton.icon(
                     onPressed: _copyDiagnostics,
                     icon: const Icon(Icons.copy),
-                    label: const Text('Copy'),
+                    label: Text(context.l10n.notifDiagCopy),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: OffroColors.accent,
                       foregroundColor: OffroColors.text,
