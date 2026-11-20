@@ -11,6 +11,7 @@ import 'package:flutter/widgets.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../l10n/gen/app_localizations_en.dart';
 import '../utils/store_hours.dart';
+import 'locale_controller.dart';
 
 export '../../l10n/gen/app_localizations.dart' show AppLocalizations;
 
@@ -19,6 +20,10 @@ extension OffroL10n on BuildContext {
   /// MaterialApp such as a diagnostic screen, or a test), so a missing delegate can never crash a screen.
   AppLocalizations get l10n => Localizations.of<AppLocalizations>(this, AppLocalizations) ?? AppLocalizationsEn();
 }
+
+/// Text for code that has no BuildContext (a top-level helper, a static method). It follows the app language chosen in
+/// [LocaleController]; with English selected the text is exactly the English text. Prefer `context.l10n` wherever a context exists.
+AppLocalizations get offroNoContext => lookupAppLocalizations(LocaleController.instance.locale);
 
 /// Keeps a phone number (or other always-left-to-right token) in order inside right-to-left text. In left-to-right layouts the value
 /// is returned UNCHANGED, so English text is exactly as before. Use only for values passed as placeholder arguments.
@@ -106,8 +111,10 @@ String localizedFilterLabel(BuildContext context, String label) {
 }
 
 /// The 12 short month names (Jan..Dec) in the app language. Used with Western digits for dates such as "5 Mar 2026".
-List<String> localizedMonthsShort(BuildContext context) {
-  final l = context.l10n;
+List<String> localizedMonthsShort(BuildContext context) => monthsShortOf(context.l10n);
+
+/// Same as [localizedMonthsShort] for code that already holds an [AppLocalizations] (or uses [offroNoContext]).
+List<String> monthsShortOf(AppLocalizations l) {
   return [l.monthJan, l.monthFeb, l.monthMar, l.monthApr, l.monthMay, l.monthJun, l.monthJul, l.monthAug, l.monthSep, l.monthOct, l.monthNov, l.monthDec];
 }
 
@@ -138,6 +145,8 @@ String localizedDeleteReason(BuildContext context, String reason) {
     case 'I have a duplicate account': return l.delReasonDuplicate;
     case 'Too many notifications or irrelevant content': return l.delReasonNoisy;
     case 'Other': return l.delReasonOther;
+    case 'I no longer run my business': return l.bizINoLongerRunMy;
+    case 'The app is not working properly for me': return l.bizTheAppIsNotWorking;
     default: return reason;
   }
 }

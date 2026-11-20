@@ -9,6 +9,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
+import '../../core/l10n/l10n.dart';
 
 // ══════════════════════════════════════════════════════════════════════
 // RENEW PRODUCT PAGE
@@ -47,7 +48,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
   double get _total => double.parse((_price + _gstAmt).toStringAsFixed(2));
 
   String _fmtDate(DateTime dt) {
-    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    final m = monthsShortOf(offroNoContext);
     return "${dt.day} ${m[dt.month-1]} ${dt.year}";
   }
   String _ymd(DateTime d) => "${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}";
@@ -116,20 +117,20 @@ class _RenewProductPageState extends State<RenewProductPage> {
   Future<void> _applyDiscount() async {
     final code = _discountCtrl.text.trim();
     if (code.isEmpty) return;
-    setState(() { _discountMsg = "Checking…"; _discountApplied = false; });
+    setState(() { _discountMsg = context.l10n.bizChecking; _discountApplied = false; });
     try {
       final res = await Api.validateDiscountCode(widget.token, code, scope: "PRODUCTS");
       if (mounted) setState(() {
         _discountApplied = true;
-        _discountMsg     = res["message"]?.toString() ?? "Discount applied!";
+        _discountMsg     = res["message"]?.toString() ?? context.l10n.bizDiscountApplied2;
       });
     } catch (e) {
-      if (mounted) setState(() { _discountMsg = friendlyError(e); _discountApplied = false; });
+      if (mounted) setState(() { _discountMsg = friendlyError(e, l10n: mounted ? context.l10n : null); _discountApplied = false; });
     }
   }
 
   Future<void> _proceed() async {
-    if (!_newEnd.isAfter(_renewFrom)) { setState(() => _msg = "Choose a later end date (add at least 1 day)"); return; }
+    if (!_newEnd.isAfter(_renewFrom)) { setState(() => _msg = context.l10n.bizChooseALaterEndDate); return; }
     setState(() { _loading = true; _msg = ""; });
     try {
       // The backend re-counts slots here - the preview above is only an estimate.
@@ -163,16 +164,16 @@ class _RenewProductPageState extends State<RenewProductPage> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(result["message"]?.toString() ?? "✅ Renewed successfully!"),
+            content: Text(result["message"]?.toString() ?? context.l10n.bizRenewedSuccessfully),
             backgroundColor: OffroColors.statusLive));
           Navigator.pop(context, true);
         }
         return;
       } else {
-        if (mounted) setState(() => _msg = "Payment gateway not configured. Contact support.");
+        if (mounted) setState(() => _msg = context.l10n.bizPaymentGatewayNotConfiguredContact);
       }
     } catch (e) {
-      if (mounted) setState(() => _msg = friendlyError(e));
+      if (mounted) setState(() => _msg = friendlyError(e, l10n: mounted ? context.l10n : null));
     }
     if (mounted) setState(() => _loading = false);
   }
@@ -182,29 +183,29 @@ class _RenewProductPageState extends State<RenewProductPage> {
       context: context,
       barrierDismissible: false,
       builder: (_) => AlertDialog(
-        title: const Text("Renewal Summary",
+        title: Text(context.l10n.bizRenewalSummary,
           style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _dRow("Product", widget.product["title"]?.toString() ?? ""),
-          _dRow("New end date", order["end_date"]?.toString() ?? _fmtDate(_newEnd)),
-          _dRow("Plan", isFree ? "Free renewal" : "Additional product"),
+          _dRow(context.l10n.prodTitleFallback, widget.product["title"]?.toString() ?? ""),
+          _dRow(context.l10n.bizNewEndDate, order["end_date"]?.toString() ?? _fmtDate(_newEnd)),
+          _dRow(context.l10n.bizPlan, isFree ? context.l10n.bizFreeRenewal : context.l10n.bizAdditionalProduct),
           if (!isFree) ...[
             const Divider(),
-            _dRow("Price", "₹${order['base_price']}"),
+            _dRow(context.l10n.bizPrice, "₹${order['base_price']}"),
             if (((order['discount_amount'] as num?) ?? 0) > 0)
-              _dRow("Discount", "−₹${order['discount_amount']}", color: OffroColors.statusLive),
-            _dRow("GST (${order['gst_percent']}%)", "₹${order['gst_amount']}"),
-            _dRow("Total", "₹${order['amount_display']}", bold: true),
+              _dRow(context.l10n.bizDiscount, "−₹${order['discount_amount']}", color: OffroColors.statusLive),
+            _dRow(context.l10n.bizGstPct('${order['gst_percent']}'), "₹${order['gst_amount']}"),
+            _dRow(context.l10n.bizTotal, "₹${order['amount_display']}", bold: true),
           ],
         ]),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
+            child: Text(context.l10n.commonCancel, style: TextStyle(color: kMerchantMuted))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(isFree ? "Renew free" : "Pay ₹${order['amount_display']}",
+            child: Text(isFree ? context.l10n.bizRenewFree : context.l10n.bizPayAmount('${order['amount_display']}'),
               style: const TextStyle(color: Colors.white))),
         ],
       ),
@@ -234,16 +235,16 @@ class _RenewProductPageState extends State<RenewProductPage> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(result["message"] ?? "Renewed!"),
+          content: Text(result["message"] ?? context.l10n.bizRenewed),
           backgroundColor: OffroColors.statusLive));
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _msg = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
   void _onPayError(PaymentFailureResponse res) {
-    if (mounted) setState(() { _msg = "Payment failed: ${friendlyRazorpayError(res.message)}"; _loading = false; });
+    if (mounted) setState(() { _msg = context.l10n.bizPaymentFailedMsg(friendlyRazorpayError(res.message, l10n: context.l10n)); _loading = false; });
   }
 
   @override Widget build(BuildContext context) {
@@ -251,7 +252,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
     final limit = (_slots?["free_limit"] as num?)?.toInt() ?? 0;
     return Scaffold(
       backgroundColor: kMerchantBg,
-      appBar: AppBar(title: const Text("Renew Product", style: TextStyle(fontWeight: FontWeight.w800))),
+      appBar: AppBar(title: Text(context.l10n.bizRenewProduct, style: TextStyle(fontWeight: FontWeight.w800))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -265,10 +266,10 @@ class _RenewProductPageState extends State<RenewProductPage> {
               const Icon(Icons.autorenew_rounded, color: kMerchantPrimary, size: 22),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(widget.product["title"]?.toString() ?? "Product",
+                Text(widget.product["title"]?.toString() ?? context.l10n.prodTitleFallback,
                   style: const TextStyle(fontWeight: FontWeight.w700, color: kMerchantText)),
                 Text(widget.product["end_date"]?.toString().isNotEmpty == true
-                    ? "Current end date: ${_fmtDate(_curEnd)}" : "No end date",
+                    ? context.l10n.bizCurrentEndDate(_fmtDate(_curEnd)) : context.l10n.bizNoEndDate,
                   style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
               ])),
             ]),
@@ -284,20 +285,20 @@ class _RenewProductPageState extends State<RenewProductPage> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: kMerchantBorder)),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_isFree ? "Free renewal" : "Additional product",
+              Text(_isFree ? context.l10n.bizFreeRenewal : context.l10n.bizAdditionalProduct,
                 style: const TextStyle(fontWeight: FontWeight.w800, color: kMerchantText, fontSize: 14)),
               const SizedBox(height: 4),
               Text(_isFree
-                  ? "A free product slot is available ($used of $limit in use), so this renewal is free."
-                  : "You are using all $limit free product slots. Renewing costs ${_fmtAmt(_pricePerDay)} per day added + GST.",
+                  ? context.l10n.bizFreeSlotAvailable('$used','$limit')
+                  : context.l10n.bizAllFreeSlotsUsedRenew('$limit',_fmtAmt(_pricePerDay)),
                 style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
             ]),
           ),
           const SizedBox(height: 14),
 
           _CheckoutCard(
-            title: "New end date",
-            subtitle: "Choose how long the product stays live.",
+            title: context.l10n.bizNewEndDate,
+            subtitle: context.l10n.bizChooseHowLongTheProduct,
             child: Column(children: [
               TextField(
                 controller: _addDaysC,
@@ -305,7 +306,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 onChanged: _setAddedDays,
                 decoration: InputDecoration(
-                  labelText: "Days to add",
+                  labelText: context.l10n.bizDaysToAdd,
                   prefixIcon: const Icon(Icons.calendar_month_rounded, color: kMerchantMuted, size: 20),
                   filled: true, fillColor: kMerchantBg,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
@@ -339,22 +340,22 @@ class _RenewProductPageState extends State<RenewProductPage> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(14)),
               child: Column(children: [
-                _PriceRow("$_addedDays ${_addedDays == 1 ? 'day' : 'days'} × ${_fmtAmt(_pricePerDay)}/day", _fmtAmt(_price)),
-                _PriceRow("GST (${_gstPct.toInt()}%)", _fmtAmt(_gstAmt)),
+                _PriceRow((_addedDays == 1 ? context.l10n.bizDayTimesPriceOne('$_addedDays',_fmtAmt(_pricePerDay)) : context.l10n.bizDayTimesPriceMany('$_addedDays',_fmtAmt(_pricePerDay))), _fmtAmt(_price)),
+                _PriceRow(context.l10n.bizGstPct('${_gstPct.toInt()}'), _fmtAmt(_gstAmt)),
                 const Divider(height: 20),
-                _PriceRow("Total", _fmtAmt(_total), bold: true),
+                _PriceRow(context.l10n.bizTotal, _fmtAmt(_total), bold: true),
               ]),
             ),
             const SizedBox(height: 14),
             _CheckoutCard(
-              title: "Discount Code",
-              subtitle: "Have a promo code? Enter it below.",
+              title: context.l10n.bizDiscountCode,
+              subtitle: context.l10n.bizHaveAPromoCodeEnter,
               child: Row(children: [
                 Expanded(child: TextField(
                   controller: _discountCtrl,
                   textCapitalization: TextCapitalization.characters,
                   decoration: InputDecoration(
-                    hintText: "e.g. OFFRO20",
+                    hintText: context.l10n.bizEGOFFRO20,
                     prefixIcon: const Icon(Icons.local_offer_outlined, color: kMerchantMuted, size: 20),
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -368,12 +369,12 @@ class _RenewProductPageState extends State<RenewProductPage> {
                   style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13)),
                   onPressed: _applyDiscount,
-                  child: const Text("Apply", style: TextStyle(fontWeight: FontWeight.w700))),
+                  child: Text(context.l10n.bizApply, style: TextStyle(fontWeight: FontWeight.w700))),
               ]),
             ),
             if (_discountMsg.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 6, left: 4),
+                padding: const EdgeInsetsDirectional.only(top: 6, start: 4),
                 child: Text(_discountMsg,
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600,
                     color: _discountApplied ? OffroColors.statusLive : Colors.red))),
@@ -387,7 +388,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
             icon: _loading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                 : const Icon(Icons.autorenew_rounded),
-            label: Text(_slots == null ? "Renew" : (_isFree ? "Renew free" : "Renew · ${_fmtAmt(_total)}")),
+            label: Text(_slots == null ? context.l10n.bizRenew : (_isFree ? context.l10n.bizRenewFree : context.l10n.bizRenewAmount(_fmtAmt(_total)))),
             style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(),
               padding: const EdgeInsets.symmetric(vertical: 14)),
             onPressed: _loading ? null : _proceed,
@@ -429,7 +430,7 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
     if (raw.isEmpty) return "—";
     final dt = DateTime.tryParse(raw)?.toLocal();
     if (dt == null) return raw.length >= 10 ? raw.substring(0, 10) : "—";
-    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    final m = monthsShortOf(offroNoContext);
     return "${dt.day} ${m[dt.month - 1]} ${dt.year}";
   }
 
@@ -447,7 +448,7 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
     appBar: AppBar(
-      title: const Text("Product Analytics", style: TextStyle(fontWeight: FontWeight.w800)),
+      title: Text(context.l10n.bizProductAnalytics, style: TextStyle(fontWeight: FontWeight.w800)),
        
       actions: [
         IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _load),
@@ -459,15 +460,15 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
       ? Center(child: Padding(padding: const EdgeInsets.all(32), child: Column(mainAxisSize: MainAxisSize.min, children: [
           const Icon(Icons.cloud_off_rounded, color: kMerchantMuted, size: 44),
           const SizedBox(height: 12),
-          const Text("Couldn't load analytics", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText, fontSize: 16)),
+          Text(context.l10n.bizCouldnTLoadAnalytics, style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText, fontSize: 16)),
           const SizedBox(height: 6),
-          const Text("Please check your connection and try again.", textAlign: TextAlign.center,
+          Text(context.l10n.bizPleaseCheckYourConnectionAnd, textAlign: TextAlign.center,
               style: TextStyle(color: kMerchantMuted, fontSize: 13)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: _load,
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text("Retry"),
+            label: Text(context.l10n.commonRetry),
             style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary, foregroundColor: Colors.white),
           ),
         ])))
@@ -476,25 +477,25 @@ class _ProductAnalyticsPageState extends State<ProductAnalyticsPage> {
           Card(elevation: 0, color: Colors.white, surfaceTintColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22), side: const BorderSide(color: OffroColors.border)),
             child: ListTile(
               leading: const Icon(Icons.local_activity_rounded, color: kMerchantPrimary, size: 36),
-              title: Text(widget.product["title"]?.toString() ?? "Product",
+              title: Text(widget.product["title"]?.toString() ?? context.l10n.prodTitleFallback,
                 style: const TextStyle(fontWeight: FontWeight.bold, color: kMerchantText)),
-              subtitle: const Text("Premium Listing Analytics",
+              subtitle: Text(context.l10n.bizPremiumListingAnalytics,
                 style: TextStyle(color: kMerchantMuted, fontSize: 12)),
             )),
           const SizedBox(height: 16),
           Row(children: [
-            Expanded(child: _AnalyticsStat("👁️ Views",  "${_count('views', 'view')}", kMerchantPrimary)),
+            Expanded(child: _AnalyticsStat(context.l10n.bizViews,  "${_count('views', 'view')}", kMerchantPrimary)),
             const SizedBox(width: 12),
-            Expanded(child: _AnalyticsStat("🔗 Shares", "${_count('shares', 'share')}", const Color(0xFF2563EB))),
+            Expanded(child: _AnalyticsStat(context.l10n.bizShares, "${_count('shares', 'share')}", const Color(0xFF2563EB))),
           ]),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: _AnalyticsStat("🛒 Store Visits", "${_count('opens', 'open')}", const Color(0xFF059669))),
+            Expanded(child: _AnalyticsStat(context.l10n.bizStoreVisits, "${_count('opens', 'open')}", const Color(0xFF059669))),
             const SizedBox(width: 12),
-            Expanded(child: _AnalyticsStat("📅 Last Seen", _lastSeen, const Color(0xFF7C3AED), valueSize: 17)),
+            Expanded(child: _AnalyticsStat(context.l10n.bizLastSeen, _lastSeen, const Color(0xFF7C3AED), valueSize: 17)),
           ]),
           const SizedBox(height: 8),
-          const Text("Store Visits: customers who visited the store",
+          Text(context.l10n.bizStoreVisitsCustomersWhoVisited,
             style: TextStyle(color: kMerchantMuted, fontSize: 11)),
           const SizedBox(height: 14),
           _ConversionBar(_data),
@@ -523,10 +524,10 @@ class _AnalyticsStat extends StatelessWidget {
       SizedBox(
         height: 34,
         child: Align(
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: FittedBox(
             fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             child: Text(value, maxLines: 1,
               style: TextStyle(color: color, fontSize: valueSize, fontWeight: FontWeight.w800)),
           ),
@@ -547,9 +548,9 @@ class _ConversionBar extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text("Conversion Rate", style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText)),
+        Text(context.l10n.bizConversionRate, style: TextStyle(fontWeight: FontWeight.w700, color: kMerchantText)),
         const SizedBox(height: 4),
-        Text("$pct% of viewers visited the store (tapped Sold by)",
+        Text(context.l10n.bizViewersVisitedStore('$pct'),
           style: const TextStyle(color: kMerchantMuted, fontSize: 12)),
         const SizedBox(height: 10),
         LinearProgressIndicator(
@@ -585,11 +586,11 @@ class ExpiryWarningBanner extends StatelessWidget {
         const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 22),
         const SizedBox(width: 10),
         Expanded(child: Text(
-          "${expiring.length} product${expiring.length > 1 ? 's' : ''} expiring soon — tap to renew",
+          (expiring.length == 1 ? context.l10n.bizProductsExpiringOne : context.l10n.bizProductsExpiringMany('${expiring.length}')),
           style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600, fontSize: 13))),
         TextButton(
           onPressed: onRenewTap,
-          child: const Text("Renew", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
+          child: Text(context.l10n.bizRenew, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
       ]),
     );
   }
@@ -618,9 +619,9 @@ class _SimilarProductsSectionState extends State<SimilarProductsSection> {
       child: Center(child: CircularProgressIndicator(color: kMerchantPrimary)));
     if (_items.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Padding(
+      Padding(
         padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text("Similar Products",
+        child: Text(context.l10n.bizSimilarProducts,
           style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kMerchantText))),
       SizedBox(height: 130, child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -631,7 +632,7 @@ class _SimilarProductsSectionState extends State<SimilarProductsSection> {
           final logo = p["logo_url"]?.toString() ?? "";
           return GestureDetector(
             child: Container(
-              width: 110, margin: const EdgeInsets.only(right: 10),
+              width: 110, margin: const EdgeInsetsDirectional.only(end: 10),
               decoration: BoxDecoration(color: Colors.white,
                 borderRadius: BorderRadius.circular(22),
                 border: Border.all(color: kMerchantBorder)),
@@ -688,7 +689,7 @@ class _MoreFromStoreSectionState extends State<MoreFromStoreSection> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-        child: Text("More from ${widget.storeName.isNotEmpty ? widget.storeName : 'this store'}",
+        child: Text(context.l10n.bizMoreFromStore(widget.storeName.isNotEmpty ? widget.storeName : context.l10n.bizThisStore),
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kMerchantText))),
       SizedBox(height: 130, child: ListView.builder(
         scrollDirection: Axis.horizontal,
@@ -698,7 +699,7 @@ class _MoreFromStoreSectionState extends State<MoreFromStoreSection> {
           final p = _items[i];
           final logo = p["logo_url"]?.toString() ?? "";
           return Container(
-            width: 110, margin: const EdgeInsets.only(right: 10),
+            width: 110, margin: const EdgeInsetsDirectional.only(end: 10),
             decoration: BoxDecoration(color: Colors.white,
               borderRadius: BorderRadius.circular(22),
               border: Border.all(color: kMerchantBorder)),

@@ -185,13 +185,13 @@ bool _looksLikeCleanBusinessMessage(String cleaned) {
 /// Maps a Razorpay PaymentFailureResponse.message to a customer-safe
 /// string. Never exposes gateway codes, SDK internals, or raw bank/network
 /// technical output.
-String friendlyRazorpayError(String? message) {
+String friendlyRazorpayError(String? message, {AppLocalizations? l10n}) {
   final m = (message ?? '').trim();
   if (m.isEmpty) {
-    return "Payment could not be completed. Please try again.";
+    return l10n?.errPayNoMessage ?? "Payment could not be completed. Please try again.";
   }
   if (_looksLikeCleanBusinessMessage(m)) {
     return m;
   }
-  return "We couldn't complete your payment. Please try again.";
+  return l10n?.errPayGeneric ?? "We couldn't complete your payment. Please try again.";
 }

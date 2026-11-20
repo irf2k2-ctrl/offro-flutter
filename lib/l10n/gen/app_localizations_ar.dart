@@ -1603,4 +1603,2040 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get prodDownload => 'تنزيل';
+
+  @override
+  String get bizAdd => 'إضافة';
+
+  @override
+  String get bizNoStoresYetTapTo =>
+      'لا توجد متاجر بعد — اضغط لإضافة متجرك الأول';
+
+  @override
+  String get bizSubscribeYourStoreToCreate => 'اشترك بمتجرك لإنشاء البانرات.';
+
+  @override
+  String get bizNoBannersYetPromoteYour => 'لا توجد بانرات بعد — روّج لمتجرك';
+
+  @override
+  String get bizSubscribeYourStoreToAdd => 'اشترك بمتجرك لإضافة المنتجات.';
+
+  @override
+  String get bizNoProductsYetAddYour => 'لا توجد منتجات بعد — أضف منتجك الأول';
+
+  @override
+  String get bizMERCHANTWORKSPACE => 'مساحة التاجر';
+
+  @override
+  String get bizWelcomeBack => 'مرحبًا بعودتك';
+
+  @override
+  String get bizCouldnTLoadYourDashboard => 'تعذر تحميل لوحة التحكم';
+
+  @override
+  String get bizLiveStores => 'المتاجر النشطة';
+
+  @override
+  String get bizLiveBanners => 'البانرات النشطة';
+
+  @override
+  String get bizLiveProducts => 'المنتجات النشطة';
+
+  @override
+  String get bizMANAGEYOURBUSINESS => 'أدر نشاطك التجاري';
+
+  @override
+  String get bizMyStore => 'متجري';
+
+  @override
+  String get bizMyBanner => 'بانري';
+
+  @override
+  String get bizMyProducts => 'منتجاتي';
+
+  @override
+  String get bizCreatorCollaborations => 'التعاون مع صنّاع المحتوى';
+
+  @override
+  String get bizBriefMatchAndManageLocal =>
+      'اكتب الطلب وطابق وأدر صنّاع المحتوى المحليين';
+
+  @override
+  String get bizSubscribeYourStoreToWork =>
+      'اشترك بمتجرك للتعاون مع صنّاع المحتوى.';
+
+  @override
+  String get bizLocked => 'مقفل';
+
+  @override
+  String get bizManage => 'إدارة';
+
+  @override
+  String get bizPromotions => 'الترويج';
+
+  @override
+  String get bizMyBanners => 'بانراتي';
+
+  @override
+  String get bizNewBanner => 'بانر جديد';
+
+  @override
+  String get bizCouldnTLoadBanners => 'تعذر تحميل البانرات';
+
+  @override
+  String get bizNoBannersYet => 'لا توجد بانرات بعد';
+
+  @override
+  String get bizTapToCreateYourFirst => 'اضغط + لإنشاء بانرك الأول';
+
+  @override
+  String get bizApprovedLive => 'تمت الموافقة — نشط';
+
+  @override
+  String get bizRejected => 'مرفوض';
+
+  @override
+  String get bizRemovedByAdmin => 'تمت الإزالة بواسطة الإدارة';
+
+  @override
+  String get bizTurnedOff => 'متوقف';
+
+  @override
+  String get bizPendingApproval => 'بانتظار الموافقة';
+
+  @override
+  String get bizSubmitted => 'تم الإرسال';
+
+  @override
+  String get bizEditBannerTitle => 'تعديل عنوان البانر';
+
+  @override
+  String get bizBannerTitle => 'عنوان البانر';
+
+  @override
+  String get bizSave => 'حفظ';
+
+  @override
+  String get bizEditTitle => 'تعديل العنوان';
+
+  @override
+  String get bizTurnOffBanner => 'إيقاف البانر؟';
+
+  @override
+  String get bizTurnOnBanner => 'تشغيل البانر؟';
+
+  @override
+  String get bizThisBannerWillBeHidden =>
+      'سيتم إخفاء هذا البانر عن المتاجر حتى تعيد تشغيله.';
+
+  @override
+  String get bizThisBannerWillGoLive => 'سيظهر هذا البانر مجددًا في المتاجر.';
+
+  @override
+  String get bizTurnOff => 'إيقاف';
+
+  @override
+  String get bizTurnOn => 'تشغيل';
+
+  @override
+  String get bizExpiredChooseANewStart => 'منتهي · اختر تاريخ بدء جديدًا';
+
+  @override
+  String get bizRenew => 'تجديد';
+
+  @override
+  String get bizRejectedCreateANewBanner =>
+      'مرفوض · أنشئ بانرًا جديدًا لإعادة الإرسال';
+
+  @override
+  String get bizCreateNew => 'إنشاء جديد';
+
+  @override
+  String get bizRemovedByAdmin2 => 'تمت الإزالة بواسطة الإدارة';
+
+  @override
+  String get bizAwaitingAdminApproval => 'بانتظار موافقة الإدارة';
+
+  @override
+  String get bizImageTooLargeMax2MB =>
+      'الصورة كبيرة جدًا. الحد الأقصى 2 ميجابايت.';
+
+  @override
+  String get bizVideoIsTooLargePlease =>
+      'الفيديو كبير جدًا. يرجى اختيار فيديو لا يتجاوز 10 ميجابايت.';
+
+  @override
+  String get bizVideoIsTooLongPlease =>
+      'الفيديو طويل جدًا. يرجى اختيار فيديو لا يتجاوز 15 ثانية.';
+
+  @override
+  String get bizCouldNotReadThisVideo =>
+      'تعذرت قراءة هذا الفيديو. يرجى اختيار فيديو آخر.';
+
+  @override
+  String get bizCouldNotUploadTheVideo =>
+      'تعذر رفع الفيديو. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get bizExistingBannerVideoWillBe =>
+      'سيُعاد استخدام فيديو البانر الحالي';
+
+  @override
+  String get bizTapToReplace => 'اضغط للاستبدال';
+
+  @override
+  String get bizTapToSelectBannerVideo => 'اضغط لاختيار فيديو البانر';
+
+  @override
+  String get biz10801080px11 => '📐 1080×1080 بكسل (1:1)';
+
+  @override
+  String get bizMax15Sec10MB => 'الحد الأقصى 15 ثانية · 10 ميجابايت';
+
+  @override
+  String get bizBannerTitleRequired => 'عنوان البانر مطلوب';
+
+  @override
+  String get bizPleaseSelectAStore => 'يرجى اختيار متجر';
+
+  @override
+  String get bizPleaseSelectACity => 'يرجى اختيار مدينة';
+
+  @override
+  String get bizPleaseSelectABannerVideo => 'يرجى اختيار فيديو للبانر';
+
+  @override
+  String get bizPleaseUploadABannerImage => 'يرجى رفع صورة للبانر';
+
+  @override
+  String get bizEnterNumberOfDaysMinimum => 'أدخل عدد الأيام (الحد الأدنى 1)';
+
+  @override
+  String get bizUntitledDeal => 'عرض بلا عنوان';
+
+  @override
+  String get bizUntitledProduct => 'منتج بلا عنوان';
+
+  @override
+  String get bizCTADestination => 'وجهة زر الإجراء';
+
+  @override
+  String get bizChooseWhereThisBannerShould =>
+      'اختر الوجهة التي سينقل إليها هذا البانر العميل.';
+
+  @override
+  String get bizSelectDeal => 'اختر عرضًا';
+
+  @override
+  String get bizSelectProduct => 'اختر منتجًا';
+
+  @override
+  String get bizCustomersWillOpenTheSelected => 'سيفتح العملاء المتجر المحدد.';
+
+  @override
+  String get bizNothingSelectedYetTheBanner =>
+      'لم يتم اختيار شيء بعد — سيفتح البانر المتجر.';
+
+  @override
+  String get bizDiscountApplied => '✅ تم تطبيق الخصم!';
+
+  @override
+  String get bizPaymentGatewayNotConfiguredContact =>
+      'بوابة الدفع غير مهيأة. تواصل مع الدعم.';
+
+  @override
+  String get bizCouldNotOpenPaymentPlease =>
+      'تعذر فتح الدفع. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get bizBannerOrderSummary => 'ملخص طلب البانر';
+
+  @override
+  String get bizTitle => 'العنوان';
+
+  @override
+  String get bizDuration => 'المدة';
+
+  @override
+  String get bizPeriod => 'الفترة';
+
+  @override
+  String get bizRate => 'السعر';
+
+  @override
+  String get bizBasePrice => 'السعر الأساسي';
+
+  @override
+  String get bizDiscount => 'الخصم';
+
+  @override
+  String get bizTotal => 'الإجمالي';
+
+  @override
+  String get bizYourBannerWillBeSubmitted =>
+      'سيتم إرسال بانرك إلى الإدارة للمراجعة بعد التأكيد.';
+
+  @override
+  String get bizRazorpayCheckoutWillOpenBanner =>
+      'سيتم فتح صفحة الدفع Razorpay. يصبح البانر نشطًا بعد موافقة الإدارة.';
+
+  @override
+  String get bizConfirmSubmit => 'تأكيد الإرسال';
+
+  @override
+  String get bizRenewBanner => 'تجديد البانر';
+
+  @override
+  String get bizCreateBanner => 'إنشاء بانر';
+
+  @override
+  String get bizBannerTitle2 => 'عنوان البانر *';
+
+  @override
+  String get bizEG50OFFAt => 'مثال: خصم 50% في متجر راج';
+
+  @override
+  String get bizSelectStore => 'اختر المتجر *';
+
+  @override
+  String get bizUnnamedStore => 'متجر بلا اسم';
+
+  @override
+  String get bizCityAutoFilledFromStore =>
+      'تتم تعبئة المدينة تلقائيًا من المتجر';
+
+  @override
+  String get bizImage => 'صورة';
+
+  @override
+  String get bizVideo => 'فيديو';
+
+  @override
+  String get bizTapToUploadBannerImage => 'اضغط لرفع صورة البانر';
+
+  @override
+  String get bizMax2MB => '📦 الحد الأقصى 2 ميجابايت';
+
+  @override
+  String get bizDurationStartDate => 'المدة وتاريخ البدء';
+
+  @override
+  String get bizNumberOfDays => 'عدد الأيام';
+
+  @override
+  String get bizFromDate => 'من تاريخ';
+
+  @override
+  String get bizActivePeriod => 'فترة النشاط:';
+
+  @override
+  String get bizDiscountCode => 'رمز الخصم';
+
+  @override
+  String get bizHaveAPromoCodeEnter => 'لديك رمز ترويجي؟ أدخله أدناه.';
+
+  @override
+  String get bizEGOFFRO20 => 'مثال: OFFRO20';
+
+  @override
+  String get bizApply => 'تطبيق';
+
+  @override
+  String get bizProceedToCheckout => 'المتابعة إلى الدفع';
+
+  @override
+  String get bizLive => 'نشط';
+
+  @override
+  String get bizFilterProducts => 'تصفية المنتجات';
+
+  @override
+  String get bizEditProduct => 'تعديل المنتج';
+
+  @override
+  String get bizAnalytics => 'التحليلات';
+
+  @override
+  String get bizDeleteProduct => 'حذف المنتج';
+
+  @override
+  String get bizCatalogue => 'الكتالوج';
+
+  @override
+  String get bizFilter => 'تصفية';
+
+  @override
+  String get bizNewProduct => 'منتج جديد';
+
+  @override
+  String get bizSearchProducts => 'ابحث في المنتجات…';
+
+  @override
+  String get bizPending => 'قيد الانتظار';
+
+  @override
+  String get bizCouldnTLoadProducts => 'تعذر تحميل المنتجات';
+
+  @override
+  String get bizNoProductsYet => 'لا توجد منتجات بعد';
+
+  @override
+  String get bizNoMatchingProducts => 'لا توجد منتجات مطابقة';
+
+  @override
+  String get bizTapNewProductToGet => 'اضغط + منتج جديد للبدء';
+
+  @override
+  String get bizPaused => 'متوقف مؤقتًا';
+
+  @override
+  String get bizFree => 'مجاني';
+
+  @override
+  String get bizPaid => 'مدفوع';
+
+  @override
+  String get bizDeactivated => 'معطّل';
+
+  @override
+  String get bizOn => 'مفعّل';
+
+  @override
+  String get bizOff => 'متوقف';
+
+  @override
+  String get bizOfferText => 'نص العرض';
+
+  @override
+  String get bizOriginalPrice => 'السعر الأصلي';
+
+  @override
+  String get bizOfferPrice => 'سعر العرض';
+
+  @override
+  String get bizProductUpdated => 'تم تحديث المنتج!';
+
+  @override
+  String get bizDeleteThisProduct => 'حذف هذا المنتج؟';
+
+  @override
+  String get bizProductDeleted => 'تم حذف المنتج.';
+
+  @override
+  String get bizLogoTooLargeMax1MB =>
+      'الشعار كبير جدًا. الحد الأقصى 1 ميجابايت.';
+
+  @override
+  String get bizEnterACode => 'أدخل رمزًا';
+
+  @override
+  String get bizProductTitleRequired => 'عنوان المنتج مطلوب';
+
+  @override
+  String get bizPleaseSelectAStoreFor => 'يرجى اختيار متجر لهذا المنتج';
+
+  @override
+  String get bizPleaseSelectACityFor => 'يرجى اختيار مدينة لهذا المنتج';
+
+  @override
+  String get bizPleaseUploadAProductImage => 'يرجى رفع صورة للمنتج';
+
+  @override
+  String get bizEnterTheNumberOfDays => 'أدخل عدد الأيام (الحد الأدنى 1)';
+
+  @override
+  String get bizProductOrderSummary => 'ملخص طلب المنتج';
+
+  @override
+  String get bizPrice => 'السعر';
+
+  @override
+  String get bizProductWillGoToAdmin =>
+      'سيُرسل المنتج إلى الإدارة للمراجعة. لا حاجة للدفع.';
+
+  @override
+  String get bizRazorpayOpensProductLiveAfter =>
+      'سيتم فتح Razorpay. يصبح المنتج نشطًا بعد موافقة الإدارة.';
+
+  @override
+  String get bizSaveProduct => 'حفظ المنتج';
+
+  @override
+  String get bizAddProduct => 'إضافة منتج';
+
+  @override
+  String get bizProductTitle => 'عنوان المنتج *';
+
+  @override
+  String get bizEGRajStore50 => 'مثال: خصم ₹50 من متجر راج';
+
+  @override
+  String get bizEGGet50Off => 'مثال: احصل على خصم ₹50 على الطلبات فوق ₹299';
+
+  @override
+  String get bizDiscountIsAutoCalculatedFrom =>
+      'يُحسب الخصم تلقائيًا من الأسعار';
+
+  @override
+  String get bizUploadImage => 'رفع صورة';
+
+  @override
+  String get biz400400px => '📐 400×400 بكسل';
+
+  @override
+  String get bizMax1MB => '📦 الحد الأقصى 1 ميجابايت';
+
+  @override
+  String get bizValidityDays => 'مدة الصلاحية (بالأيام)';
+
+  @override
+  String get bizStartDate => 'تاريخ البدء';
+
+  @override
+  String get bizEndDate => 'تاريخ الانتهاء';
+
+  @override
+  String get bizNumberOfDays2 => 'عدد الأيام';
+
+  @override
+  String get bizLivePeriod => 'فترة النشاط:';
+
+  @override
+  String get bizFree0 => 'مجاني (₹0)';
+
+  @override
+  String get bizFreeProduct => 'منتج مجاني';
+
+  @override
+  String get bizYourBusiness => 'نشاطك التجاري';
+
+  @override
+  String get bizMyStores => 'متاجري';
+
+  @override
+  String get bizTapToAddYourFirst => 'اضغط + لإضافة متجرك الأول';
+
+  @override
+  String get bizActive => 'نشط';
+
+  @override
+  String get bizDraft => 'مسودة';
+
+  @override
+  String get bizInactive => 'غير نشط';
+
+  @override
+  String get bizDeleted => 'محذوف';
+
+  @override
+  String get bizRemoved => 'تمت الإزالة';
+
+  @override
+  String get bizSubscribe => 'اشتراك';
+
+  @override
+  String get bizAwaitingAdminApproval2 => 'بانتظار موافقة الإدارة';
+
+  @override
+  String get bizQR => 'رمز QR';
+
+  @override
+  String get bizGenQR => 'إنشاء QR';
+
+  @override
+  String get bizShowThisToCustomersTo =>
+      'اعرض هذا الرمز على العملاء ليكسبوا النقاط';
+
+  @override
+  String get bizDeviceLocationIsTurnedOff =>
+      'خدمة الموقع في الجهاز متوقفة. شغّلها وحاول مرة أخرى.';
+
+  @override
+  String get bizUnableToIdentifyTheExact =>
+      'تعذر تحديد الموقع الدقيق من رابط خرائط Google هذا. يرجى فتح خرائط Google، وتحديد الموقع الدقيق بدبوس، ثم اضغط مشاركة ← نسخ الرابط، وحاول مرة أخرى.';
+
+  @override
+  String get bizCity => 'المدينة';
+
+  @override
+  String get bizState => 'الولاية';
+
+  @override
+  String get bizArea => 'المنطقة';
+
+  @override
+  String get bizPostalCode => 'الرمز البريدي';
+
+  @override
+  String get bizLocationCaptured => 'تم تحديد الموقع';
+
+  @override
+  String get bizImageTooLargeMax2MB2 =>
+      'الصورة كبيرة جدًا. الحد الأقصى المسموح 2 ميجابايت.';
+
+  @override
+  String get bizStoreNameRequired => 'اسم المتجر مطلوب';
+
+  @override
+  String get bizPleaseSetTheStoreLocation =>
+      'يرجى تحديد موقع المتجر باستخدام "استخدام الموقع الحالي" أو رابط خرائط Google';
+
+  @override
+  String get bizMobileNumberIsRequired => 'رقم الجوال مطلوب';
+
+  @override
+  String get bizEnterAValid10Digit =>
+      'أدخل رقم جوال صحيحًا من 10 أرقام (يبدأ بـ 6–9)';
+
+  @override
+  String get bizEditStore => 'تعديل المتجر';
+
+  @override
+  String get bizAddStore => 'إضافة متجر';
+
+  @override
+  String get bizStoreName => 'اسم المتجر *';
+
+  @override
+  String get bizCategory => 'الفئة';
+
+  @override
+  String get bizSelectCategory => 'اختر الفئة';
+
+  @override
+  String get bizStoreLocation => 'موقع المتجر';
+
+  @override
+  String get bizUseGPSOrPasteA => 'استخدم GPS أو الصق رابط الخرائط.';
+
+  @override
+  String get bizUseCurrentLocation => 'استخدام الموقع الحالي';
+
+  @override
+  String get bizOrPasteGoogleMapsLink => 'أو الصق رابط خرائط Google';
+
+  @override
+  String get bizPasteGoogleMapsLinkHere => 'الصق رابط خرائط Google هنا';
+
+  @override
+  String get bizResolveLocation => 'تحديد الموقع';
+
+  @override
+  String get bizLatitude => 'خط العرض';
+
+  @override
+  String get bizLongitude => 'خط الطول';
+
+  @override
+  String get bizAutoFilledByGPSOr =>
+      'تمت التعبئة تلقائيًا بواسطة GPS أو خرائط Google — يمكنك تعديل أي قيمة. تُحفظ القيم المعدّلة كما أدخلتها.';
+
+  @override
+  String get bizPhone => 'الهاتف';
+
+  @override
+  String get bizTapToChangeImage => 'اضغط لتغيير الصورة';
+
+  @override
+  String get bizMainStoreImage => 'الصورة الرئيسية للمتجر';
+
+  @override
+  String get biz800600px43 => '📐 800×600 بكسل (4:3)';
+
+  @override
+  String get bizUploadLogoOptional => 'رفع الشعار [اختياري]';
+
+  @override
+  String get bizTapToChangeLogo => 'اضغط لتغيير الشعار';
+
+  @override
+  String get bizTapToUploadLogo => 'اضغط لرفع الشعار';
+
+  @override
+  String get biz200200px11 => '📐 200×200 بكسل (1:1)';
+
+  @override
+  String get bizStoreTimingsOptional => 'ساعات عمل المتجر [اختياري]';
+
+  @override
+  String get bizOpeningTime => 'وقت الفتح';
+
+  @override
+  String get bizOpenAt => 'يفتح في';
+
+  @override
+  String get bizClosingTime => 'وقت الإغلاق';
+
+  @override
+  String get bizCloseAt => 'يغلق في';
+
+  @override
+  String get bizAboutThisStoreDescriptionShown =>
+      'نبذة عن هذا المتجر (وصف يظهر للعملاء)';
+
+  @override
+  String get bizSaveChanges => 'حفظ التغييرات';
+
+  @override
+  String get bizCreateStore => 'إنشاء المتجر';
+
+  @override
+  String get bizConfirmingPayment => 'جارٍ تأكيد الدفع...';
+
+  @override
+  String get bizPleaseWaitAMoment => 'يرجى الانتظار قليلًا';
+
+  @override
+  String get bizSubscriptionRequestSent => 'تم إرسال طلب الاشتراك';
+
+  @override
+  String get bizPlan => 'الخطة';
+
+  @override
+  String get bizFrom => 'من';
+
+  @override
+  String get bizTo => 'إلى';
+
+  @override
+  String get bizTotalPayable => 'إجمالي المبلغ المستحق';
+
+  @override
+  String get bizYourSubscriptionRequestHasBeen => '✅  تم إرسال طلب اشتراكك.';
+
+  @override
+  String get bizConfirmPayment => 'تأكيد الدفع';
+
+  @override
+  String get bizRazorpayCheckoutWillOpenAfter =>
+      'سيتم فتح صفحة الدفع Razorpay. بعد الدفع ستوافق الإدارة على متجرك.';
+
+  @override
+  String get bizPayNow => 'ادفع الآن';
+
+  @override
+  String get bizSubscribeStore => 'الاشتراك بالمتجر';
+
+  @override
+  String get bizSelectPlan => 'اختر الخطة';
+
+  @override
+  String get bizStartDate2 => 'تاريخ البدء';
+
+  @override
+  String get bizHaveADiscountCode => 'لديك رمز خصم؟';
+
+  @override
+  String get bizEnterCode => 'أدخل الرمز';
+
+  @override
+  String get bizDiscount2 => 'الخصم:';
+
+  @override
+  String get bizRemove => 'إزالة';
+
+  @override
+  String get bizProceedToPay => 'المتابعة إلى الدفع';
+
+  @override
+  String get bizRefresh => 'تحديث';
+
+  @override
+  String get bizNoInvoicesYet => 'لا توجد فواتير بعد';
+
+  @override
+  String get bizPullDownToRefresh => 'اسحب للأسفل للتحديث';
+
+  @override
+  String get bizShare => 'مشاركة';
+
+  @override
+  String get bizDownloadPDF => 'تنزيل PDF';
+
+  @override
+  String get bizAccountRegistered => 'تم تسجيل الحساب';
+
+  @override
+  String get bizNewStoreCreated => 'تم إنشاء متجر جديد';
+
+  @override
+  String get bizStoreProfileUpdated => 'تم تحديث ملف المتجر';
+
+  @override
+  String get bizStoreApproved => 'تمت الموافقة على المتجر';
+
+  @override
+  String get bizStoreRejected => 'تم رفض المتجر';
+
+  @override
+  String get bizStoreSubscriptionActivated => 'تم تفعيل اشتراك المتجر';
+
+  @override
+  String get bizFreeSubscriptionActivated => 'تم تفعيل الاشتراك المجاني';
+
+  @override
+  String get bizSubscriptionPaymentReceived => 'تم استلام دفعة الاشتراك';
+
+  @override
+  String get bizBannerSubmitted => 'تم إرسال البانر';
+
+  @override
+  String get bizBannerApproved => 'تمت الموافقة على البانر';
+
+  @override
+  String get bizBannerRejected => 'تم رفض البانر';
+
+  @override
+  String get bizBannerPaymentReceived => 'تم استلام دفعة البانر';
+
+  @override
+  String get bizProductSubmitted => 'تم إرسال المنتج';
+
+  @override
+  String get bizProductApproved => 'تمت الموافقة على المنتج';
+
+  @override
+  String get bizProductRejected => 'تم رفض المنتج';
+
+  @override
+  String get bizProductPaymentReceived => 'تم استلام دفعة المنتج';
+
+  @override
+  String get bizPaymentReceived => 'تم استلام الدفعة';
+
+  @override
+  String get bizFreePlanActivated => 'تم تفعيل الخطة المجانية';
+
+  @override
+  String get bizProfileUpdated => 'تم تحديث الملف الشخصي';
+
+  @override
+  String get bizQRCodeRegenerated => 'تم إنشاء رمز QR من جديد';
+
+  @override
+  String get bizPayment => 'الدفع';
+
+  @override
+  String get bizApprovedLive2 => '✅ تمت الموافقة — نشط';
+
+  @override
+  String get bizRejected2 => '❌ مرفوض';
+
+  @override
+  String get bizPendingApproval2 => '⏳ بانتظار الموافقة';
+
+  @override
+  String get bizBusinessTimeline => 'السجل الزمني للنشاط';
+
+  @override
+  String get bizNoActivityYet => 'لا يوجد نشاط بعد';
+
+  @override
+  String get bizMerchantAccount => 'حساب التاجر';
+
+  @override
+  String get bizTapPhotoToChange => 'اضغط على الصورة لتغييرها';
+
+  @override
+  String get bizSwitchBetweenUserMerchantInfluencer =>
+      'التبديل بين المستخدم والتاجر والمؤثر';
+
+  @override
+  String get bizKYCPolicy => 'سياسة اعرف عميلك (KYC)';
+
+  @override
+  String get bizMerchantOffers => 'عروض التاجر';
+
+  @override
+  String get bizMyDeals => 'عروضي';
+
+  @override
+  String get bizAddDeal => 'إضافة عرض';
+
+  @override
+  String get bizYouNeedAnActiveStore => 'تحتاج إلى متجر نشط لإضافة العروض.';
+
+  @override
+  String get bizNoDealsYet => 'لا توجد عروض بعد';
+
+  @override
+  String get bizAddDealsToAttractMore => 'أضف عروضًا لجذب المزيد من العملاء';
+
+  @override
+  String get bizEditDeal => 'تعديل العرض';
+
+  @override
+  String get bizDeleteDeal => 'حذف العرض؟';
+
+  @override
+  String get bizDelete => 'حذف';
+
+  @override
+  String get bizDealTitleIsRequired => 'عنوان العرض مطلوب';
+
+  @override
+  String get bizEndDateIsRequired => 'تاريخ الانتهاء مطلوب';
+
+  @override
+  String get bizPleaseAddAnImageBefore => 'يرجى إضافة صورة قبل الحفظ.';
+
+  @override
+  String get bizDealUpdated => 'تم تحديث العرض!';
+
+  @override
+  String get bizDealAdded => 'تمت إضافة العرض!';
+
+  @override
+  String get bizDealTitleEG20 =>
+      'عنوان العرض (مثال: خصم 20% على جميع المنتجات)';
+
+  @override
+  String get bizDescriptionOptional => 'الوصف (اختياري)';
+
+  @override
+  String get bizDealImage => 'صورة العرض';
+
+  @override
+  String get bizTapToReplaceImage => 'اضغط لاستبدال الصورة';
+
+  @override
+  String get bizMax2MBRequired => '📦 الحد الأقصى 2 ميجابايت · مطلوبة';
+
+  @override
+  String get bizSelectEndDate => 'اختر تاريخ الانتهاء';
+
+  @override
+  String get bizAllYourStoresProductsData =>
+      'ستتم إزالة جميع متاجرك ومنتجاتك وبياناتك نهائيًا';
+
+  @override
+  String get bizINoLongerRunMy => 'لم أعد أدير نشاطي التجاري';
+
+  @override
+  String get bizTheAppIsNotWorking => 'التطبيق لا يعمل بشكل صحيح معي';
+
+  @override
+  String get bizOnceYourAccountIsDeleted =>
+      'بعد حذف حسابك لا يمكن استرجاع متاجرك ومنتجاتك وبانراتك وبياناتك. سيؤدي التسجيل مجددًا إلى إنشاء حساب جديد.';
+
+  @override
+  String get bizYourMerchantAccountWillBe =>
+      'سيتم تحديد حساب التاجر الخاص بك للحذف. سيتم تسجيل خروجك فورًا ولن تتمكن من تسجيل الدخول مجددًا.\n\nبعد الحذف لا يمكن استرجاع متاجرك ومنتجاتك وبياناتك. هل أنت متأكد تمامًا؟';
+
+  @override
+  String get bizChecking => 'جارٍ التحقق…';
+
+  @override
+  String get bizDiscountApplied2 => 'تم تطبيق الخصم!';
+
+  @override
+  String get bizChooseALaterEndDate =>
+      'اختر تاريخ انتهاء لاحقًا (أضف يومًا واحدًا على الأقل)';
+
+  @override
+  String get bizRenewedSuccessfully => '✅ تم التجديد بنجاح!';
+
+  @override
+  String get bizRenewalSummary => 'ملخص التجديد';
+
+  @override
+  String get bizNewEndDate => 'تاريخ الانتهاء الجديد';
+
+  @override
+  String get bizFreeRenewal => 'تجديد مجاني';
+
+  @override
+  String get bizRenewFree => 'تجديد مجاني';
+
+  @override
+  String get bizRenewed => 'تم التجديد!';
+
+  @override
+  String get bizRenewProduct => 'تجديد المنتج';
+
+  @override
+  String get bizNoEndDate => 'لا يوجد تاريخ انتهاء';
+
+  @override
+  String get bizChooseHowLongTheProduct =>
+      'اختر المدة التي يبقى فيها المنتج نشطًا.';
+
+  @override
+  String get bizDaysToAdd => 'الأيام المراد إضافتها';
+
+  @override
+  String get bizProductAnalytics => 'تحليلات المنتج';
+
+  @override
+  String get bizCouldnTLoadAnalytics => 'تعذر تحميل التحليلات';
+
+  @override
+  String get bizPleaseCheckYourConnectionAnd =>
+      'يرجى التحقق من اتصالك والمحاولة مرة أخرى.';
+
+  @override
+  String get bizPremiumListingAnalytics => 'تحليلات الإدراج المميز';
+
+  @override
+  String get bizViews => '👁️ المشاهدات';
+
+  @override
+  String get bizShares => '🔗 المشاركات';
+
+  @override
+  String get bizStoreVisits => '🛒 زيارات المتجر';
+
+  @override
+  String get bizLastSeen => '📅 آخر ظهور';
+
+  @override
+  String get bizStoreVisitsCustomersWhoVisited =>
+      'زيارات المتجر: العملاء الذين زاروا المتجر';
+
+  @override
+  String get bizConversionRate => 'معدل التحويل';
+
+  @override
+  String get bizSimilarProducts => 'منتجات مشابهة';
+
+  @override
+  String get bizPaymentSuccessful => 'تمت عملية الدفع بنجاح!';
+
+  @override
+  String get bizYourPurchaseIsNowPending =>
+      'عملية الشراء بانتظار موافقة الإدارة.';
+
+  @override
+  String get bizAdminWillReviewAndActivate =>
+      'ستراجع الإدارة عملية الشراء وتفعّلها خلال 24 ساعة.';
+
+  @override
+  String get bizInfluencersAreComingSoon => 'المؤثرون قريبًا ✨';
+
+  @override
+  String get bizWeReBringingLocalCreators =>
+      'نحضر لكم صنّاع المحتوى المحليين وتوصياتهم إلى OffrO. ترقبوا!';
+
+  @override
+  String get bizPeopleShapingTheCity => 'أشخاص يصنعون المدينة';
+
+  @override
+  String get bizLocalVoices => 'أصوات محلية';
+
+  @override
+  String get bizPleaseSelectAStarRating => 'يرجى اختيار تقييم بالنجوم أولًا';
+
+  @override
+  String get bizPleaseLogInToSubmit => 'يرجى تسجيل الدخول لإرسال مراجعة';
+
+  @override
+  String get bizPleaseWriteAtLeastA => 'يرجى كتابة بضع كلمات على الأقل';
+
+  @override
+  String get bizVERIFIEDLOCALVOICE => 'صوت محلي موثّق';
+
+  @override
+  String get bizRating => 'التقييم';
+
+  @override
+  String get bizRateThisInfluencer => 'قيّم هذا المؤثر';
+
+  @override
+  String get bizShareYourExperienceOptional => 'شارك تجربتك (اختياري)';
+
+  @override
+  String get bizUpdateReview => 'تحديث المراجعة';
+
+  @override
+  String get bizCreatorAccount => 'حساب صانع المحتوى';
+
+  @override
+  String get bizCREATORWORKSPACE => 'مساحة صانع المحتوى';
+
+  @override
+  String get bizProfileViews => 'مشاهدات الملف الشخصي';
+
+  @override
+  String get bizSavedBy => 'تم الحفظ بواسطة';
+
+  @override
+  String get bizYourProfileIsLive => 'ملفك الشخصي نشط';
+
+  @override
+  String get bizYourProfileIsnTLive => 'ملفك الشخصي غير نشط بعد';
+
+  @override
+  String get bizMerchantsAndCustomersCanDiscover =>
+      'يمكن للتجار والعملاء اكتشافك.';
+
+  @override
+  String get bizOpenYourProfileToReview => 'افتح ملفك الشخصي لمراجعته ونشره.';
+
+  @override
+  String get bizMATCHEDFORYOU => 'مطابقة لك';
+
+  @override
+  String get bizCampaignOpportunities => 'فرص الحملات';
+
+  @override
+  String get bizINFLUENCERWORKSPACE => 'مساحة المؤثر';
+
+  @override
+  String get bizCreateYourLocalProfile => 'أنشئ ملفك المحلي.';
+
+  @override
+  String get bizYouLlNeedAnInfluencer =>
+      'ستحتاج إلى ملف مؤثر لاستخدام قسم المؤثرين — فهو الطريقة التي يكتشفك بها العملاء والتجار على OffrO.';
+
+  @override
+  String get bizAddInfluencerProfile => '+ إضافة ملف مؤثر';
+
+  @override
+  String get bizNotAdded => 'غير مضاف';
+
+  @override
+  String get bizContinuePublishingPayNow => 'متابعة النشر / ادفع الآن';
+
+  @override
+  String get bizMyProfile => 'ملفي الشخصي';
+
+  @override
+  String get bizBusinessDetails => 'تفاصيل النشاط';
+
+  @override
+  String get bizDisplayName => 'الاسم المعروض';
+
+  @override
+  String get bizBio => 'النبذة';
+
+  @override
+  String get bizSocialPages => 'صفحات التواصل الاجتماعي';
+
+  @override
+  String get bizPrimarySpecialty => 'التخصص الرئيسي';
+
+  @override
+  String get bizNoSpecialtySelected => 'لم يتم اختيار تخصص';
+
+  @override
+  String get bizAccountDetails => 'تفاصيل الحساب';
+
+  @override
+  String get bizDisable => 'تعطيل';
+
+  @override
+  String get bizEnable => 'تفعيل';
+
+  @override
+  String get bizHideYourProfileFromCustomers => 'إخفاء ملفك الشخصي عن العملاء';
+
+  @override
+  String get bizMakeYourProfileVisibleAgain => 'إظهار ملفك الشخصي مرة أخرى';
+
+  @override
+  String get bizSwitchToYourCustomerAccount => 'التبديل إلى حساب العميل';
+
+  @override
+  String get bizYourProfileIsSavedAs =>
+      'تم حفظ ملفك الشخصي كمسودة. أكمل دفعة الاشتراك لمرة واحدة من تعديل الملف ← حفظ ونشر ليصبح ظاهرًا للعملاء.';
+
+  @override
+  String get bizPaymentIsBeingProcessedIf =>
+      'جارٍ معالجة الدفع. إذا أتممت الدفع ولم يتحدث الوضع، حاول الحفظ والنشر مرة أخرى.';
+
+  @override
+  String get bizYourLastSubscriptionPaymentAttempt =>
+      'فشلت آخر محاولة لدفع الاشتراك. يرجى المحاولة مرة أخرى عبر حفظ ونشر لإتمام الدفع.';
+
+  @override
+  String get bizYourProfileIsNotYet => 'لم يتم نشر ملفك الشخصي بعد.';
+
+  @override
+  String get bizDeleteInfluencerProfile => 'حذف ملف المؤثر؟';
+
+  @override
+  String get bizAreYouSureYouWant =>
+      'هل أنت متأكد أنك تريد حذف ملف المؤثر؟ لا يمكن التراجع عن هذا الإجراء.';
+
+  @override
+  String get bizIfYouCreateANew =>
+      'إذا أنشأت ملف مؤثر جديدًا في المستقبل، فستكون هناك حاجة إلى دفعة اشتراك جديدة.';
+
+  @override
+  String get bizDeleteProfile => 'حذف الملف الشخصي';
+
+  @override
+  String get bizREVIEWS => 'المراجعات';
+
+  @override
+  String get bizCreatorReviews => 'مراجعات صانع المحتوى';
+
+  @override
+  String get bizNameIsRequired => 'الاسم مطلوب';
+
+  @override
+  String get bizPleaseSelectAState => 'يرجى اختيار الولاية';
+
+  @override
+  String get bizPleaseEnterAValid10 => 'يرجى إدخال رقم جوال صحيح من 10 أرقام.';
+
+  @override
+  String get bizProfileImageIsRequiredTo =>
+      'صورة الملف الشخصي مطلوبة لنشر ملف المؤثر.';
+
+  @override
+  String get bizWeCouldnTConfirmYour =>
+      'تعذر تأكيد الدفع. إذا تم خصم المبلغ فسيتم التحقق منه قريبًا — يرجى المحاولة مرة أخرى عبر حفظ ونشر بعد قليل.';
+
+  @override
+  String get bizCreatorIdentity => 'هوية صانع المحتوى';
+
+  @override
+  String get bizEditProfile => 'تعديل الملف الشخصي';
+
+  @override
+  String get bizAddProfile => 'إضافة ملف شخصي';
+
+  @override
+  String get bizRequiredToPublish => 'مطلوب للنشر';
+
+  @override
+  String get bizName => 'الاسم *';
+
+  @override
+  String get bizEGPriyaSharma => 'مثال: أحمد العلي';
+
+  @override
+  String get bizSharingTheBestLocalFood =>
+      'أشارك أفضل المأكولات والمقاهي والمتاجر والعروض الرائعة في مدينتك.';
+
+  @override
+  String get bizState2 => 'الولاية *';
+
+  @override
+  String get bizSelectState => 'اختر الولاية';
+
+  @override
+  String get bizCity2 => 'المدينة *';
+
+  @override
+  String get bizSelectStateFirst => 'اختر الولاية أولًا';
+
+  @override
+  String get bizSelectCity => 'اختر المدينة';
+
+  @override
+  String get bizPrimarySpecialtySelectOneOr =>
+      'التخصص الرئيسي (اختر واحدًا أو أكثر)';
+
+  @override
+  String get bizNoCategoriesAvailable => 'لا توجد فئات متاحة';
+
+  @override
+  String get biz10DigitMobileNumber => 'رقم جوال من 10 أرقام';
+
+  @override
+  String get bizSocialLinks => 'روابط التواصل الاجتماعي';
+
+  @override
+  String get bizInstagramURL => 'رابط Instagram';
+
+  @override
+  String get bizYouTubeURL => 'رابط YouTube';
+
+  @override
+  String get bizFacebookURL => 'رابط Facebook';
+
+  @override
+  String get bizSaveKeepAsDraft => 'حفظ (إبقاؤه كمسودة)';
+
+  @override
+  String get bizSavePublish => 'حفظ ونشر';
+
+  @override
+  String get bizSavePublishPayToPublish => 'حفظ ونشر (ادفع للنشر)';
+
+  @override
+  String get bizNoSubscriptionPaymentIsCurrently =>
+      'لا يلزم حاليًا دفع اشتراك لنشر ملفك الشخصي.';
+
+  @override
+  String get bizSubscriptionFee => 'رسوم الاشتراك';
+
+  @override
+  String get bizDiscountCodeOptional => 'رمز الخصم (اختياري)';
+
+  @override
+  String get bizAOneTimePaymentYou =>
+      'دفعة لمرة واحدة — لن يتم تحصيل رسوم مرة أخرى عند تعديل هذا الملف أو إعادة نشره.';
+
+  @override
+  String get bizEnterADiscountCodeFirst => 'أدخل رمز الخصم أولًا';
+
+  @override
+  String get bizSelectSpecialties => 'اختر التخصصات';
+
+  @override
+  String get bizCreateBrief => 'إنشاء ملخص';
+
+  @override
+  String get bizShareWhatYouNeedAnd => 'شارك ما تحتاجه وأين.';
+
+  @override
+  String get bizInviteCreators => 'دعوة صنّاع المحتوى';
+
+  @override
+  String get bizLocalCreatorsInYourCity =>
+      'يراه صنّاع المحتوى المحليون في مدينتك.';
+
+  @override
+  String get bizConfirmMatch => 'تأكيد المطابقة';
+
+  @override
+  String get bizReviewWhoAcceptedAndConnect => 'راجع من وافق وتواصل معهم.';
+
+  @override
+  String get bizCreator => 'صانع المحتوى';
+
+  @override
+  String get bizCollaborations => 'التعاونات';
+
+  @override
+  String get bizWorkWithTrustedLocalCreators =>
+      'تعاون مع صنّاع محتوى محليين موثوقين.';
+
+  @override
+  String get bizCreateOneClearCampaignBrief =>
+      'أنشئ ملخص حملة واحدًا واضحًا، وراجع صنّاع المحتوى المطابقين وأكّد التعاون دون إدارة المحادثات عبر تطبيقات متعددة.';
+
+  @override
+  String get bizHowItWorks => 'كيف يعمل';
+
+  @override
+  String get bizCreateCampaignBrief => 'إنشاء ملخص الحملة';
+
+  @override
+  String get bizYourCampaigns => 'حملاتك';
+
+  @override
+  String get bizCollaborationWorkspace => 'مساحة التعاون';
+
+  @override
+  String get bizNoCampaignsYet => 'لا توجد حملات بعد';
+
+  @override
+  String get bizCreateYourFirstCampaignBrief =>
+      'أنشئ أول ملخص حملة لدعوة صنّاع المحتوى المحليين.';
+
+  @override
+  String get bizWhenShouldYouUseThis => 'متى تستخدم هذا؟';
+
+  @override
+  String get bizUseCollaborationsForLaunchesVisits =>
+      'استخدم التعاونات لإطلاق المنتجات والزيارات ومحتوى صنّاع المحتوى. أما تحديثات المتجر العادية والخصومات فمكانها البانرات أو العروض.';
+
+  @override
+  String get bizReviewProposals => 'مراجعة العروض المقدمة';
+
+  @override
+  String get bizCloseCampaign => 'إغلاق الحملة؟';
+
+  @override
+  String get bizCreatorsWillNoLongerBe =>
+      'لن يتمكن صنّاع المحتوى من قبول هذا الملخص بعد الآن.';
+
+  @override
+  String get bizKeepOpen => 'إبقاؤها مفتوحة';
+
+  @override
+  String get bizCampaign => 'الحملة';
+
+  @override
+  String get bizProposals => 'العروض المقدمة';
+
+  @override
+  String get bizCreatorsWhoAccepted => 'صنّاع المحتوى الذين وافقوا';
+
+  @override
+  String get bizNoProposalsYet => 'لا توجد عروض بعد';
+
+  @override
+  String get bizCreatorsInYourCityWill =>
+      'سيظهر صنّاع المحتوى في مدينتك هنا بمجرد قبولهم ملخصك.';
+
+  @override
+  String get bizClosing => 'جارٍ الإغلاق…';
+
+  @override
+  String get bizCloseCampaign2 => 'إغلاق الحملة';
+
+  @override
+  String get bizChatOnWhatsApp => 'مراسلة عبر WhatsApp';
+
+  @override
+  String get bizCouldnTOpenWhatsApp => 'تعذر فتح WhatsApp.';
+
+  @override
+  String get bizPleaseSelectAStore2 => 'يرجى اختيار متجر.';
+
+  @override
+  String get bizEnterACampaignTitleAt =>
+      'أدخل عنوان الحملة (3 أحرف على الأقل).';
+
+  @override
+  String get bizSelectACampaignObjective => 'اختر هدف الحملة.';
+
+  @override
+  String get bizDescribeWhatTheCreatorShould =>
+      'صف ما يجب أن يوصله صانع المحتوى (10 أحرف على الأقل).';
+
+  @override
+  String get bizSelectTheContentYouNeed => 'اختر المحتوى الذي تحتاجه.';
+
+  @override
+  String get bizChooseAPublishByDate => 'اختر تاريخ النشر النهائي.';
+
+  @override
+  String get bizChooseAVisitDateFor => 'اختر تاريخ الزيارة للمتجر.';
+
+  @override
+  String get bizVisitDateCanTBe =>
+      'لا يمكن أن يكون تاريخ الزيارة بعد تاريخ النشر النهائي.';
+
+  @override
+  String get bizBriefPublishedMatchingCreatorsCan =>
+      'تم نشر الملخص. يمكن لصنّاع المحتوى المطابقين رؤيته الآن.';
+
+  @override
+  String get bizCampaignBrief => 'ملخص الحملة';
+
+  @override
+  String get bizAddAndActivateAStore =>
+      'أضف متجرًا وفعّله قبل إنشاء ملخص الحملة.';
+
+  @override
+  String get bizSelectStore2 => 'اختر المتجر';
+
+  @override
+  String get bizCampaignTitle => 'عنوان الحملة';
+
+  @override
+  String get bizExampleSeasonalMenuLaunch => 'مثال: إطلاق قائمة الموسم';
+
+  @override
+  String get bizCampaignObjective => 'هدف الحملة';
+
+  @override
+  String get bizSelectObjective => 'اختر الهدف';
+
+  @override
+  String get bizWhatShouldTheCreatorCommunicate =>
+      'ماذا يجب أن يوصل صانع المحتوى؟';
+
+  @override
+  String get bizKeyMessageExperienceAndDetails =>
+      'الرسالة الرئيسية والتجربة والتفاصيل التي ينبغي أن يعرفوها...';
+
+  @override
+  String get bizRequestedContent => 'المحتوى المطلوب';
+
+  @override
+  String get bizVisitDate => 'تاريخ الزيارة';
+
+  @override
+  String get bizSelectDate => 'اختر التاريخ';
+
+  @override
+  String get bizPublishBy => 'النشر قبل';
+
+  @override
+  String get bizPreferredCreatorSpeciality => 'تخصص صانع المحتوى المفضل';
+
+  @override
+  String get bizSelectSpeciality => 'اختر التخصص';
+
+  @override
+  String get bizNoPaymentProcessing => 'بدون معالجة مدفوعات';
+
+  @override
+  String get bizOffrOConnectsYouWithCreators =>
+      'يربطك OffrO بصنّاع المحتوى. أي مقابل يُتفق عليه مباشرة بينك وبين صانع المحتوى.';
+
+  @override
+  String get bizPublishing => 'جارٍ النشر…';
+
+  @override
+  String get bizPublishBrief => 'نشر الملخص';
+
+  @override
+  String get bizMatchedLocally => 'مطابقة محليًا';
+
+  @override
+  String get bizReviewCollaborationRequestsFromReleva =>
+      'راجع طلبات التعاون من التجار المعنيين في مدينتك.';
+
+  @override
+  String get bizNoCollaborationRequestsYet => 'لا توجد طلبات تعاون بعد';
+
+  @override
+  String get bizRequestsFromMerchantsInYour =>
+      'ستظهر هنا الطلبات الواردة من التجار في مدينتك.';
+
+  @override
+  String get bizAccepted => 'مقبول';
+
+  @override
+  String get bizDeclined => 'مرفوض';
+
+  @override
+  String get bizNewCollaborationRequest => 'طلب تعاون جديد';
+
+  @override
+  String get bizViewBrief => 'عرض الملخص';
+
+  @override
+  String get bizNoCampaignRequestsYet => 'لا توجد طلبات حملات بعد';
+
+  @override
+  String get bizNewBriefsFromMerchantsIn =>
+      'ستظهر هنا الملخصات الجديدة من التجار في مدينتك.';
+
+  @override
+  String get bizCollaborationAccepted => 'تم قبول التعاون.';
+
+  @override
+  String get bizRequestDeclined => 'تم رفض الطلب.';
+
+  @override
+  String get bizCollaborationRequest => 'طلب تعاون';
+
+  @override
+  String get bizBrief => 'الملخص';
+
+  @override
+  String get bizCompleteYourProfileSubscriptionTo =>
+      'أكمل اشتراك ملفك الشخصي لقبول التعاونات.';
+
+  @override
+  String get bizObjective => 'الهدف';
+
+  @override
+  String get bizMessage => 'الرسالة';
+
+  @override
+  String get bizPreferredSpeciality => 'التخصص المفضل';
+
+  @override
+  String get bizThisCollaborationIsForPromotion =>
+      'هذا التعاون للترويج على حسابك في Instagram. لا توجد محادثة داخل التطبيق.';
+
+  @override
+  String get bizYouAcceptedThisCollaboration => 'لقد قبلت هذا التعاون';
+
+  @override
+  String get bizTheMerchantSContactNumber =>
+      'رقم التواصل الخاص بالتاجر غير متاح.';
+
+  @override
+  String get bizContactTheMerchantToPlan => 'تواصل مع التاجر لتخطيط زيارتك:';
+
+  @override
+  String get bizThisRequestIsNoLonger => 'هذا الطلب لم يعد مفتوحًا.';
+
+  @override
+  String get bizPleaseWait => 'يرجى الانتظار…';
+
+  @override
+  String get bizAcceptCollaboration => 'قبول التعاون';
+
+  @override
+  String get bizDecline => 'رفض';
+
+  @override
+  String bizFreeSlotsUsedOf(String used, String limit) {
+    return 'تم استخدام $used/$limit من الفتحات المجانية';
+  }
+
+  @override
+  String bizWelcomeBackName(String name) {
+    return 'مرحبًا بعودتك، $name';
+  }
+
+  @override
+  String bizBannerSubmittedMsg(String message) {
+    return '✅ تم إرسال البانر! $message';
+  }
+
+  @override
+  String get bizBannerFallbackDeal =>
+      'إذا تمت إزالة هذا العرض لاحقًا، سيفتح البانر المتجر بدلًا منه.';
+
+  @override
+  String get bizBannerFallbackProduct =>
+      'إذا تمت إزالة هذا المنتج لاحقًا، سيفتح البانر المتجر بدلًا منه.';
+
+  @override
+  String bizPaymentFailedMsg(String error) {
+    return 'فشلت عملية الدفع: $error';
+  }
+
+  @override
+  String bizToggleFailed(String error) {
+    return 'تعذر التبديل: $error';
+  }
+
+  @override
+  String bizFreeProductSlotsUsed(String used, String limit) {
+    return 'تم استخدام $used / $limit من فتحات المنتجات المجانية';
+  }
+
+  @override
+  String bizAdditionalProductsCharged(String price) {
+    return 'تُحتسب المنتجات الإضافية بسعر $price عن كل يوم صلاحية.';
+  }
+
+  @override
+  String bizDeleteProductBody(String title) {
+    return 'سيتم حذف "$title" نهائيًا ولا يمكن إعادة تفعيله. لن يتم استرداد أي مبلغ تم دفعه لهذا المنتج.';
+  }
+
+  @override
+  String get bizThisProduct => 'هذا المنتج';
+
+  @override
+  String bizDeleteError(String error) {
+    return 'خطأ أثناء الحذف: $error';
+  }
+
+  @override
+  String bizCodeAppliedPct(String value) {
+    return '✅ تم تطبيق الرمز — خصم $value%!';
+  }
+
+  @override
+  String bizCodeAppliedAmt(String value) {
+    return '✅ تم تطبيق الرمز — خصم ₹$value!';
+  }
+
+  @override
+  String bizMaxValidity(String days) {
+    return 'الحد الأقصى للصلاحية $days يومًا';
+  }
+
+  @override
+  String bizProductSubmittedMsg(String message) {
+    return '✅ تم إرسال المنتج! $message';
+  }
+
+  @override
+  String bizPaymentErrorMsg(String error) {
+    return 'خطأ في الدفع: $error';
+  }
+
+  @override
+  String get bizCouldNotOpenPayment =>
+      'تعذر فتح صفحة الدفع. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String bizMaxDays(String days) {
+    return 'الحد الأقصى $days يومًا';
+  }
+
+  @override
+  String bizFreeSlotsRemaining(String remaining, String limit) {
+    return 'لديك $remaining من أصل $limit فتحات منتجات مجانية متبقية.';
+  }
+
+  @override
+  String bizFreeSlotsAllUsed(String limit, String price) {
+    return 'لقد استخدمت جميع فتحات المنتجات المجانية البالغ عددها $limit.\nالسعر $price لليوم + ضريبة GST عن الأيام التي تختارها.';
+  }
+
+  @override
+  String bizLocationUpdatedTo(String city) {
+    return 'تم تحديث الموقع إلى $city';
+  }
+
+  @override
+  String bizCouldNotGetLocation(String error) {
+    return 'تعذر الحصول على الموقع: $error';
+  }
+
+  @override
+  String get bizLocationPermissionNeeded =>
+      'إذن الموقع مطلوب لتحديد الموقع الحالي. اسمح به وحاول مرة أخرى.';
+
+  @override
+  String get bizSetStoreLocationFirst =>
+      'يرجى تحديد موقع المتجر باستخدام "استخدام الموقع الحالي" أو رابط خرائط Google قبل إنشاء المتجر.';
+
+  @override
+  String get bizStoreLocationIncomplete =>
+      'يبدو موقع المتجر غير مكتمل. استخدم "استخدام الموقع الحالي" أو رابط خرائط Google لتحديد موقع صحيح.';
+
+  @override
+  String bizPaymentCancelledOrFailed(String error) {
+    return 'تم إلغاء الدفع أو فشل: $error';
+  }
+
+  @override
+  String bizExternalWallet(String name) {
+    return 'محفظة خارجية: $name';
+  }
+
+  @override
+  String bizDiscountAppliedPct(String value) {
+    return '✅ تم تطبيق خصم $value%!';
+  }
+
+  @override
+  String bizDiscountAppliedAmt(String value) {
+    return '✅ تم تطبيق خصم ₹$value!';
+  }
+
+  @override
+  String get bizSubmittedPayRep =>
+      '✅  تم إرسال طلب اشتراكك.\n\nيرجى دفع المبلغ إلى ممثل Offro الخاص بك.\nستفعّل الإدارة متجرك بمجرد تأكيد الدفع.';
+
+  @override
+  String bizEndDateExceedsStore(String date) {
+    return 'لا يمكن أن يتجاوز تاريخ الانتهاء تاريخ انتهاء المتجر ($date)';
+  }
+
+  @override
+  String bizCurrentEndDate(String date) {
+    return 'تاريخ الانتهاء الحالي: $date';
+  }
+
+  @override
+  String bizFreeSlotAvailable(String used, String limit) {
+    return 'تتوفر فتحة منتج مجانية ($used من $limit قيد الاستخدام)، لذا فهذا التجديد مجاني.';
+  }
+
+  @override
+  String bizAllFreeSlotsUsedRenew(String limit, String price) {
+    return 'أنت تستخدم جميع فتحات المنتجات المجانية البالغ عددها $limit. يكلّف التجديد $price عن كل يوم يضاف + ضريبة GST.';
+  }
+
+  @override
+  String bizViewersVisitedStore(String pct) {
+    return 'زار $pct% من المشاهدين المتجر (ضغطوا على "البائع")';
+  }
+
+  @override
+  String get bizProductsExpiringOne => 'منتج واحد ينتهي قريبًا — اضغط للتجديد';
+
+  @override
+  String bizProductsExpiringMany(String n) {
+    return '$n منتجات تنتهي قريبًا — اضغط للتجديد';
+  }
+
+  @override
+  String bizMoreFromStore(String store) {
+    return 'المزيد من $store';
+  }
+
+  @override
+  String get bizThisStore => 'هذا المتجر';
+
+  @override
+  String bizPurchasePendingNamed(String store) {
+    return 'عملية شرائك لـ "$store" بانتظار موافقة الإدارة.';
+  }
+
+  @override
+  String bizNoInfluencersInCity(String city) {
+    return 'لا يوجد مؤثرون متاحون في $city حتى الآن';
+  }
+
+  @override
+  String bizSeeAllCount(String count) {
+    return 'عرض الكل ($count)';
+  }
+
+  @override
+  String bizReviewsFor(String name) {
+    return 'مراجعات $name';
+  }
+
+  @override
+  String bizPublishByDate(String date) {
+    return 'النشر قبل $date';
+  }
+
+  @override
+  String bizSeeAllRequests(String count) {
+    return 'عرض جميع الطلبات ($count)';
+  }
+
+  @override
+  String get bizDeclinedCanAccept =>
+      'لقد رفضت هذا الطلب. ما زال بإمكانك قبوله ما دام مفتوحًا.';
+
+  @override
+  String get bizDeclinedRequest => 'لقد رفضت هذا الطلب.';
+
+  @override
+  String get errPayNoMessage =>
+      'تعذر إكمال عملية الدفع. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get errPayGeneric =>
+      'لم نتمكن من إكمال عملية الدفع. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String bizStoresActiveOne(String active) {
+    return 'متجر واحد • $active نشط';
+  }
+
+  @override
+  String bizStoresActiveMany(String count, String active) {
+    return '$count متاجر • $active نشط';
+  }
+
+  @override
+  String bizNLive(String n) {
+    return '$n نشط';
+  }
+
+  @override
+  String bizNPending(String n) {
+    return '$n قيد الانتظار';
+  }
+
+  @override
+  String get bizSubmittedWord => 'تم الإرسال';
+
+  @override
+  String bizBannersStatusOne(String status) {
+    return 'بانر واحد • $status';
+  }
+
+  @override
+  String bizBannersStatusMany(String count, String status) {
+    return '$count بانرات • $status';
+  }
+
+  @override
+  String bizNDays(String n) {
+    return '$n يوم';
+  }
+
+  @override
+  String bizStartEndRange(String from, String end) {
+    return 'البداية: $from   ←   النهاية: $end';
+  }
+
+  @override
+  String bizFromDateLabel(String date) {
+    return 'من: $date';
+  }
+
+  @override
+  String bizUntilDateLabel(String date) {
+    return 'حتى: $date';
+  }
+
+  @override
+  String bizInvoiceColon(String no) {
+    return 'الفاتورة: $no';
+  }
+
+  @override
+  String bizPerDayPrice(String amount) {
+    return '₹$amount/يوم';
+  }
+
+  @override
+  String bizGstPct(String pct) {
+    return 'ضريبة GST ($pct%)';
+  }
+
+  @override
+  String bizPayAmount(String amount) {
+    return 'ادفع ₹$amount';
+  }
+
+  @override
+  String bizPricePerDayTimesDays(String price, String days) {
+    return '₹$price/يوم × $days يوم';
+  }
+
+  @override
+  String bizDiscountTotalPct(String amount, String pct, String total) {
+    return 'خصم −₹$amount ($pct%)  ←  الإجمالي: ₹$total';
+  }
+
+  @override
+  String bizDiscountTotalAmt(String amount, String total) {
+    return 'خصم −₹$amount  ←  الإجمالي: ₹$total';
+  }
+
+  @override
+  String get bizResultOne => 'نتيجة واحدة';
+
+  @override
+  String bizResultMany(String n) {
+    return '$n نتائج';
+  }
+
+  @override
+  String bizExpiredOn(String date) {
+    return 'انتهى في $date';
+  }
+
+  @override
+  String bizExpiresOn(String date) {
+    return 'ينتهي في $date';
+  }
+
+  @override
+  String bizErrorColon(String error) {
+    return 'خطأ: $error';
+  }
+
+  @override
+  String bizDayTimesPriceOne(String days, String price) {
+    return '$days يوم × $price/يوم';
+  }
+
+  @override
+  String bizDayTimesPriceMany(String days, String price) {
+    return '$days يوم × $price/يوم';
+  }
+
+  @override
+  String bizFailedColon(String error) {
+    return 'فشل: $error';
+  }
+
+  @override
+  String get bizDealCountOne => 'عرض واحد';
+
+  @override
+  String bizDealCountMany(String n) {
+    return '$n عروض';
+  }
+
+  @override
+  String bizPricePlusGst(String price, String pct) {
+    return '₹$price + $pct% ضريبة GST';
+  }
+
+  @override
+  String bizPlanPeriodLine(String plan, String from, String end) {
+    return 'الخطة: $plan  •  $from – $end';
+  }
+
+  @override
+  String bizBaseGstLine(String base, String gst) {
+    return 'الأساس: ₹$base  GST: ₹$gst';
+  }
+
+  @override
+  String bizDiscountCodeLine(String code, String amount) {
+    return 'الخصم ($code): −₹$amount';
+  }
+
+  @override
+  String bizBannerTitleLine(String title) {
+    return 'البانر: $title';
+  }
+
+  @override
+  String bizProductTitleLine(String title) {
+    return 'المنتج: $title';
+  }
+
+  @override
+  String get bizUntitledWord => 'بدون عنوان';
+
+  @override
+  String bizEndsOn(String date) {
+    return 'ينتهي في $date';
+  }
+
+  @override
+  String bizDeleteDealNamed(String title) {
+    return 'حذف "$title"؟';
+  }
+
+  @override
+  String bizMaxDateLine(String date) {
+    return 'الحد الأقصى: $date';
+  }
+
+  @override
+  String bizRenewAmount(String amount) {
+    return 'تجديد · $amount';
+  }
+
+  @override
+  String bizCodeAppliedNamed(String code) {
+    return 'تم تطبيق الرمز \'$code\'';
+  }
+
+  @override
+  String bizNActive(String n) {
+    return '$n نشط';
+  }
+
+  @override
+  String bizVisitOn(String date) {
+    return 'زيارة $date';
+  }
+
+  @override
+  String bizCallPhone(String phone) {
+    return 'اتصل بـ $phone';
+  }
+
+  @override
+  String get bizAllProducts => 'كل المنتجات';
+
+  @override
+  String get bizAllStores => 'كل المتاجر';
+
+  @override
+  String get bizBannersTab => 'البانرات';
+
+  @override
+  String get bizPaymentsTab => 'المدفوعات';
+
+  @override
+  String get bizAdditionalProduct => 'منتج إضافي';
+
+  @override
+  String get bizBillingSubscriptions => 'الفواتير والاشتراكات';
+
+  @override
+  String bizTillDate(String date) {
+    return 'حتى: $date';
+  }
+
+  @override
+  String bizExpDate(String date) {
+    return 'ينتهي: $date';
+  }
+
+  @override
+  String get bizOneDayWord => 'يوم واحد';
+
+  @override
+  String bizDaysCountWord(String n) {
+    return '$n يوم';
+  }
+
+  @override
+  String get bizProposalOne => 'عرض واحد';
+
+  @override
+  String bizProposalMany(String n) {
+    return '$n عروض';
+  }
+
+  @override
+  String get bizInfluencerSubscription => 'اشتراك المؤثر';
+
+  @override
+  String get bizOffrOInfluencer => 'مؤثر OffrO';
 }

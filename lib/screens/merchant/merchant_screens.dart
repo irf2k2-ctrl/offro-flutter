@@ -42,6 +42,7 @@ import '../collab/collab_screens.dart' show CollabWorkspacePage;
 // Deals list thumbnail tap-to-view — no duplicate viewer implementation.
 import '../store/widgets/store_header.dart' show FullScreenImageViewer;
 import '../../core/utils/navigation.dart';
+import '../../core/l10n/l10n.dart';
 
 /// Figma-style page header for Merchant screens: eyebrow + headline on the
 /// cream background, flat (no elevation), optional trailing actions.
@@ -83,7 +84,7 @@ PreferredSizeWidget merchantHeaderBar({
 Widget offroHeaderAddButton({
   required IconData icon,
   required VoidCallback onPressed,
-  String tooltip = "Add",
+  String? tooltip,
   double size = 44,
 }) {
   final btn = Material(
@@ -98,7 +99,7 @@ Widget offroHeaderAddButton({
       ),
     ),
   );
-  return Tooltip(message: tooltip, child: btn);
+  return Tooltip(message: tooltip ?? offroNoContext.bizAdd, child: btn);
 }
 
 // ══════════════════════════════════════════════════════════
@@ -223,27 +224,27 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
   int get _liveProducts => _products.where((v) => (v['approval_status'] ?? v['status'] ?? '').toString() == 'approved').length;
 
   String get _storeNote => _stores.isEmpty
-      ? "No stores yet — tap to add your first"
-      : "${_stores.length} Store${_stores.length > 1 ? 's' : ''} • $_activeStores Active";
+      ? context.l10n.bizNoStoresYetTapTo
+      : (_stores.length > 1 ? context.l10n.bizStoresActiveMany('${_stores.length}','$_activeStores') : context.l10n.bizStoresActiveOne('$_activeStores'));
 
   String get _bannerNote {
-    if (!_hasActiveStore) return "Subscribe your store to create banners.";
-    if (_banners.isEmpty) return "No banners yet — promote your store";
+    if (!_hasActiveStore) return context.l10n.bizSubscribeYourStoreToCreate;
+    if (_banners.isEmpty) return context.l10n.bizNoBannersYetPromoteYour;
     final pend = _banners.where((b) {
       final st = (b['approval_status'] ?? b['status'] ?? '').toString();
       return st == 'pending' || st == 'pending_approval';
     }).length;
     final parts = <String>[];
-    if (_liveBanners > 0) parts.add("$_liveBanners Live");
-    if (pend > 0) parts.add("$pend Pending");
-    return "${_banners.length} Banner${_banners.length > 1 ? 's' : ''} • ${parts.isEmpty ? 'Submitted' : parts.join(' · ')}";
+    if (_liveBanners > 0) parts.add(context.l10n.bizNLive('$_liveBanners'));
+    if (pend > 0) parts.add(context.l10n.bizNPending('$pend'));
+    return (_banners.length > 1 ? context.l10n.bizBannersStatusMany('${_banners.length}', parts.isEmpty ? context.l10n.bizSubmittedWord : parts.join(' · ')) : context.l10n.bizBannersStatusOne(parts.isEmpty ? context.l10n.bizSubmittedWord : parts.join(' · ')));
   }
 
   String get _productNote {
-    if (!_hasActiveStore) return "Subscribe your store to add products.";
-    if (_products.isEmpty) return "No products yet — add your first product";
-    final parts = <String>[if (_freeLimit != null) "$_slotsUsed/$_freeLimit free slots used"];
-    if (_liveProducts > 0) parts.add("$_liveProducts Live");
+    if (!_hasActiveStore) return context.l10n.bizSubscribeYourStoreToAdd;
+    if (_products.isEmpty) return context.l10n.bizNoProductsYetAddYour;
+    final parts = <String>[if (_freeLimit != null) context.l10n.bizFreeSlotsUsedOf('$_slotsUsed','$_freeLimit')];
+    if (_liveProducts > 0) parts.add(context.l10n.bizNLive('$_liveProducts'));
     return parts.join('  ·  ');
   }
 
@@ -258,9 +259,9 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         buildImageLogo(height: 26),
         const SizedBox(height: 32),
-        Text('MERCHANT WORKSPACE', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+        Text(context.l10n.bizMERCHANTWORKSPACE, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
         const SizedBox(height: 4),
-        Text(first.isEmpty ? 'Welcome back' : 'Welcome back, $first', style: OffroText.headline),
+        Text(first.isEmpty ? context.l10n.bizWelcomeBack : context.l10n.bizWelcomeBackName(first), style: OffroText.headline),
         if (widget.onLocationTap != null) ...[
           const SizedBox(height: 14),
           InkWell(
@@ -272,7 +273,7 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                 const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary, filled: true),
                 const SizedBox(width: 8),
                 Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(widget.locationTitle.isEmpty ? 'Select location' : widget.locationTitle,
+                  Text(widget.locationTitle.isEmpty ? context.l10n.homeSelectLocation : widget.locationTitle,
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: OffroText.value.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
                   if (widget.locationSubtitle.isNotEmpty)
@@ -317,11 +318,11 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
                 const SizedBox(height: 16),
-                Text("Couldn't load your dashboard", style: OffroText.title.copyWith(fontSize: 18)),
+                Text(context.l10n.bizCouldnTLoadYourDashboard, style: OffroText.title.copyWith(fontSize: 18)),
                 const SizedBox(height: 6),
-                Text("Check your connection and try again", style: OffroText.body),
+                Text(context.l10n.homeCheckConnection, style: OffroText.body),
                 const SizedBox(height: 20),
-                OffroButton.small(label: "Retry", onPressed: () => _load()),
+                OffroButton.small(label: context.l10n.commonRetry, onPressed: () => _load()),
               ]),
             ))
       : RefreshIndicator(
@@ -336,23 +337,23 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                 child: Padding(
                   padding: OffroSpacing.gutterH,
                   child: Row(children: [
-                    _statTile('$_activeStores', 'Live stores'),
+                    _statTile('$_activeStores', context.l10n.bizLiveStores),
                     const SizedBox(width: 8),
-                    _statTile('$_liveBanners', 'Live banners'),
+                    _statTile('$_liveBanners', context.l10n.bizLiveBanners),
                     const SizedBox(width: 8),
-                    _statTile('$_liveProducts', 'Live products'),
+                    _statTile('$_liveProducts', context.l10n.bizLiveProducts),
                   ]),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 14, OffroSpacing.gutter, 0),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('MANAGE YOUR BUSINESS', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+                  Text(context.l10n.bizMANAGEYOURBUSINESS, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
                   const SizedBox(height: 12),
                   _SectionCard(
                     icon: OffroIcons.store,
                     bgColor: OffroColors.mint,
-                    title: "My Store",
+                    title: context.l10n.bizMyStore,
                     subtitle: _storeNote,
                     onTap: () => Navigator.push(context, appRoute(MerchantStoresPage(token: widget.token))).then((_) => _refreshParts(stores: true, slots: true)),
                   ),
@@ -361,36 +362,36 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
                   _SectionCard(
                     icon: OffroIcons.play,
                     bgColor: OffroColors.beige,
-                    title: "My Banner",
+                    title: context.l10n.bizMyBanner,
                     locked: !_hasActiveStore,
                     subtitle: _bannerNote,
                     onTap: _hasActiveStore
                       ? () => Navigator.push(context, appRoute(MerchantBannersPage(token: widget.token))).then((_) => _refreshParts(banners: true))
-                      : () => _lockedSnack("Subscribe your store to create banners."),
+                      : () => _lockedSnack(context.l10n.bizSubscribeYourStoreToCreate),
                   ),
                   const SizedBox(height: 12),
                   // Product card — locked until a subscribed+active store exists
                   _SectionCard(
                     icon: OffroIcons.tag,
                     bgColor: OffroTones.electronics.background,
-                    title: "My Products",
+                    title: context.l10n.bizMyProducts,
                     locked: !_hasActiveStore,
                     subtitle: _productNote,
                     onTap: _hasActiveStore
                       ? () => Navigator.push(context, appRoute(MerchantProductsPage(token: widget.token))).then((_) => _refreshParts(products: true, slots: true))
-                      : () => _lockedSnack("Subscribe your store to add products."),
+                      : () => _lockedSnack(context.l10n.bizSubscribeYourStoreToAdd),
                   ),
                   const SizedBox(height: 12),
                   // Creator collaborations — brief, match and manage local creators
                   _SectionCard(
                     icon: OffroIcons.sparkles,
                     bgColor: OffroTones.fashion.background,
-                    title: "Creator collaborations",
+                    title: context.l10n.bizCreatorCollaborations,
                     locked: !_hasActiveStore,
-                    subtitle: "Brief, match and manage local creators",
+                    subtitle: context.l10n.bizBriefMatchAndManageLocal,
                     onTap: _hasActiveStore
                       ? () => Navigator.push(context, appRoute(CollabWorkspacePage(token: widget.token)))
-                      : () => _lockedSnack("Subscribe your store to work with creators."),
+                      : () => _lockedSnack(context.l10n.bizSubscribeYourStoreToWork),
                   ),
                 ]),
               ),
@@ -436,7 +437,7 @@ class _SectionCard extends StatelessWidget {
             const Icon(Icons.lock_rounded, color: OffroColors.primary, size: 11),
             const SizedBox(width: 4),
           ],
-          Text(locked ? "Locked" : "Manage",
+          Text(locked ? context.l10n.bizLocked : context.l10n.bizManage,
               style: OffroText.caption.copyWith(color: OffroColors.primary, fontSize: 10, fontWeight: FontWeight.w700)),
         ]),
       ),
@@ -481,13 +482,13 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:merchantHeaderBar(eyebrow: "Promotions", title: "My Banners", back: true,
+    appBar:merchantHeaderBar(eyebrow: context.l10n.bizPromotions, title: context.l10n.bizMyBanners, back: true,
               actions:[
         Padding(
-          padding:const EdgeInsets.only(right:18),
+          padding:const EdgeInsetsDirectional.only(end:18),
           child:offroHeaderAddButton(
             icon:Icons.add,
-            tooltip:"New Banner",
+            tooltip:context.l10n.bizNewBanner,
             onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
           ),
         ),
@@ -499,19 +500,19 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
           ? Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
               const Icon(Icons.wifi_off_rounded,color:kMerchantMuted,size:48),
               const SizedBox(height:12),
-              const Text("Couldn't load banners",style:TextStyle(color:kMerchantText,fontSize:15,fontWeight:FontWeight.w700)),
+              Text(context.l10n.bizCouldnTLoadBanners,style:TextStyle(color:kMerchantText,fontSize:15,fontWeight:FontWeight.w700)),
               const SizedBox(height:8),
-              ElevatedButton.icon(onPressed:()=>_load(),icon:const Icon(Icons.refresh),label:const Text("Retry"),
+              ElevatedButton.icon(onPressed:()=>_load(),icon:const Icon(Icons.refresh),label:Text(context.l10n.commonRetry),
                 style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary,foregroundColor:Colors.white)),
             ]))
       : Column(children:[
           Expanded(child:_banners.isEmpty
-            ? const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+            ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 Icon(Icons.view_carousel_outlined,size:64,color:kMerchantAccent),
                 SizedBox(height:12),
-                Text("No banners yet",style:TextStyle(color:kMerchantMuted,fontSize:16)),
+                Text(context.l10n.bizNoBannersYet,style:TextStyle(color:kMerchantMuted,fontSize:16)),
                 SizedBox(height:6),
-                Text("Tap + to create your first banner",style:TextStyle(color:kMerchantMuted,fontSize:13)),
+                Text(context.l10n.bizTapToCreateYourFirst,style:TextStyle(color:kMerchantMuted,fontSize:13)),
               ]))
             : RefreshIndicator(
                 onRefresh:_load,
@@ -547,13 +548,13 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         : (!_bIsActive ? "off" : rawStatus);
 
                     final (Color sc, String sl, IconData si) = switch(displayStatus) {
-                      "approved"  => (OffroColors.statusLive,"Approved — Live", Icons.check_circle),
-                      "rejected"  => (Colors.red, "Rejected", Icons.cancel),
-                      "expired"   => (Colors.grey.shade600, "Expired", Icons.event_busy_rounded),
-                      "removed"   => (Colors.red.shade700, "Removed by Admin", Icons.block_rounded),
-                      "off"       => (Colors.grey.shade500, "Turned Off", Icons.pause_circle_outline_rounded),
-                      "pending_approval" || "pending" => (OffroColors.statusPending,"Pending Approval", Icons.access_time_rounded),
-                      _ => (kMerchantMuted,"Submitted", Icons.hourglass_empty),
+                      "approved"  => (OffroColors.statusLive,context.l10n.bizApprovedLive, Icons.check_circle),
+                      "rejected"  => (Colors.red, context.l10n.bizRejected, Icons.cancel),
+                      "expired"   => (Colors.grey.shade600, context.l10n.dealExpired, Icons.event_busy_rounded),
+                      "removed"   => (Colors.red.shade700, context.l10n.bizRemovedByAdmin, Icons.block_rounded),
+                      "off"       => (Colors.grey.shade500, context.l10n.bizTurnedOff, Icons.pause_circle_outline_rounded),
+                      "pending_approval" || "pending" => (OffroColors.statusPending,context.l10n.bizPendingApproval, Icons.access_time_rounded),
+                      _ => (kMerchantMuted,context.l10n.bizSubmitted, Icons.hourglass_empty),
                     };
                     // FIX 2: prefer from_date/end_date, fallback start_date
                     final fromDate = b["from_date"]?.toString() ?? b["start_date"]?.toString() ?? "";
@@ -619,17 +620,17 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                         onPressed:() async {
                           final ctrl = TextEditingController(text:b["title"]??"");
                           final newTitle = await showDialog<String>(context:context,builder:(_)=>AlertDialog(
-                            title:const Text("Edit Banner Title",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
+                            title:Text(context.l10n.bizEditBannerTitle,style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
                             content:TextField(controller:ctrl,decoration:InputDecoration(
-                              hintText:"Banner title",
+                              hintText:context.l10n.bizBannerTitle,
                               border:OutlineInputBorder(borderRadius:BorderRadius.circular(16)),
                               enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)))),
                             actions:[
-                              TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
+                              TextButton(onPressed:()=>Navigator.pop(context),child:Text(context.l10n.commonCancel,style:TextStyle(color:kMerchantMuted))),
                               ElevatedButton(
                                 style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
                                 onPressed:()=>Navigator.pop(context,ctrl.text.trim()),
-                                child:const Text("Save",style:TextStyle(color:Colors.white))),
+                                child:Text(context.l10n.bizSave,style:TextStyle(color:Colors.white))),
                             ],
                           ));
                           if (newTitle!=null && newTitle.isNotEmpty && newTitle!=b["title"]) {
@@ -639,12 +640,12 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             } catch(e) {
                               debugPrint('[MerchantBanners] rename error: $e');
                               if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content:Text(friendlyError(e)),backgroundColor:Colors.red));
+                                SnackBar(content:Text(friendlyError(e, l10n: mounted ? context.l10n : null)),backgroundColor:Colors.red));
                             }
                           }
                         },
                         icon:const Icon(Icons.edit_rounded,size:14,color:kMerchantPrimary),
-                        label:const Text("Edit Title",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                        label:Text(context.l10n.bizEditTitle,style:TextStyle(color:kMerchantPrimary,fontSize:12)),
                         style:OutlinedButton.styleFrom(elevation: 0, 
                           side:const BorderSide(color:kMerchantPrimary),
                           shape: const StadiumBorder(),
@@ -658,19 +659,19 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                             final isOn = _bIsActive;
                             final confirm = await showDialog<bool>(context:context,
                               builder:(_)=>AlertDialog(
-                                title:Text(isOn?"Turn Off Banner?":"Turn On Banner?",
+                                title:Text(isOn?context.l10n.bizTurnOffBanner:context.l10n.bizTurnOnBanner,
                                   style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
                                 content:Text(isOn
-                                  ?"This banner will be hidden from stores until you turn it back on."
-                                  :"This banner will go live again in stores."),
+                                  ?context.l10n.bizThisBannerWillBeHidden
+                                  :context.l10n.bizThisBannerWillGoLive),
                                 actions:[
                                   TextButton(onPressed:()=>Navigator.pop(context,false),
-                                    child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
+                                    child:Text(context.l10n.commonCancel,style:TextStyle(color:kMerchantMuted))),
                                   ElevatedButton(
                                     style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), 
                                       backgroundColor:isOn?Colors.orange:kMerchantPrimary),
                                     onPressed:()=>Navigator.pop(context,true),
-                                    child:Text(isOn?"Turn Off":"Turn On",
+                                    child:Text(isOn?context.l10n.bizTurnOff:context.l10n.bizTurnOn,
                                       style:const TextStyle(color:Colors.white))),
                                 ],
                               ));
@@ -681,13 +682,13 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                               } catch(e) {
                                 debugPrint('[MerchantBanners] toggle error: $e');
                                 if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content:Text(friendlyError(e)),backgroundColor:Colors.red));
+                                  SnackBar(content:Text(friendlyError(e, l10n: mounted ? context.l10n : null)),backgroundColor:Colors.red));
                               }
                             }
                           },
                           icon:Icon(_bIsActive?Icons.pause_circle_outline:Icons.play_circle_outline,
                             size:14,color:_bIsActive?Colors.orange:kMerchantPrimary),
-                          label:Text(_bIsActive?"Turn Off":"Turn On",
+                          label:Text(_bIsActive?context.l10n.bizTurnOff:context.l10n.bizTurnOn,
                             style:TextStyle(color:_bIsActive?Colors.orange:kMerchantPrimary,fontSize:12)),
                           style:OutlinedButton.styleFrom(elevation: 0, 
                             side:BorderSide(color:_bIsActive?Colors.orange:kMerchantPrimary),
@@ -705,7 +706,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                     // paid/activated, so the closest state is "pending"
                     // (submitted, awaiting admin approval).
                     Widget _noteRow(String text, {Widget? action}) => Container(
-                      padding:EdgeInsets.fromLTRB(12,action==null?10:6,action==null?12:6,action==null?10:6),
+                      padding:EdgeInsetsDirectional.fromSTEB(12,action==null?10:6,action==null?12:6,action==null?10:6),
                       decoration:BoxDecoration(color:OffroColors.beige,borderRadius:BorderRadius.circular(16)),
                       child:Row(children:[
                         Expanded(child:Text(text,style:OffroText.caption.copyWith(color:OffroColors.text,fontSize:11,fontWeight:FontWeight.w600))),
@@ -717,24 +718,24 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                       // EXPIRED: no Edit Title. Renew = the existing paid banner
                       // flow (Create Banner → order → payment → activate) with
                       // the title prefilled; no separate banner-renewal API exists.
-                      _actionButtons = _noteRow("Expired · Choose a new start date",
+                      _actionButtons = _noteRow(context.l10n.bizExpiredChooseANewStart,
                         action:ElevatedButton(
                           onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token,renewFrom:Map<String,dynamic>.from(b)))).then((_)=>_load()),
                           style:ElevatedButton.styleFrom(elevation:0,shape:const StadiumBorder(),backgroundColor:OffroColors.primary,foregroundColor:Colors.white,
                             padding:const EdgeInsets.symmetric(horizontal:18,vertical:9),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                          child:const Text("Renew",style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
+                          child:Text(context.l10n.bizRenew,style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
                     } else if (displayStatus == "rejected") {
-                      _actionButtons = _noteRow("Rejected · Create a new banner to resubmit",
+                      _actionButtons = _noteRow(context.l10n.bizRejectedCreateANewBanner,
                         action:ElevatedButton(
                           onPressed:()=>Navigator.push(context,appRoute(AddBannerPage(token:widget.token))).then((_)=>_load()),
                           style:ElevatedButton.styleFrom(elevation:0,shape:const StadiumBorder(),backgroundColor:OffroColors.primary,foregroundColor:Colors.white,
                             padding:const EdgeInsets.symmetric(horizontal:16,vertical:9),minimumSize:Size.zero,tapTargetSize:MaterialTapTargetSize.shrinkWrap),
-                          child:const Text("Create new",style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
+                          child:Text(context.l10n.bizCreateNew,style:TextStyle(fontSize:12,fontWeight:FontWeight.w700))));
                     } else if (displayStatus == "removed") {
-                      _actionButtons = _noteRow("Removed by admin");
+                      _actionButtons = _noteRow(context.l10n.bizRemovedByAdmin2);
                     } else if (displayStatus == "pending" || displayStatus == "pending_approval") {
                       _actionButtons = Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-                        _noteRow("Awaiting admin approval"),
+                        _noteRow(context.l10n.bizAwaitingAdminApproval),
                         const SizedBox(height:8),
                         _editAndToggleButtons,
                       ]);
@@ -758,7 +759,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                               child:ClipRRect(borderRadius:BorderRadius.circular(16),child:_thumb),
                             ),
                             Expanded(child:Padding(
-                              padding:const EdgeInsets.fromLTRB(0,10,12,10),
+                              padding:const EdgeInsetsDirectional.fromSTEB(0,10,12,10),
                               child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                                 // Row 1: Title + status badge
                                 Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -778,7 +779,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 Row(children:[
                                   const Icon(Icons.schedule_rounded,size:13,color:kMerchantMuted),
                                   const SizedBox(width:4),
-                                  Text("${b['duration']??b['duration_days']??30} Days",style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                  Text(context.l10n.bizNDays('${b['duration']??b['duration_days']??30}'),style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
                                   const SizedBox(width:10),
                                   const Icon(Icons.payments_outlined,size:13,color:kMerchantMuted),
                                   const SizedBox(width:4),
@@ -794,8 +795,8 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                       const SizedBox(width:5),
                                       Expanded(child:Text(
                                         fromDate.isNotEmpty && endDate.isNotEmpty
-                                          ? "Start: $fromDate   →   End: $endDate"
-                                          : fromDate.isNotEmpty ? "From: $fromDate" : "Until: $endDate",
+                                          ? context.l10n.bizStartEndRange(fromDate, endDate)
+                                          : fromDate.isNotEmpty ? context.l10n.bizFromDateLabel(fromDate) : context.l10n.bizUntilDateLabel(endDate),
                                         style:const TextStyle(color:kMerchantPrimary,fontSize:10,fontWeight:FontWeight.w600),
                                         maxLines:1,
                                         overflow:TextOverflow.ellipsis,
@@ -805,7 +806,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                 ],
                                 if ((b["invoice_no"]??"").isNotEmpty) ...[
                                   const SizedBox(height:3),
-                                  Text("Invoice: ${b['invoice_no']}",style:const TextStyle(color:kMerchantMuted,fontSize:10)),
+                                  Text(context.l10n.bizInvoiceColon('${b['invoice_no']}'),style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                                 ],
                                 const SizedBox(height:8),
                                 const Divider(height:1,thickness:.5,color:OffroColors.border),
@@ -918,9 +919,9 @@ class _AddBannerState extends State<AddBannerPage> {
   double get _total       => double.parse((_taxable + _gst).toStringAsFixed(2));
 
   String get _fromDateStr => "${_fromDate.year}-${_fromDate.month.toString().padLeft(2,'0')}-${_fromDate.day.toString().padLeft(2,'0')}";
-  String get _fromDateDisplay => "${_fromDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_fromDate.month-1]} ${_fromDate.year}";
+  String get _fromDateDisplay => "${_fromDate.day} ${monthsShortOf(offroNoContext)[_fromDate.month-1]} ${_fromDate.year}";
   DateTime get _endDate => _fromDate.add(Duration(days:_days));
-  String get _endDateDisplay => "${_endDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_endDate.month-1]} ${_endDate.year}";
+  String get _endDateDisplay => "${_endDate.day} ${monthsShortOf(offroNoContext)[_endDate.month-1]} ${_endDate.year}";
 
   Future<void> _pickFromDate() async {
     final picked = await showDatePicker(context:context, initialDate:_fromDate,
@@ -935,7 +936,7 @@ class _AddBannerState extends State<AddBannerPage> {
     final bytes = await File(img.path).readAsBytes();
     if (bytes.length > 2 * 1024 * 1024) {
       if(mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content:Text("Image too large. Max 2MB."),backgroundColor:Colors.red));
+        SnackBar(content:Text(context.l10n.bizImageTooLargeMax2MB),backgroundColor:Colors.red));
       return;
     }
     setState(()=>_imgB64="data:image/jpeg;base64,${base64Encode(bytes)}");
@@ -959,7 +960,7 @@ class _AddBannerState extends State<AddBannerPage> {
     try {
       final file = File(picked.path);
       if (await file.length() > _kVideoMaxBytes) {
-        _videoError("Video is too large. Please select a video up to 10 MB.");
+        _videoError(context.l10n.bizVideoIsTooLargePlease);
         return;
       }
       c = VideoPlayerController.file(file);
@@ -967,7 +968,7 @@ class _AddBannerState extends State<AddBannerPage> {
       if (c.value.duration > _kVideoMaxDuration) {
         await c.dispose();
         c = null;
-        _videoError("Video is too long. Please select a video up to 15 seconds.");
+        _videoError(context.l10n.bizVideoIsTooLongPlease);
         return;
       }
       await c.setVolume(0);
@@ -979,7 +980,7 @@ class _AddBannerState extends State<AddBannerPage> {
       c = null; // now owned by the state
       old?.dispose();
     } catch (_) {
-      _videoError("Could not read this video. Please select another video.");
+      _videoError(context.l10n.bizCouldNotReadThisVideo);
     } finally {
       c?.dispose();
       if (mounted) setState(() => _videoBusy = false);
@@ -1001,7 +1002,7 @@ class _AddBannerState extends State<AddBannerPage> {
     try {
       final bytes = await File(path).readAsBytes();
       if (bytes.length > _kVideoMaxBytes) {
-        if (mounted) setState(() => _msg = "Video is too large. Please select a video up to 10 MB.");
+        if (mounted) setState(() => _msg = context.l10n.bizVideoIsTooLargePlease);
         return false;
       }
       debugPrint("[BannerVideo] POST $kBaseUrl/merchant/banners/upload-video bytes=${bytes.length}");
@@ -1012,7 +1013,7 @@ class _AddBannerState extends State<AddBannerPage> {
       return true;
     } catch (e) {
       debugPrint("[BannerVideo] upload failed: $e");
-      if (mounted) setState(() => _msg = friendlyError(e, fallback: "Could not upload the video. Please try again."));
+      if (mounted) setState(() => _msg = friendlyError(e, fallback: context.l10n.bizCouldNotUploadTheVideo, l10n: mounted ? context.l10n : null));
       return false;
     }
   }
@@ -1056,7 +1057,7 @@ class _AddBannerState extends State<AddBannerPage> {
                     child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge,
                       child: SizedBox(width: c!.value.size.width, height: c.value.size.height,
                         child: VideoPlayer(c))))),
-                Positioned(top: 6, right: 6, child: GestureDetector(
+                PositionedDirectional(top: 6, end: 6, child: GestureDetector(
                   onTap: _removeVideo,
                   child: Container(padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
@@ -1067,11 +1068,11 @@ class _AddBannerState extends State<AddBannerPage> {
                 Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Icon(Icons.check_circle_outline, size: 34, color: kMerchantPrimary),
                   const SizedBox(height: 6),
-                  const Text("Existing banner video will be reused", style: TextStyle(color: kMerchantText, fontSize: 13, fontWeight: FontWeight.w600)),
+                  Text(context.l10n.bizExistingBannerVideoWillBe, style: TextStyle(color: kMerchantText, fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 3),
-                  const Text("Tap to replace", style: TextStyle(color: kMerchantMuted, fontSize: 11)),
+                  Text(context.l10n.bizTapToReplace, style: TextStyle(color: kMerchantMuted, fontSize: 11)),
                 ])),
-                Positioned(top: 6, right: 6, child: GestureDetector(
+                PositionedDirectional(top: 6, end: 6, child: GestureDetector(
                   onTap: _removeVideo,
                   child: Container(padding: const EdgeInsets.all(4),
                     decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
@@ -1080,23 +1081,23 @@ class _AddBannerState extends State<AddBannerPage> {
             : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const Icon(Icons.video_library_outlined, size: 36, color: kMerchantAccent),
                 const SizedBox(height: 6),
-                const Text("Tap to select banner video", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
+                Text(context.l10n.bizTapToSelectBannerVideo, style: TextStyle(color: kMerchantMuted, fontSize: 13)),
                 const SizedBox(height: 3),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  _InfoChip("📐 1080×1080px (1:1)"), const SizedBox(width: 6), _InfoChip("Max 15 sec · 10 MB"),
+                  _InfoChip(context.l10n.biz10801080px11), const SizedBox(width: 6), _InfoChip(context.l10n.bizMax15Sec10MB),
                 ]),
               ]),
       ));
   }
 
   Future<void> _proceed() async {
-    if (_titleC.text.trim().isEmpty) { setState(()=>_msg="Banner title required"); return; }
-    if (_selectedBannerStore==null) { setState(()=>_msg="Please select a store"); return; }
-    if (_selCity==null || _selCity!.trim().isEmpty) { setState(()=>_msg="Please select a city"); return; }
+    if (_titleC.text.trim().isEmpty) { setState(()=>_msg=context.l10n.bizBannerTitleRequired); return; }
+    if (_selectedBannerStore==null) { setState(()=>_msg=context.l10n.bizPleaseSelectAStore); return; }
+    if (_selCity==null || _selCity!.trim().isEmpty) { setState(()=>_msg=context.l10n.bizPleaseSelectACity); return; }
     if (_mediaType=="video") {
-      if (_videoPath==null && _videoUrl==null) { setState(()=>_msg="Please select a banner video"); return; }
-    } else if (_imgB64==null && _existingImgUrl==null) { setState(()=>_msg="Please upload a banner image"); return; }
-    if (_days<1) { setState(()=>_msg="Enter number of days (minimum 1)"); return; }
+      if (_videoPath==null && _videoUrl==null) { setState(()=>_msg=context.l10n.bizPleaseSelectABannerVideo); return; }
+    } else if (_imgB64==null && _existingImgUrl==null) { setState(()=>_msg=context.l10n.bizPleaseUploadABannerImage); return; }
+    if (_days<1) { setState(()=>_msg=context.l10n.bizEnterNumberOfDaysMinimum); return; }
     setState((){_loading=true; _msg="";});
     try {
       // Video: upload once, before any order/payment is created.
@@ -1137,7 +1138,7 @@ class _AddBannerState extends State<AddBannerPage> {
           if (mounted) {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content:Text("✅ Banner submitted! ${res['message']??''}"),
+              content:Text(context.l10n.bizBannerSubmittedMsg((res['message']??'').toString())),
               backgroundColor:OffroColors.statusLive));
           }
         }
@@ -1147,7 +1148,7 @@ class _AddBannerState extends State<AddBannerPage> {
           _openRazorpayBanner(order);
         }
       }
-    } catch(e) { setState(()=>_msg=friendlyError(e)); }
+    } catch(e) { setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null)); }
     if (mounted) setState(()=>_loading=false);
   }
 
@@ -1198,7 +1199,7 @@ class _AddBannerState extends State<AddBannerPage> {
       final v = (m[k] ?? "").toString().trim();
       if (v.isNotEmpty) return v;
     }
-    return type == "deal" ? "Untitled deal" : "Untitled product";
+    return type == "deal" ? context.l10n.bizUntitledDeal : context.l10n.bizUntitledProduct;
   }
 
   Future<void> _loadCtaOptions() async {
@@ -1273,24 +1274,24 @@ class _AddBannerState extends State<AddBannerPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: OffroColors.border)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text("CTA destination", style: OffroText.title),
+        Text(context.l10n.bizCTADestination, style: OffroText.title),
         const SizedBox(height: 2),
-        Text("Choose where this banner should take the customer.",
+        Text(context.l10n.bizChooseWhereThisBannerShould,
           style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
         const SizedBox(height: 10),
         Row(children: [
-          _ctaChip("Product", Icons.local_activity_outlined, "product", _ctaProducts.isNotEmpty),
+          _ctaChip(context.l10n.prodTitleFallback, Icons.local_activity_outlined, "product", _ctaProducts.isNotEmpty),
           const SizedBox(width: 8),
-          _ctaChip("Deal", Icons.local_offer_outlined, "deal", _ctaDeals.isNotEmpty),
+          _ctaChip(context.l10n.storeDealWord, Icons.local_offer_outlined, "deal", _ctaDeals.isNotEmpty),
           const SizedBox(width: 8),
-          _ctaChip("Store", Icons.storefront_outlined, "store", true),
+          _ctaChip(context.l10n.homeStoreWord, Icons.storefront_outlined, "store", true),
         ]),
         if (_ctaType != "store") ...[
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             isExpanded: true,
             value: _ctaItem == null ? null : _ctaId(_ctaItem!),
-            hint: Text(isDeal ? "Select Deal" : "Select Product"),
+            hint: Text(isDeal ? context.l10n.bizSelectDeal : context.l10n.bizSelectProduct),
             items: list.map((e) => DropdownMenuItem<String>(
               value: _ctaId(e),
               child: Text(_ctaName(e, _ctaType), overflow: TextOverflow.ellipsis))).toList(),
@@ -1306,10 +1307,10 @@ class _AddBannerState extends State<AddBannerPage> {
         const SizedBox(height: 8),
         Text(
           _ctaType == "store"
-            ? "Customers will open the selected store."
+            ? context.l10n.bizCustomersWillOpenTheSelected
             : (_ctaItem == null
-                ? "Nothing selected yet — the banner will open the store."
-                : "If this ${isDeal ? 'deal' : 'product'} is later removed, the banner opens the store instead."),
+                ? context.l10n.bizNothingSelectedYetTheBanner
+                : (isDeal ? context.l10n.bizBannerFallbackDeal : context.l10n.bizBannerFallbackProduct)),
           style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
       ]),
     );
@@ -1336,7 +1337,7 @@ class _AddBannerState extends State<AddBannerPage> {
         _appliedDiscount     = val;
         _appliedDiscountType = type;
         _discountOk      = true;
-        _discountMsg     = r["message"]?.toString() ?? "✅ Discount applied!";
+        _discountMsg     = r["message"]?.toString() ?? context.l10n.bizDiscountApplied;
       });
     } catch (e) {
       setState(() {
@@ -1344,7 +1345,7 @@ class _AddBannerState extends State<AddBannerPage> {
         _appliedDiscount     = 0;
         _appliedDiscountType = null;
         _discountOk      = false;
-        _discountMsg     = friendlyError(e);
+        _discountMsg     = friendlyError(e, l10n: mounted ? context.l10n : null);
       });
     }
     if (mounted) setState(() => _applyingCode = false);
@@ -1354,7 +1355,7 @@ class _AddBannerState extends State<AddBannerPage> {
     final rzpKey = order["razorpay_key"]?.toString() ?? '';
     final rzpOrderId = order["razorpay_order_id"]?.toString() ?? '';
     if (rzpKey.isEmpty || rzpOrderId.isEmpty) {
-      setState(()=>_msg="Payment gateway not configured. Contact support.");
+      setState(()=>_msg=context.l10n.bizPaymentGatewayNotConfiguredContact);
       return;
     }
     _pendingOrder = Map<String,dynamic>.from(order);
@@ -1371,7 +1372,7 @@ class _AddBannerState extends State<AddBannerPage> {
       });
     } catch (e) {
       debugPrint('[MerchantBanners] Razorpay open error: $e');
-      if (mounted) setState(()=>_msg=friendlyError(e, fallback: "Could not open payment. Please try again."));
+      if (mounted) setState(()=>_msg=friendlyError(e, fallback: context.l10n.bizCouldNotOpenPaymentPlease, l10n: mounted ? context.l10n : null));
     }
   }
 
@@ -1405,41 +1406,41 @@ class _AddBannerState extends State<AddBannerPage> {
           ),
         ));
       }
-    } catch(e) { if(mounted) setState(()=>_msg=friendlyError(e)); }
+    } catch(e) { if(mounted) setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null)); }
   }
 
   void _onPayError(PaymentFailureResponse res) {
-    if(mounted) setState(()=>_msg="Payment failed: ${friendlyRazorpayError(res.message)}");
+    if(mounted) setState(()=>_msg=context.l10n.bizPaymentFailedMsg(friendlyRazorpayError(res.message, l10n: context.l10n)));
   }
 
   Future<bool?> _showBannerSummaryDialog(Map order, {required bool manual}) async =>
     showDialog<bool>(context:context, builder:(_)=>AlertDialog(
-      title:const Text("Banner Order Summary",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
+      title:Text(context.l10n.bizBannerOrderSummary,style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-        _dRow("Title",    _titleC.text.trim()),
-        _dRow("Duration", "${order['days']} Days"),
-        _dRow("Period",   "${order['from_date']} → ${order['end_date']}"),
-        _dRow("Rate",     "₹${order['price_per_day']}/day"),
+        _dRow(context.l10n.bizTitle,    _titleC.text.trim()),
+        _dRow(context.l10n.bizDuration, context.l10n.bizNDays('${order['days']}')),
+        _dRow(context.l10n.bizPeriod,   "${order['from_date']} → ${order['end_date']}"),
+        _dRow(context.l10n.bizRate,     context.l10n.bizPerDayPrice('${order['price_per_day']}')),
         const Divider(),
-        _dRow("Base Price","₹${order['base_price']}"),
-        if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
+        _dRow(context.l10n.bizBasePrice,"₹${order['base_price']}"),
+        if((order['discount_amount']??0)>0) _dRow(context.l10n.bizDiscount,"−₹${order['discount_amount']}",
           color:OffroColors.statusLive),
-        _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
-        _dRow("Total","₹${order['amount_display']}",bold:true),
+        _dRow(context.l10n.bizGstPct('${order['gst_percent']}'),"₹${order['gst_amount']}"),
+        _dRow(context.l10n.bizTotal,"₹${order['amount_display']}",bold:true),
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
           decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
           child:Text(manual
-            ? "Your banner will be submitted for admin review after confirmation."
-            : "Razorpay checkout will open. Banner goes live after admin approval.",
+            ? context.l10n.bizYourBannerWillBeSubmitted
+            : context.l10n.bizRazorpayCheckoutWillOpenBanner,
             style:const TextStyle(fontSize:12,color:kMerchantPrimary))),
       ]),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
+        TextButton(onPressed:()=>Navigator.pop(context,false),child:Text(context.l10n.commonCancel,style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
           style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
-          child:Text(manual?"Confirm Submit":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
+          child:Text(manual?context.l10n.bizConfirmSubmit:context.l10n.bizPayAmount('${order['amount_display']}'),style:const TextStyle(color:Colors.white))),
       ],
     ));
 
@@ -1452,16 +1453,16 @@ class _AddBannerState extends State<AddBannerPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(title:Text(widget.renewFrom != null ? "Renew Banner" : "Create Banner")),
+    appBar:AppBar(title:Text(widget.renewFrom != null ? context.l10n.bizRenewBanner : context.l10n.bizCreateBanner)),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
 
       // Title field
       Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Banner Title *",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
+          Text(context.l10n.bizBannerTitle2,style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
           TextField(controller:_titleC,decoration:InputDecoration(
-            hintText:"e.g. 50% OFF at Raj Store",isDense:true,
+            hintText:context.l10n.bizEG50OFFAt,isDense:true,
             contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
             border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
             enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
@@ -1480,10 +1481,10 @@ class _AddBannerState extends State<AddBannerPage> {
         DropdownButtonFormField<Map<String,dynamic>>(
           isExpanded: true,
           value: _selectedBannerStore,
-          hint: const Text("Select Store *"),
+          hint: Text(context.l10n.bizSelectStore),
           items: _stores.map((s) => DropdownMenuItem<Map<String,dynamic>>(
             value: s,
-            child: Text(s["store_name"]?.toString() ?? "Unnamed Store",
+            child: Text(s["store_name"]?.toString() ?? context.l10n.bizUnnamedStore,
               overflow: TextOverflow.ellipsis),
           )).toList(),
           onChanged: (s) { if (s != null) _onBannerStoreSelected(s); },
@@ -1505,7 +1506,7 @@ class _AddBannerState extends State<AddBannerPage> {
           const Icon(Icons.location_city, color: kMerchantMuted, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Text(
-            (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
+            (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : context.l10n.bizCityAutoFilledFromStore,
             style: TextStyle(
               color: (_selCity != null && _selCity!.isNotEmpty) ? kMerchantText : kMerchantMuted,
               fontSize: 15))),
@@ -1520,9 +1521,9 @@ class _AddBannerState extends State<AddBannerPage> {
 
       // Banner type: Image / Video
       Row(children:[
-        _mediaTypeChip("Image", Icons.image_outlined, "image"),
+        _mediaTypeChip(context.l10n.bizImage, Icons.image_outlined, "image"),
         const SizedBox(width:10),
-        _mediaTypeChip("Video", Icons.videocam_outlined, "video"),
+        _mediaTypeChip(context.l10n.bizVideo, Icons.videocam_outlined, "video"),
       ]),
       const SizedBox(height:10),
 
@@ -1544,7 +1545,7 @@ class _AddBannerState extends State<AddBannerPage> {
                     ? Image.memory(base64Decode(_imgB64!.split(",").last),width:double.infinity,height:110,fit:BoxFit.cover)
                     : Image.network(_existingImgUrl!,width:double.infinity,height:110,fit:BoxFit.cover,
                         errorBuilder:(_,__,___)=>const Center(child:Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:32)))),
-                Positioned(top:6,right:6,child:GestureDetector(
+                PositionedDirectional(top:6,end:6,child:GestureDetector(
                   onTap:()=>setState((){_imgB64=null;_existingImgUrl=null;}),
                   child:Container(padding:const EdgeInsets.all(4),
                     decoration:const BoxDecoration(color:Colors.red,shape:BoxShape.circle),
@@ -1553,10 +1554,10 @@ class _AddBannerState extends State<AddBannerPage> {
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 const Icon(Icons.add_photo_alternate_outlined,size:36,color:kMerchantAccent),
                 const SizedBox(height:6),
-                const Text("Tap to upload banner image",style:TextStyle(color:kMerchantMuted,fontSize:13)),
+                Text(context.l10n.bizTapToUploadBannerImage,style:TextStyle(color:kMerchantMuted,fontSize:13)),
                 const SizedBox(height:3),
                 Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  _InfoChip("📐 1080×1080px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB"),
+                  _InfoChip(context.l10n.biz10801080px11),const SizedBox(width:6),_InfoChip(context.l10n.bizMax2MB),
                 ]),
               ]),
         ))
@@ -1566,7 +1567,7 @@ class _AddBannerState extends State<AddBannerPage> {
       // Duration + From Date
       Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Duration & Start Date",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
+          Text(context.l10n.bizDurationStartDate,style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
             Expanded(child:TextField(
@@ -1574,7 +1575,7 @@ class _AddBannerState extends State<AddBannerPage> {
               keyboardType:TextInputType.number,
               onChanged:(_)=>setState((){}),
               decoration:InputDecoration(
-                labelText:"Number of Days",hintText:"e.g. 7",
+                labelText:context.l10n.bizNumberOfDays,hintText:"e.g. 7",
                 prefixIcon:const Icon(Icons.today_rounded,color:kMerchantMuted,size:18),
                 filled:true,fillColor:kMerchantBg,isDense:true,
                 border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
@@ -1591,7 +1592,7 @@ class _AddBannerState extends State<AddBannerPage> {
                   const Icon(Icons.event_rounded,size:18,color:kMerchantMuted),
                   const SizedBox(width:8),
                   Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                    const Text("From Date",style:TextStyle(fontSize:11,color:kMerchantMuted)),
+                    Text(context.l10n.bizFromDate,style:TextStyle(fontSize:11,color:kMerchantMuted)),
                     Text(_fromDateDisplay,style:const TextStyle(fontSize:13,color:kMerchantText,fontWeight:FontWeight.w600)),
                   ])),
                 ]),
@@ -1602,12 +1603,12 @@ class _AddBannerState extends State<AddBannerPage> {
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
               decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
               child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
-                const Text("Active period:",style:TextStyle(fontSize:12,color:kMerchantMuted)),
+                Text(context.l10n.bizActivePeriod,style:TextStyle(fontSize:12,color:kMerchantMuted)),
                 Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
               ]),
             )),
           if(_pricing!=null && _days>0) Padding(padding:const EdgeInsets.only(top:6),
-            child:Text("₹${_pricePerDay.toStringAsFixed(0)}/day × $_days days",
+            child:Text(context.l10n.bizPricePerDayTimesDays(_pricePerDay.toStringAsFixed(0),'$_days'),
               style:const TextStyle(fontSize:12,color:kMerchantMuted))),
         ])),
       const SizedBox(height:12),
@@ -1616,10 +1617,10 @@ class _AddBannerState extends State<AddBannerPage> {
       if (_pricing!=null && _days>0)
         Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
-            _dRow("Base Price","₹${_basePrice.toStringAsFixed(2)}"),
-            _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
+            _dRow(context.l10n.bizBasePrice,"₹${_basePrice.toStringAsFixed(2)}"),
+            _dRow(context.l10n.bizGstPct('${_gstPct.toInt()}'),"₹${_gst.toStringAsFixed(2)}"),
             const Divider(height:16),
-            _dRow("Total","₹${_total.toStringAsFixed(2)}",bold:true),
+            _dRow(context.l10n.bizTotal,"₹${_total.toStringAsFixed(2)}",bold:true),
           ])),
 
       const SizedBox(height:4),
@@ -1633,9 +1634,9 @@ class _AddBannerState extends State<AddBannerPage> {
         padding:const EdgeInsets.all(14),
         decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
+          Text(context.l10n.bizDiscountCode,style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
-          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMerchantMuted,fontSize:11)),
+          Text(context.l10n.bizHaveAPromoCodeEnter,style:TextStyle(color:kMerchantMuted,fontSize:11)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
@@ -1643,7 +1644,7 @@ class _AddBannerState extends State<AddBannerPage> {
               textCapitalization:TextCapitalization.characters,
               onChanged:(_){ if((_appliedCode ?? "").isNotEmpty) setState((){_appliedCode="";_appliedDiscount=0;_appliedDiscountType=null;_discountMsg="";_discountOk=false;}); },
               decoration:InputDecoration(
-                hintText:"e.g. OFFRO20",isDense:true,
+                hintText:context.l10n.bizEGOFFRO20,isDense:true,
                 prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
                 border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
@@ -1658,7 +1659,7 @@ class _AddBannerState extends State<AddBannerPage> {
                 shape: const StadiumBorder()),
               child:_applyingCode
                 ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
-                : const Text("Apply",style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
+                : Text(context.l10n.bizApply,style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
             ),
           ]),
           if (_discountMsg.isNotEmpty) ...[
@@ -1673,8 +1674,8 @@ class _AddBannerState extends State<AddBannerPage> {
                 const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
                 Text(_appliedDiscountType == "PERCENTAGE"
-                      ? "−₹${_discountAmt.toStringAsFixed(2)} (${_appliedDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
-                      : "−₹${_appliedDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
+                      ? context.l10n.bizDiscountTotalPct(_discountAmt.toStringAsFixed(2),_appliedDiscount.toStringAsFixed(0),_total.toStringAsFixed(2))
+                      : context.l10n.bizDiscountTotalAmt(_appliedDiscount.toStringAsFixed(0),_total.toStringAsFixed(2)),
                   style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
@@ -1686,7 +1687,7 @@ class _AddBannerState extends State<AddBannerPage> {
 
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
-        label:const Text("Proceed to Checkout"),
+        label:Text(context.l10n.bizProceedToCheckout),
         style:ElevatedButton.styleFrom(elevation: 0,  
           shape: const StadiumBorder(),
           padding:const EdgeInsets.symmetric(vertical:14)),
@@ -1822,13 +1823,13 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   // ── Filter bottom sheet ──────────────────────────────────
   void _openFilter() {
     final opts = [
-      ("All",              "All Products",         Icons.grid_view_rounded,         kMerchantText),
-      ("approved",         "Live",                 Icons.check_circle_rounded,       OffroColors.statusLive),
-      ("pending_approval", "Pending Approval",     Icons.hourglass_top_rounded,      OffroColors.statusPending),
-      ("expired",          "Expired",              Icons.event_busy_rounded,         Colors.red),
+      ("All",              context.l10n.bizAllProducts,         Icons.grid_view_rounded,         kMerchantText),
+      ("approved",         context.l10n.bizLive,                 Icons.check_circle_rounded,       OffroColors.statusLive),
+      ("pending_approval", context.l10n.bizPendingApproval,     Icons.hourglass_top_rounded,      OffroColors.statusPending),
+      ("expired",          context.l10n.dealExpired,              Icons.event_busy_rounded,         Colors.red),
     ];
-    final storeOpts = <(String, String)>[("", "All Stores"),
-      ..._myStores.map((st) => ((st["_id"] ?? "").toString(), (st["store_name"] ?? "Store").toString()))];
+    final storeOpts = <(String, String)>[("", context.l10n.bizAllStores),
+      ..._myStores.map((st) => ((st["_id"] ?? "").toString(), (st["store_name"] ?? context.l10n.homeStoreWord).toString()))];
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1837,7 +1838,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         child: SingleChildScrollView(child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text("Filter Products", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kMerchantText)),
+            Text(context.l10n.bizFilterProducts, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17, color: kMerchantText)),
             const SizedBox(height: 14),
             ...opts.map((o) {
               final selected = _activeFilter == o.$1;
@@ -1860,7 +1861,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             }),
             if (_myStores.isNotEmpty) ...[
               const Divider(height: 20),
-              const Text("Store", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kMerchantText)),
+              Text(context.l10n.homeStoreWord, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: kMerchantText)),
               const SizedBox(height: 6),
               ...storeOpts.map((o) {
                 final selected = _storeFilter == o.$1;
@@ -1899,7 +1900,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
       debugPrint('[MerchantProducts] toggle availability error: $e');
       if (mounted) setState(() { v["is_active"] = current; _applyFilters(); });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Toggle failed: ${friendlyError(e)}"), backgroundColor: Colors.red));
+        SnackBar(content: Text(context.l10n.bizToggleFailed(friendlyError(e, l10n: context.l10n))), backgroundColor: Colors.red));
     }
   }
 
@@ -1916,7 +1917,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             : Image.network(logoUrl, fit: BoxFit.contain,
                 errorBuilder: (_,__,___) => const Icon(Icons.broken_image, color: Colors.white54, size: 64)),
         )),
-        Positioned(top: 44, right: 16, child: GestureDetector(
+        PositionedDirectional(top: 44, end: 16, child: GestureDetector(
           onTap: () => Navigator.pop(ctx),
           child: Container(
             padding: const EdgeInsets.all(8),
@@ -1935,26 +1936,26 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(v["title"] ?? "Product",
+            Text(v["title"] ?? context.l10n.prodTitleFallback,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: kMerchantText)),
             const SizedBox(height: 4),
             const Divider(),
             ListTile(
               leading: const CircleAvatar(radius: 18, backgroundColor: OffroColors.mint,
                 child: Icon(Icons.edit_rounded, color: kMerchantPrimary, size: 18)),
-              title: const Text("Edit Product", style: TextStyle(fontWeight: FontWeight.w600)),
+              title: Text(context.l10n.bizEditProduct, style: TextStyle(fontWeight: FontWeight.w600)),
               onTap: () { Navigator.pop(context); _showEditDialog(v, pid); }),
             if (pid.isNotEmpty)
               ListTile(
                 leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFF3CD),
                   child: Icon(Icons.bar_chart_rounded, color: OffroColors.statusPending, size: 18)),
-                title: const Text("Analytics", style: TextStyle(fontWeight: FontWeight.w600)),
+                title: Text(context.l10n.bizAnalytics, style: TextStyle(fontWeight: FontWeight.w600)),
                 onTap: () { Navigator.pop(context);
                   Navigator.push(context, appRoute(ProductAnalyticsPage(token: widget.token, product: v))); }),
             ListTile(
               leading: const CircleAvatar(radius: 18, backgroundColor: Color(0xFFFFEBEB),
                 child: Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18)),
-              title: const Text("Delete Product", style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
+              title: Text(context.l10n.bizDeleteProduct, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.red)),
               onTap: () { Navigator.pop(context); _confirmDelete(v, pid); }),
             const SizedBox(height: 4),
           ]),
@@ -1967,29 +1968,29 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   Widget build(BuildContext context) {
     final hasFilter = _activeFilter != "All" || _storeFilter.isNotEmpty;
     final storeLabel = _storeFilter.isEmpty ? "" : (_myStores.firstWhere(
-        (st) => (st["_id"] ?? "").toString() == _storeFilter, orElse: () => <String,dynamic>{})["store_name"] ?? "Store").toString();
+        (st) => (st["_id"] ?? "").toString() == _storeFilter, orElse: () => <String,dynamic>{})["store_name"] ?? context.l10n.homeStoreWord).toString();
     return Scaffold(
       backgroundColor: kMerchantBg,
-      appBar: merchantHeaderBar(eyebrow: "Catalogue", title: "My Products", back: true,
+      appBar: merchantHeaderBar(eyebrow: context.l10n.bizCatalogue, title: context.l10n.bizMyProducts, back: true,
                 actions: [
           // Filter button with active indicator — unchanged, kept before the + button
           Stack(clipBehavior: Clip.none, children: [
             IconButton(
               icon: const Icon(Icons.filter_list_rounded),
               color: hasFilter ? kMerchantPrimary : kMerchantMuted,
-              tooltip: "Filter",
+              tooltip: context.l10n.bizFilter,
               onPressed: _openFilter,
             ),
             if (hasFilter)
-              Positioned(top: 8, right: 8,
+              PositionedDirectional(top: 8, end: 8,
                 child: Container(width: 8, height: 8,
                   decoration: const BoxDecoration(color: kMerchantPrimary, shape: BoxShape.circle))),
           ]),
           Padding(
-            padding:const EdgeInsets.only(right:18),
+            padding:const EdgeInsetsDirectional.only(end:18),
             child:offroHeaderAddButton(
               icon:Icons.add,
-              tooltip:"New Product",
+              tooltip:context.l10n.bizNewProduct,
               onPressed:()=>Navigator.push(context, appRoute(AddProductPage(token: widget.token))).then((_) => _load()),
             ),
           ),
@@ -2013,7 +2014,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               controller: _searchCtrl,
               onChanged: (_) => setState(_applyFilters),
               decoration: InputDecoration(
-                hintText: "Search products…",
+                hintText: context.l10n.bizSearchProducts,
                 hintStyle: const TextStyle(color: kMerchantMuted, fontSize: 13),
                 prefixIcon: const Icon(Icons.search, color: kMerchantMuted, size: 20),
                 suffixIcon: _searchCtrl.text.isNotEmpty
@@ -2062,9 +2063,9 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
                   const Icon(Icons.filter_list_rounded, size: 13, color: kMerchantPrimary),
                   const SizedBox(width: 5),
-                  Text(_activeFilter == "approved" ? "Live"
-                    : _activeFilter == "pending_approval" ? "Pending"
-                    : _activeFilter == "expired" ? "Expired"
+                  Text(_activeFilter == "approved" ? context.l10n.bizLive
+                    : _activeFilter == "pending_approval" ? context.l10n.bizPending
+                    : _activeFilter == "expired" ? context.l10n.dealExpired
                     : _activeFilter,
                     style: const TextStyle(fontSize: 12, color: kMerchantPrimary, fontWeight: FontWeight.w700)),
                   const SizedBox(width: 6),
@@ -2074,7 +2075,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                 ]),
               ),
               const Spacer(),
-              Text("${_filtered.length} result${_filtered.length == 1 ? '' : 's'}",
+              Text((_filtered.length == 1 ? context.l10n.bizResultOne : context.l10n.bizResultMany('${_filtered.length}')),
                 style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
             ]),
           ),
@@ -2087,20 +2088,20 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Icon(Icons.wifi_off_rounded, color: kMerchantMuted, size: 48),
                   const SizedBox(height: 12),
-                  const Text("Couldn't load products", style: TextStyle(color: kMerchantText, fontSize: 15, fontWeight: FontWeight.w700)),
+                  Text(context.l10n.bizCouldnTLoadProducts, style: TextStyle(color: kMerchantText, fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  ElevatedButton.icon(onPressed: ()=>_load(), icon: const Icon(Icons.refresh), label: const Text("Retry"),
+                  ElevatedButton.icon(onPressed: ()=>_load(), icon: const Icon(Icons.refresh), label: Text(context.l10n.commonRetry),
                     style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary, foregroundColor: Colors.white)),
                 ]))
           : _filtered.isEmpty
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Icon(Icons.local_activity_outlined, size: 64, color: kMerchantAccent),
                   const SizedBox(height: 12),
-                  Text(_products.isEmpty ? "No products yet" : "No matching products",
+                  Text(_products.isEmpty ? context.l10n.bizNoProductsYet : context.l10n.bizNoMatchingProducts,
                     style: const TextStyle(color: kMerchantMuted, fontSize: 16)),
                   if (_products.isEmpty)
-                    const Padding(padding: EdgeInsets.only(top: 6),
-                      child: Text("Tap + New Product to get started",
+                    Padding(padding: EdgeInsets.only(top: 6),
+                      child: Text(context.l10n.bizTapNewProductToGet,
                         style: TextStyle(color: kMerchantMuted, fontSize: 13))),
                 ]))
               : RefreshIndicator(
@@ -2139,7 +2140,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         Row(children: [
           const Icon(Icons.inventory_2_outlined, size: 16, color: kMerchantPrimary),
           const SizedBox(width: 8),
-          Text("$used / $limit free product slots used",
+          Text(context.l10n.bizFreeProductSlotsUsed('$used','$limit'),
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: kMerchantText)),
         ]),
         const SizedBox(height: 8),
@@ -2152,7 +2153,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
             valueColor: const AlwaysStoppedAnimation<Color>(kMerchantPrimary))),
         if (allUsed) ...[
           const SizedBox(height: 8),
-          Text("Additional products are charged at $priceTxt per day of validity.",
+          Text(context.l10n.bizAdditionalProductsCharged(priceTxt),
             style: const TextStyle(fontSize: 12, color: kMerchantMuted)),
         ],
       ]),
@@ -2162,7 +2163,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
   String _shortDate(String raw) {
     final dt = _parseAnyDate(raw);
     if (dt == null) return "";
-    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    final m = monthsShortOf(offroNoContext);
     return "${dt.day} ${m[dt.month-1]} ${dt.year}";
   }
 
@@ -2176,11 +2177,11 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
 
     // ── Status badge ──
     final (Color sc, String sl, IconData si) = switch(status) {
-      "approved"         => (OffroColors.statusLive, "Live",    Icons.check_circle_rounded),
-      "rejected"         => (Colors.red,              "Rejected",Icons.cancel_rounded),
-      "expired"          => (Colors.red.shade400,     "Expired", Icons.event_busy_rounded),
-      "subscription_expired" => (Colors.grey.shade600, "Paused", Icons.pause_circle_rounded),
-      _                  => (OffroColors.statusPending, "Pending", Icons.hourglass_top_rounded),
+      "approved"         => (OffroColors.statusLive, context.l10n.bizLive,    Icons.check_circle_rounded),
+      "rejected"         => (Colors.red,              context.l10n.bizRejected,Icons.cancel_rounded),
+      "expired"          => (Colors.red.shade400,     context.l10n.dealExpired, Icons.event_busy_rounded),
+      "subscription_expired" => (Colors.grey.shade600, context.l10n.bizPaused, Icons.pause_circle_rounded),
+      _                  => (OffroColors.statusPending, context.l10n.bizPending, Icons.hourglass_top_rounded),
     };
     final deactivated = !isActive && !isExpired && status == "approved";
 
@@ -2216,11 +2217,11 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               Wrap(spacing: 6, runSpacing: 4, children: [
                 _StatusBadge(label: sl, color: sc, icon: si),
                 _StatusBadge(
-                  label: isFree ? "Free" : "Paid",
+                  label: isFree ? context.l10n.bizFree : context.l10n.bizPaid,
                   color: isFree ? OffroColors.statusLive : OffroColors.primary,
                   icon: isFree ? Icons.redeem_rounded : Icons.payments_outlined),
                 if (deactivated)
-                  _StatusBadge(label: "Deactivated", color: Colors.grey.shade600, icon: Icons.pause_circle_outline_rounded),
+                  _StatusBadge(label: context.l10n.bizDeactivated, color: Colors.grey.shade600, icon: Icons.pause_circle_outline_rounded),
               ]),
               const SizedBox(height: 6),
               Text(v["title"] ?? "",
@@ -2238,7 +2239,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   Icon(Icons.event_rounded, size: 11,
                     color: isExpired ? Colors.red : kMerchantMuted),
                   const SizedBox(width: 3),
-                  Text(isExpired ? "Expired $expiryLabel" : "Expires $expiryLabel",
+                  Text(isExpired ? context.l10n.bizExpiredOn(expiryLabel) : context.l10n.bizExpiresOn(expiryLabel),
                     style: TextStyle(
                       fontSize: 11, fontWeight: FontWeight.w600,
                       color: isExpired ? Colors.red : kMerchantMuted)),
@@ -2287,7 +2288,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
-              Text(isActive && !isExpired ? "On" : "Off",
+              Text(isActive && !isExpired ? context.l10n.bizOn : context.l10n.bizOff,
                 style: TextStyle(
                   fontSize: 9, fontWeight: FontWeight.w700,
                   color: isActive && !isExpired ? kMerchantPrimary : kMerchantMuted)),
@@ -2306,7 +2307,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.autorenew_rounded, size: 16),
-                label: const Text("Renew", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                label: Text(context.l10n.bizRenew, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 onPressed: () => Navigator.push(context,
                   appRoute(RenewProductPage(token: widget.token, product: v))).then((_) => _load()),
               )),
@@ -2322,18 +2323,18 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     final opCtrl = TextEditingController(text: (v["original_price"] ?? v["original_amount"] ?? "").toString());
     final prCtrl = TextEditingController(text: (v["price"] ?? v["offer_price"] ?? v["amount"] ?? "").toString());
     final saved  = await showDialog<Map<String,dynamic>>(context: context, builder: (_) => AlertDialog(
-      title: const Text("Edit Product", style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
+      title: Text(context.l10n.bizEditProduct, style: TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.bold)),
       content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _EditField(ctrl: tCtrl,  label: "Title"),
+        _EditField(ctrl: tCtrl,  label: context.l10n.bizTitle),
         const SizedBox(height: 10),
-        _EditField(ctrl: oCtrl,  label: "Offer Text"),
+        _EditField(ctrl: oCtrl,  label: context.l10n.bizOfferText),
         const SizedBox(height: 10),
-        _EditField(ctrl: opCtrl, label: "Original Price", type: TextInputType.number),
+        _EditField(ctrl: opCtrl, label: context.l10n.bizOriginalPrice, type: TextInputType.number),
         const SizedBox(height: 10),
-        _EditField(ctrl: prCtrl, label: "Offer Price",    type: TextInputType.number),
+        _EditField(ctrl: prCtrl, label: context.l10n.bizOfferPrice,    type: TextInputType.number),
       ])),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(context.l10n.commonCancel, style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
           style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary),
           onPressed: () {
@@ -2347,7 +2348,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
               if (prVal != null) "amount": prVal,
             });
           },
-          child: const Text("Save", style: TextStyle(color: Colors.white))),
+          child: Text(context.l10n.bizSave, style: TextStyle(color: Colors.white))),
       ],
     ));
     if (saved != null && saved.isNotEmpty) {
@@ -2356,26 +2357,26 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         await Api.updateMerchantProduct(widget.token, pid, saved);
         _load();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Product updated!"), backgroundColor: OffroColors.statusLive));
+          SnackBar(content: Text(context.l10n.bizProductUpdated), backgroundColor: OffroColors.statusLive));
       } catch (e) {
         debugPrint('[MerchantProducts] update error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${friendlyError(e)}"), backgroundColor: Colors.red));
+          SnackBar(content: Text(context.l10n.bizErrorColon(friendlyError(e, l10n: context.l10n))), backgroundColor: Colors.red));
       }
     }
   }
 
   Future<void> _confirmDelete(Map<String,dynamic> v, String pid) async {
     final confirm = await showDialog<bool>(context: context, barrierDismissible: false, builder: (_) => AlertDialog(
-      title: const Text("Delete this product?", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-      content: Text("\"${v['title'] ?? 'This product'}\" will be permanently removed and cannot be reactivated. "
-          "Any payment already made for this product will not be refunded."),
+      title: Text(context.l10n.bizDeleteThisProduct, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+      content: Text(context.l10n.bizDeleteProductBody((v['title'] ?? context.l10n.bizThisProduct).toString())
+          ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel", style: TextStyle(color: kMerchantMuted))),
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.commonCancel, style: TextStyle(color: kMerchantMuted))),
         ElevatedButton(
           style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: Colors.red),
           onPressed: () => Navigator.pop(context, true),
-          child: const Text("Delete Product", style: TextStyle(color: Colors.white))),
+          child: Text(context.l10n.bizDeleteProduct, style: TextStyle(color: Colors.white))),
       ],
     ));
     if (confirm == true && mounted) {
@@ -2383,11 +2384,11 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
         await Api.deleteMerchantProduct(widget.token, pid);
         _load();
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Product deleted."), backgroundColor: Colors.red));
+          SnackBar(content: Text(context.l10n.bizProductDeleted), backgroundColor: Colors.red));
       } catch (e) {
         debugPrint('[MerchantProducts] delete error: $e');
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error deleting: ${friendlyError(e)}"), backgroundColor: Colors.red));
+          SnackBar(content: Text(context.l10n.bizDeleteError(friendlyError(e, l10n: context.l10n))), backgroundColor: Colors.red));
       }
     }
   }
@@ -2564,8 +2565,8 @@ class _AddProductState extends State<AddProductPage> {
 
   String get _fromDateStr=>"${_fromDate.year}-${_fromDate.month.toString().padLeft(2,'0')}-${_fromDate.day.toString().padLeft(2,'0')}";
   String get _endDateStr=>"${_endDate.year}-${_endDate.month.toString().padLeft(2,'0')}-${_endDate.day.toString().padLeft(2,'0')}";
-  String get _fromDateDisplay=>"${_fromDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_fromDate.month-1]} ${_fromDate.year}";
-  String get _endDateDisplay=>"${_endDate.day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][_endDate.month-1]} ${_endDate.year}";
+  String get _fromDateDisplay=>"${_fromDate.day} ${monthsShortOf(offroNoContext)[_fromDate.month-1]} ${_fromDate.year}";
+  String get _endDateDisplay=>"${_endDate.day} ${monthsShortOf(offroNoContext)[_endDate.month-1]} ${_endDate.year}";
 
   Future<void> _pickFromDate() async {
     final picked=await showDatePicker(context:context,initialDate:_fromDate,
@@ -2597,7 +2598,7 @@ class _AddProductState extends State<AddProductPage> {
     if(img==null)return;
     final bytes=await File(img.path).readAsBytes();
     if(bytes.length>1*1024*1024){
-      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text("Logo too large. Max 1MB."),backgroundColor:Colors.red));
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(context.l10n.bizLogoTooLargeMax1MB),backgroundColor:Colors.red));
       return;
     }
     setState(()=>_logoB64="data:image/jpeg;base64,${base64Encode(bytes)}");
@@ -2607,7 +2608,7 @@ class _AddProductState extends State<AddProductPage> {
   // Item 6: Apply discount code — product
   Future<void> _applyVDiscountCode() async {
     final code = _discountVC.text.trim().toUpperCase();
-    if (code.isEmpty) { setState((){ _discountVMsg="Enter a code"; _discountVOk=false; }); return; }
+    if (code.isEmpty) { setState((){ _discountVMsg=context.l10n.bizEnterACode; _discountVOk=false; }); return; }
     setState(()=>_applyingVCode=true);
     try {
       final res = await Api.validateDiscountCode(widget.token, code, scope: "PRODUCTS");
@@ -2619,8 +2620,8 @@ class _AddProductState extends State<AddProductPage> {
         _appliedVDiscountType = type;
         _discountVMsg     = res["message"]?.toString() ??
             (type == "PERCENTAGE"
-                ? "✅ Code applied — ${val.toStringAsFixed(0)}% off!"
-                : "✅ Code applied — ₹${val.toStringAsFixed(0)} off!");
+                ? context.l10n.bizCodeAppliedPct(val.toStringAsFixed(0))
+                : context.l10n.bizCodeAppliedAmt(val.toStringAsFixed(0)));
         _discountVOk      = true;
         _applyingVCode    = false;
       });
@@ -2629,7 +2630,7 @@ class _AddProductState extends State<AddProductPage> {
         _appliedVCode         = "";
         _appliedVDiscount     = 0;
         _appliedVDiscountType = null;
-        _discountVMsg     = friendlyError(e);
+        _discountVMsg     = friendlyError(e, l10n: mounted ? context.l10n : null);
         _discountVOk      = false;
         _applyingVCode    = false;
       });
@@ -2638,12 +2639,12 @@ class _AddProductState extends State<AddProductPage> {
 
 
   Future<void> _proceed() async {
-    if(_titleC.text.trim().isEmpty){setState(()=>_msg="Product title required");return;}
-    if(_selectedStore==null){setState(()=>_msg="Please select a store for this product");return;}
-    if(_selCity==null||_selCity!.trim().isEmpty){setState(()=>_msg="Please select a city for this product");return;}
-    if(_logoB64==null){setState(()=>_msg="Please upload a product image");return;}
-    if(_days<1){setState(()=>_msg="Enter the number of days (minimum 1)");return;}
-    if(_slotsKnown && _days>_maxDays){setState(()=>_msg="Maximum validity is $_maxDays days");return;}
+    if(_titleC.text.trim().isEmpty){setState(()=>_msg=context.l10n.bizProductTitleRequired);return;}
+    if(_selectedStore==null){setState(()=>_msg=context.l10n.bizPleaseSelectAStoreFor);return;}
+    if(_selCity==null||_selCity!.trim().isEmpty){setState(()=>_msg=context.l10n.bizPleaseSelectACityFor);return;}
+    if(_logoB64==null){setState(()=>_msg=context.l10n.bizPleaseUploadAProductImage);return;}
+    if(_days<1){setState(()=>_msg=context.l10n.bizEnterTheNumberOfDays);return;}
+    if(_slotsKnown && _days>_maxDays){setState(()=>_msg=context.l10n.bizMaxValidity('$_maxDays'));return;}
     setState((){_loading=true;_msg="";});
     try{
       // Item 1 (draft-store lock): send store_id here too so a draft/
@@ -2681,7 +2682,7 @@ class _AddProductState extends State<AddProductPage> {
           if(mounted){
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content:Text("✅ Product submitted! ${res['message']??''}"),
+              content:Text(context.l10n.bizProductSubmittedMsg((res['message']??'').toString())),
               backgroundColor:OffroColors.statusLive));
           }
         }
@@ -2689,7 +2690,7 @@ class _AddProductState extends State<AddProductPage> {
         final confirmed=await _showProductSummaryDialog(order,manual:false);
         if(confirmed==true&&mounted) _openRazorpay(order);
       }
-    }catch(e){setState(()=>_msg=friendlyError(e));}
+    }catch(e){setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null));}
     if(mounted)setState(()=>_loading=false);
   }
 
@@ -2697,7 +2698,7 @@ class _AddProductState extends State<AddProductPage> {
     final rzpKey = order["razorpay_key"]?.toString() ?? '';
     final rzpOrderId = order["razorpay_order_id"]?.toString() ?? '';
     if (rzpKey.isEmpty || rzpOrderId.isEmpty) {
-      setState(()=>_msg="Payment gateway not configured. Contact support.");
+      setState(()=>_msg=context.l10n.bizPaymentGatewayNotConfiguredContact);
       return;
     }
     _pendingOrder=Map<String,dynamic>.from(order);
@@ -2714,7 +2715,7 @@ class _AddProductState extends State<AddProductPage> {
     });
     } catch(e) {
       debugPrint('[MerchantProducts] Razorpay open error: $e');
-      if(mounted) setState(()=>_msg="Payment error: ${friendlyError(e, fallback: "Could not open payment. Please try again.")}");
+      if(mounted) setState(()=>_msg=context.l10n.bizPaymentErrorMsg(friendlyError(e, fallback: context.l10n.bizCouldNotOpenPayment, l10n: context.l10n)));
     }
   }
 
@@ -2747,41 +2748,41 @@ class _AddProductState extends State<AddProductPage> {
           ),
         ));
       }
-    }catch(e){if(mounted)setState(()=>_msg=friendlyError(e));}
+    }catch(e){if(mounted)setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null));}
   }
 
   void _onPayError(PaymentFailureResponse res){
-    if(mounted)setState(()=>_msg="Payment failed: ${friendlyRazorpayError(res.message)}");
+    if(mounted)setState(()=>_msg=context.l10n.bizPaymentFailedMsg(friendlyRazorpayError(res.message, l10n: context.l10n)));
   }
 
   Future<bool?> _showProductSummaryDialog(Map order,{required bool manual})=>
     showDialog<bool>(context:context,builder:(_)=>AlertDialog(
-      title:const Text("Product Order Summary",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
+      title:Text(context.l10n.bizProductOrderSummary,style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
       content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-        _dRow("Title",_titleC.text.trim()),
-        _dRow("Offer",_offerC.text.trim()),
-        _dRow("Plan",order['pricing_tier']=="free"?"Free product":"Additional product"),
-        _dRow("Period","${order['from_date']} → ${order['end_date']}"),
+        _dRow(context.l10n.bizTitle,_titleC.text.trim()),
+        _dRow(context.l10n.homeDealOffer,_offerC.text.trim()),
+        _dRow(context.l10n.bizPlan,order['pricing_tier']=="free"?context.l10n.bizFreeProduct:context.l10n.bizAdditionalProduct),
+        _dRow(context.l10n.bizPeriod,"${order['from_date']} → ${order['end_date']}"),
         if(order['pricing_tier']!="free") ...[
           const Divider(),
-          _dRow("Price","₹${order['base_price']}"),
-          if((order['discount_amount']??0)>0) _dRow("Discount","−₹${order['discount_amount']}",
+          _dRow(context.l10n.bizPrice,"₹${order['base_price']}"),
+          if((order['discount_amount']??0)>0) _dRow(context.l10n.bizDiscount,"−₹${order['discount_amount']}",
             color:OffroColors.statusLive),
-          _dRow("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
-          _dRow("Total","₹${order['amount_display']}",bold:true),
+          _dRow(context.l10n.bizGstPct('${order['gst_percent']}'),"₹${order['gst_amount']}"),
+          _dRow(context.l10n.bizTotal,"₹${order['amount_display']}",bold:true),
         ],
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
           decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
-          child:Text(manual?"Product will go to admin review. No payment needed.":"Razorpay opens. Product live after admin approval.",
+          child:Text(manual?context.l10n.bizProductWillGoToAdmin:context.l10n.bizRazorpayOpensProductLiveAfter,
             style:const TextStyle(fontSize:12,color:kMerchantPrimary))),
       ]),
       actions:[
-        TextButton(onPressed:()=>Navigator.pop(context,false),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
+        TextButton(onPressed:()=>Navigator.pop(context,false),child:Text(context.l10n.commonCancel,style:TextStyle(color:kMerchantMuted))),
         ElevatedButton(
           style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
-          child:Text(manual?"Save Product":"Pay ₹${order['amount_display']}",style:const TextStyle(color:Colors.white))),
+          child:Text(manual?context.l10n.bizSaveProduct:context.l10n.bizPayAmount('${order['amount_display']}'),style:const TextStyle(color:Colors.white))),
       ],
     ));
 
@@ -2794,26 +2795,26 @@ class _AddProductState extends State<AddProductPage> {
 
   @override Widget build(BuildContext context)=>Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(title:const Text("Add Product"), ),
+    appBar:AppBar(title:Text(context.l10n.bizAddProduct), ),
     body:SingleChildScrollView(padding:const EdgeInsets.all(16),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       // Free / additional notice - shown BEFORE the form so the price is never a surprise
       _pricingNotice(),
       // Fields
-      _field(_titleC,"Product Title *","e.g. Raj Store ₹50 Off",Icons.confirmation_number),
+      _field(_titleC,context.l10n.bizProductTitle,context.l10n.bizEGRajStore50,Icons.confirmation_number),
       const SizedBox(height:12),
-      _field(_offerC,"Offer Text","e.g. Get ₹50 off on orders above ₹299",Icons.local_offer),
+      _field(_offerC,context.l10n.bizOfferText,context.l10n.bizEGGet50Off,Icons.local_offer),
       const SizedBox(height:12),
 
       // Price fields — optional
       Row(children:[
-        Expanded(child:_field(_originalPriceC,"Original Price","e.g. 299",Icons.currency_rupee,keyboardType:TextInputType.number)),
+        Expanded(child:_field(_originalPriceC,context.l10n.bizOriginalPrice,"e.g. 299",Icons.currency_rupee,keyboardType:TextInputType.number)),
         const SizedBox(width:10),
-        Expanded(child:_field(_priceC,"Offer Price","e.g. 199",Icons.local_offer_outlined,keyboardType:TextInputType.number)),
+        Expanded(child:_field(_priceC,context.l10n.bizOfferPrice,"e.g. 199",Icons.local_offer_outlined,keyboardType:TextInputType.number)),
       ]),
       const SizedBox(height:4),
-      const Padding(
-        padding:EdgeInsets.only(left:4,bottom:8),
-        child:Text("Discount is auto-calculated from prices",
+      Padding(
+        padding:EdgeInsetsDirectional.only(start:4,bottom:8),
+        child:Text(context.l10n.bizDiscountIsAutoCalculatedFrom,
           style:TextStyle(color:kMerchantMuted,fontSize:11)),
       ),
 
@@ -2828,10 +2829,10 @@ class _AddProductState extends State<AddProductPage> {
         DropdownButtonFormField<Map<String,dynamic>>(
           isExpanded: true,
           value: _selectedStore,
-          hint: const Text("Select Store *"),
+          hint: Text(context.l10n.bizSelectStore),
           items: _stores.map((s) => DropdownMenuItem<Map<String,dynamic>>(
             value: s,
-            child: Text(s["store_name"]?.toString() ?? "Unnamed Store",
+            child: Text(s["store_name"]?.toString() ?? context.l10n.bizUnnamedStore,
               overflow: TextOverflow.ellipsis),
           )).toList(),
           onChanged: (s) { if (s != null) _onStoreSelected(s); },
@@ -2853,7 +2854,7 @@ class _AddProductState extends State<AddProductPage> {
           const Icon(Icons.location_city, color: kMerchantMuted, size: 20),
           const SizedBox(width: 12),
           Expanded(child: Text(
-            (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : "City auto-filled from store",
+            (_selCity != null && _selCity!.isNotEmpty) ? _selCity! : context.l10n.bizCityAutoFilledFromStore,
             style: TextStyle(
               color: (_selCity != null && _selCity!.isNotEmpty) ? kMerchantText : kMerchantMuted,
               fontSize: 15))),
@@ -2873,15 +2874,15 @@ class _AddProductState extends State<AddProductPage> {
             ? Stack(children:[
                 Center(child:ClipRRect(borderRadius:BorderRadius.circular(11),
                   child:Image.memory(base64Decode(_logoB64!.split(",").last),height:80,width:80,fit:BoxFit.cover))),
-                Positioned(top:4,right:4,child:GestureDetector(onTap:()=>setState(()=>_logoB64=null),
+                PositionedDirectional(top:4,end:4,child:GestureDetector(onTap:()=>setState(()=>_logoB64=null),
                   child:Container(padding:const EdgeInsets.all(3),decoration:const BoxDecoration(color:Colors.red,shape:BoxShape.circle),
                     child:const Icon(Icons.close,color:Colors.white,size:12)))),
               ])
             : Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                 const Icon(Icons.image_rounded,size:28,color:kMerchantAccent),
                 const SizedBox(height:4),
-                const Text("Upload Image",style:TextStyle(color:kMerchantMuted,fontSize:12)),
-                Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 400×400px"),const SizedBox(width:6),_InfoChip("📦 Max 1MB")]),
+                Text(context.l10n.bizUploadImage,style:TextStyle(color:kMerchantMuted,fontSize:12)),
+                Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip(context.l10n.biz400400px),const SizedBox(width:6),_InfoChip(context.l10n.bizMax1MB)]),
               ]),
         )),
       const SizedBox(height:12),
@@ -2889,12 +2890,12 @@ class _AddProductState extends State<AddProductPage> {
       // Start date + end date (merchant decides how long the product stays live)
       Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Validity (Days)",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
+          Text(context.l10n.bizValidityDays,style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:12),
           Row(children:[
-            Expanded(child:_dateTile("Start date",_fromDateDisplay,_pickFromDate)),
+            Expanded(child:_dateTile(context.l10n.bizStartDate,_fromDateDisplay,_pickFromDate)),
             const SizedBox(width:10),
-            Expanded(child:_dateTile("End date",_endDateDisplay,_pickEndDate)),
+            Expanded(child:_dateTile(context.l10n.bizEndDate,_endDateDisplay,_pickEndDate)),
           ]),
           const SizedBox(height:10),
           TextField(
@@ -2903,9 +2904,9 @@ class _AddProductState extends State<AddProductPage> {
             inputFormatters:[FilteringTextInputFormatter.digitsOnly],
             onChanged:_setDaysFromText,
             decoration:InputDecoration(
-              labelText:"Number of days",
+              labelText:context.l10n.bizNumberOfDays2,
               hintText:"e.g. 30",
-              helperText:_slotsKnown?"Maximum $_maxDays days":null,
+              helperText:_slotsKnown?context.l10n.bizMaxDays('$_maxDays'):null,
               prefixIcon:const Icon(Icons.calendar_month_rounded,color:kMerchantMuted,size:20),
               filled:true,fillColor:Colors.white,
               border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
@@ -2915,7 +2916,7 @@ class _AddProductState extends State<AddProductPage> {
             child:Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:8),
               decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
               child:Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
-                const Text("Live period:",style:TextStyle(fontSize:12,color:kMerchantMuted)),
+                Text(context.l10n.bizLivePeriod,style:TextStyle(fontSize:12,color:kMerchantMuted)),
                 Text("$_fromDateDisplay → $_endDateDisplay",style:const TextStyle(fontSize:12,color:kMerchantPrimary,fontWeight:FontWeight.w600)),
               ]),
             )),
@@ -2924,15 +2925,15 @@ class _AddProductState extends State<AddProductPage> {
 
       if (_slotsKnown && _nextIsFree && _days>0)
         Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
-          child:_dRow("$_days ${_days==1?'day':'days'}","Free (₹0)",bold:true)),
+          child:_dRow((_days==1 ? context.l10n.bizOneDayWord : context.l10n.bizDaysCountWord('$_days')),context.l10n.bizFree0,bold:true)),
       if (_slotsKnown && !_nextIsFree && _days>0)
         Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
-            _dRow("$_days ${_days==1?'day':'days'} × ${_money(_pricePerDay)}/day",_money(_basePrice)),
-            if(_discountVAmt>0) _dRow("Discount","−${_money(_discountVAmt)}",color:OffroColors.statusLive),
-            _dRow("GST (${_gstPct.toInt()}%)","₹${_gst.toStringAsFixed(2)}"),
+            _dRow((_days==1 ? context.l10n.bizDayTimesPriceOne('$_days',_money(_pricePerDay)) : context.l10n.bizDayTimesPriceMany('$_days',_money(_pricePerDay))),_money(_basePrice)),
+            if(_discountVAmt>0) _dRow(context.l10n.bizDiscount,"−${_money(_discountVAmt)}",color:OffroColors.statusLive),
+            _dRow(context.l10n.bizGstPct('${_gstPct.toInt()}'),"₹${_gst.toStringAsFixed(2)}"),
             const Divider(height:16),
-            _dRow("Total","₹${_total.toStringAsFixed(2)}",bold:true),
+            _dRow(context.l10n.bizTotal,"₹${_total.toStringAsFixed(2)}",bold:true),
           ])),
 
       const SizedBox(height:4),
@@ -2945,9 +2946,9 @@ class _AddProductState extends State<AddProductPage> {
         padding:const EdgeInsets.all(14),
         decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Discount Code",style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
+          Text(context.l10n.bizDiscountCode,style:TextStyle(fontWeight:FontWeight.w700,color:kMerchantText,fontSize:13)),
           const SizedBox(height:4),
-          const Text("Have a promo code? Enter it below.",style:TextStyle(color:kMerchantMuted,fontSize:11)),
+          Text(context.l10n.bizHaveAPromoCodeEnter,style:TextStyle(color:kMerchantMuted,fontSize:11)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
@@ -2955,7 +2956,7 @@ class _AddProductState extends State<AddProductPage> {
               textCapitalization:TextCapitalization.characters,
               onChanged:(_){ if(_appliedVCode.isNotEmpty) setState((){_appliedVCode="";_appliedVDiscount=0;_appliedVDiscountType=null;_discountVMsg="";_discountVOk=false;}); },
               decoration:InputDecoration(
-                hintText:"e.g. OFFRO20",isDense:true,
+                hintText:context.l10n.bizEGOFFRO20,isDense:true,
                 prefixIcon:const Icon(Icons.local_offer_outlined,color:kMerchantMuted,size:18),
                 contentPadding:const EdgeInsets.symmetric(horizontal:12,vertical:10),
                 border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:const BorderSide(color:kMerchantBorder)),
@@ -2970,7 +2971,7 @@ class _AddProductState extends State<AddProductPage> {
                 shape: const StadiumBorder()),
               child:_applyingVCode
                 ? const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white))
-                : const Text("Apply",style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
+                : Text(context.l10n.bizApply,style:TextStyle(fontWeight:FontWeight.w700,fontSize:13)),
             ),
           ]),
           if (_discountVMsg.isNotEmpty) ...[
@@ -2985,8 +2986,8 @@ class _AddProductState extends State<AddProductPage> {
                 const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
                 Text(_appliedVDiscountType == "PERCENTAGE"
-                      ? "−₹${_discountVAmt.toStringAsFixed(2)} (${_appliedVDiscount.toStringAsFixed(0)}%) off  →  Total: ₹${_total.toStringAsFixed(2)}"
-                      : "−₹${_appliedVDiscount.toStringAsFixed(0)} off  →  Total: ₹${_total.toStringAsFixed(2)}",
+                      ? context.l10n.bizDiscountTotalPct(_discountVAmt.toStringAsFixed(2),_appliedVDiscount.toStringAsFixed(0),_total.toStringAsFixed(2))
+                      : context.l10n.bizDiscountTotalAmt(_appliedVDiscount.toStringAsFixed(0),_total.toStringAsFixed(2)),
                   style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
@@ -2996,7 +2997,7 @@ class _AddProductState extends State<AddProductPage> {
       const SizedBox(height:12),
       ElevatedButton.icon(
         icon:_loading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.arrow_forward_rounded),
-        label:Text(_nextIsFree?"Save Product":"Proceed to Checkout"),
+        label:Text(_nextIsFree?context.l10n.bizSaveProduct:context.l10n.bizProceedToCheckout),
         style:ElevatedButton.styleFrom(elevation: 0,  
           shape: const StadiumBorder(),
           padding:const EdgeInsets.symmetric(vertical:14)),
@@ -3033,12 +3034,12 @@ class _AddProductState extends State<AddProductPage> {
         Icon(free?Icons.redeem_rounded:Icons.payments_outlined,color:kMerchantPrimary,size:22),
         const SizedBox(width:12),
         Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text(free?"Free product":"Additional product",
+          Text(free?context.l10n.bizFreeProduct:context.l10n.bizAdditionalProduct,
             style:const TextStyle(fontWeight:FontWeight.w800,fontSize:14,color:kMerchantText)),
           const SizedBox(height:3),
           Text(free
-            ? "You have $_freeRemaining of $_freeLimit free product slots remaining."
-            : "You have used all $_freeLimit free product slots.\nPrice is ${_money(_pricePerDay)} per day + GST for the days you choose.",
+            ? context.l10n.bizFreeSlotsRemaining('$_freeRemaining','$_freeLimit')
+            : context.l10n.bizFreeSlotsAllUsed('$_freeLimit',_money(_pricePerDay).toString()),
             style:const TextStyle(fontSize:12,color:kMerchantMuted)),
         ])),
       ]));
@@ -3088,13 +3089,13 @@ String _fmtDateTime(String? raw) {
       }
     }
     if (dt == null) return raw;
-    const mos = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    final mos = monthsShortOf(offroNoContext);
     final d   = dt.day.toString().padLeft(2,"0");
     final mo  = mos[dt.month - 1];
     final yr  = dt.year;
     int   h   = dt.hour;
     final mi  = dt.minute.toString().padLeft(2,"0");
-    final ampm = h >= 12 ? "PM" : "AM";
+    final ampm = h >= 12 ? offroNoContext.timePm : offroNoContext.timeAm;
     h = h > 12 ? h - 12 : (h == 0 ? 12 : h);
     return "$d $mo $yr | ${h.toString().padLeft(2,'0')}:$mi $ampm";
   } catch (_) { return raw; }
@@ -3165,7 +3166,7 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
         ScaffoldMessenger.maybeOf(context)
           ?..hideCurrentSnackBar()
           ..showSnackBar(SnackBar(
-            content: Text("Location updated to ${fresh.city}"),
+            content: Text(context.l10n.bizLocationUpdatedTo('${fresh.city}')),
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ));
@@ -3268,13 +3269,13 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
-    appBar: merchantHeaderBar(eyebrow: "Your business", title: "My Stores", back: true,
+    appBar: merchantHeaderBar(eyebrow: context.l10n.bizYourBusiness, title: context.l10n.bizMyStores, back: true,
                 actions:[
           Padding(
-            padding:const EdgeInsets.only(right:18),
+            padding:const EdgeInsetsDirectional.only(end:18),
             child:offroHeaderAddButton(
               icon:Icons.add_business,
-              tooltip:"New Store",
+              tooltip:context.l10n.storeNewStoreTitle,
               onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token))).then((_)=>_load()),
             ),
           ),
@@ -3282,8 +3283,8 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
     body: loading ? const Center(child:CircularProgressIndicator(color:kMerchantPrimary)) :
       stores.isEmpty ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
         buildLogo(44,kMerchantAccent), const SizedBox(height:12),
-        const Text("No stores yet",style:TextStyle(color:kMerchantMuted,fontSize:16)),
-        const SizedBox(height:8), const Text("Tap + to add your first store",style:TextStyle(color:kMerchantMuted,fontSize:13)),
+        Text(context.l10n.searchNoStores,style:TextStyle(color:kMerchantMuted,fontSize:16)),
+        const SizedBox(height:8), Text(context.l10n.bizTapToAddYourFirst,style:TextStyle(color:kMerchantMuted,fontSize:13)),
       ])) :
       RefreshIndicator(onRefresh:_load,child:ListView.builder(
         padding:const EdgeInsets.all(14),
@@ -3294,15 +3295,15 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           // Status badge config — small, consistent, colored
           Color sc = kMerchantMuted;
           String sl = status;
-          if (status=="active") { sc=OffroColors.statusLive; sl="Active"; }
-          else if (status=="expired") { sc=Colors.red.shade700; sl="Expired"; }
-          else if (status=="waiting_approval") { sc=OffroColors.statusPending; sl="Pending"; }
-          else if (status=="paid") { sc=OffroColors.statusPending; sl="Paid"; }
-          else if (status=="draft") { sc=kMerchantMuted; sl="Draft"; }
-          else if (status=="inactive") { sc=Colors.red.shade700; sl="Inactive"; }
-          else if (status=="pending") { sc=kMerchantMuted; sl="Pending"; }
-          else if (status=="deleted") { sc=Colors.red.shade400; sl="Deleted"; }
-          else if (status=="removed") { sc=Colors.red.shade400; sl="Removed"; }
+          if (status=="active") { sc=OffroColors.statusLive; sl=context.l10n.bizActive; }
+          else if (status=="expired") { sc=Colors.red.shade700; sl=context.l10n.dealExpired; }
+          else if (status=="waiting_approval") { sc=OffroColors.statusPending; sl=context.l10n.bizPending; }
+          else if (status=="paid") { sc=OffroColors.statusPending; sl=context.l10n.bizPaid; }
+          else if (status=="draft") { sc=kMerchantMuted; sl=context.l10n.bizDraft; }
+          else if (status=="inactive") { sc=Colors.red.shade700; sl=context.l10n.bizInactive; }
+          else if (status=="pending") { sc=kMerchantMuted; sl=context.l10n.bizPending; }
+          else if (status=="deleted") { sc=Colors.red.shade400; sl=context.l10n.bizDeleted; }
+          else if (status=="removed") { sc=Colors.red.shade400; sl=context.l10n.bizRemoved; }
 
           final storeImg = (s["image"]??"").toString();
           Widget _thumb;
@@ -3338,32 +3339,32 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
           if (status=="draft"||status=="inactive"||status=="pending_subscription"||status=="expired") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:Text(context.l10n.revEdit,style:TextStyle(color:kMerchantPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:ElevatedButton.icon(
-                icon:const Icon(Icons.payment,size:15), label:const Text("Subscribe",style:TextStyle(fontSize:12)),
+                icon:const Icon(Icons.payment,size:15), label:Text(context.l10n.bizSubscribe,style:TextStyle(fontSize:12)),
                 style:ElevatedButton.styleFrom(elevation: 0, backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(SubscribePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
           } else if (status=="waiting_approval") {
-            _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text("Awaiting Admin Approval",style:const TextStyle(color:OffroColors.statusPending,fontSize:11,fontWeight:FontWeight.w600))));
+            _actionButtons = Padding(padding:const EdgeInsets.symmetric(vertical:4),child:Center(child:Text(context.l10n.bizAwaitingAdminApproval2,style:const TextStyle(color:OffroColors.statusPending,fontSize:11,fontWeight:FontWeight.w600))));
           } else if (status=="active") {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:Text(context.l10n.revEdit,style:TextStyle(color:kMerchantPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.add_shopping_cart,size:15,color:kMerchantPrimary),label:const Text("Deals",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                icon:const Icon(Icons.add_shopping_cart,size:15,color:kMerchantPrimary),label:Text(context.l10n.navDeals,style:TextStyle(color:kMerchantPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantBorder),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddDealPage(token:widget.token,storeId:s["_id"]??"",storeName:s["store_name"]??""))))),
               const SizedBox(width:6),
               Expanded(child:OutlinedButton.icon(
                 icon:Icon((s["qr_code"]??'').isNotEmpty?Icons.qr_code:Icons.crop_free,size:15,color:kMerchantPrimary),
-                label:Text((s["qr_code"]??'').isNotEmpty?"QR":"Gen QR",style:const TextStyle(color:kMerchantPrimary,fontSize:12)),
+                label:Text((s["qr_code"]??'').isNotEmpty?context.l10n.bizQR:context.l10n.bizGenQR,style:const TextStyle(color:kMerchantPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantBorder),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:(s["qr_code"]??'').isNotEmpty
                   ?()=>_showQR(context,s["store_name"]??"",s["qr_code"]??'')
@@ -3373,13 +3374,13 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                         final res = await Api.resetStoreQr(sid, widget.token);
                         final qr = res["qr_code"]??"";
                         if(qr.isNotEmpty){ setState(()=>s["qr_code"]=qr); if(mounted)_showQR(context,s["store_name"]??"",qr); }
-                      } catch(e){ debugPrint('[MerchantStores] reset QR error: $e'); if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Failed: ${friendlyError(e)}"))); }
+                      } catch(e){ debugPrint('[MerchantStores] reset QR error: $e'); if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(context.l10n.bizFailedColon(friendlyError(e, l10n: context.l10n))))); }
                     })),
             ]);
           } else {
             _actionButtons = Row(children:[
               Expanded(child:OutlinedButton.icon(
-                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:const Text("Edit",style:TextStyle(color:kMerchantPrimary,fontSize:12)),
+                icon:const Icon(Icons.edit,size:15,color:kMerchantPrimary), label:Text(context.l10n.revEdit,style:TextStyle(color:kMerchantPrimary,fontSize:12)),
                 style:OutlinedButton.styleFrom(elevation: 0, side:const BorderSide(color:kMerchantPrimary),shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(vertical:7)),
                 onPressed:()=>Navigator.push(context,appRoute(AddEditStorePage(token:widget.token,store:s))).then((_)=>_load()))),
             ]);
@@ -3397,7 +3398,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                 crossAxisAlignment:CrossAxisAlignment.start,
                 children:[
                   // Green vertical accent line (4px)
-                  Container(width:4,decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:const BorderRadius.only(topLeft:Radius.circular(12),bottomLeft:Radius.circular(12)))),
+                  Container(width:4,decoration:BoxDecoration(color:kMerchantPrimary,borderRadius:const BorderRadiusDirectional.only(topStart:Radius.circular(12),bottomStart:Radius.circular(12)))),
                   // Thumbnail
                   Padding(
                     padding:const EdgeInsets.all(10),
@@ -3405,7 +3406,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                   ),
                   // Content area
                   Expanded(child:Padding(
-                    padding:const EdgeInsets.fromLTRB(0,10,12,10),
+                    padding:const EdgeInsetsDirectional.fromSTEB(0,10,12,10),
                     child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                       // Row 1: Store name + status badge
                       Row(crossAxisAlignment:CrossAxisAlignment.start,children:[
@@ -3436,7 +3437,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                             child:Row(mainAxisSize:MainAxisSize.min,children:[
                               const Icon(Icons.local_offer,size:11,color:Color(0xFFB87A00)),
                               const SizedBox(width:3),
-                              Text("${s['deal_count']??0} Deal${((s['deal_count']??0)>1)?'s':''}",style:const TextStyle(color:Color(0xFFB87A00),fontSize:10,fontWeight:FontWeight.w700)),
+                              Text((((s['deal_count']??0)>1) ? context.l10n.bizDealCountMany('${s['deal_count']??0}') : context.l10n.bizDealCountOne),style:const TextStyle(color:Color(0xFFB87A00),fontSize:10,fontWeight:FontWeight.w700)),
                             ])),
                         if ((s["deal_count"] as int? ?? 0) > 0 && (s["subscription_end"]??'').isNotEmpty)
                           const SizedBox(width:6),
@@ -3449,7 +3450,7 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
                             child:Row(mainAxisSize:MainAxisSize.min,children:[
                               Icon(Icons.event_available,size:11,color: status=="active" ? OffroColors.statusLive : OffroColors.statusPending),
                               const SizedBox(width:3),
-                              Text("${status=='active'?'Till':'Exp'}: ${(s['subscription_end']?.toString() ?? '').split('T').first}",
+                              Text((status=='active' ? context.l10n.bizTillDate((s['subscription_end']?.toString() ?? '').split('T').first) : context.l10n.bizExpDate((s['subscription_end']?.toString() ?? '').split('T').first)),
                                 style:TextStyle(color: status=="active" ? OffroColors.statusLive : OffroColors.statusPending,fontSize:10,fontWeight:FontWeight.w700)),
                             ])),
                       ]),
@@ -3473,9 +3474,9 @@ class _MerchantStoresState extends State<MerchantStoresPage> {
     title:Text(name,style:const TextStyle(fontSize:15,color:kMerchantPrimary)),
     content:Column(mainAxisSize:MainAxisSize.min,children:[
       qr.startsWith("data:image") ? Image.memory(base64Decode(qr.split(",").last),width:220,height:220) : const Icon(Icons.qr_code,size:100),
-      const SizedBox(height:8), const Text("Show this to customers to earn points",textAlign:TextAlign.center,style:TextStyle(color:kMerchantMuted,fontSize:12)),
+      const SizedBox(height:8), Text(ctx.l10n.bizShowThisToCustomersTo,textAlign:TextAlign.center,style:TextStyle(color:kMerchantMuted,fontSize:12)),
     ]),
-    actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text("Close",style:TextStyle(color:kMerchantPrimary)))],
+    actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:Text(ctx.l10n.commonClose,style:TextStyle(color:kMerchantPrimary)))],
   ));
 }
 
@@ -3544,7 +3545,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     for (int h = 0; h < 24; h++) {
       for (int m = 0; m < 60; m += 30) {
         final val = "${h.toString().padLeft(2,'0')}:${m.toString().padLeft(2,'0')}";
-        final suffix = h >= 12 ? "PM" : "AM";
+        final suffix = h >= 12 ? offroNoContext.timePm : offroNoContext.timeAm;
         final h12    = h > 12 ? h - 12 : (h == 0 ? 12 : h);
         final mStr   = m > 0 ? ":${m.toString().padLeft(2,'0')}" : ":00";
         final label  = "$h12$mStr $suffix";
@@ -3575,15 +3576,15 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         if (mounted) setState(() {
           _locLoading = false;
           _locDenied  = true;
-          _locMsg = "Location permission is required for current location. "
-              "Allow it and try again.";
+          _locMsg = context.l10n.bizLocationPermissionNeeded
+              ;
         });
         return;
       }
       if (!await Geolocator.isLocationServiceEnabled()) {
         if (mounted) setState(() {
           _locLoading = false;
-          _locMsg = "Device location is turned off. Turn it on and try again.";
+          _locMsg = context.l10n.bizDeviceLocationIsTurnedOff;
         });
         return;
       }
@@ -3600,7 +3601,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     } catch (e) {
       if (mounted) setState(() {
         _locLoading = false;
-        _locMsg = "Could not get location: ${e.toString().replaceAll('Exception: ','')}";
+        _locMsg = context.l10n.bizCouldNotGetLocation(e.toString().replaceAll('Exception: ',''));
       });
     }
   }
@@ -3657,7 +3658,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         final e = res['error']?.toString() ?? '';
         _mapsMsg = (e.isNotEmpty && e.startsWith('Network error'))
             ? e
-            : 'Unable to identify the exact location from this Google Maps link. Please open Google Maps, drop a pin on the exact location, tap Share → Copy link, and try again.';
+            : context.l10n.bizUnableToIdentifyTheExact;
       });
     } else {
       setState(() {
@@ -3749,10 +3750,10 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         : (_resolvedAddress.trim().isNotEmpty ? _resolvedAddress.trim() : _resolvedPlaceName.trim());
     final pin = RegExp(r'\b\d{6}\b').firstMatch(addr)?.group(0) ?? '';
     final tiles = <Widget>[
-      _locEdit('City', _cityC),
-      _locEdit('State', _stateC),
-      _locEdit('Area', _area),
-      if (pin.isNotEmpty) _locTile('Postal code', pin),
+      _locEdit(context.l10n.bizCity, _cityC),
+      _locEdit(context.l10n.bizState, _stateC),
+      _locEdit(context.l10n.bizArea, _area),
+      if (pin.isNotEmpty) _locTile(context.l10n.bizPostalCode, pin),
     ];
     final rows = <Widget>[];
     for (var k = 0; k < tiles.length; k += 2) {
@@ -3773,7 +3774,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         Row(children: [
           const OffroIcon(OffroIcons.check, size: 13, color: OffroColors.primary),
           const SizedBox(width: 6),
-          Text("Location captured",
+          Text(context.l10n.bizLocationCaptured,
               style: OffroText.caption.copyWith(color: OffroColors.primary, fontSize: 11, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 8),
@@ -3871,13 +3872,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     if (img == null) return;
     final bytes = await File(img.path).readAsBytes();
     if (bytes.length > 2 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Image too large. Max 2MB allowed."), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.l10n.bizImageTooLargeMax2MB2), backgroundColor: Colors.red));
       return;
     }
     if (bytes.length > 2 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Image too large. Max 2MB allowed."), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.l10n.bizImageTooLargeMax2MB2), backgroundColor: Colors.red));
       return;
     }
     setState(() { _imgB64 = "data:image/jpeg;base64,${base64Encode(bytes)}"; _imgUrl = null; });
@@ -3893,12 +3894,12 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) { setState(()=>_msg="Store name required"); return; }
-    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg='Please set the store location using "Use current location" or a Google Maps link'); return; }
-    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg='Please set the store location using "Use current location" or a Google Maps link'); return; }
+    if (_name.text.trim().isEmpty) { setState(()=>_msg=context.l10n.bizStoreNameRequired); return; }
+    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg=context.l10n.bizPleaseSetTheStoreLocation); return; }
+    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg=context.l10n.bizPleaseSetTheStoreLocation); return; }
     final _phoneVal = _phone.text.trim();
-    if (_phoneVal.isEmpty) { setState(()=>_msg="Mobile number is required"); return; }
-    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg="Enter a valid 10-digit mobile number (starts with 6–9)"); return; }
+    if (_phoneVal.isEmpty) { setState(()=>_msg=context.l10n.bizMobileNumberIsRequired); return; }
+    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg=context.l10n.bizEnterAValid10Digit); return; }
 
     // COORDINATES ARE MANDATORY — a store cannot be created with only
     // State + City. "Use Current Location" and the Google Maps link
@@ -3910,16 +3911,16 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     final hasValidCoords = latVal != null && lngVal != null &&
         latVal >= -90 && latVal <= 90 && lngVal >= -180 && lngVal <= 180;
     if (!_isEdit && !hasValidCoords) {
-      setState(() => _msg = 'Please set the store\'s location using "Use Current Location" '
-          'or a Google Maps link before creating the store.');
+      setState(() => _msg = context.l10n.bizSetStoreLocationFirst
+          );
       return;
     }
     if (_isEdit && (_lat.text.trim().isNotEmpty || _lng.text.trim().isNotEmpty) && !hasValidCoords) {
       // Only blocks a location left in a broken/partial state THIS session
       // — an older store's untouched (possibly empty) coordinates are left
       // alone here and are not force-fixed on an unrelated edit.
-      setState(() => _msg = 'The store location looks incomplete. Use "Use Current Location" '
-          'or a Google Maps link to set a valid location.');
+      setState(() => _msg = context.l10n.bizStoreLocationIncomplete
+          );
       return;
     }
     setState(()=>_loading=true); _msg="";
@@ -3939,14 +3940,14 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       else         await Api.createMerchantStore(widget.token, data);
       if (!mounted) return;
       Navigator.pop(context);
-    } catch(e) { setState(()=>_msg=friendlyError(e)); }
+    } catch(e) { setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null)); }
     if (mounted) setState(()=>_loading=false);
   }
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
     appBar: AppBar(
-        title:Text(_isEdit?"Edit Store":"Add Store"),
+        title:Text(_isEdit?context.l10n.bizEditStore:context.l10n.bizAddStore),
          
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kMerchantPrimary),
@@ -3954,13 +3955,13 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         ),
       ),
     body: SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      _field(_name,"Store Name *",Icons.store),
+      _field(_name,context.l10n.bizStoreName,Icons.store),
       const SizedBox(height:12),
       DropdownButtonFormField<String>(value:_category.isEmpty?null:_category,
         items:[..._categories.map((e){final c=(e is Map?e['name']:e).toString();return DropdownMenuItem<String>(value:c,child:Text(c));})],
         onChanged:(v)=>setState(()=>_category=v??''),
-        decoration:_dec("Category",Icons.category),
-        hint:const Text("Select category")),
+        decoration:_dec(context.l10n.bizCategory,Icons.category),
+        hint:Text(context.l10n.bizSelectCategory)),
       const SizedBox(height:12),
       // GPS location capture
       Container(
@@ -3976,8 +3977,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             ),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text("Store location", style: OffroText.value.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
-              Text("Use GPS or paste a Maps link.", style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
+              Text(context.l10n.bizStoreLocation, style: OffroText.value.copyWith(fontSize: 13, fontWeight: FontWeight.w700)),
+              Text(context.l10n.bizUseGPSOrPasteA, style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
             ])),
           ]),
           const SizedBox(height: 12),
@@ -3992,7 +3993,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             icon: _locLoading
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: OffroColors.primary))
                 : const Icon(Icons.gps_fixed, size: 18),
-            label: const Text("Use current location"),
+            label: Text(context.l10n.bizUseCurrentLocation),
             style: ElevatedButton.styleFrom(elevation: 0,
               backgroundColor: OffroColors.mint, foregroundColor: OffroColors.primary,
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -4005,7 +4006,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           ],
           const SizedBox(height: 14),
           // ── Blinkit-style Google Maps inline input ──────────────────
-          const Text("or paste Google Maps link",
+          Text(context.l10n.bizOrPasteGoogleMapsLink,
               style: TextStyle(color: kMerchantMuted, fontSize: 11, fontWeight: FontWeight.w500)),
           const SizedBox(height: 6),
           Container(
@@ -4035,8 +4036,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                 child: TextField(
                   controller: _mapsUrlCtrl,
                   style: const TextStyle(fontSize: 13, color: kMerchantText),
-                  decoration: const InputDecoration(
-                    hintText: 'Paste Google Maps link here',
+                  decoration: InputDecoration(
+                    hintText: context.l10n.bizPasteGoogleMapsLinkHere,
                     hintStyle: TextStyle(fontSize: 12, color: kMerchantMuted),
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(vertical: 14),
@@ -4078,7 +4079,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
                 child: _mapsResolving
                     ? const SizedBox(width: 18, height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text("Resolve Location", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    : Text(context.l10n.bizResolveLocation, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
               ),
             ),
           // Resolve error — directly under the URL field / Resolve button.
@@ -4090,17 +4091,17 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           if (_locConfirmed || (_lat.text.trim().isNotEmpty && _lng.text.trim().isNotEmpty)) _capturedLocationCard(),
           const SizedBox(height: 10),
           Row(children: [
-            Expanded(child: _field(_lat, "Latitude", Icons.gps_fixed, type: TextInputType.number)),
+            Expanded(child: _field(_lat, context.l10n.bizLatitude, Icons.gps_fixed, type: TextInputType.number)),
             const SizedBox(width: 10),
-            Expanded(child: _field(_lng, "Longitude", Icons.gps_not_fixed, type: TextInputType.number)),
+            Expanded(child: _field(_lng, context.l10n.bizLongitude, Icons.gps_not_fixed, type: TextInputType.number)),
           ]),
           const SizedBox(height: 4),
-          const Text("Auto-filled by GPS or Google Maps — you can edit any value. Edited values are saved as entered.",
+          Text(context.l10n.bizAutoFilledByGPSOr,
               style: TextStyle(color: kMerchantMuted, fontSize: 11)),
         ]),
       ),
       const SizedBox(height:12),
-      _field(_phone,"Phone",Icons.phone,type:TextInputType.phone,maxLen:10),
+      _field(_phone,context.l10n.bizPhone,Icons.phone,type:TextInputType.phone,maxLen:10),
       const SizedBox(height: 16),
       // Image picker
       GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
@@ -4108,33 +4109,33 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_imgB64!.split(",").last),fit:BoxFit.cover,width:double.infinity))
             : (_imgUrl!=null && _imgUrl!.isNotEmpty)
                 ? ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_imgUrl!,fit:BoxFit.cover,width:double.infinity,
-                    errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:36),const SizedBox(height:8),const Text("Tap to change image",style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600))])))
-                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMerchantMuted,size:36),const SizedBox(height:8),const Text("Main Store Image",style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 800×600px (4:3)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+                    errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:36),const SizedBox(height:8),Text(context.l10n.bizTapToChangeImage,style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600))])))
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.add_a_photo,color:kMerchantMuted,size:36),const SizedBox(height:8),Text(context.l10n.bizMainStoreImage,style:TextStyle(color:kMerchantMuted,fontSize:13,fontWeight:FontWeight.w600)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip(context.l10n.biz800600px43),const SizedBox(width:6),_InfoChip(context.l10n.bizMax2MB)])]))),
       const SizedBox(height:12),
       // Second image picker — optional logo
-      const Text("Upload Logo [Optional]",style:TextStyle(color:kMerchantMuted,fontSize:12,fontWeight:FontWeight.w600)),
+      Text(context.l10n.bizUploadLogoOptional,style:TextStyle(color:kMerchantMuted,fontSize:12,fontWeight:FontWeight.w600)),
       const SizedBox(height:6),
       GestureDetector(onTap:_pickImage2,child:Container(height:110,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
         child: _img2B64!=null
             ? Stack(children:[
                 ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.memory(base64Decode(_img2B64!.split(",").last),fit:BoxFit.cover,width:double.infinity,height:110)),
-                Positioned(top:6,right:6,child:GestureDetector(
+                PositionedDirectional(top:6,end:6,child:GestureDetector(
                   onTap:(){setState(()=>_img2B64=null);},
                   child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:Colors.black54,shape:BoxShape.circle),child:const Icon(Icons.close,color:Colors.white,size:14)))),
               ])
             : (_img2Url!=null && _img2Url!.isNotEmpty)
                 ? Stack(children:[
                     ClipRRect(borderRadius:BorderRadius.circular(12),child:Image.network(_img2Url!,fit:BoxFit.cover,width:double.infinity,height:110,
-                      errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),const Text("Tap to change logo",style:TextStyle(color:kMerchantMuted,fontSize:12))]))),
-                    Positioned(top:6,right:6,child:GestureDetector(
+                      errorBuilder:(_,__,___)=>Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.broken_image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),Text(context.l10n.bizTapToChangeLogo,style:TextStyle(color:kMerchantMuted,fontSize:12))]))),
+                    PositionedDirectional(top:6,end:6,child:GestureDetector(
                       onTap:(){setState(()=>_img2Url=null);},
                       child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:Colors.black54,shape:BoxShape.circle),child:const Icon(Icons.close,color:Colors.white,size:14)))),
                   ])
-                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),const Text("Tap to upload logo",style:TextStyle(color:kMerchantMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip("📐 200×200px (1:1)"),const SizedBox(width:6),_InfoChip("📦 Max 2MB")])]))),
+                : Column(mainAxisAlignment:MainAxisAlignment.center,children:[const Icon(Icons.image_outlined,color:kMerchantMuted,size:32),const SizedBox(height:6),Text(context.l10n.bizTapToUploadLogo,style:TextStyle(color:kMerchantMuted,fontSize:12)),const SizedBox(height:4),Row(mainAxisAlignment:MainAxisAlignment.center,children:[_InfoChip(context.l10n.biz200200px11),const SizedBox(width:6),_InfoChip(context.l10n.bizMax2MB)])]))),
       const SizedBox(height:12),
       // ── Opening & Closing Time ──────────────────────────────────────
       const SizedBox(height:12),
-      const Text("Store Timings [Optional]",
+      Text(context.l10n.bizStoreTimingsOptional,
         style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 8),
       Row(children: [
@@ -4146,8 +4147,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               value: t["value"],
               child: Text(t["label"]!, style: const TextStyle(fontSize: 13)))).toList(),
             onChanged: (v) => setState(() => _openTime = v),
-            decoration: _dec("Opening Time", Icons.access_time_rounded),
-            hint: const Text("Open at", style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+            decoration: _dec(context.l10n.bizOpeningTime, Icons.access_time_rounded),
+            hint: Text(context.l10n.bizOpenAt, style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
           ),
         ),
         const SizedBox(width: 10),
@@ -4159,22 +4160,22 @@ class _AddEditStoreState extends State<AddEditStorePage> {
               value: t["value"],
               child: Text(t["label"]!, style: const TextStyle(fontSize: 13)))).toList(),
             onChanged: (v) => setState(() => _closeTime = v),
-            decoration: _dec("Closing Time", Icons.access_time_filled_rounded),
-            hint: const Text("Close at", style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+            decoration: _dec(context.l10n.bizClosingTime, Icons.access_time_filled_rounded),
+            hint: Text(context.l10n.bizCloseAt, style: TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
           ),
         ),
       ]),
       const SizedBox(height:16),
       // About field
       TextField(controller:_about, maxLines:4, keyboardType:TextInputType.multiline,
-        decoration:_dec("About this store (description shown to customers)",Icons.info_outline).copyWith(
+        decoration:_dec(context.l10n.bizAboutThisStoreDescriptionShown,Icons.info_outline).copyWith(
           alignLabelWithHint:true)),
       const SizedBox(height:20),
       SizedBox(height:50,child:ElevatedButton(
         onPressed:_loading?null:_save,
         style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
         child:_loading?const SizedBox(width:20,height:20,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):
-            Text(_isEdit?"Save Changes":"Create Store",style:const TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w700)))),
+            Text(_isEdit?context.l10n.bizSaveChanges:context.l10n.bizCreateStore,style:const TextStyle(color:Colors.white,fontSize:15,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
       const SizedBox(height:24),
     ])),
@@ -4242,7 +4243,7 @@ class _SubscribeState extends State<SubscribePage> {
       // pattern already used correctly in _openRazorpayBanner above.
       final rzpKey = order["razorpay_key"]?.toString() ?? '';
       if (rzpKey.isEmpty) {
-        setState(() => _msg = "Payment gateway not configured. Contact support.");
+        setState(() => _msg = context.l10n.bizPaymentGatewayNotConfiguredContact);
         return;
       }
       final amountPaise = (order["amount"] as num?)?.toInt() ??
@@ -4263,7 +4264,7 @@ class _SubscribeState extends State<SubscribePage> {
       _razorpay.open(opts);
     } catch(e) {
       debugPrint('[MerchantSubscription] Razorpay open error: $e');
-      if (mounted) setState(() => _msg = friendlyError(e, fallback: "Could not open payment. Please try again."));
+      if (mounted) setState(() => _msg = friendlyError(e, fallback: context.l10n.bizCouldNotOpenPaymentPlease, l10n: mounted ? context.l10n : null));
     }
   }
 
@@ -4276,14 +4277,14 @@ class _SubscribeState extends State<SubscribePage> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: Card(
+      builder: (_) => Center(child: Card(
         color: Colors.white,
         child: Padding(padding: EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
           CircularProgressIndicator(color: kMerchantPrimary),
           SizedBox(height: 16),
-          Text("Confirming payment...", style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText)),
+          Text(context.l10n.bizConfirmingPayment, style: TextStyle(fontWeight: FontWeight.w600, color: kMerchantText)),
           SizedBox(height: 4),
-          Text("Please wait a moment", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
+          Text(context.l10n.bizPleaseWaitAMoment, style: TextStyle(color: kMerchantMuted, fontSize: 12)),
         ])),
       )),
     );
@@ -4320,11 +4321,11 @@ class _SubscribeState extends State<SubscribePage> {
   }
 
   void _onPayError(PaymentFailureResponse resp) {
-    if (mounted) setState(() { final m = friendlyRazorpayError(resp.message); _msg = "Payment cancelled or failed: $m"; });
+    if (mounted) setState(() { final m = friendlyRazorpayError(resp.message, l10n: mounted ? context.l10n : null); _msg = context.l10n.bizPaymentCancelledOrFailed(m); });
   }
 
   void _onExtWallet(ExternalWalletResponse resp) {
-    if (mounted) setState(() { final w = resp.walletName ?? ""; _msg = "External wallet: $w"; });
+    if (mounted) setState(() { final w = resp.walletName ?? ""; _msg = context.l10n.bizExternalWallet(w); });
   }
 
     Future<void> _validateDiscount() async {
@@ -4344,13 +4345,13 @@ class _SubscribeState extends State<SubscribePage> {
         _discountType = type;
         _discountValue = val;
         _discMsg = type == "PERCENTAGE"
-            ? "✅ ${val.toStringAsFixed(0)}% discount applied!"
-            : "✅ ₹${val.toStringAsFixed(0)} discount applied!";
+            ? context.l10n.bizDiscountAppliedPct(val.toStringAsFixed(0))
+            : context.l10n.bizDiscountAppliedAmt(val.toStringAsFixed(0));
       });
     } catch(e) {
       setState((){
         _appliedCode = null; _discountValue = 0; _discountType = null;
-        _discMsg = friendlyError(e);
+        _discMsg = friendlyError(e, l10n: mounted ? context.l10n : null);
       });
     }
     if (mounted) setState(()=>_validatingDisc=false);
@@ -4383,20 +4384,20 @@ class _SubscribeState extends State<SubscribePage> {
         final discAmt = (order["discount_amount"] as num?)?.toDouble() ?? 0;
         final discType = order["discount_type"]?.toString();
         showDialog(context:context,barrierDismissible:false,builder:(ctx)=>AlertDialog(
-          title:const Text("Subscription Request Sent",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
+          title:Text(ctx.l10n.bizSubscriptionRequestSent,style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
           content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-            _row("Store", widget.store["store_name"]??''),
-            _row("Plan",  order["plan_label"]??''),
-            _row("From",  order["from_date"]??''),
-            _row("To",    order["end_date"]??''),
+            _row(ctx.l10n.homeStoreWord, widget.store["store_name"]??''),
+            _row(ctx.l10n.bizPlan,  order["plan_label"]??''),
+            _row(ctx.l10n.bizFrom,  order["from_date"]??''),
+            _row(ctx.l10n.bizTo,    order["end_date"]??''),
             const Divider(),
-            _row("Base Price","₹${order['base_price']}"),
+            _row(ctx.l10n.bizBasePrice,"₹${order['base_price']}"),
             if (discAmt>0)
-              _row("Discount", discType=="PERCENTAGE"
+              _row(ctx.l10n.bizDiscount, discType=="PERCENTAGE"
                   ? "-₹${discAmt.toStringAsFixed(2)} (${(order['discount_value'] as num?)?.toStringAsFixed(0) ?? ''}%)"
                   : "-₹${discAmt.toStringAsFixed(2)}"),
-            _row("GST (${order['gst_percent']}%)","₹${order['gst_amount']}"),
-            _row("Total Payable","₹${order['amount_display']}",bold:true),
+            _row(ctx.l10n.bizGstPct('${order['gst_percent']}'),"₹${order['gst_amount']}"),
+            _row(ctx.l10n.bizTotalPayable,"₹${order['amount_display']}",bold:true),
             const SizedBox(height:12),
             Container(
               padding:const EdgeInsets.all(10),
@@ -4404,8 +4405,8 @@ class _SubscribeState extends State<SubscribePage> {
               child:Text(
                 // ₹0 payable (100% discount): no payment instruction.
                 orderAmt <= 0
-                    ? "✅  Your subscription request has been submitted."
-                    : "✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.",
+                    ? ctx.l10n.bizYourSubscriptionRequestHasBeen
+                    : ctx.l10n.bizSubmittedPayRep,
                 style:const TextStyle(fontSize:12,color:kMerchantPrimary,height:1.5),
               ),
             ),
@@ -4426,7 +4427,7 @@ class _SubscribeState extends State<SubscribePage> {
                 }
                 if (context.mounted) Navigator.pop(context);
               },
-              child:const Text("OK",style:TextStyle(color:Colors.white))),
+              child:Text(ctx.l10n.commonOk,style:TextStyle(color:Colors.white))),
           ],
         ));
         return;
@@ -4443,33 +4444,33 @@ class _SubscribeState extends State<SubscribePage> {
       final fromD   = order["from_date"]?.toString() ?? "";
       final toD     = order["end_date"]?.toString() ?? "";
       showDialog(context:context,builder:(_)=>AlertDialog(
-        title:const Text("Confirm Payment",style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
+        title:Text(context.l10n.bizConfirmPayment,style:TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold)),
         content:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-          _row("Store", widget.store["store_name"]?.toString()??''),
-          _row("Plan",  planLbl),
-          _row("From",  fromD),
-          _row("To",    toD),
+          _row(context.l10n.homeStoreWord, widget.store["store_name"]?.toString()??''),
+          _row(context.l10n.bizPlan,  planLbl),
+          _row(context.l10n.bizFrom,  fromD),
+          _row(context.l10n.bizTo,    toD),
           const Divider(),
-          _row("Base Price","₹$baseP"),
-          _row("GST ($gstPct%)","₹$gstAmt"),
-          _row("Total","₹$totalD",bold:true),
+          _row(context.l10n.bizBasePrice,"₹$baseP"),
+          _row(context.l10n.bizGstPct('$gstPct'),"₹$gstAmt"),
+          _row(context.l10n.bizTotal,"₹$totalD",bold:true),
           const SizedBox(height:12),
           Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
-            child:const Text("Razorpay checkout will open. After payment, admin will approve your store.",style:TextStyle(fontSize:12,color:kMerchantPrimary))),
+            child:Text(context.l10n.bizRazorpayCheckoutWillOpenAfter,style:TextStyle(fontSize:12,color:kMerchantPrimary))),
         ]),
         actions:[
-          TextButton(onPressed:()=>Navigator.pop(context),child:const Text("Cancel",style:TextStyle(color:kMerchantMuted))),
+          TextButton(onPressed:()=>Navigator.pop(context),child:Text(context.l10n.commonCancel,style:TextStyle(color:kMerchantMuted))),
           ElevatedButton(
             style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
             onPressed:() {
               Navigator.pop(context);
               _openRazorpay(_pendingOrder);
             },
-            child:const Text("Pay Now",style:TextStyle(color:Colors.white))),
+            child:Text(context.l10n.bizPayNow,style:TextStyle(color:Colors.white))),
         ],
       ));
     } catch(e) {
-      if (mounted) setState(()=>_msg=friendlyError(e));
+      if (mounted) setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null));
     }
     if (mounted) setState(()=>_loading=false);
   }
@@ -4479,16 +4480,16 @@ class _SubscribeState extends State<SubscribePage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:AppBar(title:const Text("Subscribe Store"), ),
+    appBar:AppBar(title:Text(context.l10n.bizSubscribeStore), ),
     body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Store",style:TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
+          Text(context.l10n.homeStoreWord,style:TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
           Text(widget.store["store_name"]??"",style:const TextStyle(fontSize:16,fontWeight:FontWeight.bold,color:kMerchantText)),
           Text("${widget.store['city']??''}, ${widget.store['area']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12)),
         ])),
       const SizedBox(height:20),
-      const Text("Select Plan",style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
+      Text(context.l10n.bizSelectPlan,style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
       const SizedBox(height:10),
       ..._plans.map((p){
         final sel = _selectedPlan==p["id"];
@@ -4500,13 +4501,13 @@ class _SubscribeState extends State<SubscribePage> {
               const SizedBox(width:12),
               Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 Text(p["label"],style:TextStyle(fontWeight:FontWeight.bold,color:sel?Colors.white:kMerchantText)),
-                Text("₹${p['price']} + ${p['gst_percent']}% GST",style:TextStyle(fontSize:12,color:sel?kMerchantLight:kMerchantMuted)),
+                Text(context.l10n.bizPricePlusGst('${p['price']}','${p['gst_percent']}'),style:TextStyle(fontSize:12,color:sel?kMerchantLight:kMerchantMuted)),
               ])),
               Text("₹${p['total']}",style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:sel?Colors.white:kMerchantPrimary)),
             ])));
       }).toList(),
       const SizedBox(height:16),
-      const Text("Start Date",style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
+      Text(context.l10n.bizStartDate2,style:TextStyle(fontWeight:FontWeight.bold,color:kMerchantText,fontSize:15)),
       const SizedBox(height:8),
       GestureDetector(
         onTap:() async {
@@ -4527,11 +4528,11 @@ class _SubscribeState extends State<SubscribePage> {
           final total     = taxable + gstAmt;
           return Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
             child:Column(children:[
-              _row("Base Price","₹${basePrice.toStringAsFixed(2)}"),
-              if (discAmt>0) _row("Discount","-₹${discAmt.toStringAsFixed(2)}"),
-              _row("GST (${gstPct.toStringAsFixed(0)}%)","₹${gstAmt.toStringAsFixed(2)}"),
+              _row(context.l10n.bizBasePrice,"₹${basePrice.toStringAsFixed(2)}"),
+              if (discAmt>0) _row(context.l10n.bizDiscount,"-₹${discAmt.toStringAsFixed(2)}"),
+              _row(context.l10n.bizGstPct(gstPct.toStringAsFixed(0)),"₹${gstAmt.toStringAsFixed(2)}"),
               const Divider(height:16),
-              _row("Total Payable","₹${total.toStringAsFixed(2)}",bold:true),
+              _row(context.l10n.bizTotalPayable,"₹${total.toStringAsFixed(2)}",bold:true),
             ]));
         }),
       ],
@@ -4539,37 +4540,37 @@ class _SubscribeState extends State<SubscribePage> {
       // ── Discount Code ──
       Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder)),
         child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          const Text("Have a discount code?",style:TextStyle(fontWeight:FontWeight.w600,color:kMerchantText,fontSize:13)),
+          Text(context.l10n.bizHaveADiscountCode,style:TextStyle(fontWeight:FontWeight.w600,color:kMerchantText,fontSize:13)),
           const SizedBox(height:8),
           Row(children:[
             Expanded(child:TextField(
               controller:_discC,
               textCapitalization:TextCapitalization.characters,
               onChanged:(_){ if(_appliedCode!=null) setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";}); },
-              decoration:InputDecoration(hintText:"Enter code",isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:kMerchantBorder))),
+              decoration:InputDecoration(hintText:context.l10n.bizEnterCode,isDense:true,contentPadding:const EdgeInsets.symmetric(horizontal:10,vertical:10),border:OutlineInputBorder(borderRadius:BorderRadius.circular(16),borderSide:BorderSide(color:kMerchantBorder))),
             )),
             const SizedBox(width:8),
             ElevatedButton(
               onPressed:_validatingDisc?null:_validateDiscount,
               style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder(),padding:const EdgeInsets.symmetric(horizontal:14,vertical:10)),
-              child:_validatingDisc?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Text("Apply",style:TextStyle(color:Colors.white,fontSize:13))),
+              child:_validatingDisc?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):Text(context.l10n.bizApply,style:TextStyle(color:Colors.white,fontSize:13))),
           ]),
           if (_discMsg.isNotEmpty)...[const SizedBox(height:6),Text(_discMsg,style:TextStyle(fontSize:12,color:_appliedCode!=null?OffroColors.statusLive:Colors.red.shade700))],
           if (_appliedCode!=null && _discountType!=null)...[
             const SizedBox(height:6),
             Row(children:[
-              const Text("Discount: ",style:TextStyle(fontSize:12,color:kMerchantMuted)),
+              Text('${context.l10n.bizDiscount2} ',style:TextStyle(fontSize:12,color:kMerchantMuted)),
               Text(_discountType=="PERCENTAGE" ? "- ${_discountValue.toStringAsFixed(0)}%" : "- ₹${_discountValue.toStringAsFixed(0)}",
                 style:const TextStyle(fontSize:12,color:OffroColors.statusLive,fontWeight:FontWeight.bold)),
               const Spacer(),
-              GestureDetector(onTap:(){setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";_discC.clear();});},child:const Text("Remove",style:TextStyle(fontSize:11,color:Colors.red,decoration:TextDecoration.underline)))]),
+              GestureDetector(onTap:(){setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";_discC.clear();});},child:Text(context.l10n.bizRemove,style:TextStyle(fontSize:11,color:Colors.red,decoration:TextDecoration.underline)))]),
           ],
         ])),
       const SizedBox(height:24),
       SizedBox(height:52,child:ElevatedButton(
         onPressed:_loading?null:_subscribe,
         style:ElevatedButton.styleFrom(elevation: 0, backgroundColor:kMerchantPrimary,shape: const StadiumBorder()),
-        child:const Text("Proceed to Pay",style:TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.w700)))),
+        child:Text(context.l10n.bizProceedToPay,style:TextStyle(color:Colors.white,fontSize:16,fontWeight:FontWeight.w700)))),
       if (_msg.isNotEmpty)...[const SizedBox(height:10),Text(_msg,textAlign:TextAlign.center,style:TextStyle(color:Colors.red.shade700,fontSize:13))],
       const SizedBox(height:24),
     ])),
@@ -4746,20 +4747,20 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:merchantHeaderBar(eyebrow:"Billing & subscriptions",title:"Invoices",back:false,
-      actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load,tooltip:"Refresh")],
+    appBar:merchantHeaderBar(eyebrow:context.l10n.bizBillingSubscriptions,title:context.l10n.navInvoices,back:false,
+      actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load,tooltip:context.l10n.bizRefresh)],
     ),
     body:_loading?const Center(child:CircularProgressIndicator(color:kMerchantPrimary)):
     RefreshIndicator(
       color:kMerchantPrimary,onRefresh:_load,
       child:_invoices.isEmpty
         ? ListView(children:[SizedBox(height:MediaQuery.sizeOf(context).height*0.4,
-            child:const Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
+            child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
               Icon(Icons.receipt_long_outlined,size:56,color:kMerchantAccent),
               SizedBox(height:12),
-              Text("No invoices yet",style:TextStyle(color:kMerchantMuted,fontSize:15)),
+              Text(context.l10n.bizNoInvoicesYet,style:TextStyle(color:kMerchantMuted,fontSize:15)),
               SizedBox(height:6),
-              Text("Pull down to refresh",style:TextStyle(color:kMerchantMuted,fontSize:12)),
+              Text(context.l10n.bizPullDownToRefresh,style:TextStyle(color:kMerchantMuted,fontSize:12)),
             ])))])
         : ListView.builder(
             padding:const EdgeInsets.all(14),
@@ -4777,7 +4778,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                   ]),
                   const Divider(height:14),
                   Text(inv["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantText)),
-                  Text("Plan: ${inv['plan']??''}  •  ${inv['from_date']??''} – ${inv['end_date']??''}",style:const TextStyle(color:kMerchantMuted,fontSize:12)),
+                  Text(context.l10n.bizPlanPeriodLine('${inv['plan']??''}','${inv['from_date']??''}','${inv['end_date']??''}'),style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                   const SizedBox(height:6),
                   Row(mainAxisAlignment:MainAxisAlignment.spaceBetween,children:[
                     // TASK 6: show discount info if present
@@ -4790,10 +4791,10 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Base: ₹${origAmt.toStringAsFixed(2)}  GST: ₹${gstAmt.toStringAsFixed(2)}",
+                          Text(context.l10n.bizBaseGstLine(origAmt.toStringAsFixed(2),gstAmt.toStringAsFixed(2)),
                             style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                           if(discCode.isNotEmpty && discAmt > 0)
-                            Text("Discount ($discCode): −₹${discAmt.toStringAsFixed(2)}",
+                            Text(context.l10n.bizDiscountCodeLine('$discCode',discAmt.toStringAsFixed(2)),
                               style:const TextStyle(color:OffroColors.statusLive,fontSize:11,fontWeight:FontWeight.w600)),
                         ],
                       );
@@ -4806,7 +4807,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                   Row(children:[
                     Expanded(child:OutlinedButton.icon(
                       icon:const Icon(Icons.share_rounded,size:16),
-                      label:const Text("Share",style:TextStyle(fontSize:12)),
+                      label:Text(context.l10n.bizShare,style:TextStyle(fontSize:12)),
                       style:OutlinedButton.styleFrom(elevation: 0, 
                         foregroundColor:kMerchantPrimary,side:const BorderSide(color:kMerchantPrimary),
                         padding:const EdgeInsets.symmetric(vertical:8),
@@ -4816,7 +4817,7 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                     const SizedBox(width:10),
                     Expanded(child:ElevatedButton.icon(
                       icon:const Icon(Icons.download_rounded,size:16),
-                      label:const Text("Download PDF",style:TextStyle(fontSize:12)),
+                      label:Text(context.l10n.bizDownloadPDF,style:TextStyle(fontSize:12)),
                       style:ElevatedButton.styleFrom(elevation: 0, 
                          
                         padding:const EdgeInsets.symmetric(vertical:8),
@@ -4834,27 +4835,27 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
 
 // Humanize raw transaction type/description codes → readable text
 String _humanizeActivity(String raw) {
-  const _map = {
-    "account_created":        "Account registered",
-    "store_created":          "New store created",
-    "store_updated":          "Store profile updated",
-    "store_approved":         "Store approved",
-    "store_rejected":         "Store rejected",
-    "subscription":           "Store subscription activated",
-    "subscription_free":      "Free subscription activated",
-    "subscription_paid":      "Subscription payment received",
-    "banner":                 "Banner submitted",
-    "banner_approved":        "Banner approved",
-    "banner_rejected":        "Banner rejected",
-    "banner_paid":            "Banner payment received",
-    "product":                "Product submitted",
-    "product_approved":       "Product approved",
-    "product_rejected":       "Product rejected",
-    "product_paid":           "Product payment received",
-    "payment":                "Payment received",
-    "free":                   "Free plan activated",
-    "profile_updated":        "Profile updated",
-    "qr_reset":               "QR code regenerated",
+  final _l = offroNoContext; final _map = {
+    "account_created":        _l.bizAccountRegistered,
+    "store_created":          _l.bizNewStoreCreated,
+    "store_updated":          _l.bizStoreProfileUpdated,
+    "store_approved":         _l.bizStoreApproved,
+    "store_rejected":         _l.bizStoreRejected,
+    "subscription":           _l.bizStoreSubscriptionActivated,
+    "subscription_free":      _l.bizFreeSubscriptionActivated,
+    "subscription_paid":      _l.bizSubscriptionPaymentReceived,
+    "banner":                 _l.bizBannerSubmitted,
+    "banner_approved":        _l.bizBannerApproved,
+    "banner_rejected":        _l.bizBannerRejected,
+    "banner_paid":            _l.bizBannerPaymentReceived,
+    "product":                _l.bizProductSubmitted,
+    "product_approved":       _l.bizProductApproved,
+    "product_rejected":       _l.bizProductRejected,
+    "product_paid":           _l.bizProductPaymentReceived,
+    "payment":                _l.bizPaymentReceived,
+    "free":                   _l.bizFreePlanActivated,
+    "profile_updated":        _l.bizProfileUpdated,
+    "qr_reset":               _l.bizQRCodeRegenerated,
   };
   final key = raw.trim().toLowerCase().replaceAll(' ', '_');
   // If it's already a human-readable string (contains spaces or title case), return as-is
@@ -4896,7 +4897,7 @@ class _TxnState extends State<MerchantTxnPage> {
     for(final t in _txns) {
       events.add({
         "type":"payment","icon":Icons.payment,"color":kMerchantPrimary,
-        "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??"Payment"),
+        "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??context.l10n.bizPayment),
         "subtitle":"₹${t['amount']??0}",
         "date":t["date"]??t["created_at"]??"",
         "amount":_amt(t["amount"]),
@@ -4912,8 +4913,8 @@ class _TxnState extends State<MerchantTxnPage> {
       };
       events.add({
         "type":"banner","icon":Icons.photo_size_select_actual_outlined,"color":const Color(0xFF2980b9),
-        "title":"Banner: ${b['title']??'Untitled'}",
-        "subtitle":st=="approved"?"✅ Approved — Live":st=="rejected"?"❌ Rejected":"⏳ Pending Approval",
+        "title":context.l10n.bizBannerTitleLine((b['title']??context.l10n.bizUntitledWord).toString()),
+        "subtitle":st=="approved"?context.l10n.bizApprovedLive2:st=="rejected"?context.l10n.bizRejected2:context.l10n.bizPendingApproval2,
         "subtitle_color":sc,"status_icon":si,
         "date":b["created_at"]??"",
         "amount":_amt(b["amount"]),
@@ -4931,8 +4932,8 @@ class _TxnState extends State<MerchantTxnPage> {
       };
       events.add({
         "type":"product","icon":Icons.local_activity_outlined,"color":const Color(0xFF8e44ad),
-        "title":"Product: ${v['title']??'Untitled'}",
-        "subtitle":st=="approved"?"✅ Approved — Live":st=="rejected"?"❌ Rejected":"⏳ Pending Approval",
+        "title":context.l10n.bizProductTitleLine((v['title']??context.l10n.bizUntitledWord).toString()),
+        "subtitle":st=="approved"?context.l10n.bizApprovedLive2:st=="rejected"?context.l10n.bizRejected2:context.l10n.bizPendingApproval2,
         "subtitle_color":sc,"status_icon":si,
         "date":v["created_at"]??"",
         "amount":_amt(v["amount"]),
@@ -4958,18 +4959,18 @@ class _TxnState extends State<MerchantTxnPage> {
     final items = _filtered; // once per build (was recomputed, incl. a sort, for every row)
     return Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:merchantHeaderBar(eyebrow:"Business timeline",title:"Activity",back:false,
+    appBar:merchantHeaderBar(eyebrow:context.l10n.bizBusinessTimeline,title:context.l10n.navActivity,back:false,
       actions:[IconButton(icon:const Icon(Icons.refresh),onPressed:_load)],
     ),
     body:Column(children:[
       // Filter tabs
       Container(padding:const EdgeInsets.fromLTRB(OffroSpacing.gutter,4,OffroSpacing.gutter,10),
-        child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:["All","Banners","My Products","Payments"].asMap().entries.map((e)=>
+        child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[context.l10n.commonAll,context.l10n.bizBannersTab,context.l10n.bizMyProducts,context.l10n.bizPaymentsTab].asMap().entries.map((e)=>
           GestureDetector(
             behavior:HitTestBehavior.opaque,
             onTap:()=>setState(()=>_tab=e.key),
             child:Container(
-              margin:const EdgeInsets.only(right:8),
+              margin:const EdgeInsetsDirectional.only(end:8),
               padding:const EdgeInsets.symmetric(horizontal:16,vertical:9),
               decoration:BoxDecoration(
                 color:_tab==e.key?OffroColors.primary:Colors.white,
@@ -4990,7 +4991,7 @@ class _TxnState extends State<MerchantTxnPage> {
               ? ListView(children:[SizedBox(height:300,child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
                   const Icon(Icons.history,size:48,color:kMerchantAccent),
                   const SizedBox(height:12),
-                  const Text("No activity yet",style:TextStyle(color:kMerchantMuted,fontSize:15)),
+                  Text(context.l10n.bizNoActivityYet,style:TextStyle(color:kMerchantMuted,fontSize:15)),
                 ])))])
               : ListView.builder(
                   padding:const EdgeInsets.fromLTRB(14,12,14,24),
@@ -5063,8 +5064,8 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
     if (img == null) return;
     final bytes = await File(img.path).readAsBytes();
     if (bytes.length > 2 * 1024 * 1024) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Image too large. Max 2MB allowed."), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(context.l10n.bizImageTooLargeMax2MB2), backgroundColor: Colors.red));
       return;
     }
     final b64 = "data:image/jpeg;base64,${base64Encode(bytes)}";
@@ -5171,13 +5172,13 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor:kMerchantBg,
-    appBar:merchantHeaderBar(eyebrow:"Merchant account",title:"Profile",back:false,),
+    appBar:merchantHeaderBar(eyebrow:context.l10n.bizMerchantAccount,title:context.l10n.profileTitle,back:false,),
     body:SingleChildScrollView(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       Container(padding:const EdgeInsets.all(20),decoration:BoxDecoration(color:OffroColors.mint,borderRadius:BorderRadius.circular(24)),
         child:Column(children:[
           GestureDetector(
             onTap: _pickProfileImage,
-            child: Stack(alignment:Alignment.bottomRight,children:[
+            child: Stack(alignment:AlignmentDirectional.bottomEnd,children:[
               CircleAvatar(radius:44, backgroundColor:OffroColors.primary,
                 backgroundImage: _imgB64 != null && _imgB64!.startsWith("data:") ? MemoryImage(base64Decode(_imgB64!.split(",").last)) : null,
                 child: _imgB64 == null ? buildLogo(38,OffroColors.mint) : null),
@@ -5190,50 +5191,50 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
           if((_merchantData["city"]??'').isNotEmpty)
             Text("${_merchantData['city']}, ${_merchantData['area']??''}",style:const TextStyle(color:OffroColors.secondarySolid,fontSize:12)),
           const SizedBox(height:4),
-          const Text("Tap photo to change",style:TextStyle(color:OffroColors.secondarySolid,fontSize:10)),
+          Text(context.l10n.bizTapPhotoToChange,style:TextStyle(color:OffroColors.secondarySolid,fontSize:10)),
         ])),
       const SupportInfoNote(padding: EdgeInsets.only(top: 12)),
       const SizedBox(height:12),
       // ── ACCOUNT / SESSION — same grouped-card + row styling as the Customer profile
       // (ProfileTab._group/_row). Behaviour of each action is unchanged. ──
-      _group("Account", [
+      _group(context.l10n.profileGroupAccount, [
         _accountRow(
           icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: OffroColors.primary),
-          label: "Switch Mode", note: "Switch between User, Merchant & Influencer",
+          label: context.l10n.profileSwitchMode, note: context.l10n.bizSwitchBetweenUserMerchantInfluencer,
           onTap: _openSwitchMode),
         _accountRow(
           icon: const OffroIcon(OffroIcons.message, size: 16, color: OffroColors.primary),
-          label: "Contact Offro", note: "Chat with us on WhatsApp",
+          label: context.l10n.profileContact, note: context.l10n.profileContactNote,
           onTap: _contactOffro),
       ]),
       // ── ABOUT & LEGAL — moved below ACCOUNT; same grouped-card + row styling as the Customer profile.
       // The five existing options and their actions are unchanged. ──
-      _group("About & legal", [
+      _group(context.l10n.profileGroupLegal, [
         _accountRow(
           icon: const OffroIcon(OffroIcons.store, size: 16, color: OffroColors.primary),
-          label: "About Us",
+          label: context.l10n.profileAboutUs,
           onTap: () => _openAbout(context)),
         _accountRow(
           icon: const OffroIcon(OffroIcons.tag, size: 16, color: OffroColors.primary),
-          label: "Terms & Conditions",
-          onTap: () => _openPolicy(context,"Terms & Conditions",Api.getMerchantTerms())),
+          label: context.l10n.profileTerms,
+          onTap: () => _openPolicy(context,context.l10n.profileTerms,Api.getMerchantTerms())),
         _accountRow(
           icon: const OffroIcon(OffroIcons.shield, size: 16, color: OffroColors.primary),
-          label: "Privacy Policy",
+          label: context.l10n.profilePrivacy,
           onTap: () => Navigator.push(context,MaterialPageRoute(builder:(_)=>MerchantPrivacyPolicyPage(token:widget.token)))),
         _accountRow(
           icon: const OffroIcon(OffroIcons.route, size: 16, color: OffroColors.primary),
-          label: "Refund Policy",
-          onTap: () => _openPolicy(context,"Refund Policy",Api.fetchPolicy("refund"))),
+          label: context.l10n.profileRefund,
+          onTap: () => _openPolicy(context,context.l10n.profileRefund,Api.fetchPolicy("refund"))),
         _accountRow(
           icon: const Icon(Icons.badge_outlined, size: 18, color: OffroColors.primary),
-          label: "KYC Policy",
-          onTap: () => _openPolicy(context,"KYC Policy",Api.fetchPolicy("kyc"))),
+          label: context.l10n.bizKYCPolicy,
+          onTap: () => _openPolicy(context,context.l10n.bizKYCPolicy,Api.fetchPolicy("kyc"))),
       ]),
-      _group("Session", [
+      _group(context.l10n.profileGroupSession, [
         _accountRow(
           icon: const OffroIcon(OffroIcons.arrow, size: 16, color: OffroColors.error),
-          label: "Logout", destructive: true,
+          label: context.l10n.profileLogout, destructive: true,
           onTap: _logout),
       ]),
     ])),
@@ -5242,7 +5243,7 @@ class _MerchantProfileState extends State<MerchantProfilePage> {
   void _openAbout(BuildContext ctx) async {
     final c = await Api.getAboutUs();
     if (!ctx.mounted) return;
-    showDialog(context:ctx, builder:(_)=>OffroDialog(title:"About Us",body:c.isEmpty?"Offro connects local stores with customers through deals and loyalty points.":c));
+    showDialog(context:ctx, builder:(_)=>OffroDialog(title:ctx.l10n.profileAboutUs,body:c.isEmpty?ctx.l10n.profileAboutFallback:c));
   }
 
   void _openPolicy(BuildContext ctx, String title, Future<String> loader) {
@@ -5292,7 +5293,7 @@ class _UserProfileHeaderState extends State<UserProfileHeader> {
   @override Widget build(BuildContext context) => ListTile(
     leading: GestureDetector(
       onTap: _pickImage,
-      child: Stack(alignment:Alignment.bottomRight, children:[
+      child: Stack(alignment:AlignmentDirectional.bottomEnd, children:[
         CircleAvatar(radius:24, backgroundColor:kMerchantLight,
           backgroundImage: _imgB64 != null && _imgB64!.startsWith("data:")
             ? MemoryImage(base64Decode(_imgB64!.split(",").last)) : null,
@@ -5348,25 +5349,25 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
   static String _formatDealDate(String raw) {
     final dt = _parseDealDate(raw);
     if (dt == null) return raw;
-    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    final m = monthsShortOf(offroNoContext);
     return "${dt.day} ${m[dt.month - 1]} ${dt.year}";
   }
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
-    appBar: merchantHeaderBar(eyebrow: "Merchant offers", title: "My Deals", back: false,
+    appBar: merchantHeaderBar(eyebrow: context.l10n.bizMerchantOffers, title: context.l10n.bizMyDeals, back: false,
         
         actions:[
           Padding(
-            padding:const EdgeInsets.only(right:18),
+            padding:const EdgeInsetsDirectional.only(end:18),
             child:offroHeaderAddButton(
               icon:Icons.add,
-              tooltip:"Add Deal",
+              tooltip:context.l10n.bizAddDeal,
               onPressed: () {
                 final activeStores = _stores.where((s) => s["status"] == "active").toList();
                 if (activeStores.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("You need an active store to add deals."), backgroundColor: Colors.orange));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(context.l10n.bizYouNeedAnActiveStore), backgroundColor: Colors.orange));
                   return;
                 }
                 Navigator.push(context, appRoute(AddDealPage(
@@ -5383,9 +5384,9 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
       _deals.isEmpty ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         const Icon(Icons.local_offer_outlined, size: 64, color: kMerchantAccent),
         const SizedBox(height: 12),
-        const Text("No deals yet", style: TextStyle(color: kMerchantMuted, fontSize: 16)),
+        Text(context.l10n.bizNoDealsYet, style: TextStyle(color: kMerchantMuted, fontSize: 16)),
         const SizedBox(height: 8),
-        const Text("Add deals to attract more customers", style: TextStyle(color: kMerchantMuted, fontSize: 13)),
+        Text(context.l10n.bizAddDealsToAttractMore, style: TextStyle(color: kMerchantMuted, fontSize: 13)),
       ])) :
       RefreshIndicator(onRefresh: _load, child: ListView.builder(
         padding: const EdgeInsets.all(14),
@@ -5447,7 +5448,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                       if (endStr.isNotEmpty) ...[
                         const Icon(Icons.calendar_today_rounded, size: 11, color: kMerchantMuted),
                         const SizedBox(width: 4),
-                        Text("Ends ${_formatDealDate(endStr)}", style: const TextStyle(color: kMerchantMuted, fontSize: 11)),
+                        Text(context.l10n.bizEndsOn(_formatDealDate(endStr)), style: const TextStyle(color: kMerchantMuted, fontSize: 11)),
                         const SizedBox(width: 8),
                       ],
                       Container(
@@ -5456,7 +5457,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                           color: isExpired ? Colors.red.withValues(alpha: .12) : Colors.green.withValues(alpha: .12),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(isExpired ? "Expired" : "Active",
+                        child: Text(isExpired ? context.l10n.dealExpired : context.l10n.bizActive,
                           style: TextStyle(color: isExpired ? Colors.red.shade700 : Colors.green.shade700, fontSize: 10, fontWeight: FontWeight.w700)),
                       ),
                     ]);
@@ -5466,7 +5467,7 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, color: kMerchantPrimary),
-                  tooltip: "Edit Deal",
+                  tooltip: context.l10n.bizEditDeal,
                   onPressed: () {
                     Navigator.push(context, appRoute(AddDealPage(
                       token: widget.token,
@@ -5481,12 +5482,12 @@ class _MerchantDealsState extends State<MerchantDealsPage> {
                   onPressed: () async {
                     final confirm = await showDialog<bool>(context: context,
                       builder: (_) => AlertDialog(
-                        title: const Text("Delete Deal?"),
-                        content: Text("Delete \"${d['title']}\"?"),
+                        title: Text(context.l10n.bizDeleteDeal),
+                        content: Text(context.l10n.bizDeleteDealNamed('${d['title']}')),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+                          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.commonCancel)),
                           ElevatedButton(style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: Colors.red),
-                            onPressed: () => Navigator.pop(context, true), child: const Text("Delete", style: TextStyle(color: Colors.white))),
+                            onPressed: () => Navigator.pop(context, true), child: Text(context.l10n.bizDelete, style: TextStyle(color: Colors.white))),
                         ]));
                     if (confirm == true) {
                       await Api.deleteDeal(widget.token, d["_id"]);
@@ -5616,13 +5617,13 @@ class _AddDealState extends State<AddDealPage> {
   String _formatEndDateDisplay() {
     final dt = DateTime.tryParse(_endDate);
     if (dt == null) return _endDate;
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    final months = monthsShortOf(offroNoContext);
     return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
   }
 
   String _storeExpiryDisplay() {
     if (_storeExpiryDate == null) return "";
-    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    final months = monthsShortOf(offroNoContext);
     return "${_storeExpiryDate!.day} ${months[_storeExpiryDate!.month - 1]} ${_storeExpiryDate!.year}";
   }
 
@@ -5637,22 +5638,22 @@ class _AddDealState extends State<AddDealPage> {
     final bytes = await File(img.path).readAsBytes();
     if (bytes.length > 2 * 1024 * 1024) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Image too large. Max 2MB."), backgroundColor: Colors.red));
+        SnackBar(content: Text(context.l10n.bizImageTooLargeMax2MB), backgroundColor: Colors.red));
       return;
     }
     setState(() { _dealImgB64 = "data:image/jpeg;base64,${base64Encode(bytes)}"; _dealImgUrl = null; });
   }
 
   Future<void> _save() async {
-    if (_title.text.trim().isEmpty) { setState(() => _msg = "Deal title is required"); return; }
-    if (_endDate.isEmpty)           { setState(() => _msg = "End date is required"); return; }
+    if (_title.text.trim().isEmpty) { setState(() => _msg = context.l10n.bizDealTitleIsRequired); return; }
+    if (_endDate.isEmpty)           { setState(() => _msg = context.l10n.bizEndDateIsRequired); return; }
     // Image is mandatory (new deal, or an edit that would leave the deal without one).
-    if ((_dealImgB64 ?? _dealImgUrl ?? "").isEmpty) { setState(() => _msg = "Please add an image before saving."); return; }
+    if ((_dealImgB64 ?? _dealImgUrl ?? "").isEmpty) { setState(() => _msg = context.l10n.bizPleaseAddAnImageBefore); return; }
 
     if (_storeExpiryDate != null) {
       final endDt = DateTime.tryParse(_endDate);
       if (endDt != null && endDt.isAfter(_storeExpiryDate!)) {
-        setState(() => _msg = "End date cannot exceed store expiry (${_storeExpiryDisplay()})");
+        setState(() => _msg = context.l10n.bizEndDateExceedsStore(_storeExpiryDisplay()));
         return;
       }
     }
@@ -5685,22 +5686,22 @@ class _AddDealState extends State<AddDealPage> {
       if (_isEdit) {
         await Api.updateDeal(widget.token, widget.editDeal!["_id"].toString(), payload);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Deal updated!"), backgroundColor: OffroColors.statusLive));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.l10n.bizDealUpdated), backgroundColor: OffroColors.statusLive));
       } else {
         await Api.addDeal(widget.token, payload);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Deal added!"), backgroundColor: OffroColors.statusLive));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context.l10n.bizDealAdded), backgroundColor: OffroColors.statusLive));
       }
       Navigator.pop(context);
-    } catch (e) { setState(() => _msg = friendlyError(e)); }
+    } catch (e) { setState(() => _msg = friendlyError(e, l10n: mounted ? context.l10n : null)); }
     if (mounted) setState(() => _loading = false);
   }
 
   @override Widget build(BuildContext context) => Scaffold(
     backgroundColor: kMerchantBg,
-    appBar: AppBar(title: Text(_isEdit ? "Edit Deal" : "Add Deal", style: const TextStyle(fontWeight: FontWeight.w800)),  ),
+    appBar: AppBar(title: Text(_isEdit ? context.l10n.bizEditDeal : context.l10n.bizAddDeal, style: const TextStyle(fontWeight: FontWeight.w800)),  ),
     body: SingleChildScrollView(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.stores.length > 1) ...[
         DropdownButtonFormField<String>(
@@ -5710,7 +5711,7 @@ class _AddDealState extends State<AddDealPage> {
             DropdownMenuItem<String>(value: s["_id"]?.toString() ?? "",
               child: Text(s["store_name"]?.toString() ?? "", overflow: TextOverflow.ellipsis))).toList(),
           onChanged: (v) { if (v != null) { final s = widget.stores.firstWhere((s) => s["_id"] == v, orElse: () => <String,dynamic>{}); setState(() { _selectedStoreId = v; _selectedStoreName = s["store_name"] ?? ""; }); _loadStoreExpiry(); } },
-          decoration: InputDecoration(labelText: "Store", prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
+          decoration: InputDecoration(labelText: context.l10n.homeStoreWord, prefixIcon: const Icon(Icons.store, color: kMerchantMuted, size: 20),
             filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
         const SizedBox(height: 14),
@@ -5720,7 +5721,7 @@ class _AddDealState extends State<AddDealPage> {
           child: Row(children: [const Icon(Icons.store, color: kMerchantPrimary, size: 18), const SizedBox(width: 8),
             Text(_selectedStoreName, style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w600))])),
       TextField(controller: _title,
-        decoration: InputDecoration(hintText: "Deal Title (e.g. 20% off on all items)", prefixIcon: const Icon(Icons.title, color: kMerchantMuted, size: 20),
+        decoration: InputDecoration(hintText: context.l10n.bizDealTitleEG20, prefixIcon: const Icon(Icons.title, color: kMerchantMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
@@ -5729,17 +5730,17 @@ class _AddDealState extends State<AddDealPage> {
         value: _category.isEmpty ? null : _category,
         items: _categories.map((e) { final c=(e is Map?e['name']:e).toString(); return DropdownMenuItem<String>(value:c,child:Text(c)); }).toList(),
         onChanged: (v) => setState(() => _category = v ?? ""),
-        decoration: InputDecoration(hintText: "Category", prefixIcon: const Icon(Icons.category, color: kMerchantMuted, size: 20),
+        decoration: InputDecoration(hintText: context.l10n.bizCategory, prefixIcon: const Icon(Icons.category, color: kMerchantMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       TextField(controller: _desc, maxLines: 3,
-        decoration: InputDecoration(hintText: "Description (optional)", prefixIcon: const Icon(Icons.description_outlined, color: kMerchantMuted, size: 20),
+        decoration: InputDecoration(hintText: context.l10n.bizDescriptionOptional, prefixIcon: const Icon(Icons.description_outlined, color: kMerchantMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),
           enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)))),
       const SizedBox(height: 12),
       // ── Item 3: Deal Image (required) ──
-      const Text("Deal Image", style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+      Text(context.l10n.bizDealImage, style: TextStyle(color: kMerchantMuted, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
       GestureDetector(
         onTap: _pickDealImage,
@@ -5754,7 +5755,7 @@ class _AddDealState extends State<AddDealPage> {
               ? Stack(children: [
                   ClipRRect(borderRadius: BorderRadius.circular(11),
                     child: Image.memory(base64Decode(_dealImgB64!.split(",").last), width: double.infinity, height: 130, fit: BoxFit.cover)),
-                  Positioned(top: 6, right: 6, child: GestureDetector(
+                  PositionedDirectional(top: 6, end: 6, child: GestureDetector(
                     onTap: () => setState(() => _dealImgB64 = null),
                     child: Container(padding: const EdgeInsets.all(4),
                       decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
@@ -5767,9 +5768,9 @@ class _AddDealState extends State<AddDealPage> {
                           errorBuilder: (_, __, ___) => Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                             const Icon(Icons.broken_image_outlined, color: kMerchantMuted, size: 32),
                             const SizedBox(height: 6),
-                            const Text("Tap to replace image", style: TextStyle(color: kMerchantMuted, fontSize: 12)),
+                            Text(context.l10n.bizTapToReplaceImage, style: TextStyle(color: kMerchantMuted, fontSize: 12)),
                           ]))),
-                      Positioned(top: 6, right: 6, child: GestureDetector(
+                      PositionedDirectional(top: 6, end: 6, child: GestureDetector(
                         onTap: () => setState(() => _dealImgUrl = null),
                         child: Container(padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
@@ -5780,7 +5781,7 @@ class _AddDealState extends State<AddDealPage> {
                       const SizedBox(height: 6),
                       const Text("[ Upload Image ]", style: TextStyle(color: kMerchantMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                       const SizedBox(height: 4),
-                      _InfoChip("📦 Max 2MB · Required"),
+                      _InfoChip(context.l10n.bizMax2MBRequired),
                     ]),
         ),
       ),
@@ -5796,13 +5797,13 @@ class _AddDealState extends State<AddDealPage> {
             const Icon(Icons.calendar_today_rounded, color: kMerchantMuted, size: 20),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(_endDate.isEmpty ? "Select End Date" : _formatEndDateDisplay(),
+              child: Text(_endDate.isEmpty ? context.l10n.bizSelectEndDate : _formatEndDateDisplay(),
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: _endDate.isEmpty ? kMerchantMuted : kMerchantText, fontSize: 14, fontWeight: FontWeight.w600)),
             ),
             if (_storeExpiryDate != null) ...[
               const SizedBox(width: 8),
-              Text("Max: ${_storeExpiryDisplay()}",
+              Text(context.l10n.bizMaxDateLine(_storeExpiryDisplay()),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
                 style: const TextStyle(color: kMerchantMuted, fontSize: 10)),
@@ -5813,7 +5814,7 @@ class _AddDealState extends State<AddDealPage> {
         onPressed: _loading ? null : _save,
         style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: kMerchantPrimary, shape: const StadiumBorder()),
         child: _loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-          : Text(_isEdit ? "Save Changes" : "Add Deal", style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)))),
+          : Text(_isEdit ? context.l10n.bizSaveChanges : context.l10n.bizAddDeal, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)))),
       if (_msg.isNotEmpty) ...[const SizedBox(height: 10),
         Text(_msg, textAlign: TextAlign.center, style: TextStyle(color: Colors.red.shade700, fontSize: 13))],
       const SizedBox(height: 24),
@@ -6026,7 +6027,7 @@ class _FullScreenVideoPageState extends State<_FullScreenVideoPage> {
         : const CircularProgressIndicator(color: Colors.white)),
       Positioned(top: 0, left: 0, right: 0,
         child: SafeArea(child: Padding(padding: const EdgeInsets.all(8),
-          child: Align(alignment: Alignment.topLeft,
+          child: Align(alignment: AlignmentDirectional.topStart,
             child: GestureDetector(onTap: () => Navigator.pop(context),
               child: Container(width: 38, height: 38,
                 decoration: BoxDecoration(color: Colors.black.withValues(alpha: .5), borderRadius: BorderRadius.circular(12)),
@@ -6068,7 +6069,7 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
          
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: const Text("Privacy Policy", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+        title: Text(context.l10n.profilePrivacy, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(height: 1, color: kMerchantBorder),
@@ -6080,7 +6081,7 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
             padding: const EdgeInsets.all(20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               if (_content.isEmpty)
-                const Text("Privacy policy content is being updated. Please check back later.",
+                Text(context.l10n.legalPrivacyUpdating,
                   style: TextStyle(color: kMerchantMuted, fontSize: 14))
               else ...[
                 Text(
@@ -6092,7 +6093,7 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
                   GestureDetector(
                     onTap: () => setState(() => _expanded = !_expanded),
                     child: Text(
-                      _expanded ? "Read Less" : "Read More",
+                      _expanded ? context.l10n.legalReadLess : context.l10n.legalReadMore,
                       style: const TextStyle(color: kMerchantPrimary, fontWeight: FontWeight.w700, fontSize: 14),
                     ),
                   ),
@@ -6124,10 +6125,10 @@ class _MerchantPrivacyPolicyPageState extends State<MerchantPrivacyPolicyPage> {
                     Expanded(child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text("Request to delete my account",
+                        Text(context.l10n.legalDeleteRequest,
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.red)),
                         const SizedBox(height: 2),
-                        Text("All your stores, products & data will be permanently removed",
+                        Text(context.l10n.bizAllYourStoresProductsData,
                           style: TextStyle(fontSize: 12, color: Colors.red.shade700)),
                       ],
                     )),
@@ -6170,7 +6171,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
          
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        title: const Text("Delete Account", style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+        title: Text(context.l10n.delTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Divider(height: 1, color: kMerchantBorder),
@@ -6189,7 +6190,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
             const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 24),
             const SizedBox(width: 12),
             Expanded(child: Text(
-              "Once your account is deleted, your stores, products, banners and data cannot be retrieved. Signing up again will create a new account.",
+              context.l10n.bizOnceYourAccountIsDeleted,
               style: TextStyle(fontSize: 13, color: Colors.orange.shade900, height: 1.4),
             )),
           ]),
@@ -6197,8 +6198,8 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
           child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text("Select a reason for deleting your account",
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(context.l10n.delSelectReason,
               style: TextStyle(fontSize: 13, color: kMerchantMuted, fontWeight: FontWeight.w500)),
           ),
         ),
@@ -6224,7 +6225,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
                     color: selected ? kMerchantPrimary : kMerchantMuted, size: 22,
                   ),
                   const SizedBox(width: 10),
-                  Expanded(child: Text(r,
+                  Expanded(child: Text(localizedDeleteReason(context, r),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
@@ -6243,7 +6244,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
             child: ElevatedButton.icon(
               onPressed: _selectedReason == null ? null : () => _showConfirmDialog(),
               icon: const Icon(Icons.delete_forever_rounded, size: 20),
-              label: const Text("Submit Delete Request", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+              label: Text(context.l10n.delSubmit, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
               style: ElevatedButton.styleFrom(elevation: 0, 
                 backgroundColor: Colors.red,
                 foregroundColor: Colors.white,
@@ -6264,15 +6265,15 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text("Delete Account?", style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
-        content: const Text(
-          "Your merchant account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your stores, products and data cannot be retrieved. Are you absolutely sure?",
+        title: Text(ctx.l10n.delConfirmTitle, style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
+        content: Text(
+          ctx.l10n.bizYourMerchantAccountWillBe,
           style: TextStyle(fontSize: 14, color: kMerchantText, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel", style: TextStyle(color: kMerchantMuted, fontWeight: FontWeight.w600)),
+            child: Text(ctx.l10n.commonCancel, style: TextStyle(color: kMerchantMuted, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -6283,7 +6284,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
               backgroundColor: Colors.red, foregroundColor: Colors.white,
               shape: const StadiumBorder(),
             ),
-            child: const Text("Yes, Delete", style: TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(ctx.l10n.delConfirmYes, style: TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -6300,9 +6301,9 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text("Deletion Requested", style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
-          content: const Text(
-            "Your account deletion request has been submitted. You have been logged out.",
+          title: Text(ctx.l10n.delRequestedTitle, style: TextStyle(fontWeight: FontWeight.w800, color: kMerchantText)),
+          content: Text(
+            ctx.l10n.delRequestedBody,
             style: TextStyle(fontSize: 14, color: kMerchantText),
           ),
           actions: [
@@ -6320,7 +6321,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
                 backgroundColor: kMerchantPrimary, foregroundColor: Colors.white,
                 shape: const StadiumBorder(),
               ),
-              child: const Text("OK", style: TextStyle(fontWeight: FontWeight.w700)),
+              child: Text(ctx.l10n.commonOk, style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -6329,7 +6330,7 @@ class _MerchantDeleteAccountReasonPageState extends State<MerchantDeleteAccountR
       debugPrint('[MerchantAccount] delete request error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
+        SnackBar(content: Text(context.l10n.delSubmitFailed(friendlyError(e, l10n: context.l10n))),
           backgroundColor: Colors.red),
       );
     }

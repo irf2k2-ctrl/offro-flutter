@@ -20,6 +20,7 @@ import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii, 
 import '../../core/widgets/brand_logo.dart' show buildImageLogo;
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
 import '../collab/collab_screens.dart' show InfluencerOpportunitiesView, CampaignOpportunitiesSection;
+import '../../core/l10n/l10n.dart';
 
 /// Local equivalent of the file-private `_timeAgo()` helpers already used
 /// elsewhere (lib/main.dart, notifications_page.dart) — same exact pattern,
@@ -48,11 +49,11 @@ String _reviewTimeAgo(String isoTs) {
   try {
     final dt   = _parseServerTimestamp(isoTs);
     final diff = DateTime.now().toUtc().difference(dt);
-    if (diff.inMinutes < 1)  return "just now";
-    if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
-    if (diff.inHours  < 24)  return "${diff.inHours}h ago";
-    if (diff.inDays   < 7)   return "${diff.inDays}d ago";
-    return "${(diff.inDays / 7).floor()}w ago";
+    if (diff.inMinutes < 1)  return offroNoContext.timeAgoJustNow;
+    if (diff.inMinutes < 60) return offroNoContext.timeAgoMinutes('${diff.inMinutes}');
+    if (diff.inHours  < 24)  return offroNoContext.timeAgoHours('${diff.inHours}');
+    if (diff.inDays   < 7)   return offroNoContext.timeAgoDays('${diff.inDays}');
+    return offroNoContext.timeAgoWeeks('${(diff.inDays / 7).floor()}');
   } catch (_) { return ""; }
 }
 
@@ -125,7 +126,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
       setState(() { _profile = p; _loading = false; });
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = friendlyError(e); _loading = false; });
+      setState(() { _error = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -192,7 +193,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         if (widget.onSwitchMode != null)
           IconButton(
             icon: const Icon(Icons.swap_horiz_rounded, color: OffroColors.text),
-            tooltip: "Switch Mode",
+            tooltip: context.l10n.profileSwitchMode,
             onPressed: _openSwitchMode,
           ),
       ];
@@ -208,8 +209,8 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
         backgroundColor: OffroColors.background,
         appBar: (_tab == 2 && !_hasProfile)
             ? merchantHeaderBar(
-                eyebrow: "Creator account",
-                title: "Profile",
+                eyebrow: context.l10n.bizCreatorAccount,
+                title: context.l10n.profileTitle,
                 back: Navigator.canPop(context),
                 actions: _headerActions(),
               )
@@ -298,9 +299,9 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
                 const Spacer(),
               ]),
               const SizedBox(height: 28),
-              Text('CREATOR WORKSPACE', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+              Text(context.l10n.bizCREATORWORKSPACE, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
               const SizedBox(height: 4),
-              Text(first.isEmpty ? 'Welcome back' : 'Welcome back, $first', style: OffroText.headline),
+              Text(first.isEmpty ? context.l10n.bizWelcomeBack : context.l10n.bizWelcomeBackName(first), style: OffroText.headline),
               if (sub.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(sub, style: OffroText.body.copyWith(color: OffroColors.secondarySolid)),
@@ -312,11 +313,11 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
             child: Padding(
               padding: OffroSpacing.gutterH,
               child: Row(children: [
-                _statTile('$views', 'Profile views'),
+                _statTile('$views', context.l10n.bizProfileViews),
                 const SizedBox(width: 8),
-                _statTile('$saves', 'Saved by'),
+                _statTile('$saves', context.l10n.bizSavedBy),
                 const SizedBox(width: 8),
-                _statTile('$reviews', 'Reviews'),
+                _statTile('$reviews', context.l10n.storeTabReviews),
               ]),
             ),
           ),
@@ -336,19 +337,19 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
                   ),
                   const SizedBox(width: 14),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(live ? "Your profile is live" : "Your profile isn't live yet",
+                    Text(live ? context.l10n.bizYourProfileIsLive : context.l10n.bizYourProfileIsnTLive,
                         style: OffroText.value.copyWith(fontSize: 14, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 3),
-                    Text(live ? "Merchants and customers can discover you." : "Open your profile to review and publish it.",
+                    Text(live ? context.l10n.bizMerchantsAndCustomersCanDiscover : context.l10n.bizOpenYourProfileToReview,
                         style: OffroText.caption.copyWith(color: OffroColors.secondarySolid)),
                   ])),
                   const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.secondarySolid),
                 ]),
               ),
               const SizedBox(height: 28),
-              Text('MATCHED FOR YOU', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+              Text(context.l10n.bizMATCHEDFORYOU, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
               const SizedBox(height: 4),
-              Text('Campaign opportunities', style: OffroText.title),
+              Text(context.l10n.bizCampaignOpportunities, style: OffroText.title),
               const SizedBox(height: 14),
               CampaignOpportunitiesSection(
                 token: widget.token,
@@ -383,7 +384,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
             ElevatedButton(
               onPressed: _load,
               style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kPrimary),
-              child: const Text("Try Again", style: TextStyle(color: Colors.white)),
+              child: Text(context.l10n.commonTryAgain, style: TextStyle(color: Colors.white)),
             ),
           ]),
         ),
@@ -423,15 +424,15 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
             child: OffroIcon(OffroIcons.sparkles, size: 32, color: OffroTones.fashion.foreground),
           ),
           const SizedBox(height: 24),
-          Text('INFLUENCER WORKSPACE', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
+          Text(context.l10n.bizINFLUENCERWORKSPACE, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
           const SizedBox(height: 8),
-          Text("Create your local profile.", textAlign: TextAlign.center, style: OffroText.headline),
+          Text(context.l10n.bizCreateYourLocalProfile, textAlign: TextAlign.center, style: OffroText.headline),
           const SizedBox(height: 10),
-          Text("You'll need an Influencer profile to use the Influencer module — it's how customers and merchants discover you on OffrO.",
+          Text(context.l10n.bizYouLlNeedAnInfluencer,
               textAlign: TextAlign.center, style: OffroText.body),
           const SizedBox(height: 28),
           OffroButton(
-            label: "+ Add influencer profile",
+            label: context.l10n.bizAddInfluencerProfile,
             expand: false,
             onPressed: () async {
               final created = await Navigator.push<Map<String,dynamic>>(context,
@@ -587,7 +588,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(label, style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
             const SizedBox(height: 2),
-            Text(has ? value : "Not added", maxLines: maxLines, overflow: TextOverflow.ellipsis,
+            Text(has ? value : context.l10n.bizNotAdded, maxLines: maxLines, overflow: TextOverflow.ellipsis,
               style: OffroText.cardTitle.copyWith(fontSize: 13,
                 color: has ? OffroColors.text : OffroColors.textFaint,
                 fontWeight: has ? FontWeight.w600 : FontWeight.w400)),
@@ -604,7 +605,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
       child: Row(children: [
         GestureDetector(
           onTap: _openEdit, // photo is changed in the Edit form (same as the old camera badge)
-          child: Stack(alignment: Alignment.bottomRight, children: [
+          child: Stack(alignment: AlignmentDirectional.bottomEnd, children: [
             _avatar(64),
             Container(
               width: 20, height: 20,
@@ -617,7 +618,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
         ),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name.isEmpty ? "OffrO Influencer" : name, maxLines: 1, overflow: TextOverflow.ellipsis,
+          Text(name.isEmpty ? context.l10n.bizOffrOInfluencer : name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: OffroText.cardTitle.copyWith(fontSize: 16)),
           if (phone.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -628,7 +629,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(color: Colors.white.withValues(alpha: .55), borderRadius: OffroRadii.pillRadius),
-            child: Text("OffrO Influencer",
+            child: Text(context.l10n.bizOffrOInfluencer,
               style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
           ),
         ])),
@@ -668,7 +669,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
         padding: EdgeInsets.only(top: topPad, bottom: 28),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          OffroScreenHeader(eyebrow: "Creator account", title: "Profile", showBack: Navigator.canPop(context)),
+          OffroScreenHeader(eyebrow: context.l10n.bizCreatorAccount, title: context.l10n.profileTitle, showBack: Navigator.canPop(context)),
           Padding(
             padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 24, OffroSpacing.gutter, 0),
             child: _identityCard(name, phone),
@@ -685,7 +686,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
                   child: SizedBox(width: double.infinity, child: ElevatedButton.icon(
                     onPressed: _openEdit,
                     icon: const Icon(Icons.payment_rounded, size: 16, color: Colors.white),
-                    label: const Text("Continue Publishing / Pay Now", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                    label: Text(context.l10n.bizContinuePublishingPayNow, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
                     style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: OffroColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 12), shape: const StadiumBorder()),
                   )),
@@ -693,71 +694,71 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
 
               // ── MY PROFILE ──
               const SizedBox(height: 28),
-              _eyebrow("My profile"),
+              _eyebrow(context.l10n.bizMyProfile),
 
               Padding(
                 padding: const EdgeInsets.only(top: 20, bottom: 10),
                 child: Row(children: [
-                  Expanded(child: Text("Business Details", style: OffroText.cardTitle.copyWith(fontSize: 13))),
+                  Expanded(child: Text(context.l10n.bizBusinessDetails, style: OffroText.cardTitle.copyWith(fontSize: 13))),
                   GestureDetector(
                     onTap: _openEdit,
-                    child: Text("Edit", style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: OffroColors.primary)),
+                    child: Text(context.l10n.revEdit, style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: OffroColors.primary)),
                   ),
                 ]),
               ),
               _card([
-                _infoRow(const OffroIcon(OffroIcons.user, size: 16, color: OffroColors.primary), "Display Name", name),
-                _infoRow(const OffroIcon(OffroIcons.message, size: 16, color: OffroColors.primary), "Bio", bio, maxLines: 3),
-                _infoRow(const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary), "State", state),
-                _infoRow(const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary), "City", city, last: true),
+                _infoRow(const OffroIcon(OffroIcons.user, size: 16, color: OffroColors.primary), context.l10n.bizDisplayName, name),
+                _infoRow(const OffroIcon(OffroIcons.message, size: 16, color: OffroColors.primary), context.l10n.bizBio, bio, maxLines: 3),
+                _infoRow(const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary), context.l10n.bizState, state),
+                _infoRow(const OffroIcon(OffroIcons.pin, size: 16, color: OffroColors.primary), context.l10n.bizCity, city, last: true),
               ]),
 
-              _sectionTitle("Social Pages"),
+              _sectionTitle(context.l10n.bizSocialPages),
               _card([
                 _infoRow(const Icon(Icons.camera_alt_rounded, size: 16, color: Color(0xFFD4537E)), "Instagram", s("instagram"), maxLines: 1),
                 _infoRow(const Icon(Icons.facebook_rounded, size: 16, color: Color(0xFF378ADD)), "Facebook", s("facebook"), maxLines: 1),
                 _infoRow(const Icon(Icons.play_circle_fill_rounded, size: 16, color: Color(0xFFE24B4A)), "YouTube", s("youtube"), maxLines: 1, last: true),
               ]),
 
-              _sectionTitle("Primary Specialty"),
+              _sectionTitle(context.l10n.bizPrimarySpecialty),
               _card([
                 InkWell(
                   onTap: _openEdit,
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: displayCategories.isEmpty
-                        ? Text("No specialty selected", style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint))
+                        ? Text(context.l10n.bizNoSpecialtySelected, style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint))
                         : SizedBox(width: double.infinity, child: _categoryChips(displayCategories)),
                   ),
                 ),
               ]),
 
-              _sectionTitle("Account Details"),
+              _sectionTitle(context.l10n.bizAccountDetails),
               _card([
                 _actionRow(
                   icon: Icon(_isActive ? Icons.visibility_off_rounded : Icons.visibility_rounded, size: 16, color: OffroColors.primary),
-                  label: _isActive ? "Disable" : "Enable",
-                  note: _isActive ? "Hide your profile from customers" : "Make your profile visible again",
+                  label: _isActive ? context.l10n.bizDisable : context.l10n.bizEnable,
+                  note: _isActive ? context.l10n.bizHideYourProfileFromCustomers : context.l10n.bizMakeYourProfileVisibleAgain,
                   onTap: _busy ? null : _toggleActive),
                 _actionRow(
                   icon: const Icon(Icons.delete_outline_rounded, size: 16, color: OffroColors.error),
-                  label: "Delete", destructive: true, last: true,
+                  label: context.l10n.bizDelete, destructive: true, last: true,
                   onTap: _busy ? null : _confirmDelete),
               ]),
 
               // ── ACCOUNT — Switch Mode + Logout (same SwitchModeSheet / logout as Customer & Merchant) ──
               const SizedBox(height: 28),
-              _eyebrow("Account"),
+              _eyebrow(context.l10n.profileGroupAccount),
               const SizedBox(height: _eyebrowGap),
               _card([
                 if (widget.onSwitchMode != null)
                   _actionRow(
                     icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: OffroColors.primary),
-                    label: "Switch Mode", note: "Switch to your Customer account",
+                    label: context.l10n.profileSwitchMode, note: context.l10n.bizSwitchToYourCustomerAccount,
                     onTap: widget.onSwitchMode),
                 _actionRow(
                   icon: const OffroIcon(OffroIcons.arrow, size: 16, color: OffroColors.error),
-                  label: "Logout", destructive: true, last: true,
+                  label: context.l10n.profileLogout, destructive: true, last: true,
                   onTap: widget.onLogout),
               ]),
             ]),
@@ -794,16 +795,16 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     }
     String text; Color color; IconData icon;
     if (_publishStatus == "draft" && _paymentStatus != "PAID") {
-      text = "Your profile is saved as a draft. Complete the one-time subscription payment from Edit Profile → Save & Publish to make it visible to customers.";
+      text = context.l10n.bizYourProfileIsSavedAs;
       color = const Color(0xFFB8860B); icon = Icons.info_outline_rounded;
     } else if (_paymentStatus == "PAYMENT_PENDING") {
-      text = "Payment is being processed. If you completed a payment and this doesn't update, try Save & Publish again.";
+      text = context.l10n.bizPaymentIsBeingProcessedIf;
       color = const Color(0xFFB8860B); icon = Icons.hourglass_top_rounded;
     } else if (_paymentStatus == "PAYMENT_FAILED") {
-      text = "Your last subscription payment attempt failed. Please try Save & Publish again to complete payment.";
+      text = context.l10n.bizYourLastSubscriptionPaymentAttempt;
       color = Colors.red; icon = Icons.error_outline_rounded;
     } else {
-      text = "Your profile is not yet published.";
+      text = context.l10n.bizYourProfileIsNotYet;
       color = const Color(0xFFB8860B); icon = Icons.info_outline_rounded;
     }
     return Container(
@@ -827,7 +828,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
       if (mounted) onProfileUpdated(fresh);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));
+        SnackBar(content: Text(friendlyError(e, l10n: mounted ? context.l10n : null)), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -839,14 +840,14 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete Influencer Profile?"),
-        content: const Text(
-          "Are you sure you want to delete your influencer profile? This action cannot be undone.\n\n"
-          "If you create a new influencer profile in the future, a new subscription payment will be required."),
+        title: Text(ctx.l10n.bizDeleteInfluencerProfile),
+        content: Text(
+          '${ctx.l10n.bizAreYouSureYouWant}\n\n'
+          '${ctx.l10n.bizIfYouCreateANew}'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.commonCancel)),
           TextButton(onPressed: () => Navigator.pop(ctx, true),
-            child: const Text("Delete Profile", style: TextStyle(color: Colors.red))),
+            child: Text(ctx.l10n.bizDeleteProfile, style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -857,7 +858,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
       if (mounted) widget.onProfileDeleted();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(friendlyError(e)), backgroundColor: Colors.red));
+        SnackBar(content: Text(friendlyError(e, l10n: mounted ? context.l10n : null)), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -926,7 +927,7 @@ class _MyReviewsSectionState extends State<_MyReviewsSection> {
   /// review submissions never attach one, so this stays dormant until/
   /// unless the backend starts sending it; nothing here requires that field.
   Widget _reviewCard(Map<String, dynamic> r) {
-    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? "Anonymous";
+    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? context.l10n.revAnonymous;
     final stars = (r["rating"] as num?)?.toInt() ?? 0;
     final text = r["text"]?.toString() ?? "";
     final ts = r["created_at"]?.toString() ?? "";
@@ -981,13 +982,13 @@ class _MyReviewsSectionState extends State<_MyReviewsSection> {
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Expanded(child: Text('REVIEWS', style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong))),
+        Expanded(child: Text(context.l10n.bizREVIEWS, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong))),
         if (_reviews.isNotEmpty)
           GestureDetector(
             onTap: () => Navigator.push(context, MaterialPageRoute(
               builder: (_) => _MyInfluencerAllReviewsScreen(influencerId: widget.influencerId, name: widget.name))),
-            child: Row(mainAxisSize: MainAxisSize.min, children: const [
-              Text("See all", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(context.l10n.homeSeeAllLower, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: kPrimary)),
               Icon(Icons.chevron_right_rounded, size: 16, color: kPrimary),
             ]),
           ),
@@ -1006,7 +1007,7 @@ class _MyReviewsSectionState extends State<_MyReviewsSection> {
                 child: const Icon(Icons.star_border_rounded, size: 16, color: OffroColors.primary),
               ),
               const SizedBox(width: 12),
-              Text("No reviews yet", style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint)),
+              Text(context.l10n.revNoneTitle, style: OffroText.caption.copyWith(fontSize: 12, color: OffroColors.textFaint)),
             ]),
           ),
         ])
@@ -1059,19 +1060,19 @@ class _MyInfluencerAllReviewsScreenState extends State<_MyInfluencerAllReviewsSc
     return Scaffold(
       backgroundColor: kBg,
       appBar: merchantHeaderBar(
-        eyebrow: "Creator reviews",
-        title: "Reviews for ${widget.name}",
+        eyebrow: context.l10n.bizCreatorReviews,
+        title: context.l10n.bizReviewsFor(widget.name),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
           : _reviews.isEmpty
-              ? const Center(child: Text("No reviews yet", style: TextStyle(fontSize: 13, color: kMuted)))
+              ? Center(child: Text(context.l10n.revNoneTitle, style: TextStyle(fontSize: 13, color: kMuted)))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: _reviews.length,
                   itemBuilder: (ctx, i) {
                     final r = _reviews[i];
-                    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? "Anonymous";
+                    final reviewerName = (r["user_name"] ?? r["user"])?.toString() ?? ctx.l10n.revAnonymous;
                     final stars = (r["rating"] as num?)?.toInt() ?? 0;
                     final text = r["text"]?.toString() ?? "";
                     final ts = r["created_at"]?.toString() ?? "";
@@ -1245,7 +1246,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     final bytes = await File(img.path).readAsBytes();
     if (bytes.length > 2 * 1024 * 1024) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Image too large. Max 2MB."), backgroundColor: Colors.red));
+        SnackBar(content: Text(context.l10n.bizImageTooLargeMax2MB), backgroundColor: Colors.red));
       return;
     }
     setState(() => _photoB64 = "data:image/jpeg;base64,${base64Encode(bytes)}");
@@ -1271,9 +1272,9 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   /// profile that already has an image continues to work normally.
   Map<String, dynamic>? _validateAndBuildBody({bool requireImage = false}) {
     final name = _nameC.text.trim();
-    if (name.isEmpty) { setState(() => _errorMsg = "Name is required"); return null; }
-    if (_selState == null) { setState(() => _errorMsg = "Please select a state"); return null; }
-    if (_selCity == null) { setState(() => _errorMsg = "Please select a city"); return null; }
+    if (name.isEmpty) { setState(() => _errorMsg = context.l10n.bizNameIsRequired); return null; }
+    if (_selState == null) { setState(() => _errorMsg = context.l10n.bizPleaseSelectAState); return null; }
+    if (_selCity == null) { setState(() => _errorMsg = context.l10n.bizPleaseSelectACity); return null; }
     // Issue 2: validate exactly-10-digits on Save too, not just via the
     // input formatter (which only blocks typing past 10 — this also
     // catches an empty/short value if the user backspaced).
@@ -1283,7 +1284,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       if (_phoneCountry.iso == 'IN') {
         // India: the existing 10-digit format, sent exactly as before.
         if (phoneRaw.length != 10) {
-          setState(() => _errorMsg = "Please enter a valid 10-digit mobile number.");
+          setState(() => _errorMsg = context.l10n.bizPleaseEnterAValid10);
           return null;
         }
       } else {
@@ -1294,7 +1295,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       }
     }
     if (requireImage && _photoB64.isEmpty && !_existingPhotoUrl.startsWith("http")) {
-      setState(() => _errorMsg = "Profile image is required to publish your influencer profile.");
+      setState(() => _errorMsg = context.l10n.bizProfileImageIsRequiredTo);
       return null;
     }
     final body = <String, dynamic>{
@@ -1333,7 +1334,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       final fresh = await Api.getMyInfluencerProfile(widget.token);
       if (mounted) Navigator.pop(context, fresh);
     } catch (e) {
-      if (mounted) setState(() => _errorMsg = friendlyError(e));
+      if (mounted) setState(() => _errorMsg = friendlyError(e, l10n: mounted ? context.l10n : null));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1388,7 +1389,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       final fresh = await Api.getMyInfluencerProfile(widget.token);
       if (mounted) Navigator.pop(context, fresh);
     } catch (e) {
-      if (mounted) setState(() => _errorMsg = friendlyError(e));
+      if (mounted) setState(() => _errorMsg = friendlyError(e, l10n: mounted ? context.l10n : null));
     } finally {
       if (mounted && _publishing) setState(() => _publishing = false);
     }
@@ -1415,7 +1416,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   void _openRazorpayCheckout(Map<String, dynamic> order) {
     final rzpKey = order["razorpay_key"]?.toString() ?? '';
     if (rzpKey.isEmpty) {
-      setState(() => _errorMsg = "Payment gateway not configured. Contact support.");
+      setState(() => _errorMsg = context.l10n.bizPaymentGatewayNotConfiguredContact);
       return;
     }
     try {
@@ -1435,7 +1436,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       _razorpay.open(opts);
     } catch (e) {
       debugPrint('[OffrO] Razorpay open error: $e');
-      setState(() => _errorMsg = friendlyError(e, fallback: "Could not open payment. Please try again."));
+      setState(() => _errorMsg = friendlyError(e, fallback: context.l10n.bizCouldNotOpenPaymentPlease, l10n: mounted ? context.l10n : null));
     }
   }
 
@@ -1447,14 +1448,14 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => const Center(child: Card(
+      builder: (_) => Center(child: Card(
         color: Colors.white,
         child: Padding(padding: EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [
           CircularProgressIndicator(color: kPrimary),
           SizedBox(height: 16),
-          Text("Confirming payment...", style: TextStyle(fontWeight: FontWeight.w600, color: kText)),
+          Text(context.l10n.bizConfirmingPayment, style: TextStyle(fontWeight: FontWeight.w600, color: kText)),
           SizedBox(height: 4),
-          Text("Please wait a moment", style: TextStyle(color: kMuted, fontSize: 12)),
+          Text(context.l10n.bizPleaseWaitAMoment, style: TextStyle(color: kMuted, fontSize: 12)),
         ])),
       )),
     );
@@ -1471,7 +1472,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           razorpayOrderId: ordId, razorpayPaymentId: payId, razorpaySignature: sig);
         verified = true;
       } catch (e) {
-        failureMsg = friendlyError(e);
+        failureMsg = friendlyError(e, l10n: mounted ? context.l10n : null);
         if (attempt < 2) await Future.delayed(Duration(seconds: attempt + 1));
       }
     }
@@ -1496,7 +1497,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       // Payment succeeded on Razorpay's side but our server could not
       // verify it (or a network issue) — the profile stays draft/unpaid.
       // Never mark PAID/published on the client's own say-so.
-      setState(() => _errorMsg = failureMsg ?? "We couldn't confirm your payment. If money was deducted, it will be verified shortly — please try Save & Publish again in a moment.");
+      setState(() => _errorMsg = failureMsg ?? context.l10n.bizWeCouldnTConfirmYour);
     }
   }
 
@@ -1521,7 +1522,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     // silently — cancelling or a genuinely failed payment gave the customer
     // no feedback at all. Show a clean, classified message (never raw
     // Razorpay/gateway text) before handing control back to the parent.
-    final failMsg = friendlyRazorpayError(resp.message);
+    final failMsg = friendlyRazorpayError(resp.message, l10n: mounted ? context.l10n : null);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(failMsg), backgroundColor: Colors.red));
     try {
@@ -1537,8 +1538,8 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     return Scaffold(
       backgroundColor: kBg,
       appBar: merchantHeaderBar(
-        eyebrow: "Creator identity",
-        title: _isEdit ? "Edit profile" : "Add profile",
+        eyebrow: context.l10n.bizCreatorIdentity,
+        title: _isEdit ? context.l10n.bizEditProfile : context.l10n.bizAddProfile,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -1548,7 +1549,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
               onTap: _pickImage,
               child: Stack(children: [
                 _buildPhotoPreview(90),
-                Positioned(bottom: 0, right: 0, child: Container(
+                PositionedDirectional(bottom: 0, end: 0, child: Container(
                   width: 30, height: 30,
                   decoration: const BoxDecoration(color: kPrimary, shape: BoxShape.circle),
                   child: const Icon(Icons.camera_alt_rounded, size: 15, color: Colors.white),
@@ -1563,49 +1564,49 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Center(
-                child: Text("Required to publish", style: TextStyle(fontSize: 11.5, color: kMuted.withValues(alpha: .9), fontStyle: FontStyle.italic)),
+                child: Text(context.l10n.bizRequiredToPublish, style: TextStyle(fontSize: 11.5, color: kMuted.withValues(alpha: .9), fontStyle: FontStyle.italic)),
               ),
             ),
           const SizedBox(height: 24),
-          const Text("Name *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          Text(context.l10n.bizName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
-          TextField(controller: _nameC, decoration: _dec("e.g. Priya Sharma")),
+          TextField(controller: _nameC, decoration: _dec(context.l10n.bizEGPriyaSharma)),
           const SizedBox(height: 16),
-          const Text("Bio", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          Text(context.l10n.bizBio, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
           TextField(controller: _bioC, maxLines: 3, maxLength: 280,
-            decoration: _dec("Sharing the best local food, cafés, shops and great offers around your city.")),
+            decoration: _dec(context.l10n.bizSharingTheBestLocalFood)),
           const SizedBox(height: 4),
-          const Text("State *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          Text(context.l10n.bizState2, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: kIndiaStates.contains(_selState) ? _selState : null,
             items: kIndiaStates.map((s) => DropdownMenuItem(value: s, child: Text(s, overflow: TextOverflow.ellipsis))).toList(),
             onChanged: (v) => setState(() { _selState = v; _selCity = null; }),
-            decoration: _dec("Select state"),
-            hint: const Text("Select state"),
+            decoration: _dec(context.l10n.bizSelectState),
+            hint: Text(context.l10n.bizSelectState),
           ),
           const SizedBox(height: 16),
-          const Text("City *", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          Text(context.l10n.bizCity2, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: (_selState != null && (kIndiaCities[_selState] ?? []).contains(_selCity)) ? _selCity : null,
             items: (_selState == null ? <String>[] : (kIndiaCities[_selState] ?? []))
                 .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis))).toList(),
             onChanged: (v) => setState(() => _selCity = v),
-            decoration: _dec(_selState == null ? "Select state first" : "Select city"),
-            hint: Text(_selState == null ? "Select state first" : "Select city"),
+            decoration: _dec(_selState == null ? context.l10n.bizSelectStateFirst : context.l10n.bizSelectCity),
+            hint: Text(_selState == null ? context.l10n.bizSelectStateFirst : context.l10n.bizSelectCity),
           ),
           const SizedBox(height: 16),
-          const Text("Primary Specialty (select one or more)", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          Text(context.l10n.bizPrimarySpecialtySelectOneOr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 8),
           _loadingCategories
               ? const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(color: kPrimary))
               : _categories.isEmpty
-                  ? const Text("No categories available", style: TextStyle(fontSize: 12, color: kMuted))
+                  ? Text(context.l10n.bizNoCategoriesAvailable, style: TextStyle(fontSize: 12, color: kMuted))
                   : _specialtyField(),
           const SizedBox(height: 16),
-          const Text("Phone", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          Text(context.l10n.bizPhone, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
           TextField(
             controller: _phoneC,
@@ -1613,7 +1614,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             // Issue 2: numeric only. India stays hard-capped at 10 digits (the backend's exact 10-digit requirement for
             // Indian numbers); other countries use their own maximum.
             inputFormatters: [PhoneDigitsFormatter(maxPhoneInputLength(_phoneCountry))],
-            decoration: _dec(_phoneCountry.iso == 'IN' ? "10-digit mobile number" : phoneInputHint(_phoneCountry)).copyWith(
+            decoration: _dec(_phoneCountry.iso == 'IN' ? context.l10n.biz10DigitMobileNumber : phoneInputHint(_phoneCountry)).copyWith(
               prefixIcon: CountryCodeButton(
                 country: _phoneCountry,
                 onChanged: (c) => setState(() {
@@ -1626,13 +1627,13 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             ),
           ),
           const SizedBox(height: 20),
-          const Text("Social Links", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+          Text(context.l10n.bizSocialLinks, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
           const SizedBox(height: 10),
-          TextField(controller: _instaC, decoration: _dec("Instagram URL").copyWith(prefixIcon: const Icon(Icons.camera_alt_rounded, size: 18))),
+          TextField(controller: _instaC, decoration: _dec(context.l10n.bizInstagramURL).copyWith(prefixIcon: const Icon(Icons.camera_alt_rounded, size: 18))),
           const SizedBox(height: 10),
-          TextField(controller: _ytC, decoration: _dec("YouTube URL").copyWith(prefixIcon: const Icon(Icons.play_circle_fill_rounded, size: 18))),
+          TextField(controller: _ytC, decoration: _dec(context.l10n.bizYouTubeURL).copyWith(prefixIcon: const Icon(Icons.play_circle_fill_rounded, size: 18))),
           const SizedBox(height: 10),
-          TextField(controller: _fbC, decoration: _dec("Facebook URL").copyWith(prefixIcon: const Icon(Icons.facebook_rounded, size: 18))),
+          TextField(controller: _fbC, decoration: _dec(context.l10n.bizFacebookURL).copyWith(prefixIcon: const Icon(Icons.facebook_rounded, size: 18))),
           if (!_alreadyPaid) ...[
             const SizedBox(height: 24),
             _buildSubscriptionSummary(),
@@ -1653,7 +1654,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
               shape: const StadiumBorder()),
             child: _saving
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary))
-                : Text(_isEdit ? "Save (keep as draft)" : "Save", style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+                : Text(_isEdit ? context.l10n.bizSaveKeepAsDraft : context.l10n.bizSave, style: const TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
           )),
           const SizedBox(height: 10),
           // SAVE & PUBLISH — the one-time-payment path. Once the profile is
@@ -1664,7 +1665,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
               shape: const StadiumBorder()),
             child: _publishing
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text(_alreadyPaid ? "Save & Publish" : "Save & Publish (Pay to Publish)",
+                : Text(_alreadyPaid ? context.l10n.bizSavePublish : context.l10n.bizSavePublishPayToPublish,
                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           )),
         ],
@@ -1686,7 +1687,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       return Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(color: const Color(0xFFf0f9f4), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFc3dfc6))),
-        child: const Text("No subscription payment is currently required to publish your profile.",
+        child: Text(context.l10n.bizNoSubscriptionPaymentIsCurrently,
           style: TextStyle(fontSize: 12.5, color: OffroColors.primary)),
       );
     }
@@ -1713,9 +1714,9 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: const Color(0xFFfff0f6), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFf0c6d8))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text("Influencer Subscription", style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFa1275a))),
+        Text(context.l10n.bizInfluencerSubscription, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFa1275a))),
         const SizedBox(height: 8),
-        row("Subscription Fee", "₹${fee.toStringAsFixed(2)}"),
+        row(context.l10n.bizSubscriptionFee, "₹${fee.toStringAsFixed(2)}"),
         const SizedBox(height: 6),
         Row(children: [
           Expanded(
@@ -1725,7 +1726,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
               textCapitalization: TextCapitalization.characters,
               decoration: InputDecoration(
                 isDense: true,
-                hintText: "Discount code (optional)",
+                hintText: context.l10n.bizDiscountCodeOptional,
                 filled: true, fillColor: Colors.white,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kBorder)),
@@ -1754,7 +1755,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
                 shape: const StadiumBorder()),
               child: _applyingDiscount
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text("Apply", style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+                : Text(context.l10n.bizApply, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
             ),
           ),
         ]),
@@ -1767,17 +1768,17 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           child: Row(children: [
             const Icon(Icons.check_circle, size: 14, color: Color(0xFF2e7d32)),
             const SizedBox(width: 4),
-            Expanded(child: Text("Code '$_appliedDiscountCode' applied",
+            Expanded(child: Text(context.l10n.bizCodeAppliedNamed('$_appliedDiscountCode'),
               style: const TextStyle(fontSize: 11.5, color: Color(0xFF2e7d32), fontWeight: FontWeight.w700))),
           ]),
         ),
         const SizedBox(height: 8),
-        if (discountAmt > 0) row("Discount", "-₹${discountAmt.toStringAsFixed(2)}"),
-        row("GST (${gstPct.toStringAsFixed(gstPct == gstPct.roundToDouble() ? 0 : 1)}%)", "₹${gstAmt.toStringAsFixed(2)}"),
+        if (discountAmt > 0) row(context.l10n.bizDiscount, "-₹${discountAmt.toStringAsFixed(2)}"),
+        row(context.l10n.bizGstPct(gstPct.toStringAsFixed(gstPct == gstPct.roundToDouble() ? 0 : 1)), "₹${gstAmt.toStringAsFixed(2)}"),
         const Divider(height: 16),
-        row("Total Payable", "₹${total.toStringAsFixed(2)}", bold: true),
+        row(context.l10n.bizTotalPayable, "₹${total.toStringAsFixed(2)}", bold: true),
         const SizedBox(height: 8),
-        const Text("A one-time payment — you won't be charged again for editing or re-publishing this profile.",
+        Text(context.l10n.bizAOneTimePaymentYou,
           style: TextStyle(fontSize: 11, color: Color(0xFFa1275a))),
       ]),
     );
@@ -1794,7 +1795,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   Future<void> _applyDiscountCode() async {
     final code = _discountCodeC.text.trim();
     if (code.isEmpty) {
-      setState(() { _discountError = "Enter a discount code first"; _appliedDiscountCode = null; _appliedDiscountInfo = null; });
+      setState(() { _discountError = context.l10n.bizEnterADiscountCodeFirst; _appliedDiscountCode = null; _appliedDiscountInfo = null; });
       return;
     }
     setState(() { _applyingDiscount = true; _discountError = null; });
@@ -1811,7 +1812,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       setState(() {
         _appliedDiscountCode = null;
         _appliedDiscountInfo = null;
-        _discountError = friendlyError(e);
+        _discountError = friendlyError(e, l10n: mounted ? context.l10n : null);
       });
     } finally {
       if (mounted) setState(() => _applyingDiscount = false);
@@ -1845,7 +1846,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       borderRadius: BorderRadius.circular(12),
       onTap: _pickSpecialties,
       child: InputDecorator(
-        decoration: _dec("Select specialties").copyWith(
+        decoration: _dec(context.l10n.bizSelectSpecialties).copyWith(
           suffixIcon: const Icon(Icons.arrow_drop_down_rounded, color: kMuted)),
         isEmpty: _selCategories.isEmpty,
         child: _selCategories.isEmpty
@@ -1877,7 +1878,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.7),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const SizedBox(height: 16),
-            const Text("Primary Specialty", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+            Text(ctx.l10n.bizPrimarySpecialty, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
             const SizedBox(height: 4),
             Flexible(child: ListView(shrinkWrap: true, children: [
               for (final c in _categories)
@@ -1897,7 +1898,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
                 onPressed: () => Navigator.pop(ctx),
                 style: ElevatedButton.styleFrom(elevation: 0, backgroundColor: kPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 12), shape: const StadiumBorder()),
-                child: const Text("Done", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                child: Text(ctx.l10n.walletDone, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
               )),
             ),
           ]),

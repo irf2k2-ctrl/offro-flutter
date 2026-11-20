@@ -18,8 +18,9 @@ import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/utils/navigation.dart';
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
+import '../../core/l10n/l10n.dart';
 
-const _months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+// month names come from monthsShortOf (l10n)
 
 /// "2026-10-25" -> "25 Oct 2026". Empty / unparseable -> "".
 String _pretty(dynamic ymd) {
@@ -28,7 +29,7 @@ String _pretty(dynamic ymd) {
   if (p.length < 3) return "";
   final m = int.tryParse(p[1]) ?? 0;
   if (m < 1 || m > 12) return "";
-  return "${int.tryParse(p[2]) ?? p[2]} ${_months[m - 1]} ${p[0]}";
+  return "${int.tryParse(p[2]) ?? p[2]} ${monthsShortOf(offroNoContext)[m - 1]} ${p[0]}";
 }
 
 String _ymd(DateTime d) =>
@@ -48,7 +49,7 @@ Widget _loadError(String msg, VoidCallback retry) => Padding(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text(msg, textAlign: TextAlign.center, style: OffroText.body),
         const SizedBox(height: 12),
-        OffroButton.secondary(label: "Try again", onPressed: retry),
+        OffroButton.secondary(label: offroNoContext.locTryAgain, onPressed: retry),
       ]),
     );
 
@@ -85,7 +86,7 @@ class _CollabWorkspacePageState extends State<CollabWorkspacePage> {
         _loading = false;
       });
     } catch (e) {
-      if (mounted) setState(() { _error = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _error = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -104,17 +105,17 @@ class _CollabWorkspacePageState extends State<CollabWorkspacePage> {
     _load(); // the campaign may have been closed there
   }
 
-  static const _steps = [
-    ["1", "Create brief", "Share what you need and where."],
-    ["2", "Invite creators", "Local creators in your city see it."],
-    ["3", "Confirm match", "Review who accepted and connect."],
+  List<List<String>> get _steps => [
+    ["1", context.l10n.bizCreateBrief, context.l10n.bizShareWhatYouNeedAnd],
+    ["2", context.l10n.bizInviteCreators, context.l10n.bizLocalCreatorsInYourCity],
+    ["3", context.l10n.bizConfirmMatch, context.l10n.bizReviewWhoAcceptedAndConnect],
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kMerchantBg,
-      appBar: merchantHeaderBar(eyebrow: "Creator", title: "Collaborations"),
+      appBar: merchantHeaderBar(eyebrow: context.l10n.bizCreator, title: context.l10n.bizCollaborations),
       body: RefreshIndicator(
         color: kMerchantPrimary,
         onRefresh: _load,
@@ -122,13 +123,13 @@ class _CollabWorkspacePageState extends State<CollabWorkspacePage> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 8, OffroSpacing.gutter, 32),
           children: [
-            Text("Work with trusted local creators.", style: OffroText.title),
+            Text(context.l10n.bizWorkWithTrustedLocalCreators, style: OffroText.title),
             const SizedBox(height: 8),
             Text(
-              "Create one clear campaign brief, review matched creators and confirm a collaboration without managing conversations across multiple apps.",
+              context.l10n.bizCreateOneClearCampaignBrief,
               style: OffroText.body),
             const SizedBox(height: 24),
-            _eyebrow("How it works"),
+            _eyebrow(context.l10n.bizHowItWorks),
             const SizedBox(height: 10),
             OffroCard(
               padding: const EdgeInsets.all(16),
@@ -156,13 +157,13 @@ class _CollabWorkspacePageState extends State<CollabWorkspacePage> {
               ]),
             ),
             const SizedBox(height: 20),
-            OffroButton(label: "Create campaign brief", onPressed: _create),
+            OffroButton(label: context.l10n.bizCreateCampaignBrief, onPressed: _create),
             const SizedBox(height: 28),
-            _eyebrow("Your campaigns"),
+            _eyebrow(context.l10n.bizYourCampaigns),
             const SizedBox(height: 4),
             Row(children: [
-              Expanded(child: Text("Collaboration workspace", style: OffroText.title.copyWith(fontSize: 18))),
-              Text("$_active active", style: OffroText.body.copyWith(fontSize: 12.5)),
+              Expanded(child: Text(context.l10n.bizCollaborationWorkspace, style: OffroText.title.copyWith(fontSize: 18))),
+              Text(context.l10n.bizNActive('$_active'), style: OffroText.body.copyWith(fontSize: 12.5)),
             ]),
             const SizedBox(height: 12),
             if (_loading)
@@ -175,9 +176,9 @@ class _CollabWorkspacePageState extends State<CollabWorkspacePage> {
               OffroCard(
                 padding: const EdgeInsets.all(20),
                 child: Column(children: [
-                  Text("No campaigns yet", style: OffroText.cardTitle),
+                  Text(context.l10n.bizNoCampaignsYet, style: OffroText.cardTitle),
                   const SizedBox(height: 6),
-                  Text("Create your first campaign brief to invite local creators.",
+                  Text(context.l10n.bizCreateYourFirstCampaignBrief,
                       textAlign: TextAlign.center, style: OffroText.body.copyWith(fontSize: 12.5)),
                 ]))
             else
@@ -191,10 +192,10 @@ class _CollabWorkspacePageState extends State<CollabWorkspacePage> {
               decoration: BoxDecoration(
                   color: kMerchantLight, borderRadius: BorderRadius.circular(OffroRadii.cardSm)),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text("When should you use this?", style: OffroText.cardTitle),
+                Text(context.l10n.bizWhenShouldYouUseThis, style: OffroText.cardTitle),
                 const SizedBox(height: 6),
                 Text(
-                  "Use collaborations for launches, visits and creator content. Regular store updates and discounts belong in Banners or Deals instead.",
+                  context.l10n.bizUseCollaborationsForLaunchesVisits,
                   style: OffroText.body.copyWith(fontSize: 12.5)),
               ]),
             ),
@@ -235,7 +236,7 @@ class _CampaignCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(color: kMerchantBorder, borderRadius: BorderRadius.circular(99)),
-                  child: Text(status == "expired" ? "Expired" : "Closed",
+                  child: Text(status == "expired" ? context.l10n.dealExpired : context.l10n.homeClosed,
                       style: OffroText.caption.copyWith(color: kMerchantMuted)),
                 ),
             ]),
@@ -245,12 +246,12 @@ class _CampaignCard extends StatelessWidget {
         ]),
         const SizedBox(height: 10),
         Wrap(spacing: 14, runSpacing: 4, children: [
-          _meta(OffroIcons.sparkles, "$proposals ${proposals == 1 ? 'proposal' : 'proposals'}"),
-          if (due.isNotEmpty) _meta(OffroIcons.clock, "Publish by $due"),
-          if (visit.isNotEmpty) _meta(OffroIcons.store, "Visit $visit"),
+          _meta(OffroIcons.sparkles, (proposals == 1 ? context.l10n.bizProposalOne : context.l10n.bizProposalMany('$proposals'))),
+          if (due.isNotEmpty) _meta(OffroIcons.clock, context.l10n.bizPublishByDate(due)),
+          if (visit.isNotEmpty) _meta(OffroIcons.store, context.l10n.bizVisitOn(visit)),
         ]),
         const SizedBox(height: 12),
-        OffroButton.secondary(label: "Review proposals", onPressed: onReview),
+        OffroButton.secondary(label: context.l10n.bizReviewProposals, onPressed: onReview),
       ]),
     );
   }
@@ -299,7 +300,7 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
         _loading = false;
       });
     } catch (e) {
-      if (mounted) setState(() { _error = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _error = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -307,11 +308,11 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text("Close campaign?"),
-        content: const Text("Creators will no longer be able to accept this brief."),
+        title: Text(c.l10n.bizCloseCampaign),
+        content: Text(c.l10n.bizCreatorsWillNoLongerBe),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Keep open")),
-          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("Close")),
+          TextButton(onPressed: () => Navigator.pop(c, false), child: Text(c.l10n.bizKeepOpen)),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: Text(c.l10n.commonClose)),
         ],
       ),
     );
@@ -321,7 +322,7 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
       await Api.collabClose(widget.token, _id);
       if (mounted) setState(() { _status = "closed"; _closing = false; });
     } catch (e) {
-      if (mounted) { setState(() => _closing = false); _snack(context, friendlyError(e)); }
+      if (mounted) { setState(() => _closing = false); _snack(context, friendlyError(e, l10n: mounted ? context.l10n : null)); }
     }
   }
 
@@ -330,7 +331,7 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
     final c = widget.campaign;
     return Scaffold(
       backgroundColor: kMerchantBg,
-      appBar: merchantHeaderBar(eyebrow: "Campaign", title: "Proposals"),
+      appBar: merchantHeaderBar(eyebrow: context.l10n.bizCampaign, title: context.l10n.bizProposals),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 8, OffroSpacing.gutter, 32),
         children: [
@@ -338,7 +339,7 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
           const SizedBox(height: 4),
           Text((c["store_name"] ?? "").toString(), style: OffroText.body),
           const SizedBox(height: 20),
-          _eyebrow("Creators who accepted"),
+          _eyebrow(context.l10n.bizCreatorsWhoAccepted),
           const SizedBox(height: 10),
           if (_loading)
             const Padding(padding: EdgeInsets.symmetric(vertical: 32),
@@ -349,9 +350,9 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
             OffroCard(
               padding: const EdgeInsets.all(20),
               child: Column(children: [
-                Text("No proposals yet", style: OffroText.cardTitle),
+                Text(context.l10n.bizNoProposalsYet, style: OffroText.cardTitle),
                 const SizedBox(height: 6),
-                Text("Creators in your city will appear here once they accept your brief.",
+                Text(context.l10n.bizCreatorsInYourCityWill,
                     textAlign: TextAlign.center, style: OffroText.body.copyWith(fontSize: 12.5)),
               ]))
           else
@@ -362,7 +363,7 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
           if (_status == "active") ...[
             const SizedBox(height: 12),
             OffroButton.secondary(
-                label: _closing ? "Closing…" : "Close campaign",
+                label: _closing ? context.l10n.bizClosing : context.l10n.bizCloseCampaign2,
                 onPressed: _closing ? null : _close),
           ],
         ],
@@ -407,7 +408,7 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
         ])),
         if (waUri != null)
           IconButton(
-            tooltip: "Chat on WhatsApp",
+            tooltip: context.l10n.bizChatOnWhatsApp,
             onPressed: () => _openWhatsApp(waUri),
             icon: const Icon(Icons.chat_rounded, color: Color(0xFF25D366), size: 26),
           ),
@@ -427,9 +428,9 @@ class _CampaignProposalsPageState extends State<CampaignProposalsPage> {
   Future<void> _openWhatsApp(Uri u) async {
     try {
       final ok = await launchUrl(u, mode: LaunchMode.externalApplication);
-      if (!ok && mounted) _snack(context, "Couldn't open WhatsApp.");
+      if (!ok && mounted) _snack(context, context.l10n.bizCouldnTOpenWhatsApp);
     } catch (_) {
-      if (mounted) _snack(context, "Couldn't open WhatsApp.");
+      if (mounted) _snack(context, context.l10n.bizCouldnTOpenWhatsApp);
     }
   }
 }
@@ -497,7 +498,7 @@ class _CampaignBriefPageState extends State<CampaignBriefPage> {
         _loading = false;
       });
     } catch (e) {
-      if (mounted) setState(() { _loadErr = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _loadErr = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -516,14 +517,14 @@ class _CampaignBriefPageState extends State<CampaignBriefPage> {
   }
 
   String? _validate() {
-    if (_storeId == null) return "Please select a store.";
-    if (_title.text.trim().length < 3) return "Enter a campaign title (at least 3 characters).";
-    if (_objective == null) return "Select a campaign objective.";
-    if (_message.text.trim().length < 10) return "Describe what the creator should communicate (at least 10 characters).";
-    if (_content.isEmpty) return "Select the content you need.";
-    if (_publishBy == null) return "Choose a publish-by date.";
-    if (_content.contains("Store visit") && _visit == null) return "Choose a visit date for the store visit.";
-    if (_visit != null && _visit!.isAfter(_publishBy!)) return "Visit date can't be after the publish-by date.";
+    if (_storeId == null) return context.l10n.bizPleaseSelectAStore2;
+    if (_title.text.trim().length < 3) return context.l10n.bizEnterACampaignTitleAt;
+    if (_objective == null) return context.l10n.bizSelectACampaignObjective;
+    if (_message.text.trim().length < 10) return context.l10n.bizDescribeWhatTheCreatorShould;
+    if (_content.isEmpty) return context.l10n.bizSelectTheContentYouNeed;
+    if (_publishBy == null) return context.l10n.bizChooseAPublishByDate;
+    if (_content.contains("Store visit") && _visit == null) return context.l10n.bizChooseAVisitDateFor;
+    if (_visit != null && _visit!.isAfter(_publishBy!)) return context.l10n.bizVisitDateCanTBe;
     return null;
   }
 
@@ -543,10 +544,10 @@ class _CampaignBriefPageState extends State<CampaignBriefPage> {
         "speciality": _speciality,
       });
       if (!mounted) return;
-      _snack(context, "Brief published. Matching creators can now see it.");
+      _snack(context, context.l10n.bizBriefPublishedMatchingCreatorsCan);
       Navigator.pop(context, true);
     } catch (e) {
-      if (mounted) { setState(() => _saving = false); _snack(context, friendlyError(e)); }
+      if (mounted) { setState(() => _saving = false); _snack(context, friendlyError(e, l10n: mounted ? context.l10n : null)); }
     }
   }
 
@@ -598,7 +599,7 @@ class _CampaignBriefPageState extends State<CampaignBriefPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kMerchantBg,
-      appBar: merchantHeaderBar(eyebrow: "Creator", title: "Campaign brief"),
+      appBar: merchantHeaderBar(eyebrow: context.l10n.bizCreator, title: context.l10n.bizCampaignBrief),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: kMerchantPrimary))
           : _loadErr != null
@@ -606,35 +607,35 @@ class _CampaignBriefPageState extends State<CampaignBriefPage> {
               : _stores.isEmpty
                   ? Center(child: Padding(
                       padding: const EdgeInsets.all(OffroSpacing.gutter),
-                      child: Text("Add and activate a store before creating a campaign brief.",
+                      child: Text(context.l10n.bizAddAndActivateAStore,
                           textAlign: TextAlign.center, style: OffroText.body)))
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 32),
                       children: [
-                        _label("Store"),
+                        _label(context.l10n.homeStoreWord),
                         _dropdown(_storeId,
                             [for (final s in _stores) (s["_id"] ?? "").toString()],
-                            (v) => setState(() => _storeId = v), "Select store",
-                            labels: {for (final s in _stores) (s["_id"] ?? "").toString(): (s["store_name"] ?? "Store").toString()}),
-                        _label("Campaign title"),
+                            (v) => setState(() => _storeId = v), context.l10n.bizSelectStore2,
+                            labels: {for (final s in _stores) (s["_id"] ?? "").toString(): (s["store_name"] ?? context.l10n.homeStoreWord).toString()}),
+                        _label(context.l10n.bizCampaignTitle),
                         TextField(
                           controller: _title,
                           maxLength: 100,
                           textCapitalization: TextCapitalization.sentences,
-                          decoration: _dec("Example: Seasonal menu launch").copyWith(counterText: ""),
+                          decoration: _dec(context.l10n.bizExampleSeasonalMenuLaunch).copyWith(counterText: ""),
                         ),
-                        _label("Campaign objective"),
-                        _dropdown(_objective, _objectives, (v) => setState(() => _objective = v), "Select objective"),
-                        _label("What should the creator communicate?"),
+                        _label(context.l10n.bizCampaignObjective),
+                        _dropdown(_objective, _objectives, (v) => setState(() => _objective = v), context.l10n.bizSelectObjective),
+                        _label(context.l10n.bizWhatShouldTheCreatorCommunicate),
                         TextField(
                           controller: _message,
                           minLines: 4,
                           maxLines: 7,
                           maxLength: 1000,
                           textCapitalization: TextCapitalization.sentences,
-                          decoration: _dec("Key message, experience and details they should know..."),
+                          decoration: _dec(context.l10n.bizKeyMessageExperienceAndDetails),
                         ),
-                        _label("Requested content"),
+                        _label(context.l10n.bizRequestedContent),
                         Wrap(spacing: 8, runSpacing: 8, children: [
                           for (final t in _contentTypes)
                             FilterChip(
@@ -650,12 +651,12 @@ class _CampaignBriefPageState extends State<CampaignBriefPage> {
                               onSelected: (on) => setState(() => on ? _content.add(t) : _content.remove(t)),
                             ),
                         ]),
-                        _label("Visit date"),
-                        _dateTile("Select date", _visit, () => _pick(true)),
-                        _label("Publish by"),
-                        _dateTile("Select date", _publishBy, () => _pick(false)),
-                        _label("Preferred creator speciality"),
-                        _dropdown(_speciality, _specialities, (v) => setState(() => _speciality = v ?? _any), "Select speciality"),
+                        _label(context.l10n.bizVisitDate),
+                        _dateTile(context.l10n.bizSelectDate, _visit, () => _pick(true)),
+                        _label(context.l10n.bizPublishBy),
+                        _dateTile(context.l10n.bizSelectDate, _publishBy, () => _pick(false)),
+                        _label(context.l10n.bizPreferredCreatorSpeciality),
+                        _dropdown(_speciality, _specialities, (v) => setState(() => _speciality = v ?? _any), context.l10n.bizSelectSpeciality),
                         const SizedBox(height: 20),
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -663,16 +664,16 @@ class _CampaignBriefPageState extends State<CampaignBriefPage> {
                               color: kMerchantLight,
                               borderRadius: BorderRadius.circular(OffroRadii.cardSm)),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text("No payment processing", style: OffroText.cardTitle),
+                            Text(context.l10n.bizNoPaymentProcessing, style: OffroText.cardTitle),
                             const SizedBox(height: 6),
                             Text(
-                              "OffrO connects you with creators. Any compensation is agreed directly between you and the creator.",
+                              context.l10n.bizOffrOConnectsYouWithCreators,
                               style: OffroText.body.copyWith(fontSize: 12.5)),
                           ]),
                         ),
                         const SizedBox(height: 20),
                         OffroButton(
-                          label: _saving ? "Publishing…" : "Publish brief",
+                          label: _saving ? context.l10n.bizPublishing : context.l10n.bizPublishBrief,
                           onPressed: _saving ? null : _publish,
                         ),
                       ],
@@ -710,7 +711,7 @@ class _InfluencerOpportunitiesViewState extends State<InfluencerOpportunitiesVie
       if (!mounted) return;
       setState(() { _rows = _maps(d["opportunities"]); _loading = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _error = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -732,9 +733,9 @@ class _InfluencerOpportunitiesViewState extends State<InfluencerOpportunitiesVie
           padding: const EdgeInsets.only(bottom: 24),
           children: [
             OffroScreenHeader(
-              eyebrow: "Matched locally",
-              title: "Opportunities",
-              description: "Review collaboration requests from relevant merchants in your city.",
+              eyebrow: context.l10n.bizMatchedLocally,
+              title: context.l10n.navOpportunities,
+              description: context.l10n.bizReviewCollaborationRequestsFromReleva,
               trailing: widget.headerTrailing,
             ),
             const SizedBox(height: 24),
@@ -774,10 +775,10 @@ class _InfluencerOpportunitiesViewState extends State<InfluencerOpportunitiesVie
             child: OffroIcon(OffroIcons.sparkles, size: 22, color: OffroTones.fashion.foreground),
           ),
           const SizedBox(height: 14),
-          Text("No collaboration requests yet",
+          Text(context.l10n.bizNoCollaborationRequestsYet,
               textAlign: TextAlign.center, style: OffroText.title.copyWith(fontSize: 16)),
           const SizedBox(height: 6),
-          Text("Requests from merchants in your city will appear here.",
+          Text(context.l10n.bizRequestsFromMerchantsInYour,
               textAlign: TextAlign.center, style: OffroText.body.copyWith(fontSize: 12.5)),
         ]),
       );
@@ -796,12 +797,12 @@ class OpportunityCard extends StatelessWidget {
     final my = (r["my_status"] ?? "new").toString();
     final accepted = my == "accepted";
     final label = accepted
-        ? "Accepted"
+        ? context.l10n.bizAccepted
         : my == "declined"
-            ? "Declined"
+            ? context.l10n.bizDeclined
             : (r["campaign_state"] ?? "active") == "active"
-                ? "New collaboration request"
-                : "Closed";
+                ? context.l10n.bizNewCollaborationRequest
+                : context.l10n.homeClosed;
     return OffroCard(
       onTap: onTap,
       shadow: true,
@@ -827,7 +828,7 @@ class OpportunityCard extends StatelessWidget {
             Text((r["content_summary"]).toString(), style: OffroText.body.copyWith(fontSize: 12.5)),
           ],
           const SizedBox(height: 12),
-          OffroButton.small(label: "View brief", onPressed: onTap, trailingIcon: OffroIcons.arrow),
+          OffroButton.small(label: context.l10n.bizViewBrief, onPressed: onTap, trailingIcon: OffroIcons.arrow),
         ])),
         const SizedBox(width: 12),
         Container(
@@ -875,7 +876,7 @@ class _CampaignOpportunitiesSectionState extends State<CampaignOpportunitiesSect
         _loading = false;
       });
     } catch (e) {
-      if (mounted) setState(() { _error = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _error = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -896,9 +897,9 @@ class _CampaignOpportunitiesSectionState extends State<CampaignOpportunitiesSect
       return OffroCard(
         padding: const EdgeInsets.all(20),
         child: Column(children: [
-          Text("No campaign requests yet", style: OffroText.cardTitle),
+          Text(context.l10n.bizNoCampaignRequestsYet, style: OffroText.cardTitle),
           const SizedBox(height: 6),
-          Text("New briefs from merchants in your city will appear here.",
+          Text(context.l10n.bizNewBriefsFromMerchantsIn,
               textAlign: TextAlign.center, style: OffroText.body.copyWith(fontSize: 12.5)),
         ]),
       );
@@ -910,7 +911,7 @@ class _CampaignOpportunitiesSectionState extends State<CampaignOpportunitiesSect
         const SizedBox(height: 12),
       ],
       if (_pending.length > shown.length && widget.onSeeAll != null)
-        OffroButton.secondary(label: "See all ${_pending.length} requests", onPressed: widget.onSeeAll),
+        OffroButton.secondary(label: context.l10n.bizSeeAllRequests('${_pending.length}'), onPressed: widget.onSeeAll),
     ]);
   }
 }
@@ -943,7 +944,7 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
       final d = await Api.influencerOpportunity(widget.token, widget.id);
       if (mounted) setState(() { _d = d; _loading = false; });
     } catch (e) {
-      if (mounted) setState(() { _error = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _error = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -952,10 +953,10 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
     try {
       await Api.influencerRespond(widget.token, widget.id, accept);
       if (!mounted) return;
-      _snack(context, accept ? "Collaboration accepted." : "Request declined.");
+      _snack(context, accept ? context.l10n.bizCollaborationAccepted : context.l10n.bizRequestDeclined);
       await _load();
     } catch (e) {
-      if (mounted) _snack(context, friendlyError(e));
+      if (mounted) _snack(context, friendlyError(e, l10n: mounted ? context.l10n : null));
     }
     if (mounted) setState(() => _busy = false);
   }
@@ -974,8 +975,8 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
           padding: const EdgeInsets.only(bottom: 32),
           children: [
             OffroScreenHeader(
-              eyebrow: "Collaboration request",
-              title: (_d["title"] ?? "Brief").toString(),
+              eyebrow: context.l10n.bizCollaborationRequest,
+              title: (_d["title"] ?? context.l10n.bizBrief).toString(),
               showBack: true,
               onBack: () => Navigator.pop(context),
             ),
@@ -1014,7 +1015,7 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
     final canAccept = _d["can_accept"] != false;
     final blockedMsg = (_d["accept_blocked_message"] ?? "").toString().trim().isNotEmpty
         ? _d["accept_blocked_message"].toString()
-        : "Complete your profile subscription to accept collaborations.";
+        : context.l10n.bizCompleteYourProfileSubscriptionTo;
     final phone = (_d["merchant_phone"] ?? "").toString();
     final content = (_d["content_types"] is List)
         ? (_d["content_types"] as List).map((e) => e.toString()).join(", ") : "";
@@ -1025,25 +1026,25 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
       OffroCard(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _row("Objective", (_d["objective"] ?? "").toString()),
-          _row("Message", (_d["message"] ?? "").toString()),
-          _row("Requested content", content),
-          _row("Visit date", _pretty(_d["visit_date"])),
-          _row("Publish by", _pretty(_d["publish_by"])),
-          if (spec.isNotEmpty && spec != "Any") _row("Preferred speciality", spec),
+          _row(context.l10n.bizObjective, (_d["objective"] ?? "").toString()),
+          _row(context.l10n.bizMessage, (_d["message"] ?? "").toString()),
+          _row(context.l10n.bizRequestedContent, content),
+          _row(context.l10n.bizVisitDate, _pretty(_d["visit_date"])),
+          _row(context.l10n.bizPublishBy, _pretty(_d["publish_by"])),
+          if (spec.isNotEmpty && spec != "Any") _row(context.l10n.bizPreferredSpeciality, spec),
         ]),
       ),
       const SizedBox(height: 12),
       OffroCard(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 2),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _row("Store", (store["name"] ?? "").toString()),
-          _row("Location", place),
+          _row(context.l10n.homeStoreWord, (store["name"] ?? "").toString()),
+          _row(context.l10n.locTitle, place),
         ]),
       ),
       const SizedBox(height: 12),
       Text(
-        "This collaboration is for promotion on your Instagram. There is no in-app chat.",
+        context.l10n.bizThisCollaborationIsForPromotion,
         style: OffroText.body.copyWith(fontSize: 12.5)),
       const SizedBox(height: 20),
       if (my == "accepted") ...[
@@ -1053,21 +1054,21 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
               color: OffroTones.grocery.background,
               borderRadius: BorderRadius.circular(OffroRadii.cardSm)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text("You accepted this collaboration", style: OffroText.cardTitle),
+            Text(context.l10n.bizYouAcceptedThisCollaboration, style: OffroText.cardTitle),
             const SizedBox(height: 6),
-            Text(phone.isEmpty ? "The merchant's contact number is not available." : "Contact the merchant to plan your visit:",
+            Text(phone.isEmpty ? context.l10n.bizTheMerchantSContactNumber : context.l10n.bizContactTheMerchantToPlan,
                 style: OffroText.body.copyWith(fontSize: 12.5)),
             if (phone.isNotEmpty) ...[
               const SizedBox(height: 12),
-              OffroButton(label: "Call $phone", onPressed: () => _call(phone)),
+              OffroButton(label: context.l10n.bizCallPhone(ltrIsolate(context, phone)), onPressed: () => _call(phone)),
             ],
           ]),
         ),
       ] else if (!canRespond)
-        Text("This request is no longer open.", style: OffroText.cardTitle)
+        Text(context.l10n.bizThisRequestIsNoLonger, style: OffroText.cardTitle)
       else ...[
         OffroButton(
-          label: _busy ? "Please wait…" : "Accept collaboration",
+          label: _busy ? context.l10n.bizPleaseWait : context.l10n.bizAcceptCollaboration,
           onPressed: (_busy || !canAccept) ? null : () => _respond(true),
         ),
         if (!canAccept) ...[
@@ -1076,10 +1077,10 @@ class _OpportunityDetailPageState extends State<OpportunityDetailPage> {
         ],
         if (my != "declined") ...[
           const SizedBox(height: 10),
-          OffroButton.secondary(label: "Decline", onPressed: _busy ? null : () => _respond(false)),
+          OffroButton.secondary(label: context.l10n.bizDecline, onPressed: _busy ? null : () => _respond(false)),
         ] else ...[
           const SizedBox(height: 10),
-          Text("You declined this request.${canAccept ? " You can still accept it while it is open." : ""}",
+          Text((canAccept ? context.l10n.bizDeclinedCanAccept : context.l10n.bizDeclinedRequest),
               style: OffroText.body.copyWith(fontSize: 12.5)),
         ],
       ],

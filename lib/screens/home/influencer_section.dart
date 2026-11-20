@@ -15,6 +15,7 @@ import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/services/fav_state.dart';
 import '../../core/utils/navigation.dart';
+import '../../core/l10n/l10n.dart';
 
 // ══════════════════════════════════════════════════════════
 // INFLUENCER MODULE — connected to the real backend (Phase 2/3).
@@ -67,7 +68,7 @@ Widget _socialIcons(Map social, {double size = 16}) {
       icons.add(GestureDetector(
         onTap: () => _openSocial(url),
         child: Padding(
-          padding: const EdgeInsets.only(right: 6),
+          padding: const EdgeInsetsDirectional.only(end: 6),
           child: Icon(icon, size: size, color: color),
         ),
       ));
@@ -279,7 +280,7 @@ class _InfluencerCard extends StatelessWidget {
         // then ONE compact row — name left, rating/reviews right. Card is
         // 184 wide -> 168px square image; no extra whitespace below.
         width: 184,
-        margin: const EdgeInsets.only(right: 12),
+        margin: const EdgeInsetsDirectional.only(end: 12),
         padding: const EdgeInsets.fromLTRB(8, 8, 8, 9),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -334,11 +335,11 @@ Widget _influencerComingSoonCard() {
           child: const Icon(Icons.auto_awesome_rounded, size: 26, color: kPrimary),
         ),
         const SizedBox(height: 14),
-        const Text("Influencers are coming soon ✨",
+        Text(offroNoContext.bizInfluencersAreComingSoon,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w800, color: OffroColors.text)),
         const SizedBox(height: 6),
-        const Text("We're bringing local creators and their recommendations to OffrO. Stay tuned!",
+        Text(offroNoContext.bizWeReBringingLocalCreators,
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12.5, color: OffroColors.textMuted, height: 1.4)),
       ]),
@@ -389,9 +390,9 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
       return Padding(
         padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const OffroSectionTitle(
-            eyebrow: "People shaping the city",
-            title: "Local Voices",
+          OffroSectionTitle(
+            eyebrow: context.l10n.bizPeopleShapingTheCity,
+            title: context.l10n.bizLocalVoices,
             padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
           ),
           SizedBox(
@@ -402,7 +403,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               children: List.generate(2, (_) => Container(
                 width: 184, height: 208,
-                margin: const EdgeInsets.only(right: 12),
+                margin: const EdgeInsetsDirectional.only(end: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
@@ -428,9 +429,9 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const OffroSectionTitle(
-          eyebrow: "People shaping the city",
-          title: "Local Voices",
+        OffroSectionTitle(
+          eyebrow: context.l10n.bizPeopleShapingTheCity,
+          title: context.l10n.bizLocalVoices,
           padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, 0, OffroSpacing.gutter, 12),
         ),
         if (isEmpty)
@@ -461,7 +462,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
                   child: Center(
                     child: Container(
                       width: 52, height: 120,
-                      margin: const EdgeInsets.only(left: 4, right: 12),
+                      margin: const EdgeInsetsDirectional.only(start: 4, end: 12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
@@ -480,7 +481,7 @@ class _CityInfluencersSectionState extends State<CityInfluencersSection> {
                           child: const Icon(Icons.add_rounded, color: OffroColors.primary, size: 14),
                         ),
                         const SizedBox(height: 4),
-                        const Text("See All",
+                        Text(ctx.l10n.homeSeeAll,
                           style: TextStyle(color: OffroColors.primary, fontSize: 9, fontWeight: FontWeight.w800),
                           textAlign: TextAlign.center),
                       ]),
@@ -528,7 +529,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
         backgroundColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: OffroColors.text),
-        title: const Text("Local Voices", style: TextStyle(color: OffroColors.text, fontWeight: FontWeight.w800, fontSize: 17)),
+        title: Text(context.l10n.bizLocalVoices, style: TextStyle(color: OffroColors.text, fontWeight: FontWeight.w800, fontSize: 17)),
       ),
       body: influencers == null
           ? const Center(child: CircularProgressIndicator(color: kPrimary))
@@ -539,7 +540,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       const Icon(Icons.person_search_rounded, size: 40, color: OffroColors.textMuted),
                       const SizedBox(height: 10),
-                      Text("No influencers available in ${widget.city} yet",
+                      Text(context.l10n.bizNoInfluencersInCity('${widget.city}'),
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: OffroColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                     ]),
@@ -704,17 +705,17 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
   Future<void> _submitReview() async {
     if (_myStars == 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a star rating first")));
+        SnackBar(content: Text(context.l10n.bizPleaseSelectAStarRating)));
       return;
     }
     if (widget.token.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please log in to submit a review")));
+        SnackBar(content: Text(context.l10n.bizPleaseLogInToSubmit)));
       return;
     }
     if (_reviewC.text.trim().length < 3) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please write at least a few words")));
+        SnackBar(content: Text(context.l10n.bizPleaseWriteAtLeastA)));
       return;
     }
     final id = _influencerId;
@@ -733,13 +734,13 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
         // exactly what was persisted (including our own submission).
         await _loadReal();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Thanks for your review!")));
+          SnackBar(content: Text(context.l10n.prodThanksReview)));
       }
     } catch (e) {
       debugPrint('[OffrO] influencer review submit error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(friendlyError(e))));
+          SnackBar(content: Text(friendlyError(e, l10n: mounted ? context.l10n : null))));
       }
     }
     if (mounted) setState(() => _submittingReview = false);
@@ -853,7 +854,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(color: Colors.white.withValues(alpha: .18), borderRadius: OffroRadii.pillRadius,
                       border: Border.all(color: Colors.white.withValues(alpha: .35))),
-                    child: Text("VERIFIED LOCAL VOICE",
+                    child: Text(context.l10n.bizVERIFIEDLOCALVOICE,
                       style: OffroText.eyebrow.copyWith(fontSize: 9.5, letterSpacing: 1.2, color: Colors.white)),
                   ),
                   const SizedBox(height: 12),
@@ -866,12 +867,11 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                   ],
                 ]),
               ),
-              Positioned(
-                top: topInset + 8, left: 16,
-                child: circleBtn(const OffroIcon(OffroIcons.back, size: 18, color: OffroColors.text), () => Navigator.maybePop(context)),
-              ),
-              Positioned(
-                top: topInset + 8, right: 16,
+              PositionedDirectional(
+                top: topInset + 8, start: 16,
+                child: circleBtn(const OffroIcon(OffroIcons.back, size: 18, color: OffroColors.text), () => Navigator.maybePop(context))),
+              PositionedDirectional(
+                top: topInset + 8, end: 16,
                 child: Row(children: [
                   circleBtn(
                     _sharing
@@ -887,8 +887,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                         color: _isFav ? OffroColors.terracotta : OffroColors.text, filled: _isFav),
                       _toggleFavorite),
                   ],
-                ]),
-              ),
+                ])),
             ]),
           ),
 
@@ -903,18 +902,18 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Stats — only real data we have: rating, review count, city
                 Row(children: [
-                  statTile(_displayRating > 0 ? _displayRating.toStringAsFixed(1) : "-", "Rating"),
+                  statTile(_displayRating > 0 ? _displayRating.toStringAsFixed(1) : "-", context.l10n.bizRating),
                   const SizedBox(width: 8),
-                  statTile("$_displayReviewCount", "Reviews"),
+                  statTile("$_displayReviewCount", context.l10n.storeTabReviews),
                   if (city.isNotEmpty) ...[
                     const SizedBox(width: 8),
-                    statTile(city, "City"),
+                    statTile(city, context.l10n.bizCity),
                   ],
                 ]),
 
                 if (about.isNotEmpty) ...[
                   const SizedBox(height: 28),
-                  Text("About", style: OffroText.title.copyWith(fontSize: 20)),
+                  Text(context.l10n.storeTabAbout, style: OffroText.title.copyWith(fontSize: 20)),
                   const SizedBox(height: 10),
                   Text(about, style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.6, color: OffroColors.textMuted)),
                 ],
@@ -924,14 +923,14 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                 _socialIconsCard(social),
 
                 const SizedBox(height: 28),
-                Text("Rate this influencer", style: OffroText.title.copyWith(fontSize: 20)),
+                Text(context.l10n.bizRateThisInfluencer, style: OffroText.title.copyWith(fontSize: 20)),
                 const SizedBox(height: 10),
                 Row(children: List.generate(5, (i) {
                   final filled = i < _myStars;
                   return GestureDetector(
                     onTap: () => setState(() => _myStars = i + 1),
                     child: Padding(
-                      padding: const EdgeInsets.only(right: 4),
+                      padding: const EdgeInsetsDirectional.only(end: 4),
                       child: Icon(filled ? Icons.star_rounded : Icons.star_border_rounded,
                         size: 30, color: OffroColors.amber),
                     ),
@@ -943,7 +942,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                   maxLines: 3,
                   style: OffroText.body.copyWith(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: "Share your experience (optional)",
+                    hintText: context.l10n.bizShareYourExperienceOptional,
                     hintStyle: OffroText.body.copyWith(fontSize: 13, color: OffroColors.textPlaceholder),
                     filled: true, fillColor: Colors.white,
                     contentPadding: const EdgeInsets.all(14),
@@ -958,18 +957,18 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                   style: ElevatedButton.styleFrom(backgroundColor: OffroColors.primary, elevation: 0, shape: const StadiumBorder()),
                   child: _submittingReview
                       ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : Text(_myReviewId != null ? "Update Review" : "Submit Review",
+                      : Text(_myReviewId != null ? context.l10n.bizUpdateReview : context.l10n.prodSubmitReview,
                           style: OffroText.button.copyWith(color: Colors.white, fontSize: 13)),
                 )),
 
                 const SizedBox(height: 28),
                 Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text("Reviews", style: OffroText.title.copyWith(fontSize: 20)),
+                  Text(context.l10n.storeTabReviews, style: OffroText.title.copyWith(fontSize: 20)),
                   const Spacer(),
                   if (_reviews.length > 2)
                     GestureDetector(
                       onTap: () => Navigator.push(context, appRoute(_InfluencerReviewsScreen(name: name, reviews: _reviews))),
-                      child: Text("See all (${_reviews.length})",
+                      child: Text(context.l10n.bizSeeAllCount('${_reviews.length}'),
                         style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                     ),
                 ]),
@@ -986,7 +985,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                         decoration: const BoxDecoration(shape: BoxShape.circle, color: OffroColors.mintSoft),
                         child: const Icon(Icons.star_border_rounded, size: 20, color: OffroColors.primary)),
                       const SizedBox(height: 8),
-                      Text("No reviews yet", style: OffroText.caption.copyWith(fontSize: 12.5, color: OffroColors.textMuted)),
+                      Text(context.l10n.revNoneTitle, style: OffroText.caption.copyWith(fontSize: 12.5, color: OffroColors.textMuted)),
                     ]),
                   )
                 else
@@ -1050,7 +1049,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                     Text(_displayRating.toStringAsFixed(1),
                       style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                     const SizedBox(width: 4),
-                    Text("(${_displayReviewCount} reviews)",
+                    Text(context.l10n.revCountMany('${_displayReviewCount}'),
                       style: const TextStyle(color: OffroColors.accent, fontSize: 12)),
                   ])),
                   const SizedBox(height: 20),
@@ -1080,7 +1079,7 @@ Widget _reviewTile(Map review) {
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Expanded(child: Text((review["user_name"] ?? review["user"])?.toString() ?? "Anonymous",
+        Expanded(child: Text((review["user_name"] ?? review["user"])?.toString() ?? offroNoContext.revAnonymous,
           maxLines: 1, overflow: TextOverflow.ellipsis,
           style: OffroText.cardTitle.copyWith(fontSize: 12))),
         Row(children: List.generate(5, (i) => Icon(
@@ -1108,7 +1107,7 @@ class _InfluencerReviewsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0.5,
         iconTheme: const IconThemeData(color: OffroColors.text),
-        title: Text("Reviews for $name", style: const TextStyle(color: OffroColors.text, fontWeight: FontWeight.w800, fontSize: 16)),
+        title: Text(context.l10n.bizReviewsFor(name), style: const TextStyle(color: OffroColors.text, fontWeight: FontWeight.w800, fontSize: 16)),
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),

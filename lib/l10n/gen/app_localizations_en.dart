@@ -1609,4 +1609,2053 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get prodDownload => 'Download';
+
+  @override
+  String get bizAdd => 'Add';
+
+  @override
+  String get bizNoStoresYetTapTo => 'No stores yet — tap to add your first';
+
+  @override
+  String get bizSubscribeYourStoreToCreate =>
+      'Subscribe your store to create banners.';
+
+  @override
+  String get bizNoBannersYetPromoteYour =>
+      'No banners yet — promote your store';
+
+  @override
+  String get bizSubscribeYourStoreToAdd =>
+      'Subscribe your store to add products.';
+
+  @override
+  String get bizNoProductsYetAddYour =>
+      'No products yet — add your first product';
+
+  @override
+  String get bizMERCHANTWORKSPACE => 'MERCHANT WORKSPACE';
+
+  @override
+  String get bizWelcomeBack => 'Welcome back';
+
+  @override
+  String get bizCouldnTLoadYourDashboard => 'Couldn\'t load your dashboard';
+
+  @override
+  String get bizLiveStores => 'Live stores';
+
+  @override
+  String get bizLiveBanners => 'Live banners';
+
+  @override
+  String get bizLiveProducts => 'Live products';
+
+  @override
+  String get bizMANAGEYOURBUSINESS => 'MANAGE YOUR BUSINESS';
+
+  @override
+  String get bizMyStore => 'My Store';
+
+  @override
+  String get bizMyBanner => 'My Banner';
+
+  @override
+  String get bizMyProducts => 'My Products';
+
+  @override
+  String get bizCreatorCollaborations => 'Creator collaborations';
+
+  @override
+  String get bizBriefMatchAndManageLocal =>
+      'Brief, match and manage local creators';
+
+  @override
+  String get bizSubscribeYourStoreToWork =>
+      'Subscribe your store to work with creators.';
+
+  @override
+  String get bizLocked => 'Locked';
+
+  @override
+  String get bizManage => 'Manage';
+
+  @override
+  String get bizPromotions => 'Promotions';
+
+  @override
+  String get bizMyBanners => 'My Banners';
+
+  @override
+  String get bizNewBanner => 'New Banner';
+
+  @override
+  String get bizCouldnTLoadBanners => 'Couldn\'t load banners';
+
+  @override
+  String get bizNoBannersYet => 'No banners yet';
+
+  @override
+  String get bizTapToCreateYourFirst => 'Tap + to create your first banner';
+
+  @override
+  String get bizApprovedLive => 'Approved — Live';
+
+  @override
+  String get bizRejected => 'Rejected';
+
+  @override
+  String get bizRemovedByAdmin => 'Removed by Admin';
+
+  @override
+  String get bizTurnedOff => 'Turned Off';
+
+  @override
+  String get bizPendingApproval => 'Pending Approval';
+
+  @override
+  String get bizSubmitted => 'Submitted';
+
+  @override
+  String get bizEditBannerTitle => 'Edit Banner Title';
+
+  @override
+  String get bizBannerTitle => 'Banner title';
+
+  @override
+  String get bizSave => 'Save';
+
+  @override
+  String get bizEditTitle => 'Edit Title';
+
+  @override
+  String get bizTurnOffBanner => 'Turn Off Banner?';
+
+  @override
+  String get bizTurnOnBanner => 'Turn On Banner?';
+
+  @override
+  String get bizThisBannerWillBeHidden =>
+      'This banner will be hidden from stores until you turn it back on.';
+
+  @override
+  String get bizThisBannerWillGoLive =>
+      'This banner will go live again in stores.';
+
+  @override
+  String get bizTurnOff => 'Turn Off';
+
+  @override
+  String get bizTurnOn => 'Turn On';
+
+  @override
+  String get bizExpiredChooseANewStart => 'Expired · Choose a new start date';
+
+  @override
+  String get bizRenew => 'Renew';
+
+  @override
+  String get bizRejectedCreateANewBanner =>
+      'Rejected · Create a new banner to resubmit';
+
+  @override
+  String get bizCreateNew => 'Create new';
+
+  @override
+  String get bizRemovedByAdmin2 => 'Removed by admin';
+
+  @override
+  String get bizAwaitingAdminApproval => 'Awaiting admin approval';
+
+  @override
+  String get bizImageTooLargeMax2MB => 'Image too large. Max 2MB.';
+
+  @override
+  String get bizVideoIsTooLargePlease =>
+      'Video is too large. Please select a video up to 10 MB.';
+
+  @override
+  String get bizVideoIsTooLongPlease =>
+      'Video is too long. Please select a video up to 15 seconds.';
+
+  @override
+  String get bizCouldNotReadThisVideo =>
+      'Could not read this video. Please select another video.';
+
+  @override
+  String get bizCouldNotUploadTheVideo =>
+      'Could not upload the video. Please try again.';
+
+  @override
+  String get bizExistingBannerVideoWillBe =>
+      'Existing banner video will be reused';
+
+  @override
+  String get bizTapToReplace => 'Tap to replace';
+
+  @override
+  String get bizTapToSelectBannerVideo => 'Tap to select banner video';
+
+  @override
+  String get biz10801080px11 => '📐 1080×1080px (1:1)';
+
+  @override
+  String get bizMax15Sec10MB => 'Max 15 sec · 10 MB';
+
+  @override
+  String get bizBannerTitleRequired => 'Banner title required';
+
+  @override
+  String get bizPleaseSelectAStore => 'Please select a store';
+
+  @override
+  String get bizPleaseSelectACity => 'Please select a city';
+
+  @override
+  String get bizPleaseSelectABannerVideo => 'Please select a banner video';
+
+  @override
+  String get bizPleaseUploadABannerImage => 'Please upload a banner image';
+
+  @override
+  String get bizEnterNumberOfDaysMinimum => 'Enter number of days (minimum 1)';
+
+  @override
+  String get bizUntitledDeal => 'Untitled deal';
+
+  @override
+  String get bizUntitledProduct => 'Untitled product';
+
+  @override
+  String get bizCTADestination => 'CTA destination';
+
+  @override
+  String get bizChooseWhereThisBannerShould =>
+      'Choose where this banner should take the customer.';
+
+  @override
+  String get bizSelectDeal => 'Select Deal';
+
+  @override
+  String get bizSelectProduct => 'Select Product';
+
+  @override
+  String get bizCustomersWillOpenTheSelected =>
+      'Customers will open the selected store.';
+
+  @override
+  String get bizNothingSelectedYetTheBanner =>
+      'Nothing selected yet — the banner will open the store.';
+
+  @override
+  String get bizDiscountApplied => '✅ Discount applied!';
+
+  @override
+  String get bizPaymentGatewayNotConfiguredContact =>
+      'Payment gateway not configured. Contact support.';
+
+  @override
+  String get bizCouldNotOpenPaymentPlease =>
+      'Could not open payment. Please try again.';
+
+  @override
+  String get bizBannerOrderSummary => 'Banner Order Summary';
+
+  @override
+  String get bizTitle => 'Title';
+
+  @override
+  String get bizDuration => 'Duration';
+
+  @override
+  String get bizPeriod => 'Period';
+
+  @override
+  String get bizRate => 'Rate';
+
+  @override
+  String get bizBasePrice => 'Base Price';
+
+  @override
+  String get bizDiscount => 'Discount';
+
+  @override
+  String get bizTotal => 'Total';
+
+  @override
+  String get bizYourBannerWillBeSubmitted =>
+      'Your banner will be submitted for admin review after confirmation.';
+
+  @override
+  String get bizRazorpayCheckoutWillOpenBanner =>
+      'Razorpay checkout will open. Banner goes live after admin approval.';
+
+  @override
+  String get bizConfirmSubmit => 'Confirm Submit';
+
+  @override
+  String get bizRenewBanner => 'Renew Banner';
+
+  @override
+  String get bizCreateBanner => 'Create Banner';
+
+  @override
+  String get bizBannerTitle2 => 'Banner Title *';
+
+  @override
+  String get bizEG50OFFAt => 'e.g. 50% OFF at Raj Store';
+
+  @override
+  String get bizSelectStore => 'Select Store *';
+
+  @override
+  String get bizUnnamedStore => 'Unnamed Store';
+
+  @override
+  String get bizCityAutoFilledFromStore => 'City auto-filled from store';
+
+  @override
+  String get bizImage => 'Image';
+
+  @override
+  String get bizVideo => 'Video';
+
+  @override
+  String get bizTapToUploadBannerImage => 'Tap to upload banner image';
+
+  @override
+  String get bizMax2MB => '📦 Max 2MB';
+
+  @override
+  String get bizDurationStartDate => 'Duration & Start Date';
+
+  @override
+  String get bizNumberOfDays => 'Number of Days';
+
+  @override
+  String get bizFromDate => 'From Date';
+
+  @override
+  String get bizActivePeriod => 'Active period:';
+
+  @override
+  String get bizDiscountCode => 'Discount Code';
+
+  @override
+  String get bizHaveAPromoCodeEnter => 'Have a promo code? Enter it below.';
+
+  @override
+  String get bizEGOFFRO20 => 'e.g. OFFRO20';
+
+  @override
+  String get bizApply => 'Apply';
+
+  @override
+  String get bizProceedToCheckout => 'Proceed to Checkout';
+
+  @override
+  String get bizLive => 'Live';
+
+  @override
+  String get bizFilterProducts => 'Filter Products';
+
+  @override
+  String get bizEditProduct => 'Edit Product';
+
+  @override
+  String get bizAnalytics => 'Analytics';
+
+  @override
+  String get bizDeleteProduct => 'Delete Product';
+
+  @override
+  String get bizCatalogue => 'Catalogue';
+
+  @override
+  String get bizFilter => 'Filter';
+
+  @override
+  String get bizNewProduct => 'New Product';
+
+  @override
+  String get bizSearchProducts => 'Search products…';
+
+  @override
+  String get bizPending => 'Pending';
+
+  @override
+  String get bizCouldnTLoadProducts => 'Couldn\'t load products';
+
+  @override
+  String get bizNoProductsYet => 'No products yet';
+
+  @override
+  String get bizNoMatchingProducts => 'No matching products';
+
+  @override
+  String get bizTapNewProductToGet => 'Tap + New Product to get started';
+
+  @override
+  String get bizPaused => 'Paused';
+
+  @override
+  String get bizFree => 'Free';
+
+  @override
+  String get bizPaid => 'Paid';
+
+  @override
+  String get bizDeactivated => 'Deactivated';
+
+  @override
+  String get bizOn => 'On';
+
+  @override
+  String get bizOff => 'Off';
+
+  @override
+  String get bizOfferText => 'Offer Text';
+
+  @override
+  String get bizOriginalPrice => 'Original Price';
+
+  @override
+  String get bizOfferPrice => 'Offer Price';
+
+  @override
+  String get bizProductUpdated => 'Product updated!';
+
+  @override
+  String get bizDeleteThisProduct => 'Delete this product?';
+
+  @override
+  String get bizProductDeleted => 'Product deleted.';
+
+  @override
+  String get bizLogoTooLargeMax1MB => 'Logo too large. Max 1MB.';
+
+  @override
+  String get bizEnterACode => 'Enter a code';
+
+  @override
+  String get bizProductTitleRequired => 'Product title required';
+
+  @override
+  String get bizPleaseSelectAStoreFor =>
+      'Please select a store for this product';
+
+  @override
+  String get bizPleaseSelectACityFor => 'Please select a city for this product';
+
+  @override
+  String get bizPleaseUploadAProductImage => 'Please upload a product image';
+
+  @override
+  String get bizEnterTheNumberOfDays => 'Enter the number of days (minimum 1)';
+
+  @override
+  String get bizProductOrderSummary => 'Product Order Summary';
+
+  @override
+  String get bizPrice => 'Price';
+
+  @override
+  String get bizProductWillGoToAdmin =>
+      'Product will go to admin review. No payment needed.';
+
+  @override
+  String get bizRazorpayOpensProductLiveAfter =>
+      'Razorpay opens. Product live after admin approval.';
+
+  @override
+  String get bizSaveProduct => 'Save Product';
+
+  @override
+  String get bizAddProduct => 'Add Product';
+
+  @override
+  String get bizProductTitle => 'Product Title *';
+
+  @override
+  String get bizEGRajStore50 => 'e.g. Raj Store ₹50 Off';
+
+  @override
+  String get bizEGGet50Off => 'e.g. Get ₹50 off on orders above ₹299';
+
+  @override
+  String get bizDiscountIsAutoCalculatedFrom =>
+      'Discount is auto-calculated from prices';
+
+  @override
+  String get bizUploadImage => 'Upload Image';
+
+  @override
+  String get biz400400px => '📐 400×400px';
+
+  @override
+  String get bizMax1MB => '📦 Max 1MB';
+
+  @override
+  String get bizValidityDays => 'Validity (Days)';
+
+  @override
+  String get bizStartDate => 'Start date';
+
+  @override
+  String get bizEndDate => 'End date';
+
+  @override
+  String get bizNumberOfDays2 => 'Number of days';
+
+  @override
+  String get bizLivePeriod => 'Live period:';
+
+  @override
+  String get bizFree0 => 'Free (₹0)';
+
+  @override
+  String get bizFreeProduct => 'Free product';
+
+  @override
+  String get bizYourBusiness => 'Your business';
+
+  @override
+  String get bizMyStores => 'My Stores';
+
+  @override
+  String get bizTapToAddYourFirst => 'Tap + to add your first store';
+
+  @override
+  String get bizActive => 'Active';
+
+  @override
+  String get bizDraft => 'Draft';
+
+  @override
+  String get bizInactive => 'Inactive';
+
+  @override
+  String get bizDeleted => 'Deleted';
+
+  @override
+  String get bizRemoved => 'Removed';
+
+  @override
+  String get bizSubscribe => 'Subscribe';
+
+  @override
+  String get bizAwaitingAdminApproval2 => 'Awaiting Admin Approval';
+
+  @override
+  String get bizQR => 'QR';
+
+  @override
+  String get bizGenQR => 'Gen QR';
+
+  @override
+  String get bizShowThisToCustomersTo =>
+      'Show this to customers to earn points';
+
+  @override
+  String get bizDeviceLocationIsTurnedOff =>
+      'Device location is turned off. Turn it on and try again.';
+
+  @override
+  String get bizUnableToIdentifyTheExact =>
+      'Unable to identify the exact location from this Google Maps link. Please open Google Maps, drop a pin on the exact location, tap Share → Copy link, and try again.';
+
+  @override
+  String get bizCity => 'City';
+
+  @override
+  String get bizState => 'State';
+
+  @override
+  String get bizArea => 'Area';
+
+  @override
+  String get bizPostalCode => 'Postal code';
+
+  @override
+  String get bizLocationCaptured => 'Location captured';
+
+  @override
+  String get bizImageTooLargeMax2MB2 => 'Image too large. Max 2MB allowed.';
+
+  @override
+  String get bizStoreNameRequired => 'Store name required';
+
+  @override
+  String get bizPleaseSetTheStoreLocation =>
+      'Please set the store location using "Use current location" or a Google Maps link';
+
+  @override
+  String get bizMobileNumberIsRequired => 'Mobile number is required';
+
+  @override
+  String get bizEnterAValid10Digit =>
+      'Enter a valid 10-digit mobile number (starts with 6–9)';
+
+  @override
+  String get bizEditStore => 'Edit Store';
+
+  @override
+  String get bizAddStore => 'Add Store';
+
+  @override
+  String get bizStoreName => 'Store Name *';
+
+  @override
+  String get bizCategory => 'Category';
+
+  @override
+  String get bizSelectCategory => 'Select category';
+
+  @override
+  String get bizStoreLocation => 'Store location';
+
+  @override
+  String get bizUseGPSOrPasteA => 'Use GPS or paste a Maps link.';
+
+  @override
+  String get bizUseCurrentLocation => 'Use current location';
+
+  @override
+  String get bizOrPasteGoogleMapsLink => 'or paste Google Maps link';
+
+  @override
+  String get bizPasteGoogleMapsLinkHere => 'Paste Google Maps link here';
+
+  @override
+  String get bizResolveLocation => 'Resolve Location';
+
+  @override
+  String get bizLatitude => 'Latitude';
+
+  @override
+  String get bizLongitude => 'Longitude';
+
+  @override
+  String get bizAutoFilledByGPSOr =>
+      'Auto-filled by GPS or Google Maps — you can edit any value. Edited values are saved as entered.';
+
+  @override
+  String get bizPhone => 'Phone';
+
+  @override
+  String get bizTapToChangeImage => 'Tap to change image';
+
+  @override
+  String get bizMainStoreImage => 'Main Store Image';
+
+  @override
+  String get biz800600px43 => '📐 800×600px (4:3)';
+
+  @override
+  String get bizUploadLogoOptional => 'Upload Logo [Optional]';
+
+  @override
+  String get bizTapToChangeLogo => 'Tap to change logo';
+
+  @override
+  String get bizTapToUploadLogo => 'Tap to upload logo';
+
+  @override
+  String get biz200200px11 => '📐 200×200px (1:1)';
+
+  @override
+  String get bizStoreTimingsOptional => 'Store Timings [Optional]';
+
+  @override
+  String get bizOpeningTime => 'Opening Time';
+
+  @override
+  String get bizOpenAt => 'Open at';
+
+  @override
+  String get bizClosingTime => 'Closing Time';
+
+  @override
+  String get bizCloseAt => 'Close at';
+
+  @override
+  String get bizAboutThisStoreDescriptionShown =>
+      'About this store (description shown to customers)';
+
+  @override
+  String get bizSaveChanges => 'Save Changes';
+
+  @override
+  String get bizCreateStore => 'Create Store';
+
+  @override
+  String get bizConfirmingPayment => 'Confirming payment...';
+
+  @override
+  String get bizPleaseWaitAMoment => 'Please wait a moment';
+
+  @override
+  String get bizSubscriptionRequestSent => 'Subscription Request Sent';
+
+  @override
+  String get bizPlan => 'Plan';
+
+  @override
+  String get bizFrom => 'From';
+
+  @override
+  String get bizTo => 'To';
+
+  @override
+  String get bizTotalPayable => 'Total Payable';
+
+  @override
+  String get bizYourSubscriptionRequestHasBeen =>
+      '✅  Your subscription request has been submitted.';
+
+  @override
+  String get bizConfirmPayment => 'Confirm Payment';
+
+  @override
+  String get bizRazorpayCheckoutWillOpenAfter =>
+      'Razorpay checkout will open. After payment, admin will approve your store.';
+
+  @override
+  String get bizPayNow => 'Pay Now';
+
+  @override
+  String get bizSubscribeStore => 'Subscribe Store';
+
+  @override
+  String get bizSelectPlan => 'Select Plan';
+
+  @override
+  String get bizStartDate2 => 'Start Date';
+
+  @override
+  String get bizHaveADiscountCode => 'Have a discount code?';
+
+  @override
+  String get bizEnterCode => 'Enter code';
+
+  @override
+  String get bizDiscount2 => 'Discount:';
+
+  @override
+  String get bizRemove => 'Remove';
+
+  @override
+  String get bizProceedToPay => 'Proceed to Pay';
+
+  @override
+  String get bizRefresh => 'Refresh';
+
+  @override
+  String get bizNoInvoicesYet => 'No invoices yet';
+
+  @override
+  String get bizPullDownToRefresh => 'Pull down to refresh';
+
+  @override
+  String get bizShare => 'Share';
+
+  @override
+  String get bizDownloadPDF => 'Download PDF';
+
+  @override
+  String get bizAccountRegistered => 'Account registered';
+
+  @override
+  String get bizNewStoreCreated => 'New store created';
+
+  @override
+  String get bizStoreProfileUpdated => 'Store profile updated';
+
+  @override
+  String get bizStoreApproved => 'Store approved';
+
+  @override
+  String get bizStoreRejected => 'Store rejected';
+
+  @override
+  String get bizStoreSubscriptionActivated => 'Store subscription activated';
+
+  @override
+  String get bizFreeSubscriptionActivated => 'Free subscription activated';
+
+  @override
+  String get bizSubscriptionPaymentReceived => 'Subscription payment received';
+
+  @override
+  String get bizBannerSubmitted => 'Banner submitted';
+
+  @override
+  String get bizBannerApproved => 'Banner approved';
+
+  @override
+  String get bizBannerRejected => 'Banner rejected';
+
+  @override
+  String get bizBannerPaymentReceived => 'Banner payment received';
+
+  @override
+  String get bizProductSubmitted => 'Product submitted';
+
+  @override
+  String get bizProductApproved => 'Product approved';
+
+  @override
+  String get bizProductRejected => 'Product rejected';
+
+  @override
+  String get bizProductPaymentReceived => 'Product payment received';
+
+  @override
+  String get bizPaymentReceived => 'Payment received';
+
+  @override
+  String get bizFreePlanActivated => 'Free plan activated';
+
+  @override
+  String get bizProfileUpdated => 'Profile updated';
+
+  @override
+  String get bizQRCodeRegenerated => 'QR code regenerated';
+
+  @override
+  String get bizPayment => 'Payment';
+
+  @override
+  String get bizApprovedLive2 => '✅ Approved — Live';
+
+  @override
+  String get bizRejected2 => '❌ Rejected';
+
+  @override
+  String get bizPendingApproval2 => '⏳ Pending Approval';
+
+  @override
+  String get bizBusinessTimeline => 'Business timeline';
+
+  @override
+  String get bizNoActivityYet => 'No activity yet';
+
+  @override
+  String get bizMerchantAccount => 'Merchant account';
+
+  @override
+  String get bizTapPhotoToChange => 'Tap photo to change';
+
+  @override
+  String get bizSwitchBetweenUserMerchantInfluencer =>
+      'Switch between User, Merchant & Influencer';
+
+  @override
+  String get bizKYCPolicy => 'KYC Policy';
+
+  @override
+  String get bizMerchantOffers => 'Merchant offers';
+
+  @override
+  String get bizMyDeals => 'My Deals';
+
+  @override
+  String get bizAddDeal => 'Add Deal';
+
+  @override
+  String get bizYouNeedAnActiveStore =>
+      'You need an active store to add deals.';
+
+  @override
+  String get bizNoDealsYet => 'No deals yet';
+
+  @override
+  String get bizAddDealsToAttractMore => 'Add deals to attract more customers';
+
+  @override
+  String get bizEditDeal => 'Edit Deal';
+
+  @override
+  String get bizDeleteDeal => 'Delete Deal?';
+
+  @override
+  String get bizDelete => 'Delete';
+
+  @override
+  String get bizDealTitleIsRequired => 'Deal title is required';
+
+  @override
+  String get bizEndDateIsRequired => 'End date is required';
+
+  @override
+  String get bizPleaseAddAnImageBefore => 'Please add an image before saving.';
+
+  @override
+  String get bizDealUpdated => 'Deal updated!';
+
+  @override
+  String get bizDealAdded => 'Deal added!';
+
+  @override
+  String get bizDealTitleEG20 => 'Deal Title (e.g. 20% off on all items)';
+
+  @override
+  String get bizDescriptionOptional => 'Description (optional)';
+
+  @override
+  String get bizDealImage => 'Deal Image';
+
+  @override
+  String get bizTapToReplaceImage => 'Tap to replace image';
+
+  @override
+  String get bizMax2MBRequired => '📦 Max 2MB · Required';
+
+  @override
+  String get bizSelectEndDate => 'Select End Date';
+
+  @override
+  String get bizAllYourStoresProductsData =>
+      'All your stores, products & data will be permanently removed';
+
+  @override
+  String get bizINoLongerRunMy => 'I no longer run my business';
+
+  @override
+  String get bizTheAppIsNotWorking => 'The app is not working properly for me';
+
+  @override
+  String get bizOnceYourAccountIsDeleted =>
+      'Once your account is deleted, your stores, products, banners and data cannot be retrieved. Signing up again will create a new account.';
+
+  @override
+  String get bizYourMerchantAccountWillBe =>
+      'Your merchant account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your stores, products and data cannot be retrieved. Are you absolutely sure?';
+
+  @override
+  String get bizChecking => 'Checking…';
+
+  @override
+  String get bizDiscountApplied2 => 'Discount applied!';
+
+  @override
+  String get bizChooseALaterEndDate =>
+      'Choose a later end date (add at least 1 day)';
+
+  @override
+  String get bizRenewedSuccessfully => '✅ Renewed successfully!';
+
+  @override
+  String get bizRenewalSummary => 'Renewal Summary';
+
+  @override
+  String get bizNewEndDate => 'New end date';
+
+  @override
+  String get bizFreeRenewal => 'Free renewal';
+
+  @override
+  String get bizRenewFree => 'Renew free';
+
+  @override
+  String get bizRenewed => 'Renewed!';
+
+  @override
+  String get bizRenewProduct => 'Renew Product';
+
+  @override
+  String get bizNoEndDate => 'No end date';
+
+  @override
+  String get bizChooseHowLongTheProduct =>
+      'Choose how long the product stays live.';
+
+  @override
+  String get bizDaysToAdd => 'Days to add';
+
+  @override
+  String get bizProductAnalytics => 'Product Analytics';
+
+  @override
+  String get bizCouldnTLoadAnalytics => 'Couldn\'t load analytics';
+
+  @override
+  String get bizPleaseCheckYourConnectionAnd =>
+      'Please check your connection and try again.';
+
+  @override
+  String get bizPremiumListingAnalytics => 'Premium Listing Analytics';
+
+  @override
+  String get bizViews => '👁️ Views';
+
+  @override
+  String get bizShares => '🔗 Shares';
+
+  @override
+  String get bizStoreVisits => '🛒 Store Visits';
+
+  @override
+  String get bizLastSeen => '📅 Last Seen';
+
+  @override
+  String get bizStoreVisitsCustomersWhoVisited =>
+      'Store Visits: customers who visited the store';
+
+  @override
+  String get bizConversionRate => 'Conversion Rate';
+
+  @override
+  String get bizSimilarProducts => 'Similar Products';
+
+  @override
+  String get bizPaymentSuccessful => 'Payment Successful!';
+
+  @override
+  String get bizYourPurchaseIsNowPending =>
+      'Your purchase is now pending admin approval.';
+
+  @override
+  String get bizAdminWillReviewAndActivate =>
+      'Admin will review and activate your purchase within 24 hours.';
+
+  @override
+  String get bizInfluencersAreComingSoon => 'Influencers are coming soon ✨';
+
+  @override
+  String get bizWeReBringingLocalCreators =>
+      'We\'re bringing local creators and their recommendations to OffrO. Stay tuned!';
+
+  @override
+  String get bizPeopleShapingTheCity => 'People shaping the city';
+
+  @override
+  String get bizLocalVoices => 'Local Voices';
+
+  @override
+  String get bizPleaseSelectAStarRating => 'Please select a star rating first';
+
+  @override
+  String get bizPleaseLogInToSubmit => 'Please log in to submit a review';
+
+  @override
+  String get bizPleaseWriteAtLeastA => 'Please write at least a few words';
+
+  @override
+  String get bizVERIFIEDLOCALVOICE => 'VERIFIED LOCAL VOICE';
+
+  @override
+  String get bizRating => 'Rating';
+
+  @override
+  String get bizRateThisInfluencer => 'Rate this influencer';
+
+  @override
+  String get bizShareYourExperienceOptional =>
+      'Share your experience (optional)';
+
+  @override
+  String get bizUpdateReview => 'Update Review';
+
+  @override
+  String get bizCreatorAccount => 'Creator account';
+
+  @override
+  String get bizCREATORWORKSPACE => 'CREATOR WORKSPACE';
+
+  @override
+  String get bizProfileViews => 'Profile views';
+
+  @override
+  String get bizSavedBy => 'Saved by';
+
+  @override
+  String get bizYourProfileIsLive => 'Your profile is live';
+
+  @override
+  String get bizYourProfileIsnTLive => 'Your profile isn\'t live yet';
+
+  @override
+  String get bizMerchantsAndCustomersCanDiscover =>
+      'Merchants and customers can discover you.';
+
+  @override
+  String get bizOpenYourProfileToReview =>
+      'Open your profile to review and publish it.';
+
+  @override
+  String get bizMATCHEDFORYOU => 'MATCHED FOR YOU';
+
+  @override
+  String get bizCampaignOpportunities => 'Campaign opportunities';
+
+  @override
+  String get bizINFLUENCERWORKSPACE => 'INFLUENCER WORKSPACE';
+
+  @override
+  String get bizCreateYourLocalProfile => 'Create your local profile.';
+
+  @override
+  String get bizYouLlNeedAnInfluencer =>
+      'You\'ll need an Influencer profile to use the Influencer module — it\'s how customers and merchants discover you on OffrO.';
+
+  @override
+  String get bizAddInfluencerProfile => '+ Add influencer profile';
+
+  @override
+  String get bizNotAdded => 'Not added';
+
+  @override
+  String get bizContinuePublishingPayNow => 'Continue Publishing / Pay Now';
+
+  @override
+  String get bizMyProfile => 'My profile';
+
+  @override
+  String get bizBusinessDetails => 'Business Details';
+
+  @override
+  String get bizDisplayName => 'Display Name';
+
+  @override
+  String get bizBio => 'Bio';
+
+  @override
+  String get bizSocialPages => 'Social Pages';
+
+  @override
+  String get bizPrimarySpecialty => 'Primary Specialty';
+
+  @override
+  String get bizNoSpecialtySelected => 'No specialty selected';
+
+  @override
+  String get bizAccountDetails => 'Account Details';
+
+  @override
+  String get bizDisable => 'Disable';
+
+  @override
+  String get bizEnable => 'Enable';
+
+  @override
+  String get bizHideYourProfileFromCustomers =>
+      'Hide your profile from customers';
+
+  @override
+  String get bizMakeYourProfileVisibleAgain =>
+      'Make your profile visible again';
+
+  @override
+  String get bizSwitchToYourCustomerAccount =>
+      'Switch to your Customer account';
+
+  @override
+  String get bizYourProfileIsSavedAs =>
+      'Your profile is saved as a draft. Complete the one-time subscription payment from Edit Profile → Save & Publish to make it visible to customers.';
+
+  @override
+  String get bizPaymentIsBeingProcessedIf =>
+      'Payment is being processed. If you completed a payment and this doesn\'t update, try Save & Publish again.';
+
+  @override
+  String get bizYourLastSubscriptionPaymentAttempt =>
+      'Your last subscription payment attempt failed. Please try Save & Publish again to complete payment.';
+
+  @override
+  String get bizYourProfileIsNotYet => 'Your profile is not yet published.';
+
+  @override
+  String get bizDeleteInfluencerProfile => 'Delete Influencer Profile?';
+
+  @override
+  String get bizAreYouSureYouWant =>
+      'Are you sure you want to delete your influencer profile? This action cannot be undone.';
+
+  @override
+  String get bizIfYouCreateANew =>
+      'If you create a new influencer profile in the future, a new subscription payment will be required.';
+
+  @override
+  String get bizDeleteProfile => 'Delete Profile';
+
+  @override
+  String get bizREVIEWS => 'REVIEWS';
+
+  @override
+  String get bizCreatorReviews => 'Creator reviews';
+
+  @override
+  String get bizNameIsRequired => 'Name is required';
+
+  @override
+  String get bizPleaseSelectAState => 'Please select a state';
+
+  @override
+  String get bizPleaseEnterAValid10 =>
+      'Please enter a valid 10-digit mobile number.';
+
+  @override
+  String get bizProfileImageIsRequiredTo =>
+      'Profile image is required to publish your influencer profile.';
+
+  @override
+  String get bizWeCouldnTConfirmYour =>
+      'We couldn\'t confirm your payment. If money was deducted, it will be verified shortly — please try Save & Publish again in a moment.';
+
+  @override
+  String get bizCreatorIdentity => 'Creator identity';
+
+  @override
+  String get bizEditProfile => 'Edit profile';
+
+  @override
+  String get bizAddProfile => 'Add profile';
+
+  @override
+  String get bizRequiredToPublish => 'Required to publish';
+
+  @override
+  String get bizName => 'Name *';
+
+  @override
+  String get bizEGPriyaSharma => 'e.g. Priya Sharma';
+
+  @override
+  String get bizSharingTheBestLocalFood =>
+      'Sharing the best local food, cafés, shops and great offers around your city.';
+
+  @override
+  String get bizState2 => 'State *';
+
+  @override
+  String get bizSelectState => 'Select state';
+
+  @override
+  String get bizCity2 => 'City *';
+
+  @override
+  String get bizSelectStateFirst => 'Select state first';
+
+  @override
+  String get bizSelectCity => 'Select city';
+
+  @override
+  String get bizPrimarySpecialtySelectOneOr =>
+      'Primary Specialty (select one or more)';
+
+  @override
+  String get bizNoCategoriesAvailable => 'No categories available';
+
+  @override
+  String get biz10DigitMobileNumber => '10-digit mobile number';
+
+  @override
+  String get bizSocialLinks => 'Social Links';
+
+  @override
+  String get bizInstagramURL => 'Instagram URL';
+
+  @override
+  String get bizYouTubeURL => 'YouTube URL';
+
+  @override
+  String get bizFacebookURL => 'Facebook URL';
+
+  @override
+  String get bizSaveKeepAsDraft => 'Save (keep as draft)';
+
+  @override
+  String get bizSavePublish => 'Save & Publish';
+
+  @override
+  String get bizSavePublishPayToPublish => 'Save & Publish (Pay to Publish)';
+
+  @override
+  String get bizNoSubscriptionPaymentIsCurrently =>
+      'No subscription payment is currently required to publish your profile.';
+
+  @override
+  String get bizSubscriptionFee => 'Subscription Fee';
+
+  @override
+  String get bizDiscountCodeOptional => 'Discount code (optional)';
+
+  @override
+  String get bizAOneTimePaymentYou =>
+      'A one-time payment — you won\'t be charged again for editing or re-publishing this profile.';
+
+  @override
+  String get bizEnterADiscountCodeFirst => 'Enter a discount code first';
+
+  @override
+  String get bizSelectSpecialties => 'Select specialties';
+
+  @override
+  String get bizCreateBrief => 'Create brief';
+
+  @override
+  String get bizShareWhatYouNeedAnd => 'Share what you need and where.';
+
+  @override
+  String get bizInviteCreators => 'Invite creators';
+
+  @override
+  String get bizLocalCreatorsInYourCity =>
+      'Local creators in your city see it.';
+
+  @override
+  String get bizConfirmMatch => 'Confirm match';
+
+  @override
+  String get bizReviewWhoAcceptedAndConnect =>
+      'Review who accepted and connect.';
+
+  @override
+  String get bizCreator => 'Creator';
+
+  @override
+  String get bizCollaborations => 'Collaborations';
+
+  @override
+  String get bizWorkWithTrustedLocalCreators =>
+      'Work with trusted local creators.';
+
+  @override
+  String get bizCreateOneClearCampaignBrief =>
+      'Create one clear campaign brief, review matched creators and confirm a collaboration without managing conversations across multiple apps.';
+
+  @override
+  String get bizHowItWorks => 'How it works';
+
+  @override
+  String get bizCreateCampaignBrief => 'Create campaign brief';
+
+  @override
+  String get bizYourCampaigns => 'Your campaigns';
+
+  @override
+  String get bizCollaborationWorkspace => 'Collaboration workspace';
+
+  @override
+  String get bizNoCampaignsYet => 'No campaigns yet';
+
+  @override
+  String get bizCreateYourFirstCampaignBrief =>
+      'Create your first campaign brief to invite local creators.';
+
+  @override
+  String get bizWhenShouldYouUseThis => 'When should you use this?';
+
+  @override
+  String get bizUseCollaborationsForLaunchesVisits =>
+      'Use collaborations for launches, visits and creator content. Regular store updates and discounts belong in Banners or Deals instead.';
+
+  @override
+  String get bizReviewProposals => 'Review proposals';
+
+  @override
+  String get bizCloseCampaign => 'Close campaign?';
+
+  @override
+  String get bizCreatorsWillNoLongerBe =>
+      'Creators will no longer be able to accept this brief.';
+
+  @override
+  String get bizKeepOpen => 'Keep open';
+
+  @override
+  String get bizCampaign => 'Campaign';
+
+  @override
+  String get bizProposals => 'Proposals';
+
+  @override
+  String get bizCreatorsWhoAccepted => 'Creators who accepted';
+
+  @override
+  String get bizNoProposalsYet => 'No proposals yet';
+
+  @override
+  String get bizCreatorsInYourCityWill =>
+      'Creators in your city will appear here once they accept your brief.';
+
+  @override
+  String get bizClosing => 'Closing…';
+
+  @override
+  String get bizCloseCampaign2 => 'Close campaign';
+
+  @override
+  String get bizChatOnWhatsApp => 'Chat on WhatsApp';
+
+  @override
+  String get bizCouldnTOpenWhatsApp => 'Couldn\'t open WhatsApp.';
+
+  @override
+  String get bizPleaseSelectAStore2 => 'Please select a store.';
+
+  @override
+  String get bizEnterACampaignTitleAt =>
+      'Enter a campaign title (at least 3 characters).';
+
+  @override
+  String get bizSelectACampaignObjective => 'Select a campaign objective.';
+
+  @override
+  String get bizDescribeWhatTheCreatorShould =>
+      'Describe what the creator should communicate (at least 10 characters).';
+
+  @override
+  String get bizSelectTheContentYouNeed => 'Select the content you need.';
+
+  @override
+  String get bizChooseAPublishByDate => 'Choose a publish-by date.';
+
+  @override
+  String get bizChooseAVisitDateFor =>
+      'Choose a visit date for the store visit.';
+
+  @override
+  String get bizVisitDateCanTBe =>
+      'Visit date can\'t be after the publish-by date.';
+
+  @override
+  String get bizBriefPublishedMatchingCreatorsCan =>
+      'Brief published. Matching creators can now see it.';
+
+  @override
+  String get bizCampaignBrief => 'Campaign brief';
+
+  @override
+  String get bizAddAndActivateAStore =>
+      'Add and activate a store before creating a campaign brief.';
+
+  @override
+  String get bizSelectStore2 => 'Select store';
+
+  @override
+  String get bizCampaignTitle => 'Campaign title';
+
+  @override
+  String get bizExampleSeasonalMenuLaunch => 'Example: Seasonal menu launch';
+
+  @override
+  String get bizCampaignObjective => 'Campaign objective';
+
+  @override
+  String get bizSelectObjective => 'Select objective';
+
+  @override
+  String get bizWhatShouldTheCreatorCommunicate =>
+      'What should the creator communicate?';
+
+  @override
+  String get bizKeyMessageExperienceAndDetails =>
+      'Key message, experience and details they should know...';
+
+  @override
+  String get bizRequestedContent => 'Requested content';
+
+  @override
+  String get bizVisitDate => 'Visit date';
+
+  @override
+  String get bizSelectDate => 'Select date';
+
+  @override
+  String get bizPublishBy => 'Publish by';
+
+  @override
+  String get bizPreferredCreatorSpeciality => 'Preferred creator speciality';
+
+  @override
+  String get bizSelectSpeciality => 'Select speciality';
+
+  @override
+  String get bizNoPaymentProcessing => 'No payment processing';
+
+  @override
+  String get bizOffrOConnectsYouWithCreators =>
+      'OffrO connects you with creators. Any compensation is agreed directly between you and the creator.';
+
+  @override
+  String get bizPublishing => 'Publishing…';
+
+  @override
+  String get bizPublishBrief => 'Publish brief';
+
+  @override
+  String get bizMatchedLocally => 'Matched locally';
+
+  @override
+  String get bizReviewCollaborationRequestsFromReleva =>
+      'Review collaboration requests from relevant merchants in your city.';
+
+  @override
+  String get bizNoCollaborationRequestsYet => 'No collaboration requests yet';
+
+  @override
+  String get bizRequestsFromMerchantsInYour =>
+      'Requests from merchants in your city will appear here.';
+
+  @override
+  String get bizAccepted => 'Accepted';
+
+  @override
+  String get bizDeclined => 'Declined';
+
+  @override
+  String get bizNewCollaborationRequest => 'New collaboration request';
+
+  @override
+  String get bizViewBrief => 'View brief';
+
+  @override
+  String get bizNoCampaignRequestsYet => 'No campaign requests yet';
+
+  @override
+  String get bizNewBriefsFromMerchantsIn =>
+      'New briefs from merchants in your city will appear here.';
+
+  @override
+  String get bizCollaborationAccepted => 'Collaboration accepted.';
+
+  @override
+  String get bizRequestDeclined => 'Request declined.';
+
+  @override
+  String get bizCollaborationRequest => 'Collaboration request';
+
+  @override
+  String get bizBrief => 'Brief';
+
+  @override
+  String get bizCompleteYourProfileSubscriptionTo =>
+      'Complete your profile subscription to accept collaborations.';
+
+  @override
+  String get bizObjective => 'Objective';
+
+  @override
+  String get bizMessage => 'Message';
+
+  @override
+  String get bizPreferredSpeciality => 'Preferred speciality';
+
+  @override
+  String get bizThisCollaborationIsForPromotion =>
+      'This collaboration is for promotion on your Instagram. There is no in-app chat.';
+
+  @override
+  String get bizYouAcceptedThisCollaboration =>
+      'You accepted this collaboration';
+
+  @override
+  String get bizTheMerchantSContactNumber =>
+      'The merchant\'s contact number is not available.';
+
+  @override
+  String get bizContactTheMerchantToPlan =>
+      'Contact the merchant to plan your visit:';
+
+  @override
+  String get bizThisRequestIsNoLonger => 'This request is no longer open.';
+
+  @override
+  String get bizPleaseWait => 'Please wait…';
+
+  @override
+  String get bizAcceptCollaboration => 'Accept collaboration';
+
+  @override
+  String get bizDecline => 'Decline';
+
+  @override
+  String bizFreeSlotsUsedOf(String used, String limit) {
+    return '$used/$limit free slots used';
+  }
+
+  @override
+  String bizWelcomeBackName(String name) {
+    return 'Welcome back, $name';
+  }
+
+  @override
+  String bizBannerSubmittedMsg(String message) {
+    return '✅ Banner submitted! $message';
+  }
+
+  @override
+  String get bizBannerFallbackDeal =>
+      'If this deal is later removed, the banner opens the store instead.';
+
+  @override
+  String get bizBannerFallbackProduct =>
+      'If this product is later removed, the banner opens the store instead.';
+
+  @override
+  String bizPaymentFailedMsg(String error) {
+    return 'Payment failed: $error';
+  }
+
+  @override
+  String bizToggleFailed(String error) {
+    return 'Toggle failed: $error';
+  }
+
+  @override
+  String bizFreeProductSlotsUsed(String used, String limit) {
+    return '$used / $limit free product slots used';
+  }
+
+  @override
+  String bizAdditionalProductsCharged(String price) {
+    return 'Additional products are charged at $price per day of validity.';
+  }
+
+  @override
+  String bizDeleteProductBody(String title) {
+    return '"$title" will be permanently removed and cannot be reactivated. Any payment already made for this product will not be refunded.';
+  }
+
+  @override
+  String get bizThisProduct => 'This product';
+
+  @override
+  String bizDeleteError(String error) {
+    return 'Error deleting: $error';
+  }
+
+  @override
+  String bizCodeAppliedPct(String value) {
+    return '✅ Code applied — $value% off!';
+  }
+
+  @override
+  String bizCodeAppliedAmt(String value) {
+    return '✅ Code applied — ₹$value off!';
+  }
+
+  @override
+  String bizMaxValidity(String days) {
+    return 'Maximum validity is $days days';
+  }
+
+  @override
+  String bizProductSubmittedMsg(String message) {
+    return '✅ Product submitted! $message';
+  }
+
+  @override
+  String bizPaymentErrorMsg(String error) {
+    return 'Payment error: $error';
+  }
+
+  @override
+  String get bizCouldNotOpenPayment =>
+      'Could not open payment. Please try again.';
+
+  @override
+  String bizMaxDays(String days) {
+    return 'Maximum $days days';
+  }
+
+  @override
+  String bizFreeSlotsRemaining(String remaining, String limit) {
+    return 'You have $remaining of $limit free product slots remaining.';
+  }
+
+  @override
+  String bizFreeSlotsAllUsed(String limit, String price) {
+    return 'You have used all $limit free product slots.\nPrice is $price per day + GST for the days you choose.';
+  }
+
+  @override
+  String bizLocationUpdatedTo(String city) {
+    return 'Location updated to $city';
+  }
+
+  @override
+  String bizCouldNotGetLocation(String error) {
+    return 'Could not get location: $error';
+  }
+
+  @override
+  String get bizLocationPermissionNeeded =>
+      'Location permission is required for current location. Allow it and try again.';
+
+  @override
+  String get bizSetStoreLocationFirst =>
+      'Please set the store\'s location using "Use Current Location" or a Google Maps link before creating the store.';
+
+  @override
+  String get bizStoreLocationIncomplete =>
+      'The store location looks incomplete. Use "Use Current Location" or a Google Maps link to set a valid location.';
+
+  @override
+  String bizPaymentCancelledOrFailed(String error) {
+    return 'Payment cancelled or failed: $error';
+  }
+
+  @override
+  String bizExternalWallet(String name) {
+    return 'External wallet: $name';
+  }
+
+  @override
+  String bizDiscountAppliedPct(String value) {
+    return '✅ $value% discount applied!';
+  }
+
+  @override
+  String bizDiscountAppliedAmt(String value) {
+    return '✅ ₹$value discount applied!';
+  }
+
+  @override
+  String get bizSubmittedPayRep =>
+      '✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.';
+
+  @override
+  String bizEndDateExceedsStore(String date) {
+    return 'End date cannot exceed store expiry ($date)';
+  }
+
+  @override
+  String bizCurrentEndDate(String date) {
+    return 'Current end date: $date';
+  }
+
+  @override
+  String bizFreeSlotAvailable(String used, String limit) {
+    return 'A free product slot is available ($used of $limit in use), so this renewal is free.';
+  }
+
+  @override
+  String bizAllFreeSlotsUsedRenew(String limit, String price) {
+    return 'You are using all $limit free product slots. Renewing costs $price per day added + GST.';
+  }
+
+  @override
+  String bizViewersVisitedStore(String pct) {
+    return '$pct% of viewers visited the store (tapped Sold by)';
+  }
+
+  @override
+  String get bizProductsExpiringOne => '1 product expiring soon — tap to renew';
+
+  @override
+  String bizProductsExpiringMany(String n) {
+    return '$n products expiring soon — tap to renew';
+  }
+
+  @override
+  String bizMoreFromStore(String store) {
+    return 'More from $store';
+  }
+
+  @override
+  String get bizThisStore => 'this store';
+
+  @override
+  String bizPurchasePendingNamed(String store) {
+    return 'Your "$store" purchase is now pending admin approval.';
+  }
+
+  @override
+  String bizNoInfluencersInCity(String city) {
+    return 'No influencers available in $city yet';
+  }
+
+  @override
+  String bizSeeAllCount(String count) {
+    return 'See all ($count)';
+  }
+
+  @override
+  String bizReviewsFor(String name) {
+    return 'Reviews for $name';
+  }
+
+  @override
+  String bizPublishByDate(String date) {
+    return 'Publish by $date';
+  }
+
+  @override
+  String bizSeeAllRequests(String count) {
+    return 'See all $count requests';
+  }
+
+  @override
+  String get bizDeclinedCanAccept =>
+      'You declined this request. You can still accept it while it is open.';
+
+  @override
+  String get bizDeclinedRequest => 'You declined this request.';
+
+  @override
+  String get errPayNoMessage =>
+      'Payment could not be completed. Please try again.';
+
+  @override
+  String get errPayGeneric =>
+      'We couldn\'t complete your payment. Please try again.';
+
+  @override
+  String bizStoresActiveOne(String active) {
+    return '1 Store • $active Active';
+  }
+
+  @override
+  String bizStoresActiveMany(String count, String active) {
+    return '$count Stores • $active Active';
+  }
+
+  @override
+  String bizNLive(String n) {
+    return '$n Live';
+  }
+
+  @override
+  String bizNPending(String n) {
+    return '$n Pending';
+  }
+
+  @override
+  String get bizSubmittedWord => 'Submitted';
+
+  @override
+  String bizBannersStatusOne(String status) {
+    return '1 Banner • $status';
+  }
+
+  @override
+  String bizBannersStatusMany(String count, String status) {
+    return '$count Banners • $status';
+  }
+
+  @override
+  String bizNDays(String n) {
+    return '$n Days';
+  }
+
+  @override
+  String bizStartEndRange(String from, String end) {
+    return 'Start: $from   →   End: $end';
+  }
+
+  @override
+  String bizFromDateLabel(String date) {
+    return 'From: $date';
+  }
+
+  @override
+  String bizUntilDateLabel(String date) {
+    return 'Until: $date';
+  }
+
+  @override
+  String bizInvoiceColon(String no) {
+    return 'Invoice: $no';
+  }
+
+  @override
+  String bizPerDayPrice(String amount) {
+    return '₹$amount/day';
+  }
+
+  @override
+  String bizGstPct(String pct) {
+    return 'GST ($pct%)';
+  }
+
+  @override
+  String bizPayAmount(String amount) {
+    return 'Pay ₹$amount';
+  }
+
+  @override
+  String bizPricePerDayTimesDays(String price, String days) {
+    return '₹$price/day × $days days';
+  }
+
+  @override
+  String bizDiscountTotalPct(String amount, String pct, String total) {
+    return '−₹$amount ($pct%) off  →  Total: ₹$total';
+  }
+
+  @override
+  String bizDiscountTotalAmt(String amount, String total) {
+    return '−₹$amount off  →  Total: ₹$total';
+  }
+
+  @override
+  String get bizResultOne => '1 result';
+
+  @override
+  String bizResultMany(String n) {
+    return '$n results';
+  }
+
+  @override
+  String bizExpiredOn(String date) {
+    return 'Expired $date';
+  }
+
+  @override
+  String bizExpiresOn(String date) {
+    return 'Expires $date';
+  }
+
+  @override
+  String bizErrorColon(String error) {
+    return 'Error: $error';
+  }
+
+  @override
+  String bizDayTimesPriceOne(String days, String price) {
+    return '$days day × $price/day';
+  }
+
+  @override
+  String bizDayTimesPriceMany(String days, String price) {
+    return '$days days × $price/day';
+  }
+
+  @override
+  String bizFailedColon(String error) {
+    return 'Failed: $error';
+  }
+
+  @override
+  String get bizDealCountOne => '1 Deal';
+
+  @override
+  String bizDealCountMany(String n) {
+    return '$n Deals';
+  }
+
+  @override
+  String bizPricePlusGst(String price, String pct) {
+    return '₹$price + $pct% GST';
+  }
+
+  @override
+  String bizPlanPeriodLine(String plan, String from, String end) {
+    return 'Plan: $plan  •  $from – $end';
+  }
+
+  @override
+  String bizBaseGstLine(String base, String gst) {
+    return 'Base: ₹$base  GST: ₹$gst';
+  }
+
+  @override
+  String bizDiscountCodeLine(String code, String amount) {
+    return 'Discount ($code): −₹$amount';
+  }
+
+  @override
+  String bizBannerTitleLine(String title) {
+    return 'Banner: $title';
+  }
+
+  @override
+  String bizProductTitleLine(String title) {
+    return 'Product: $title';
+  }
+
+  @override
+  String get bizUntitledWord => 'Untitled';
+
+  @override
+  String bizEndsOn(String date) {
+    return 'Ends $date';
+  }
+
+  @override
+  String bizDeleteDealNamed(String title) {
+    return 'Delete "$title"?';
+  }
+
+  @override
+  String bizMaxDateLine(String date) {
+    return 'Max: $date';
+  }
+
+  @override
+  String bizRenewAmount(String amount) {
+    return 'Renew · $amount';
+  }
+
+  @override
+  String bizCodeAppliedNamed(String code) {
+    return 'Code \'$code\' applied';
+  }
+
+  @override
+  String bizNActive(String n) {
+    return '$n active';
+  }
+
+  @override
+  String bizVisitOn(String date) {
+    return 'Visit $date';
+  }
+
+  @override
+  String bizCallPhone(String phone) {
+    return 'Call $phone';
+  }
+
+  @override
+  String get bizAllProducts => 'All Products';
+
+  @override
+  String get bizAllStores => 'All Stores';
+
+  @override
+  String get bizBannersTab => 'Banners';
+
+  @override
+  String get bizPaymentsTab => 'Payments';
+
+  @override
+  String get bizAdditionalProduct => 'Additional product';
+
+  @override
+  String get bizBillingSubscriptions => 'Billing & subscriptions';
+
+  @override
+  String bizTillDate(String date) {
+    return 'Till: $date';
+  }
+
+  @override
+  String bizExpDate(String date) {
+    return 'Exp: $date';
+  }
+
+  @override
+  String get bizOneDayWord => '1 day';
+
+  @override
+  String bizDaysCountWord(String n) {
+    return '$n days';
+  }
+
+  @override
+  String get bizProposalOne => '1 proposal';
+
+  @override
+  String bizProposalMany(String n) {
+    return '$n proposals';
+  }
+
+  @override
+  String get bizInfluencerSubscription => 'Influencer Subscription';
+
+  @override
+  String get bizOffrOInfluencer => 'OffrO Influencer';
 }

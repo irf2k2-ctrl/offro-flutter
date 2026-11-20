@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/design/offro_tokens.dart' show OffroColors;
+import '../../core/l10n/l10n.dart';
 
 class PaymentSuccessScreen extends StatelessWidget {
   final String storeName;
@@ -38,8 +39,8 @@ class PaymentSuccessScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                const Text(
-                  "Payment Successful!",
+                Text(
+                  context.l10n.bizPaymentSuccessful,
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -50,8 +51,8 @@ class PaymentSuccessScreen extends StatelessWidget {
 
                 Text(
                   storeName.isNotEmpty
-                      ? 'Your "$storeName" purchase is now pending admin approval.'
-                      : 'Your purchase is now pending admin approval.',
+                      ? context.l10n.bizPurchasePendingNamed(storeName)
+                      : context.l10n.bizYourPurchaseIsNowPending,
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: OffroColors.textMuted, fontSize: 15),
                 ),
@@ -71,7 +72,7 @@ class PaymentSuccessScreen extends StatelessWidget {
                         const Icon(Icons.receipt_long, color: kPrimary, size: 16),
                         const SizedBox(width: 6),
                         Text(
-                          "Invoice: $invoiceNo",
+                          context.l10n.bizInvoiceColon(invoiceNo),
                           style: const TextStyle(
                             color: kPrimary,
                             fontWeight: FontWeight.w700,
@@ -92,13 +93,13 @@ class PaymentSuccessScreen extends StatelessWidget {
                     color: OffroColors.mint,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.info_outline, size: 16, color: OffroColors.statusLive),
                       SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          "Admin will review and activate your purchase within 24 hours.",
+                          context.l10n.bizAdminWillReviewAndActivate,
                           style: TextStyle(color: OffroColors.statusLive, fontSize: 13),
                         ),
                       ),
@@ -120,8 +121,8 @@ class PaymentSuccessScreen extends StatelessWidget {
                       ),
                     ),
                     onPressed: onDone,   // ← calls the callback passed from merchant_screens.dart
-                    child: const Text(
-                      "Back to Home",
+                    child: Text(
+                      context.l10n.homeBackToHome,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 15,

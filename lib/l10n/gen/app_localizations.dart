@@ -2971,6 +2971,3588 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download'**
   String get prodDownload;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get bizAdd;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No stores yet — tap to add your first'**
+  String get bizNoStoresYetTapTo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe your store to create banners.'**
+  String get bizSubscribeYourStoreToCreate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No banners yet — promote your store'**
+  String get bizNoBannersYetPromoteYour;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe your store to add products.'**
+  String get bizSubscribeYourStoreToAdd;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No products yet — add your first product'**
+  String get bizNoProductsYetAddYour;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'MERCHANT WORKSPACE'**
+  String get bizMERCHANTWORKSPACE;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back'**
+  String get bizWelcomeBack;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load your dashboard'**
+  String get bizCouldnTLoadYourDashboard;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Live stores'**
+  String get bizLiveStores;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Live banners'**
+  String get bizLiveBanners;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Live products'**
+  String get bizLiveProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'MANAGE YOUR BUSINESS'**
+  String get bizMANAGEYOURBUSINESS;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'My Store'**
+  String get bizMyStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'My Banner'**
+  String get bizMyBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'My Products'**
+  String get bizMyProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creator collaborations'**
+  String get bizCreatorCollaborations;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Brief, match and manage local creators'**
+  String get bizBriefMatchAndManageLocal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe your store to work with creators.'**
+  String get bizSubscribeYourStoreToWork;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get bizLocked;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Manage'**
+  String get bizManage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Promotions'**
+  String get bizPromotions;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'My Banners'**
+  String get bizMyBanners;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'New Banner'**
+  String get bizNewBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load banners'**
+  String get bizCouldnTLoadBanners;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No banners yet'**
+  String get bizNoBannersYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + to create your first banner'**
+  String get bizTapToCreateYourFirst;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Approved — Live'**
+  String get bizApprovedLive;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected'**
+  String get bizRejected;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Removed by Admin'**
+  String get bizRemovedByAdmin;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Turned Off'**
+  String get bizTurnedOff;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Pending Approval'**
+  String get bizPendingApproval;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get bizSubmitted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Banner Title'**
+  String get bizEditBannerTitle;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner title'**
+  String get bizBannerTitle;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get bizSave;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Title'**
+  String get bizEditTitle;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Turn Off Banner?'**
+  String get bizTurnOffBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Turn On Banner?'**
+  String get bizTurnOnBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'This banner will be hidden from stores until you turn it back on.'**
+  String get bizThisBannerWillBeHidden;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'This banner will go live again in stores.'**
+  String get bizThisBannerWillGoLive;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Turn Off'**
+  String get bizTurnOff;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Turn On'**
+  String get bizTurnOn;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Expired · Choose a new start date'**
+  String get bizExpiredChooseANewStart;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Renew'**
+  String get bizRenew;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Rejected · Create a new banner to resubmit'**
+  String get bizRejectedCreateANewBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create new'**
+  String get bizCreateNew;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Removed by admin'**
+  String get bizRemovedByAdmin2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting admin approval'**
+  String get bizAwaitingAdminApproval;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Image too large. Max 2MB.'**
+  String get bizImageTooLargeMax2MB;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Video is too large. Please select a video up to 10 MB.'**
+  String get bizVideoIsTooLargePlease;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Video is too long. Please select a video up to 15 seconds.'**
+  String get bizVideoIsTooLongPlease;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read this video. Please select another video.'**
+  String get bizCouldNotReadThisVideo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Could not upload the video. Please try again.'**
+  String get bizCouldNotUploadTheVideo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Existing banner video will be reused'**
+  String get bizExistingBannerVideoWillBe;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to replace'**
+  String get bizTapToReplace;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to select banner video'**
+  String get bizTapToSelectBannerVideo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📐 1080×1080px (1:1)'**
+  String get biz10801080px11;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Max 15 sec · 10 MB'**
+  String get bizMax15Sec10MB;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner title required'**
+  String get bizBannerTitleRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a store'**
+  String get bizPleaseSelectAStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a city'**
+  String get bizPleaseSelectACity;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a banner video'**
+  String get bizPleaseSelectABannerVideo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please upload a banner image'**
+  String get bizPleaseUploadABannerImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enter number of days (minimum 1)'**
+  String get bizEnterNumberOfDaysMinimum;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled deal'**
+  String get bizUntitledDeal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled product'**
+  String get bizUntitledProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'CTA destination'**
+  String get bizCTADestination;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Choose where this banner should take the customer.'**
+  String get bizChooseWhereThisBannerShould;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select Deal'**
+  String get bizSelectDeal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select Product'**
+  String get bizSelectProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Customers will open the selected store.'**
+  String get bizCustomersWillOpenTheSelected;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing selected yet — the banner will open the store.'**
+  String get bizNothingSelectedYetTheBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Discount applied!'**
+  String get bizDiscountApplied;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment gateway not configured. Contact support.'**
+  String get bizPaymentGatewayNotConfiguredContact;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open payment. Please try again.'**
+  String get bizCouldNotOpenPaymentPlease;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner Order Summary'**
+  String get bizBannerOrderSummary;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get bizTitle;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get bizDuration;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Period'**
+  String get bizPeriod;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Rate'**
+  String get bizRate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Base Price'**
+  String get bizBasePrice;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Discount'**
+  String get bizDiscount;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get bizTotal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your banner will be submitted for admin review after confirmation.'**
+  String get bizYourBannerWillBeSubmitted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Razorpay checkout will open. Banner goes live after admin approval.'**
+  String get bizRazorpayCheckoutWillOpenBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Submit'**
+  String get bizConfirmSubmit;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Renew Banner'**
+  String get bizRenewBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create Banner'**
+  String get bizCreateBanner;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner Title *'**
+  String get bizBannerTitle2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. 50% OFF at Raj Store'**
+  String get bizEG50OFFAt;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select Store *'**
+  String get bizSelectStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Unnamed Store'**
+  String get bizUnnamedStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'City auto-filled from store'**
+  String get bizCityAutoFilledFromStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get bizImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get bizVideo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to upload banner image'**
+  String get bizTapToUploadBannerImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📦 Max 2MB'**
+  String get bizMax2MB;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Duration & Start Date'**
+  String get bizDurationStartDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Number of Days'**
+  String get bizNumberOfDays;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'From Date'**
+  String get bizFromDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Active period:'**
+  String get bizActivePeriod;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Discount Code'**
+  String get bizDiscountCode;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Have a promo code? Enter it below.'**
+  String get bizHaveAPromoCodeEnter;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. OFFRO20'**
+  String get bizEGOFFRO20;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get bizApply;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Proceed to Checkout'**
+  String get bizProceedToCheckout;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get bizLive;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Filter Products'**
+  String get bizFilterProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Product'**
+  String get bizEditProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Analytics'**
+  String get bizAnalytics;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Product'**
+  String get bizDeleteProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Catalogue'**
+  String get bizCatalogue;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Filter'**
+  String get bizFilter;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'New Product'**
+  String get bizNewProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Search products…'**
+  String get bizSearchProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get bizPending;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load products'**
+  String get bizCouldnTLoadProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No products yet'**
+  String get bizNoProductsYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No matching products'**
+  String get bizNoMatchingProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + New Product to get started'**
+  String get bizTapNewProductToGet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get bizPaused;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get bizFree;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get bizPaid;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Deactivated'**
+  String get bizDeactivated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get bizOn;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get bizOff;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Offer Text'**
+  String get bizOfferText;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Original Price'**
+  String get bizOriginalPrice;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Offer Price'**
+  String get bizOfferPrice;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product updated!'**
+  String get bizProductUpdated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete this product?'**
+  String get bizDeleteThisProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product deleted.'**
+  String get bizProductDeleted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Logo too large. Max 1MB.'**
+  String get bizLogoTooLargeMax1MB;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a code'**
+  String get bizEnterACode;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product title required'**
+  String get bizProductTitleRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a store for this product'**
+  String get bizPleaseSelectAStoreFor;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a city for this product'**
+  String get bizPleaseSelectACityFor;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please upload a product image'**
+  String get bizPleaseUploadAProductImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the number of days (minimum 1)'**
+  String get bizEnterTheNumberOfDays;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product Order Summary'**
+  String get bizProductOrderSummary;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Price'**
+  String get bizPrice;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product will go to admin review. No payment needed.'**
+  String get bizProductWillGoToAdmin;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Razorpay opens. Product live after admin approval.'**
+  String get bizRazorpayOpensProductLiveAfter;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Save Product'**
+  String get bizSaveProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Add Product'**
+  String get bizAddProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product Title *'**
+  String get bizProductTitle;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Raj Store ₹50 Off'**
+  String get bizEGRajStore50;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Get ₹50 off on orders above ₹299'**
+  String get bizEGGet50Off;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Discount is auto-calculated from prices'**
+  String get bizDiscountIsAutoCalculatedFrom;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Image'**
+  String get bizUploadImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📐 400×400px'**
+  String get biz400400px;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📦 Max 1MB'**
+  String get bizMax1MB;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Validity (Days)'**
+  String get bizValidityDays;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Start date'**
+  String get bizStartDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get bizEndDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Number of days'**
+  String get bizNumberOfDays2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Live period:'**
+  String get bizLivePeriod;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Free (₹0)'**
+  String get bizFree0;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Free product'**
+  String get bizFreeProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your business'**
+  String get bizYourBusiness;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'My Stores'**
+  String get bizMyStores;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + to add your first store'**
+  String get bizTapToAddYourFirst;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Active'**
+  String get bizActive;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Draft'**
+  String get bizDraft;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Inactive'**
+  String get bizInactive;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted'**
+  String get bizDeleted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Removed'**
+  String get bizRemoved;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe'**
+  String get bizSubscribe;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Awaiting Admin Approval'**
+  String get bizAwaitingAdminApproval2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'QR'**
+  String get bizQR;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Gen QR'**
+  String get bizGenQR;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Show this to customers to earn points'**
+  String get bizShowThisToCustomersTo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Device location is turned off. Turn it on and try again.'**
+  String get bizDeviceLocationIsTurnedOff;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to identify the exact location from this Google Maps link. Please open Google Maps, drop a pin on the exact location, tap Share → Copy link, and try again.'**
+  String get bizUnableToIdentifyTheExact;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'City'**
+  String get bizCity;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'State'**
+  String get bizState;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Area'**
+  String get bizArea;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Postal code'**
+  String get bizPostalCode;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Location captured'**
+  String get bizLocationCaptured;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Image too large. Max 2MB allowed.'**
+  String get bizImageTooLargeMax2MB2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store name required'**
+  String get bizStoreNameRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please set the store location using "Use current location" or a Google Maps link'**
+  String get bizPleaseSetTheStoreLocation;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile number is required'**
+  String get bizMobileNumberIsRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid 10-digit mobile number (starts with 6–9)'**
+  String get bizEnterAValid10Digit;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Store'**
+  String get bizEditStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Add Store'**
+  String get bizAddStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store Name *'**
+  String get bizStoreName;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Category'**
+  String get bizCategory;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select category'**
+  String get bizSelectCategory;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store location'**
+  String get bizStoreLocation;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Use GPS or paste a Maps link.'**
+  String get bizUseGPSOrPasteA;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Use current location'**
+  String get bizUseCurrentLocation;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'or paste Google Maps link'**
+  String get bizOrPasteGoogleMapsLink;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Paste Google Maps link here'**
+  String get bizPasteGoogleMapsLinkHere;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Resolve Location'**
+  String get bizResolveLocation;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Latitude'**
+  String get bizLatitude;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Longitude'**
+  String get bizLongitude;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-filled by GPS or Google Maps — you can edit any value. Edited values are saved as entered.'**
+  String get bizAutoFilledByGPSOr;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Phone'**
+  String get bizPhone;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change image'**
+  String get bizTapToChangeImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Main Store Image'**
+  String get bizMainStoreImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📐 800×600px (4:3)'**
+  String get biz800600px43;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Upload Logo [Optional]'**
+  String get bizUploadLogoOptional;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to change logo'**
+  String get bizTapToChangeLogo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to upload logo'**
+  String get bizTapToUploadLogo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📐 200×200px (1:1)'**
+  String get biz200200px11;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store Timings [Optional]'**
+  String get bizStoreTimingsOptional;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Opening Time'**
+  String get bizOpeningTime;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Open at'**
+  String get bizOpenAt;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Closing Time'**
+  String get bizClosingTime;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Close at'**
+  String get bizCloseAt;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'About this store (description shown to customers)'**
+  String get bizAboutThisStoreDescriptionShown;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Save Changes'**
+  String get bizSaveChanges;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create Store'**
+  String get bizCreateStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Confirming payment...'**
+  String get bizConfirmingPayment;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait a moment'**
+  String get bizPleaseWaitAMoment;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription Request Sent'**
+  String get bizSubscriptionRequestSent;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Plan'**
+  String get bizPlan;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'From'**
+  String get bizFrom;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'To'**
+  String get bizTo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Total Payable'**
+  String get bizTotalPayable;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅  Your subscription request has been submitted.'**
+  String get bizYourSubscriptionRequestHasBeen;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm Payment'**
+  String get bizConfirmPayment;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Razorpay checkout will open. After payment, admin will approve your store.'**
+  String get bizRazorpayCheckoutWillOpenAfter;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Pay Now'**
+  String get bizPayNow;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscribe Store'**
+  String get bizSubscribeStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select Plan'**
+  String get bizSelectPlan;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Start Date'**
+  String get bizStartDate2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Have a discount code?'**
+  String get bizHaveADiscountCode;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enter code'**
+  String get bizEnterCode;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Discount:'**
+  String get bizDiscount2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get bizRemove;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Proceed to Pay'**
+  String get bizProceedToPay;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh'**
+  String get bizRefresh;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No invoices yet'**
+  String get bizNoInvoicesYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Pull down to refresh'**
+  String get bizPullDownToRefresh;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get bizShare;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Download PDF'**
+  String get bizDownloadPDF;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Account registered'**
+  String get bizAccountRegistered;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'New store created'**
+  String get bizNewStoreCreated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store profile updated'**
+  String get bizStoreProfileUpdated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store approved'**
+  String get bizStoreApproved;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store rejected'**
+  String get bizStoreRejected;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store subscription activated'**
+  String get bizStoreSubscriptionActivated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Free subscription activated'**
+  String get bizFreeSubscriptionActivated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription payment received'**
+  String get bizSubscriptionPaymentReceived;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner submitted'**
+  String get bizBannerSubmitted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner approved'**
+  String get bizBannerApproved;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner rejected'**
+  String get bizBannerRejected;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner payment received'**
+  String get bizBannerPaymentReceived;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product submitted'**
+  String get bizProductSubmitted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product approved'**
+  String get bizProductApproved;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product rejected'**
+  String get bizProductRejected;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product payment received'**
+  String get bizProductPaymentReceived;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment received'**
+  String get bizPaymentReceived;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Free plan activated'**
+  String get bizFreePlanActivated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Profile updated'**
+  String get bizProfileUpdated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'QR code regenerated'**
+  String get bizQRCodeRegenerated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment'**
+  String get bizPayment;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Approved — Live'**
+  String get bizApprovedLive2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'❌ Rejected'**
+  String get bizRejected2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'⏳ Pending Approval'**
+  String get bizPendingApproval2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Business timeline'**
+  String get bizBusinessTimeline;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No activity yet'**
+  String get bizNoActivityYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant account'**
+  String get bizMerchantAccount;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap photo to change'**
+  String get bizTapPhotoToChange;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Switch between User, Merchant & Influencer'**
+  String get bizSwitchBetweenUserMerchantInfluencer;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'KYC Policy'**
+  String get bizKYCPolicy;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant offers'**
+  String get bizMerchantOffers;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'My Deals'**
+  String get bizMyDeals;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Add Deal'**
+  String get bizAddDeal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You need an active store to add deals.'**
+  String get bizYouNeedAnActiveStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No deals yet'**
+  String get bizNoDealsYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Add deals to attract more customers'**
+  String get bizAddDealsToAttractMore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Deal'**
+  String get bizEditDeal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Deal?'**
+  String get bizDeleteDeal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get bizDelete;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Deal title is required'**
+  String get bizDealTitleIsRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'End date is required'**
+  String get bizEndDateIsRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please add an image before saving.'**
+  String get bizPleaseAddAnImageBefore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Deal updated!'**
+  String get bizDealUpdated;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Deal added!'**
+  String get bizDealAdded;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Deal Title (e.g. 20% off on all items)'**
+  String get bizDealTitleEG20;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get bizDescriptionOptional;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Deal Image'**
+  String get bizDealImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to replace image'**
+  String get bizTapToReplaceImage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📦 Max 2MB · Required'**
+  String get bizMax2MBRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select End Date'**
+  String get bizSelectEndDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'All your stores, products & data will be permanently removed'**
+  String get bizAllYourStoresProductsData;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'I no longer run my business'**
+  String get bizINoLongerRunMy;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'The app is not working properly for me'**
+  String get bizTheAppIsNotWorking;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Once your account is deleted, your stores, products, banners and data cannot be retrieved. Signing up again will create a new account.'**
+  String get bizOnceYourAccountIsDeleted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your merchant account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your stores, products and data cannot be retrieved. Are you absolutely sure?'**
+  String get bizYourMerchantAccountWillBe;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get bizChecking;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Discount applied!'**
+  String get bizDiscountApplied2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a later end date (add at least 1 day)'**
+  String get bizChooseALaterEndDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Renewed successfully!'**
+  String get bizRenewedSuccessfully;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Renewal Summary'**
+  String get bizRenewalSummary;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'New end date'**
+  String get bizNewEndDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Free renewal'**
+  String get bizFreeRenewal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Renew free'**
+  String get bizRenewFree;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Renewed!'**
+  String get bizRenewed;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Renew Product'**
+  String get bizRenewProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No end date'**
+  String get bizNoEndDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how long the product stays live.'**
+  String get bizChooseHowLongTheProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Days to add'**
+  String get bizDaysToAdd;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product Analytics'**
+  String get bizProductAnalytics;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load analytics'**
+  String get bizCouldnTLoadAnalytics;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please check your connection and try again.'**
+  String get bizPleaseCheckYourConnectionAnd;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Premium Listing Analytics'**
+  String get bizPremiumListingAnalytics;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'👁️ Views'**
+  String get bizViews;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'🔗 Shares'**
+  String get bizShares;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'🛒 Store Visits'**
+  String get bizStoreVisits;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'📅 Last Seen'**
+  String get bizLastSeen;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Store Visits: customers who visited the store'**
+  String get bizStoreVisitsCustomersWhoVisited;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Conversion Rate'**
+  String get bizConversionRate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Similar Products'**
+  String get bizSimilarProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Successful!'**
+  String get bizPaymentSuccessful;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your purchase is now pending admin approval.'**
+  String get bizYourPurchaseIsNowPending;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Admin will review and activate your purchase within 24 hours.'**
+  String get bizAdminWillReviewAndActivate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Influencers are coming soon ✨'**
+  String get bizInfluencersAreComingSoon;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'We\'re bringing local creators and their recommendations to OffrO. Stay tuned!'**
+  String get bizWeReBringingLocalCreators;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'People shaping the city'**
+  String get bizPeopleShapingTheCity;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Local Voices'**
+  String get bizLocalVoices;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a star rating first'**
+  String get bizPleaseSelectAStarRating;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please log in to submit a review'**
+  String get bizPleaseLogInToSubmit;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please write at least a few words'**
+  String get bizPleaseWriteAtLeastA;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'VERIFIED LOCAL VOICE'**
+  String get bizVERIFIEDLOCALVOICE;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get bizRating;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Rate this influencer'**
+  String get bizRateThisInfluencer;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Share your experience (optional)'**
+  String get bizShareYourExperienceOptional;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Update Review'**
+  String get bizUpdateReview;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creator account'**
+  String get bizCreatorAccount;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'CREATOR WORKSPACE'**
+  String get bizCREATORWORKSPACE;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Profile views'**
+  String get bizProfileViews;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Saved by'**
+  String get bizSavedBy;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile is live'**
+  String get bizYourProfileIsLive;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile isn\'t live yet'**
+  String get bizYourProfileIsnTLive;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Merchants and customers can discover you.'**
+  String get bizMerchantsAndCustomersCanDiscover;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Open your profile to review and publish it.'**
+  String get bizOpenYourProfileToReview;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'MATCHED FOR YOU'**
+  String get bizMATCHEDFORYOU;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Campaign opportunities'**
+  String get bizCampaignOpportunities;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'INFLUENCER WORKSPACE'**
+  String get bizINFLUENCERWORKSPACE;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create your local profile.'**
+  String get bizCreateYourLocalProfile;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ll need an Influencer profile to use the Influencer module — it\'s how customers and merchants discover you on OffrO.'**
+  String get bizYouLlNeedAnInfluencer;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'+ Add influencer profile'**
+  String get bizAddInfluencerProfile;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Not added'**
+  String get bizNotAdded;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Continue Publishing / Pay Now'**
+  String get bizContinuePublishingPayNow;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'My profile'**
+  String get bizMyProfile;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Business Details'**
+  String get bizBusinessDetails;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Display Name'**
+  String get bizDisplayName;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Bio'**
+  String get bizBio;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Social Pages'**
+  String get bizSocialPages;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Primary Specialty'**
+  String get bizPrimarySpecialty;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No specialty selected'**
+  String get bizNoSpecialtySelected;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Account Details'**
+  String get bizAccountDetails;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Disable'**
+  String get bizDisable;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enable'**
+  String get bizEnable;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Hide your profile from customers'**
+  String get bizHideYourProfileFromCustomers;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Make your profile visible again'**
+  String get bizMakeYourProfileVisibleAgain;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Switch to your Customer account'**
+  String get bizSwitchToYourCustomerAccount;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile is saved as a draft. Complete the one-time subscription payment from Edit Profile → Save & Publish to make it visible to customers.'**
+  String get bizYourProfileIsSavedAs;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment is being processed. If you completed a payment and this doesn\'t update, try Save & Publish again.'**
+  String get bizPaymentIsBeingProcessedIf;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your last subscription payment attempt failed. Please try Save & Publish again to complete payment.'**
+  String get bizYourLastSubscriptionPaymentAttempt;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your profile is not yet published.'**
+  String get bizYourProfileIsNotYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Influencer Profile?'**
+  String get bizDeleteInfluencerProfile;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete your influencer profile? This action cannot be undone.'**
+  String get bizAreYouSureYouWant;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'If you create a new influencer profile in the future, a new subscription payment will be required.'**
+  String get bizIfYouCreateANew;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Profile'**
+  String get bizDeleteProfile;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'REVIEWS'**
+  String get bizREVIEWS;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creator reviews'**
+  String get bizCreatorReviews;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Name is required'**
+  String get bizNameIsRequired;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a state'**
+  String get bizPleaseSelectAState;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid 10-digit mobile number.'**
+  String get bizPleaseEnterAValid10;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Profile image is required to publish your influencer profile.'**
+  String get bizProfileImageIsRequiredTo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t confirm your payment. If money was deducted, it will be verified shortly — please try Save & Publish again in a moment.'**
+  String get bizWeCouldnTConfirmYour;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creator identity'**
+  String get bizCreatorIdentity;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Edit profile'**
+  String get bizEditProfile;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Add profile'**
+  String get bizAddProfile;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Required to publish'**
+  String get bizRequiredToPublish;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Name *'**
+  String get bizName;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Priya Sharma'**
+  String get bizEGPriyaSharma;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing the best local food, cafés, shops and great offers around your city.'**
+  String get bizSharingTheBestLocalFood;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'State *'**
+  String get bizState2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select state'**
+  String get bizSelectState;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'City *'**
+  String get bizCity2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select state first'**
+  String get bizSelectStateFirst;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select city'**
+  String get bizSelectCity;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Primary Specialty (select one or more)'**
+  String get bizPrimarySpecialtySelectOneOr;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No categories available'**
+  String get bizNoCategoriesAvailable;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'10-digit mobile number'**
+  String get biz10DigitMobileNumber;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Social Links'**
+  String get bizSocialLinks;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Instagram URL'**
+  String get bizInstagramURL;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'YouTube URL'**
+  String get bizYouTubeURL;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Facebook URL'**
+  String get bizFacebookURL;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Save (keep as draft)'**
+  String get bizSaveKeepAsDraft;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Save & Publish'**
+  String get bizSavePublish;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Save & Publish (Pay to Publish)'**
+  String get bizSavePublishPayToPublish;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No subscription payment is currently required to publish your profile.'**
+  String get bizNoSubscriptionPaymentIsCurrently;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Subscription Fee'**
+  String get bizSubscriptionFee;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Discount code (optional)'**
+  String get bizDiscountCodeOptional;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'A one-time payment — you won\'t be charged again for editing or re-publishing this profile.'**
+  String get bizAOneTimePaymentYou;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a discount code first'**
+  String get bizEnterADiscountCodeFirst;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select specialties'**
+  String get bizSelectSpecialties;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create brief'**
+  String get bizCreateBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Share what you need and where.'**
+  String get bizShareWhatYouNeedAnd;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Invite creators'**
+  String get bizInviteCreators;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Local creators in your city see it.'**
+  String get bizLocalCreatorsInYourCity;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm match'**
+  String get bizConfirmMatch;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Review who accepted and connect.'**
+  String get bizReviewWhoAcceptedAndConnect;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creator'**
+  String get bizCreator;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Collaborations'**
+  String get bizCollaborations;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Work with trusted local creators.'**
+  String get bizWorkWithTrustedLocalCreators;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create one clear campaign brief, review matched creators and confirm a collaboration without managing conversations across multiple apps.'**
+  String get bizCreateOneClearCampaignBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'How it works'**
+  String get bizHowItWorks;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create campaign brief'**
+  String get bizCreateCampaignBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your campaigns'**
+  String get bizYourCampaigns;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Collaboration workspace'**
+  String get bizCollaborationWorkspace;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No campaigns yet'**
+  String get bizNoCampaignsYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Create your first campaign brief to invite local creators.'**
+  String get bizCreateYourFirstCampaignBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'When should you use this?'**
+  String get bizWhenShouldYouUseThis;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Use collaborations for launches, visits and creator content. Regular store updates and discounts belong in Banners or Deals instead.'**
+  String get bizUseCollaborationsForLaunchesVisits;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Review proposals'**
+  String get bizReviewProposals;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Close campaign?'**
+  String get bizCloseCampaign;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creators will no longer be able to accept this brief.'**
+  String get bizCreatorsWillNoLongerBe;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Keep open'**
+  String get bizKeepOpen;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Campaign'**
+  String get bizCampaign;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Proposals'**
+  String get bizProposals;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creators who accepted'**
+  String get bizCreatorsWhoAccepted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No proposals yet'**
+  String get bizNoProposalsYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Creators in your city will appear here once they accept your brief.'**
+  String get bizCreatorsInYourCityWill;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Closing…'**
+  String get bizClosing;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Close campaign'**
+  String get bizCloseCampaign2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Chat on WhatsApp'**
+  String get bizChatOnWhatsApp;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open WhatsApp.'**
+  String get bizCouldnTOpenWhatsApp;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please select a store.'**
+  String get bizPleaseSelectAStore2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a campaign title (at least 3 characters).'**
+  String get bizEnterACampaignTitleAt;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select a campaign objective.'**
+  String get bizSelectACampaignObjective;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Describe what the creator should communicate (at least 10 characters).'**
+  String get bizDescribeWhatTheCreatorShould;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select the content you need.'**
+  String get bizSelectTheContentYouNeed;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a publish-by date.'**
+  String get bizChooseAPublishByDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a visit date for the store visit.'**
+  String get bizChooseAVisitDateFor;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Visit date can\'t be after the publish-by date.'**
+  String get bizVisitDateCanTBe;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Brief published. Matching creators can now see it.'**
+  String get bizBriefPublishedMatchingCreatorsCan;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Campaign brief'**
+  String get bizCampaignBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Add and activate a store before creating a campaign brief.'**
+  String get bizAddAndActivateAStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select store'**
+  String get bizSelectStore2;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Campaign title'**
+  String get bizCampaignTitle;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Example: Seasonal menu launch'**
+  String get bizExampleSeasonalMenuLaunch;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Campaign objective'**
+  String get bizCampaignObjective;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select objective'**
+  String get bizSelectObjective;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'What should the creator communicate?'**
+  String get bizWhatShouldTheCreatorCommunicate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Key message, experience and details they should know...'**
+  String get bizKeyMessageExperienceAndDetails;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Requested content'**
+  String get bizRequestedContent;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Visit date'**
+  String get bizVisitDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select date'**
+  String get bizSelectDate;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Publish by'**
+  String get bizPublishBy;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred creator speciality'**
+  String get bizPreferredCreatorSpeciality;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Select speciality'**
+  String get bizSelectSpeciality;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No payment processing'**
+  String get bizNoPaymentProcessing;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'OffrO connects you with creators. Any compensation is agreed directly between you and the creator.'**
+  String get bizOffrOConnectsYouWithCreators;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Publishing…'**
+  String get bizPublishing;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Publish brief'**
+  String get bizPublishBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Matched locally'**
+  String get bizMatchedLocally;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Review collaboration requests from relevant merchants in your city.'**
+  String get bizReviewCollaborationRequestsFromReleva;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No collaboration requests yet'**
+  String get bizNoCollaborationRequestsYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Requests from merchants in your city will appear here.'**
+  String get bizRequestsFromMerchantsInYour;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted'**
+  String get bizAccepted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Declined'**
+  String get bizDeclined;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'New collaboration request'**
+  String get bizNewCollaborationRequest;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'View brief'**
+  String get bizViewBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No campaign requests yet'**
+  String get bizNoCampaignRequestsYet;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'New briefs from merchants in your city will appear here.'**
+  String get bizNewBriefsFromMerchantsIn;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Collaboration accepted.'**
+  String get bizCollaborationAccepted;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Request declined.'**
+  String get bizRequestDeclined;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Collaboration request'**
+  String get bizCollaborationRequest;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Brief'**
+  String get bizBrief;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Complete your profile subscription to accept collaborations.'**
+  String get bizCompleteYourProfileSubscriptionTo;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Objective'**
+  String get bizObjective;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Message'**
+  String get bizMessage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred speciality'**
+  String get bizPreferredSpeciality;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'This collaboration is for promotion on your Instagram. There is no in-app chat.'**
+  String get bizThisCollaborationIsForPromotion;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You accepted this collaboration'**
+  String get bizYouAcceptedThisCollaboration;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'The merchant\'s contact number is not available.'**
+  String get bizTheMerchantSContactNumber;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Contact the merchant to plan your visit:'**
+  String get bizContactTheMerchantToPlan;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'This request is no longer open.'**
+  String get bizThisRequestIsNoLonger;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please wait…'**
+  String get bizPleaseWait;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Accept collaboration'**
+  String get bizAcceptCollaboration;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get bizDecline;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{used}/{limit} free slots used'**
+  String bizFreeSlotsUsedOf(String used, String limit);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back, {name}'**
+  String bizWelcomeBackName(String name);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Banner submitted! {message}'**
+  String bizBannerSubmittedMsg(String message);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'If this deal is later removed, the banner opens the store instead.'**
+  String get bizBannerFallbackDeal;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'If this product is later removed, the banner opens the store instead.'**
+  String get bizBannerFallbackProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment failed: {error}'**
+  String bizPaymentFailedMsg(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Toggle failed: {error}'**
+  String bizToggleFailed(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{used} / {limit} free product slots used'**
+  String bizFreeProductSlotsUsed(String used, String limit);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Additional products are charged at {price} per day of validity.'**
+  String bizAdditionalProductsCharged(String price);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'"{title}" will be permanently removed and cannot be reactivated. Any payment already made for this product will not be refunded.'**
+  String bizDeleteProductBody(String title);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'This product'**
+  String get bizThisProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Error deleting: {error}'**
+  String bizDeleteError(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Code applied — {value}% off!'**
+  String bizCodeAppliedPct(String value);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Code applied — ₹{value} off!'**
+  String bizCodeAppliedAmt(String value);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum validity is {days} days'**
+  String bizMaxValidity(String days);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ Product submitted! {message}'**
+  String bizProductSubmittedMsg(String message);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment error: {error}'**
+  String bizPaymentErrorMsg(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open payment. Please try again.'**
+  String get bizCouldNotOpenPayment;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum {days} days'**
+  String bizMaxDays(String days);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You have {remaining} of {limit} free product slots remaining.'**
+  String bizFreeSlotsRemaining(String remaining, String limit);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You have used all {limit} free product slots.\nPrice is {price} per day + GST for the days you choose.'**
+  String bizFreeSlotsAllUsed(String limit, String price);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Location updated to {city}'**
+  String bizLocationUpdatedTo(String city);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Could not get location: {error}'**
+  String bizCouldNotGetLocation(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is required for current location. Allow it and try again.'**
+  String get bizLocationPermissionNeeded;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Please set the store\'s location using "Use Current Location" or a Google Maps link before creating the store.'**
+  String get bizSetStoreLocationFirst;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'The store location looks incomplete. Use "Use Current Location" or a Google Maps link to set a valid location.'**
+  String get bizStoreLocationIncomplete;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment cancelled or failed: {error}'**
+  String bizPaymentCancelledOrFailed(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'External wallet: {name}'**
+  String bizExternalWallet(String name);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ {value}% discount applied!'**
+  String bizDiscountAppliedPct(String value);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅ ₹{value} discount applied!'**
+  String bizDiscountAppliedAmt(String value);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.'**
+  String get bizSubmittedPayRep;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'End date cannot exceed store expiry ({date})'**
+  String bizEndDateExceedsStore(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Current end date: {date}'**
+  String bizCurrentEndDate(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'A free product slot is available ({used} of {limit} in use), so this renewal is free.'**
+  String bizFreeSlotAvailable(String used, String limit);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You are using all {limit} free product slots. Renewing costs {price} per day added + GST.'**
+  String bizAllFreeSlotsUsedRenew(String limit, String price);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{pct}% of viewers visited the store (tapped Sold by)'**
+  String bizViewersVisitedStore(String pct);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'1 product expiring soon — tap to renew'**
+  String get bizProductsExpiringOne;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} products expiring soon — tap to renew'**
+  String bizProductsExpiringMany(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'More from {store}'**
+  String bizMoreFromStore(String store);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'this store'**
+  String get bizThisStore;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Your "{store}" purchase is now pending admin approval.'**
+  String bizPurchasePendingNamed(String store);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'No influencers available in {city} yet'**
+  String bizNoInfluencersInCity(String city);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'See all ({count})'**
+  String bizSeeAllCount(String count);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Reviews for {name}'**
+  String bizReviewsFor(String name);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Publish by {date}'**
+  String bizPublishByDate(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'See all {count} requests'**
+  String bizSeeAllRequests(String count);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You declined this request. You can still accept it while it is open.'**
+  String get bizDeclinedCanAccept;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'You declined this request.'**
+  String get bizDeclinedRequest;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment could not be completed. Please try again.'**
+  String get errPayNoMessage;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'We couldn\'t complete your payment. Please try again.'**
+  String get errPayGeneric;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'1 Store • {active} Active'**
+  String bizStoresActiveOne(String active);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Stores • {active} Active'**
+  String bizStoresActiveMany(String count, String active);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} Live'**
+  String bizNLive(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} Pending'**
+  String bizNPending(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Submitted'**
+  String get bizSubmittedWord;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'1 Banner • {status}'**
+  String bizBannersStatusOne(String status);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Banners • {status}'**
+  String bizBannersStatusMany(String count, String status);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} Days'**
+  String bizNDays(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Start: {from}   →   End: {end}'**
+  String bizStartEndRange(String from, String end);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'From: {date}'**
+  String bizFromDateLabel(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Until: {date}'**
+  String bizUntilDateLabel(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Invoice: {no}'**
+  String bizInvoiceColon(String no);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'₹{amount}/day'**
+  String bizPerDayPrice(String amount);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'GST ({pct}%)'**
+  String bizGstPct(String pct);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Pay ₹{amount}'**
+  String bizPayAmount(String amount);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'₹{price}/day × {days} days'**
+  String bizPricePerDayTimesDays(String price, String days);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'−₹{amount} ({pct}%) off  →  Total: ₹{total}'**
+  String bizDiscountTotalPct(String amount, String pct, String total);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'−₹{amount} off  →  Total: ₹{total}'**
+  String bizDiscountTotalAmt(String amount, String total);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'1 result'**
+  String get bizResultOne;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} results'**
+  String bizResultMany(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Expired {date}'**
+  String bizExpiredOn(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Expires {date}'**
+  String bizExpiresOn(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Error: {error}'**
+  String bizErrorColon(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{days} day × {price}/day'**
+  String bizDayTimesPriceOne(String days, String price);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{days} days × {price}/day'**
+  String bizDayTimesPriceMany(String days, String price);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Failed: {error}'**
+  String bizFailedColon(String error);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'1 Deal'**
+  String get bizDealCountOne;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} Deals'**
+  String bizDealCountMany(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'₹{price} + {pct}% GST'**
+  String bizPricePlusGst(String price, String pct);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Plan: {plan}  •  {from} – {end}'**
+  String bizPlanPeriodLine(String plan, String from, String end);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Base: ₹{base}  GST: ₹{gst}'**
+  String bizBaseGstLine(String base, String gst);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Discount ({code}): −₹{amount}'**
+  String bizDiscountCodeLine(String code, String amount);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banner: {title}'**
+  String bizBannerTitleLine(String title);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Product: {title}'**
+  String bizProductTitleLine(String title);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get bizUntitledWord;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Ends {date}'**
+  String bizEndsOn(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Delete "{title}"?'**
+  String bizDeleteDealNamed(String title);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Max: {date}'**
+  String bizMaxDateLine(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Renew · {amount}'**
+  String bizRenewAmount(String amount);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Code \'{code}\' applied'**
+  String bizCodeAppliedNamed(String code);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} active'**
+  String bizNActive(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Visit {date}'**
+  String bizVisitOn(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Call {phone}'**
+  String bizCallPhone(String phone);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'All Products'**
+  String get bizAllProducts;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'All Stores'**
+  String get bizAllStores;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Banners'**
+  String get bizBannersTab;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payments'**
+  String get bizPaymentsTab;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Additional product'**
+  String get bizAdditionalProduct;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Billing & subscriptions'**
+  String get bizBillingSubscriptions;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Till: {date}'**
+  String bizTillDate(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Exp: {date}'**
+  String bizExpDate(String date);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'1 day'**
+  String get bizOneDayWord;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} days'**
+  String bizDaysCountWord(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'1 proposal'**
+  String get bizProposalOne;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'{n} proposals'**
+  String bizProposalMany(String n);
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Influencer Subscription'**
+  String get bizInfluencerSubscription;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'OffrO Influencer'**
+  String get bizOffrOInfluencer;
 }
 
 class _AppLocalizationsDelegate

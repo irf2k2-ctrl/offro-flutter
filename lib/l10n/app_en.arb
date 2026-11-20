@@ -2728,5 +2728,3445 @@
   "@prodDownload": {
     "description": "Product dialog button",
     "x-screen": "product"
+  },
+  "bizAdd": "Add",
+  "@bizAdd": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoStoresYetTapTo": "No stores yet — tap to add your first",
+  "@bizNoStoresYetTapTo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubscribeYourStoreToCreate": "Subscribe your store to create banners.",
+  "@bizSubscribeYourStoreToCreate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoBannersYetPromoteYour": "No banners yet — promote your store",
+  "@bizNoBannersYetPromoteYour": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubscribeYourStoreToAdd": "Subscribe your store to add products.",
+  "@bizSubscribeYourStoreToAdd": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoProductsYetAddYour": "No products yet — add your first product",
+  "@bizNoProductsYetAddYour": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMERCHANTWORKSPACE": "MERCHANT WORKSPACE",
+  "@bizMERCHANTWORKSPACE": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizWelcomeBack": "Welcome back",
+  "@bizWelcomeBack": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCouldnTLoadYourDashboard": "Couldn't load your dashboard",
+  "@bizCouldnTLoadYourDashboard": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLiveStores": "Live stores",
+  "@bizLiveStores": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLiveBanners": "Live banners",
+  "@bizLiveBanners": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLiveProducts": "Live products",
+  "@bizLiveProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMANAGEYOURBUSINESS": "MANAGE YOUR BUSINESS",
+  "@bizMANAGEYOURBUSINESS": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMyStore": "My Store",
+  "@bizMyStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMyBanner": "My Banner",
+  "@bizMyBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMyProducts": "My Products",
+  "@bizMyProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCreatorCollaborations": "Creator collaborations",
+  "@bizCreatorCollaborations": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBriefMatchAndManageLocal": "Brief, match and manage local creators",
+  "@bizBriefMatchAndManageLocal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubscribeYourStoreToWork": "Subscribe your store to work with creators.",
+  "@bizSubscribeYourStoreToWork": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLocked": "Locked",
+  "@bizLocked": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizManage": "Manage",
+  "@bizManage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPromotions": "Promotions",
+  "@bizPromotions": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMyBanners": "My Banners",
+  "@bizMyBanners": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNewBanner": "New Banner",
+  "@bizNewBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCouldnTLoadBanners": "Couldn't load banners",
+  "@bizCouldnTLoadBanners": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoBannersYet": "No banners yet",
+  "@bizNoBannersYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToCreateYourFirst": "Tap + to create your first banner",
+  "@bizTapToCreateYourFirst": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizApprovedLive": "Approved — Live",
+  "@bizApprovedLive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRejected": "Rejected",
+  "@bizRejected": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRemovedByAdmin": "Removed by Admin",
+  "@bizRemovedByAdmin": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTurnedOff": "Turned Off",
+  "@bizTurnedOff": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPendingApproval": "Pending Approval",
+  "@bizPendingApproval": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubmitted": "Submitted",
+  "@bizSubmitted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEditBannerTitle": "Edit Banner Title",
+  "@bizEditBannerTitle": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerTitle": "Banner title",
+  "@bizBannerTitle": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSave": "Save",
+  "@bizSave": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEditTitle": "Edit Title",
+  "@bizEditTitle": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTurnOffBanner": "Turn Off Banner?",
+  "@bizTurnOffBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTurnOnBanner": "Turn On Banner?",
+  "@bizTurnOnBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizThisBannerWillBeHidden": "This banner will be hidden from stores until you turn it back on.",
+  "@bizThisBannerWillBeHidden": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizThisBannerWillGoLive": "This banner will go live again in stores.",
+  "@bizThisBannerWillGoLive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTurnOff": "Turn Off",
+  "@bizTurnOff": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTurnOn": "Turn On",
+  "@bizTurnOn": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizExpiredChooseANewStart": "Expired · Choose a new start date",
+  "@bizExpiredChooseANewStart": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRenew": "Renew",
+  "@bizRenew": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRejectedCreateANewBanner": "Rejected · Create a new banner to resubmit",
+  "@bizRejectedCreateANewBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCreateNew": "Create new",
+  "@bizCreateNew": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRemovedByAdmin2": "Removed by admin",
+  "@bizRemovedByAdmin2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAwaitingAdminApproval": "Awaiting admin approval",
+  "@bizAwaitingAdminApproval": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizImageTooLargeMax2MB": "Image too large. Max 2MB.",
+  "@bizImageTooLargeMax2MB": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizVideoIsTooLargePlease": "Video is too large. Please select a video up to 10 MB.",
+  "@bizVideoIsTooLargePlease": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizVideoIsTooLongPlease": "Video is too long. Please select a video up to 15 seconds.",
+  "@bizVideoIsTooLongPlease": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCouldNotReadThisVideo": "Could not read this video. Please select another video.",
+  "@bizCouldNotReadThisVideo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCouldNotUploadTheVideo": "Could not upload the video. Please try again.",
+  "@bizCouldNotUploadTheVideo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizExistingBannerVideoWillBe": "Existing banner video will be reused",
+  "@bizExistingBannerVideoWillBe": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToReplace": "Tap to replace",
+  "@bizTapToReplace": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToSelectBannerVideo": "Tap to select banner video",
+  "@bizTapToSelectBannerVideo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "biz10801080px11": "📐 1080×1080px (1:1)",
+  "@biz10801080px11": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMax15Sec10MB": "Max 15 sec · 10 MB",
+  "@bizMax15Sec10MB": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerTitleRequired": "Banner title required",
+  "@bizBannerTitleRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseSelectAStore": "Please select a store",
+  "@bizPleaseSelectAStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseSelectACity": "Please select a city",
+  "@bizPleaseSelectACity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseSelectABannerVideo": "Please select a banner video",
+  "@bizPleaseSelectABannerVideo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseUploadABannerImage": "Please upload a banner image",
+  "@bizPleaseUploadABannerImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEnterNumberOfDaysMinimum": "Enter number of days (minimum 1)",
+  "@bizEnterNumberOfDaysMinimum": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUntitledDeal": "Untitled deal",
+  "@bizUntitledDeal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUntitledProduct": "Untitled product",
+  "@bizUntitledProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCTADestination": "CTA destination",
+  "@bizCTADestination": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizChooseWhereThisBannerShould": "Choose where this banner should take the customer.",
+  "@bizChooseWhereThisBannerShould": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSelectDeal": "Select Deal",
+  "@bizSelectDeal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSelectProduct": "Select Product",
+  "@bizSelectProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCustomersWillOpenTheSelected": "Customers will open the selected store.",
+  "@bizCustomersWillOpenTheSelected": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNothingSelectedYetTheBanner": "Nothing selected yet — the banner will open the store.",
+  "@bizNothingSelectedYetTheBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDiscountApplied": "✅ Discount applied!",
+  "@bizDiscountApplied": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaymentGatewayNotConfiguredContact": "Payment gateway not configured. Contact support.",
+  "@bizPaymentGatewayNotConfiguredContact": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCouldNotOpenPaymentPlease": "Could not open payment. Please try again.",
+  "@bizCouldNotOpenPaymentPlease": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerOrderSummary": "Banner Order Summary",
+  "@bizBannerOrderSummary": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTitle": "Title",
+  "@bizTitle": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDuration": "Duration",
+  "@bizDuration": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPeriod": "Period",
+  "@bizPeriod": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRate": "Rate",
+  "@bizRate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBasePrice": "Base Price",
+  "@bizBasePrice": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDiscount": "Discount",
+  "@bizDiscount": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTotal": "Total",
+  "@bizTotal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizYourBannerWillBeSubmitted": "Your banner will be submitted for admin review after confirmation.",
+  "@bizYourBannerWillBeSubmitted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRazorpayCheckoutWillOpenBanner": "Razorpay checkout will open. Banner goes live after admin approval.",
+  "@bizRazorpayCheckoutWillOpenBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizConfirmSubmit": "Confirm Submit",
+  "@bizConfirmSubmit": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRenewBanner": "Renew Banner",
+  "@bizRenewBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCreateBanner": "Create Banner",
+  "@bizCreateBanner": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerTitle2": "Banner Title *",
+  "@bizBannerTitle2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEG50OFFAt": "e.g. 50% OFF at Raj Store",
+  "@bizEG50OFFAt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSelectStore": "Select Store *",
+  "@bizSelectStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUnnamedStore": "Unnamed Store",
+  "@bizUnnamedStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCityAutoFilledFromStore": "City auto-filled from store",
+  "@bizCityAutoFilledFromStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizImage": "Image",
+  "@bizImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizVideo": "Video",
+  "@bizVideo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToUploadBannerImage": "Tap to upload banner image",
+  "@bizTapToUploadBannerImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMax2MB": "📦 Max 2MB",
+  "@bizMax2MB": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDurationStartDate": "Duration & Start Date",
+  "@bizDurationStartDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNumberOfDays": "Number of Days",
+  "@bizNumberOfDays": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFromDate": "From Date",
+  "@bizFromDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizActivePeriod": "Active period:",
+  "@bizActivePeriod": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDiscountCode": "Discount Code",
+  "@bizDiscountCode": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizHaveAPromoCodeEnter": "Have a promo code? Enter it below.",
+  "@bizHaveAPromoCodeEnter": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEGOFFRO20": "e.g. OFFRO20",
+  "@bizEGOFFRO20": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizApply": "Apply",
+  "@bizApply": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProceedToCheckout": "Proceed to Checkout",
+  "@bizProceedToCheckout": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLive": "Live",
+  "@bizLive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFilterProducts": "Filter Products",
+  "@bizFilterProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEditProduct": "Edit Product",
+  "@bizEditProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAnalytics": "Analytics",
+  "@bizAnalytics": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDeleteProduct": "Delete Product",
+  "@bizDeleteProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCatalogue": "Catalogue",
+  "@bizCatalogue": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFilter": "Filter",
+  "@bizFilter": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNewProduct": "New Product",
+  "@bizNewProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSearchProducts": "Search products…",
+  "@bizSearchProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPending": "Pending",
+  "@bizPending": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCouldnTLoadProducts": "Couldn't load products",
+  "@bizCouldnTLoadProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoProductsYet": "No products yet",
+  "@bizNoProductsYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoMatchingProducts": "No matching products",
+  "@bizNoMatchingProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapNewProductToGet": "Tap + New Product to get started",
+  "@bizTapNewProductToGet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaused": "Paused",
+  "@bizPaused": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFree": "Free",
+  "@bizFree": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaid": "Paid",
+  "@bizPaid": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDeactivated": "Deactivated",
+  "@bizDeactivated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOn": "On",
+  "@bizOn": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOff": "Off",
+  "@bizOff": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOfferText": "Offer Text",
+  "@bizOfferText": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOriginalPrice": "Original Price",
+  "@bizOriginalPrice": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOfferPrice": "Offer Price",
+  "@bizOfferPrice": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductUpdated": "Product updated!",
+  "@bizProductUpdated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDeleteThisProduct": "Delete this product?",
+  "@bizDeleteThisProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductDeleted": "Product deleted.",
+  "@bizProductDeleted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLogoTooLargeMax1MB": "Logo too large. Max 1MB.",
+  "@bizLogoTooLargeMax1MB": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEnterACode": "Enter a code",
+  "@bizEnterACode": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductTitleRequired": "Product title required",
+  "@bizProductTitleRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseSelectAStoreFor": "Please select a store for this product",
+  "@bizPleaseSelectAStoreFor": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseSelectACityFor": "Please select a city for this product",
+  "@bizPleaseSelectACityFor": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseUploadAProductImage": "Please upload a product image",
+  "@bizPleaseUploadAProductImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEnterTheNumberOfDays": "Enter the number of days (minimum 1)",
+  "@bizEnterTheNumberOfDays": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductOrderSummary": "Product Order Summary",
+  "@bizProductOrderSummary": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPrice": "Price",
+  "@bizPrice": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductWillGoToAdmin": "Product will go to admin review. No payment needed.",
+  "@bizProductWillGoToAdmin": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRazorpayOpensProductLiveAfter": "Razorpay opens. Product live after admin approval.",
+  "@bizRazorpayOpensProductLiveAfter": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSaveProduct": "Save Product",
+  "@bizSaveProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAddProduct": "Add Product",
+  "@bizAddProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductTitle": "Product Title *",
+  "@bizProductTitle": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEGRajStore50": "e.g. Raj Store ₹50 Off",
+  "@bizEGRajStore50": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEGGet50Off": "e.g. Get ₹50 off on orders above ₹299",
+  "@bizEGGet50Off": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDiscountIsAutoCalculatedFrom": "Discount is auto-calculated from prices",
+  "@bizDiscountIsAutoCalculatedFrom": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUploadImage": "Upload Image",
+  "@bizUploadImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "biz400400px": "📐 400×400px",
+  "@biz400400px": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMax1MB": "📦 Max 1MB",
+  "@bizMax1MB": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizValidityDays": "Validity (Days)",
+  "@bizValidityDays": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStartDate": "Start date",
+  "@bizStartDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEndDate": "End date",
+  "@bizEndDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNumberOfDays2": "Number of days",
+  "@bizNumberOfDays2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLivePeriod": "Live period:",
+  "@bizLivePeriod": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFree0": "Free (₹0)",
+  "@bizFree0": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFreeProduct": "Free product",
+  "@bizFreeProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizYourBusiness": "Your business",
+  "@bizYourBusiness": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMyStores": "My Stores",
+  "@bizMyStores": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToAddYourFirst": "Tap + to add your first store",
+  "@bizTapToAddYourFirst": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizActive": "Active",
+  "@bizActive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDraft": "Draft",
+  "@bizDraft": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizInactive": "Inactive",
+  "@bizInactive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDeleted": "Deleted",
+  "@bizDeleted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRemoved": "Removed",
+  "@bizRemoved": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubscribe": "Subscribe",
+  "@bizSubscribe": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAwaitingAdminApproval2": "Awaiting Admin Approval",
+  "@bizAwaitingAdminApproval2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizQR": "QR",
+  "@bizQR": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizGenQR": "Gen QR",
+  "@bizGenQR": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizShowThisToCustomersTo": "Show this to customers to earn points",
+  "@bizShowThisToCustomersTo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDeviceLocationIsTurnedOff": "Device location is turned off. Turn it on and try again.",
+  "@bizDeviceLocationIsTurnedOff": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUnableToIdentifyTheExact": "Unable to identify the exact location from this Google Maps link. Please open Google Maps, drop a pin on the exact location, tap Share → Copy link, and try again.",
+  "@bizUnableToIdentifyTheExact": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCity": "City",
+  "@bizCity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizState": "State",
+  "@bizState": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizArea": "Area",
+  "@bizArea": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPostalCode": "Postal code",
+  "@bizPostalCode": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLocationCaptured": "Location captured",
+  "@bizLocationCaptured": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizImageTooLargeMax2MB2": "Image too large. Max 2MB allowed.",
+  "@bizImageTooLargeMax2MB2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreNameRequired": "Store name required",
+  "@bizStoreNameRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseSetTheStoreLocation": "Please set the store location using \"Use current location\" or a Google Maps link",
+  "@bizPleaseSetTheStoreLocation": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMobileNumberIsRequired": "Mobile number is required",
+  "@bizMobileNumberIsRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEnterAValid10Digit": "Enter a valid 10-digit mobile number (starts with 6–9)",
+  "@bizEnterAValid10Digit": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEditStore": "Edit Store",
+  "@bizEditStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAddStore": "Add Store",
+  "@bizAddStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreName": "Store Name *",
+  "@bizStoreName": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCategory": "Category",
+  "@bizCategory": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSelectCategory": "Select category",
+  "@bizSelectCategory": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreLocation": "Store location",
+  "@bizStoreLocation": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUseGPSOrPasteA": "Use GPS or paste a Maps link.",
+  "@bizUseGPSOrPasteA": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUseCurrentLocation": "Use current location",
+  "@bizUseCurrentLocation": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOrPasteGoogleMapsLink": "or paste Google Maps link",
+  "@bizOrPasteGoogleMapsLink": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPasteGoogleMapsLinkHere": "Paste Google Maps link here",
+  "@bizPasteGoogleMapsLinkHere": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizResolveLocation": "Resolve Location",
+  "@bizResolveLocation": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLatitude": "Latitude",
+  "@bizLatitude": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLongitude": "Longitude",
+  "@bizLongitude": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAutoFilledByGPSOr": "Auto-filled by GPS or Google Maps — you can edit any value. Edited values are saved as entered.",
+  "@bizAutoFilledByGPSOr": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPhone": "Phone",
+  "@bizPhone": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToChangeImage": "Tap to change image",
+  "@bizTapToChangeImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMainStoreImage": "Main Store Image",
+  "@bizMainStoreImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "biz800600px43": "📐 800×600px (4:3)",
+  "@biz800600px43": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizUploadLogoOptional": "Upload Logo [Optional]",
+  "@bizUploadLogoOptional": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToChangeLogo": "Tap to change logo",
+  "@bizTapToChangeLogo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToUploadLogo": "Tap to upload logo",
+  "@bizTapToUploadLogo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "biz200200px11": "📐 200×200px (1:1)",
+  "@biz200200px11": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreTimingsOptional": "Store Timings [Optional]",
+  "@bizStoreTimingsOptional": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOpeningTime": "Opening Time",
+  "@bizOpeningTime": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOpenAt": "Open at",
+  "@bizOpenAt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizClosingTime": "Closing Time",
+  "@bizClosingTime": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCloseAt": "Close at",
+  "@bizCloseAt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAboutThisStoreDescriptionShown": "About this store (description shown to customers)",
+  "@bizAboutThisStoreDescriptionShown": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSaveChanges": "Save Changes",
+  "@bizSaveChanges": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCreateStore": "Create Store",
+  "@bizCreateStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizConfirmingPayment": "Confirming payment...",
+  "@bizConfirmingPayment": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseWaitAMoment": "Please wait a moment",
+  "@bizPleaseWaitAMoment": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubscriptionRequestSent": "Subscription Request Sent",
+  "@bizSubscriptionRequestSent": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPlan": "Plan",
+  "@bizPlan": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFrom": "From",
+  "@bizFrom": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTo": "To",
+  "@bizTo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTotalPayable": "Total Payable",
+  "@bizTotalPayable": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizYourSubscriptionRequestHasBeen": "✅  Your subscription request has been submitted.",
+  "@bizYourSubscriptionRequestHasBeen": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizConfirmPayment": "Confirm Payment",
+  "@bizConfirmPayment": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRazorpayCheckoutWillOpenAfter": "Razorpay checkout will open. After payment, admin will approve your store.",
+  "@bizRazorpayCheckoutWillOpenAfter": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPayNow": "Pay Now",
+  "@bizPayNow": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubscribeStore": "Subscribe Store",
+  "@bizSubscribeStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSelectPlan": "Select Plan",
+  "@bizSelectPlan": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStartDate2": "Start Date",
+  "@bizStartDate2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizHaveADiscountCode": "Have a discount code?",
+  "@bizHaveADiscountCode": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEnterCode": "Enter code",
+  "@bizEnterCode": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDiscount2": "Discount:",
+  "@bizDiscount2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRemove": "Remove",
+  "@bizRemove": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProceedToPay": "Proceed to Pay",
+  "@bizProceedToPay": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRefresh": "Refresh",
+  "@bizRefresh": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoInvoicesYet": "No invoices yet",
+  "@bizNoInvoicesYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPullDownToRefresh": "Pull down to refresh",
+  "@bizPullDownToRefresh": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizShare": "Share",
+  "@bizShare": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDownloadPDF": "Download PDF",
+  "@bizDownloadPDF": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAccountRegistered": "Account registered",
+  "@bizAccountRegistered": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNewStoreCreated": "New store created",
+  "@bizNewStoreCreated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreProfileUpdated": "Store profile updated",
+  "@bizStoreProfileUpdated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreApproved": "Store approved",
+  "@bizStoreApproved": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreRejected": "Store rejected",
+  "@bizStoreRejected": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreSubscriptionActivated": "Store subscription activated",
+  "@bizStoreSubscriptionActivated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFreeSubscriptionActivated": "Free subscription activated",
+  "@bizFreeSubscriptionActivated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSubscriptionPaymentReceived": "Subscription payment received",
+  "@bizSubscriptionPaymentReceived": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerSubmitted": "Banner submitted",
+  "@bizBannerSubmitted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerApproved": "Banner approved",
+  "@bizBannerApproved": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerRejected": "Banner rejected",
+  "@bizBannerRejected": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerPaymentReceived": "Banner payment received",
+  "@bizBannerPaymentReceived": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductSubmitted": "Product submitted",
+  "@bizProductSubmitted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductApproved": "Product approved",
+  "@bizProductApproved": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductRejected": "Product rejected",
+  "@bizProductRejected": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductPaymentReceived": "Product payment received",
+  "@bizProductPaymentReceived": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaymentReceived": "Payment received",
+  "@bizPaymentReceived": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFreePlanActivated": "Free plan activated",
+  "@bizFreePlanActivated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProfileUpdated": "Profile updated",
+  "@bizProfileUpdated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizQRCodeRegenerated": "QR code regenerated",
+  "@bizQRCodeRegenerated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPayment": "Payment",
+  "@bizPayment": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizApprovedLive2": "✅ Approved — Live",
+  "@bizApprovedLive2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRejected2": "❌ Rejected",
+  "@bizRejected2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPendingApproval2": "⏳ Pending Approval",
+  "@bizPendingApproval2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBusinessTimeline": "Business timeline",
+  "@bizBusinessTimeline": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoActivityYet": "No activity yet",
+  "@bizNoActivityYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMerchantAccount": "Merchant account",
+  "@bizMerchantAccount": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapPhotoToChange": "Tap photo to change",
+  "@bizTapPhotoToChange": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSwitchBetweenUserMerchantInfluencer": "Switch between User, Merchant & Influencer",
+  "@bizSwitchBetweenUserMerchantInfluencer": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizKYCPolicy": "KYC Policy",
+  "@bizKYCPolicy": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMerchantOffers": "Merchant offers",
+  "@bizMerchantOffers": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMyDeals": "My Deals",
+  "@bizMyDeals": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAddDeal": "Add Deal",
+  "@bizAddDeal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizYouNeedAnActiveStore": "You need an active store to add deals.",
+  "@bizYouNeedAnActiveStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoDealsYet": "No deals yet",
+  "@bizNoDealsYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAddDealsToAttractMore": "Add deals to attract more customers",
+  "@bizAddDealsToAttractMore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEditDeal": "Edit Deal",
+  "@bizEditDeal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDeleteDeal": "Delete Deal?",
+  "@bizDeleteDeal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDelete": "Delete",
+  "@bizDelete": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDealTitleIsRequired": "Deal title is required",
+  "@bizDealTitleIsRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEndDateIsRequired": "End date is required",
+  "@bizEndDateIsRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseAddAnImageBefore": "Please add an image before saving.",
+  "@bizPleaseAddAnImageBefore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDealUpdated": "Deal updated!",
+  "@bizDealUpdated": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDealAdded": "Deal added!",
+  "@bizDealAdded": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDealTitleEG20": "Deal Title (e.g. 20% off on all items)",
+  "@bizDealTitleEG20": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDescriptionOptional": "Description (optional)",
+  "@bizDescriptionOptional": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDealImage": "Deal Image",
+  "@bizDealImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTapToReplaceImage": "Tap to replace image",
+  "@bizTapToReplaceImage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMax2MBRequired": "📦 Max 2MB · Required",
+  "@bizMax2MBRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSelectEndDate": "Select End Date",
+  "@bizSelectEndDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAllYourStoresProductsData": "All your stores, products & data will be permanently removed",
+  "@bizAllYourStoresProductsData": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizINoLongerRunMy": "I no longer run my business",
+  "@bizINoLongerRunMy": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTheAppIsNotWorking": "The app is not working properly for me",
+  "@bizTheAppIsNotWorking": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizOnceYourAccountIsDeleted": "Once your account is deleted, your stores, products, banners and data cannot be retrieved. Signing up again will create a new account.",
+  "@bizOnceYourAccountIsDeleted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizYourMerchantAccountWillBe": "Your merchant account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your stores, products and data cannot be retrieved. Are you absolutely sure?",
+  "@bizYourMerchantAccountWillBe": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizChecking": "Checking…",
+  "@bizChecking": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDiscountApplied2": "Discount applied!",
+  "@bizDiscountApplied2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizChooseALaterEndDate": "Choose a later end date (add at least 1 day)",
+  "@bizChooseALaterEndDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRenewedSuccessfully": "✅ Renewed successfully!",
+  "@bizRenewedSuccessfully": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRenewalSummary": "Renewal Summary",
+  "@bizRenewalSummary": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNewEndDate": "New end date",
+  "@bizNewEndDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizFreeRenewal": "Free renewal",
+  "@bizFreeRenewal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRenewFree": "Renew free",
+  "@bizRenewFree": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRenewed": "Renewed!",
+  "@bizRenewed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizRenewProduct": "Renew Product",
+  "@bizRenewProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizNoEndDate": "No end date",
+  "@bizNoEndDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizChooseHowLongTheProduct": "Choose how long the product stays live.",
+  "@bizChooseHowLongTheProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDaysToAdd": "Days to add",
+  "@bizDaysToAdd": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductAnalytics": "Product Analytics",
+  "@bizProductAnalytics": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizCouldnTLoadAnalytics": "Couldn't load analytics",
+  "@bizCouldnTLoadAnalytics": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPleaseCheckYourConnectionAnd": "Please check your connection and try again.",
+  "@bizPleaseCheckYourConnectionAnd": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPremiumListingAnalytics": "Premium Listing Analytics",
+  "@bizPremiumListingAnalytics": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizViews": "👁️ Views",
+  "@bizViews": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizShares": "🔗 Shares",
+  "@bizShares": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreVisits": "🛒 Store Visits",
+  "@bizStoreVisits": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizLastSeen": "📅 Last Seen",
+  "@bizLastSeen": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreVisitsCustomersWhoVisited": "Store Visits: customers who visited the store",
+  "@bizStoreVisitsCustomersWhoVisited": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizConversionRate": "Conversion Rate",
+  "@bizConversionRate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSimilarProducts": "Similar Products",
+  "@bizSimilarProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaymentSuccessful": "Payment Successful!",
+  "@bizPaymentSuccessful": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "payment"
+  },
+  "bizYourPurchaseIsNowPending": "Your purchase is now pending admin approval.",
+  "@bizYourPurchaseIsNowPending": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "payment"
+  },
+  "bizAdminWillReviewAndActivate": "Admin will review and activate your purchase within 24 hours.",
+  "@bizAdminWillReviewAndActivate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "payment"
+  },
+  "bizInfluencersAreComingSoon": "Influencers are coming soon ✨",
+  "@bizInfluencersAreComingSoon": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizWeReBringingLocalCreators": "We're bringing local creators and their recommendations to OffrO. Stay tuned!",
+  "@bizWeReBringingLocalCreators": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPeopleShapingTheCity": "People shaping the city",
+  "@bizPeopleShapingTheCity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizLocalVoices": "Local Voices",
+  "@bizLocalVoices": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPleaseSelectAStarRating": "Please select a star rating first",
+  "@bizPleaseSelectAStarRating": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPleaseLogInToSubmit": "Please log in to submit a review",
+  "@bizPleaseLogInToSubmit": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPleaseWriteAtLeastA": "Please write at least a few words",
+  "@bizPleaseWriteAtLeastA": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizVERIFIEDLOCALVOICE": "VERIFIED LOCAL VOICE",
+  "@bizVERIFIEDLOCALVOICE": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizRating": "Rating",
+  "@bizRating": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizRateThisInfluencer": "Rate this influencer",
+  "@bizRateThisInfluencer": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizShareYourExperienceOptional": "Share your experience (optional)",
+  "@bizShareYourExperienceOptional": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizUpdateReview": "Update Review",
+  "@bizUpdateReview": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCreatorAccount": "Creator account",
+  "@bizCreatorAccount": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCREATORWORKSPACE": "CREATOR WORKSPACE",
+  "@bizCREATORWORKSPACE": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizProfileViews": "Profile views",
+  "@bizProfileViews": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSavedBy": "Saved by",
+  "@bizSavedBy": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizYourProfileIsLive": "Your profile is live",
+  "@bizYourProfileIsLive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizYourProfileIsnTLive": "Your profile isn't live yet",
+  "@bizYourProfileIsnTLive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizMerchantsAndCustomersCanDiscover": "Merchants and customers can discover you.",
+  "@bizMerchantsAndCustomersCanDiscover": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizOpenYourProfileToReview": "Open your profile to review and publish it.",
+  "@bizOpenYourProfileToReview": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizMATCHEDFORYOU": "MATCHED FOR YOU",
+  "@bizMATCHEDFORYOU": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCampaignOpportunities": "Campaign opportunities",
+  "@bizCampaignOpportunities": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizINFLUENCERWORKSPACE": "INFLUENCER WORKSPACE",
+  "@bizINFLUENCERWORKSPACE": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCreateYourLocalProfile": "Create your local profile.",
+  "@bizCreateYourLocalProfile": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizYouLlNeedAnInfluencer": "You'll need an Influencer profile to use the Influencer module — it's how customers and merchants discover you on OffrO.",
+  "@bizYouLlNeedAnInfluencer": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizAddInfluencerProfile": "+ Add influencer profile",
+  "@bizAddInfluencerProfile": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizNotAdded": "Not added",
+  "@bizNotAdded": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizContinuePublishingPayNow": "Continue Publishing / Pay Now",
+  "@bizContinuePublishingPayNow": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizMyProfile": "My profile",
+  "@bizMyProfile": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizBusinessDetails": "Business Details",
+  "@bizBusinessDetails": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizDisplayName": "Display Name",
+  "@bizDisplayName": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizBio": "Bio",
+  "@bizBio": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSocialPages": "Social Pages",
+  "@bizSocialPages": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPrimarySpecialty": "Primary Specialty",
+  "@bizPrimarySpecialty": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizNoSpecialtySelected": "No specialty selected",
+  "@bizNoSpecialtySelected": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizAccountDetails": "Account Details",
+  "@bizAccountDetails": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizDisable": "Disable",
+  "@bizDisable": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizEnable": "Enable",
+  "@bizEnable": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizHideYourProfileFromCustomers": "Hide your profile from customers",
+  "@bizHideYourProfileFromCustomers": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizMakeYourProfileVisibleAgain": "Make your profile visible again",
+  "@bizMakeYourProfileVisibleAgain": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSwitchToYourCustomerAccount": "Switch to your Customer account",
+  "@bizSwitchToYourCustomerAccount": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizYourProfileIsSavedAs": "Your profile is saved as a draft. Complete the one-time subscription payment from Edit Profile → Save & Publish to make it visible to customers.",
+  "@bizYourProfileIsSavedAs": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPaymentIsBeingProcessedIf": "Payment is being processed. If you completed a payment and this doesn't update, try Save & Publish again.",
+  "@bizPaymentIsBeingProcessedIf": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizYourLastSubscriptionPaymentAttempt": "Your last subscription payment attempt failed. Please try Save & Publish again to complete payment.",
+  "@bizYourLastSubscriptionPaymentAttempt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizYourProfileIsNotYet": "Your profile is not yet published.",
+  "@bizYourProfileIsNotYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizDeleteInfluencerProfile": "Delete Influencer Profile?",
+  "@bizDeleteInfluencerProfile": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizAreYouSureYouWant": "Are you sure you want to delete your influencer profile? This action cannot be undone.",
+  "@bizAreYouSureYouWant": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizIfYouCreateANew": "If you create a new influencer profile in the future, a new subscription payment will be required.",
+  "@bizIfYouCreateANew": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizDeleteProfile": "Delete Profile",
+  "@bizDeleteProfile": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizREVIEWS": "REVIEWS",
+  "@bizREVIEWS": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCreatorReviews": "Creator reviews",
+  "@bizCreatorReviews": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizNameIsRequired": "Name is required",
+  "@bizNameIsRequired": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPleaseSelectAState": "Please select a state",
+  "@bizPleaseSelectAState": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPleaseEnterAValid10": "Please enter a valid 10-digit mobile number.",
+  "@bizPleaseEnterAValid10": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizProfileImageIsRequiredTo": "Profile image is required to publish your influencer profile.",
+  "@bizProfileImageIsRequiredTo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizWeCouldnTConfirmYour": "We couldn't confirm your payment. If money was deducted, it will be verified shortly — please try Save & Publish again in a moment.",
+  "@bizWeCouldnTConfirmYour": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCreatorIdentity": "Creator identity",
+  "@bizCreatorIdentity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizEditProfile": "Edit profile",
+  "@bizEditProfile": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizAddProfile": "Add profile",
+  "@bizAddProfile": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizRequiredToPublish": "Required to publish",
+  "@bizRequiredToPublish": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizName": "Name *",
+  "@bizName": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizEGPriyaSharma": "e.g. Priya Sharma",
+  "@bizEGPriyaSharma": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSharingTheBestLocalFood": "Sharing the best local food, cafés, shops and great offers around your city.",
+  "@bizSharingTheBestLocalFood": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizState2": "State *",
+  "@bizState2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSelectState": "Select state",
+  "@bizSelectState": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCity2": "City *",
+  "@bizCity2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSelectStateFirst": "Select state first",
+  "@bizSelectStateFirst": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSelectCity": "Select city",
+  "@bizSelectCity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizPrimarySpecialtySelectOneOr": "Primary Specialty (select one or more)",
+  "@bizPrimarySpecialtySelectOneOr": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizNoCategoriesAvailable": "No categories available",
+  "@bizNoCategoriesAvailable": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "biz10DigitMobileNumber": "10-digit mobile number",
+  "@biz10DigitMobileNumber": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSocialLinks": "Social Links",
+  "@bizSocialLinks": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizInstagramURL": "Instagram URL",
+  "@bizInstagramURL": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizYouTubeURL": "YouTube URL",
+  "@bizYouTubeURL": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizFacebookURL": "Facebook URL",
+  "@bizFacebookURL": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSaveKeepAsDraft": "Save (keep as draft)",
+  "@bizSaveKeepAsDraft": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSavePublish": "Save & Publish",
+  "@bizSavePublish": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSavePublishPayToPublish": "Save & Publish (Pay to Publish)",
+  "@bizSavePublishPayToPublish": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizNoSubscriptionPaymentIsCurrently": "No subscription payment is currently required to publish your profile.",
+  "@bizNoSubscriptionPaymentIsCurrently": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSubscriptionFee": "Subscription Fee",
+  "@bizSubscriptionFee": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizDiscountCodeOptional": "Discount code (optional)",
+  "@bizDiscountCodeOptional": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizAOneTimePaymentYou": "A one-time payment — you won't be charged again for editing or re-publishing this profile.",
+  "@bizAOneTimePaymentYou": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizEnterADiscountCodeFirst": "Enter a discount code first",
+  "@bizEnterADiscountCodeFirst": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizSelectSpecialties": "Select specialties",
+  "@bizSelectSpecialties": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizCreateBrief": "Create brief",
+  "@bizCreateBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizShareWhatYouNeedAnd": "Share what you need and where.",
+  "@bizShareWhatYouNeedAnd": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizInviteCreators": "Invite creators",
+  "@bizInviteCreators": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizLocalCreatorsInYourCity": "Local creators in your city see it.",
+  "@bizLocalCreatorsInYourCity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizConfirmMatch": "Confirm match",
+  "@bizConfirmMatch": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizReviewWhoAcceptedAndConnect": "Review who accepted and connect.",
+  "@bizReviewWhoAcceptedAndConnect": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCreator": "Creator",
+  "@bizCreator": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCollaborations": "Collaborations",
+  "@bizCollaborations": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizWorkWithTrustedLocalCreators": "Work with trusted local creators.",
+  "@bizWorkWithTrustedLocalCreators": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCreateOneClearCampaignBrief": "Create one clear campaign brief, review matched creators and confirm a collaboration without managing conversations across multiple apps.",
+  "@bizCreateOneClearCampaignBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizHowItWorks": "How it works",
+  "@bizHowItWorks": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCreateCampaignBrief": "Create campaign brief",
+  "@bizCreateCampaignBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizYourCampaigns": "Your campaigns",
+  "@bizYourCampaigns": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCollaborationWorkspace": "Collaboration workspace",
+  "@bizCollaborationWorkspace": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizNoCampaignsYet": "No campaigns yet",
+  "@bizNoCampaignsYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCreateYourFirstCampaignBrief": "Create your first campaign brief to invite local creators.",
+  "@bizCreateYourFirstCampaignBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizWhenShouldYouUseThis": "When should you use this?",
+  "@bizWhenShouldYouUseThis": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizUseCollaborationsForLaunchesVisits": "Use collaborations for launches, visits and creator content. Regular store updates and discounts belong in Banners or Deals instead.",
+  "@bizUseCollaborationsForLaunchesVisits": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizReviewProposals": "Review proposals",
+  "@bizReviewProposals": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCloseCampaign": "Close campaign?",
+  "@bizCloseCampaign": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCreatorsWillNoLongerBe": "Creators will no longer be able to accept this brief.",
+  "@bizCreatorsWillNoLongerBe": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizKeepOpen": "Keep open",
+  "@bizKeepOpen": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCampaign": "Campaign",
+  "@bizCampaign": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizProposals": "Proposals",
+  "@bizProposals": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCreatorsWhoAccepted": "Creators who accepted",
+  "@bizCreatorsWhoAccepted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizNoProposalsYet": "No proposals yet",
+  "@bizNoProposalsYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCreatorsInYourCityWill": "Creators in your city will appear here once they accept your brief.",
+  "@bizCreatorsInYourCityWill": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizClosing": "Closing…",
+  "@bizClosing": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCloseCampaign2": "Close campaign",
+  "@bizCloseCampaign2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizChatOnWhatsApp": "Chat on WhatsApp",
+  "@bizChatOnWhatsApp": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCouldnTOpenWhatsApp": "Couldn't open WhatsApp.",
+  "@bizCouldnTOpenWhatsApp": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizPleaseSelectAStore2": "Please select a store.",
+  "@bizPleaseSelectAStore2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizEnterACampaignTitleAt": "Enter a campaign title (at least 3 characters).",
+  "@bizEnterACampaignTitleAt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizSelectACampaignObjective": "Select a campaign objective.",
+  "@bizSelectACampaignObjective": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizDescribeWhatTheCreatorShould": "Describe what the creator should communicate (at least 10 characters).",
+  "@bizDescribeWhatTheCreatorShould": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizSelectTheContentYouNeed": "Select the content you need.",
+  "@bizSelectTheContentYouNeed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizChooseAPublishByDate": "Choose a publish-by date.",
+  "@bizChooseAPublishByDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizChooseAVisitDateFor": "Choose a visit date for the store visit.",
+  "@bizChooseAVisitDateFor": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizVisitDateCanTBe": "Visit date can't be after the publish-by date.",
+  "@bizVisitDateCanTBe": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizBriefPublishedMatchingCreatorsCan": "Brief published. Matching creators can now see it.",
+  "@bizBriefPublishedMatchingCreatorsCan": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCampaignBrief": "Campaign brief",
+  "@bizCampaignBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizAddAndActivateAStore": "Add and activate a store before creating a campaign brief.",
+  "@bizAddAndActivateAStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizSelectStore2": "Select store",
+  "@bizSelectStore2": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCampaignTitle": "Campaign title",
+  "@bizCampaignTitle": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizExampleSeasonalMenuLaunch": "Example: Seasonal menu launch",
+  "@bizExampleSeasonalMenuLaunch": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCampaignObjective": "Campaign objective",
+  "@bizCampaignObjective": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizSelectObjective": "Select objective",
+  "@bizSelectObjective": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizWhatShouldTheCreatorCommunicate": "What should the creator communicate?",
+  "@bizWhatShouldTheCreatorCommunicate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizKeyMessageExperienceAndDetails": "Key message, experience and details they should know...",
+  "@bizKeyMessageExperienceAndDetails": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizRequestedContent": "Requested content",
+  "@bizRequestedContent": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizVisitDate": "Visit date",
+  "@bizVisitDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizSelectDate": "Select date",
+  "@bizSelectDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizPublishBy": "Publish by",
+  "@bizPublishBy": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizPreferredCreatorSpeciality": "Preferred creator speciality",
+  "@bizPreferredCreatorSpeciality": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizSelectSpeciality": "Select speciality",
+  "@bizSelectSpeciality": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizNoPaymentProcessing": "No payment processing",
+  "@bizNoPaymentProcessing": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizOffrOConnectsYouWithCreators": "OffrO connects you with creators. Any compensation is agreed directly between you and the creator.",
+  "@bizOffrOConnectsYouWithCreators": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizPublishing": "Publishing…",
+  "@bizPublishing": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizPublishBrief": "Publish brief",
+  "@bizPublishBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizMatchedLocally": "Matched locally",
+  "@bizMatchedLocally": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizReviewCollaborationRequestsFromReleva": "Review collaboration requests from relevant merchants in your city.",
+  "@bizReviewCollaborationRequestsFromReleva": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizNoCollaborationRequestsYet": "No collaboration requests yet",
+  "@bizNoCollaborationRequestsYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizRequestsFromMerchantsInYour": "Requests from merchants in your city will appear here.",
+  "@bizRequestsFromMerchantsInYour": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizAccepted": "Accepted",
+  "@bizAccepted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizDeclined": "Declined",
+  "@bizDeclined": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizNewCollaborationRequest": "New collaboration request",
+  "@bizNewCollaborationRequest": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizViewBrief": "View brief",
+  "@bizViewBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizNoCampaignRequestsYet": "No campaign requests yet",
+  "@bizNoCampaignRequestsYet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizNewBriefsFromMerchantsIn": "New briefs from merchants in your city will appear here.",
+  "@bizNewBriefsFromMerchantsIn": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCollaborationAccepted": "Collaboration accepted.",
+  "@bizCollaborationAccepted": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizRequestDeclined": "Request declined.",
+  "@bizRequestDeclined": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCollaborationRequest": "Collaboration request",
+  "@bizCollaborationRequest": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizBrief": "Brief",
+  "@bizBrief": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizCompleteYourProfileSubscriptionTo": "Complete your profile subscription to accept collaborations.",
+  "@bizCompleteYourProfileSubscriptionTo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizObjective": "Objective",
+  "@bizObjective": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizMessage": "Message",
+  "@bizMessage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizPreferredSpeciality": "Preferred speciality",
+  "@bizPreferredSpeciality": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizThisCollaborationIsForPromotion": "This collaboration is for promotion on your Instagram. There is no in-app chat.",
+  "@bizThisCollaborationIsForPromotion": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizYouAcceptedThisCollaboration": "You accepted this collaboration",
+  "@bizYouAcceptedThisCollaboration": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizTheMerchantSContactNumber": "The merchant's contact number is not available.",
+  "@bizTheMerchantSContactNumber": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizContactTheMerchantToPlan": "Contact the merchant to plan your visit:",
+  "@bizContactTheMerchantToPlan": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizThisRequestIsNoLonger": "This request is no longer open.",
+  "@bizThisRequestIsNoLonger": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizPleaseWait": "Please wait…",
+  "@bizPleaseWait": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizAcceptCollaboration": "Accept collaboration",
+  "@bizAcceptCollaboration": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizDecline": "Decline",
+  "@bizDecline": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "collab"
+  },
+  "bizFreeSlotsUsedOf": "{used}/{limit} free slots used",
+  "@bizFreeSlotsUsedOf": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "bizWelcomeBackName": "Welcome back, {name}",
+  "@bizWelcomeBackName": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bizBannerSubmittedMsg": "✅ Banner submitted! {message}",
+  "@bizBannerSubmittedMsg": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "bizBannerFallbackDeal": "If this deal is later removed, the banner opens the store instead.",
+  "@bizBannerFallbackDeal": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannerFallbackProduct": "If this product is later removed, the banner opens the store instead.",
+  "@bizBannerFallbackProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaymentFailedMsg": "Payment failed: {error}",
+  "@bizPaymentFailedMsg": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizToggleFailed": "Toggle failed: {error}",
+  "@bizToggleFailed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizFreeProductSlotsUsed": "{used} / {limit} free product slots used",
+  "@bizFreeProductSlotsUsed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "bizAdditionalProductsCharged": "Additional products are charged at {price} per day of validity.",
+  "@bizAdditionalProductsCharged": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDeleteProductBody": "\"{title}\" will be permanently removed and cannot be reactivated. Any payment already made for this product will not be refunded.",
+  "@bizDeleteProductBody": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bizThisProduct": "This product",
+  "@bizThisProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDeleteError": "Error deleting: {error}",
+  "@bizDeleteError": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizCodeAppliedPct": "✅ Code applied — {value}% off!",
+  "@bizCodeAppliedPct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "bizCodeAppliedAmt": "✅ Code applied — ₹{value} off!",
+  "@bizCodeAppliedAmt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "bizMaxValidity": "Maximum validity is {days} days",
+  "@bizMaxValidity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "bizProductSubmittedMsg": "✅ Product submitted! {message}",
+  "@bizProductSubmittedMsg": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
+  "bizPaymentErrorMsg": "Payment error: {error}",
+  "@bizPaymentErrorMsg": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizCouldNotOpenPayment": "Could not open payment. Please try again.",
+  "@bizCouldNotOpenPayment": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizMaxDays": "Maximum {days} days",
+  "@bizMaxDays": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "bizFreeSlotsRemaining": "You have {remaining} of {limit} free product slots remaining.",
+  "@bizFreeSlotsRemaining": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "remaining": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "bizFreeSlotsAllUsed": "You have used all {limit} free product slots.\nPrice is {price} per day + GST for the days you choose.",
+  "@bizFreeSlotsAllUsed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "bizLocationUpdatedTo": "Location updated to {city}",
+  "@bizLocationUpdatedTo": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "bizCouldNotGetLocation": "Could not get location: {error}",
+  "@bizCouldNotGetLocation": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizLocationPermissionNeeded": "Location permission is required for current location. Allow it and try again.",
+  "@bizLocationPermissionNeeded": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizSetStoreLocationFirst": "Please set the store's location using \"Use Current Location\" or a Google Maps link before creating the store.",
+  "@bizSetStoreLocationFirst": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreLocationIncomplete": "The store location looks incomplete. Use \"Use Current Location\" or a Google Maps link to set a valid location.",
+  "@bizStoreLocationIncomplete": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaymentCancelledOrFailed": "Payment cancelled or failed: {error}",
+  "@bizPaymentCancelledOrFailed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizExternalWallet": "External wallet: {name}",
+  "@bizExternalWallet": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDiscountAppliedPct": "✅ {value}% discount applied!",
+  "@bizDiscountAppliedPct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDiscountAppliedAmt": "✅ ₹{value} discount applied!",
+  "@bizDiscountAppliedAmt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "bizSubmittedPayRep": "✅  Your subscription request has been submitted.\n\nPlease pay the amount to your Offro representative.\nThe admin will activate your store once payment is confirmed.",
+  "@bizSubmittedPayRep": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEndDateExceedsStore": "End date cannot exceed store expiry ({date})",
+  "@bizEndDateExceedsStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizCurrentEndDate": "Current end date: {date}",
+  "@bizCurrentEndDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizFreeSlotAvailable": "A free product slot is available ({used} of {limit} in use), so this renewal is free.",
+  "@bizFreeSlotAvailable": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "limit": {
+        "type": "String"
+      }
+    }
+  },
+  "bizAllFreeSlotsUsedRenew": "You are using all {limit} free product slots. Renewing costs {price} per day added + GST.",
+  "@bizAllFreeSlotsUsedRenew": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "limit": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "bizViewersVisitedStore": "{pct}% of viewers visited the store (tapped Sold by)",
+  "@bizViewersVisitedStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "bizProductsExpiringOne": "1 product expiring soon — tap to renew",
+  "@bizProductsExpiringOne": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizProductsExpiringMany": "{n} products expiring soon — tap to renew",
+  "@bizProductsExpiringMany": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizMoreFromStore": "More from {store}",
+  "@bizMoreFromStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "bizThisStore": "this store",
+  "@bizThisStore": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPurchasePendingNamed": "Your \"{store}\" purchase is now pending admin approval.",
+  "@bizPurchasePendingNamed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "store": {
+        "type": "String"
+      }
+    }
+  },
+  "bizNoInfluencersInCity": "No influencers available in {city} yet",
+  "@bizNoInfluencersInCity": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "bizSeeAllCount": "See all ({count})",
+  "@bizSeeAllCount": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "bizReviewsFor": "Reviews for {name}",
+  "@bizReviewsFor": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "bizPublishByDate": "Publish by {date}",
+  "@bizPublishByDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizSeeAllRequests": "See all {count} requests",
+  "@bizSeeAllRequests": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDeclinedCanAccept": "You declined this request. You can still accept it while it is open.",
+  "@bizDeclinedCanAccept": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizDeclinedRequest": "You declined this request.",
+  "@bizDeclinedRequest": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "errPayNoMessage": "Payment could not be completed. Please try again.",
+  "@errPayNoMessage": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "errPayGeneric": "We couldn't complete your payment. Please try again.",
+  "@errPayGeneric": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoresActiveOne": "1 Store • {active} Active",
+  "@bizStoresActiveOne": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "active": {
+        "type": "String"
+      }
+    }
+  },
+  "bizStoresActiveMany": "{count} Stores • {active} Active",
+  "@bizStoresActiveMany": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "active": {
+        "type": "String"
+      }
+    }
+  },
+  "bizNLive": "{n} Live",
+  "@bizNLive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizNPending": "{n} Pending",
+  "@bizNPending": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizSubmittedWord": "Submitted",
+  "@bizSubmittedWord": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannersStatusOne": "1 Banner • {status}",
+  "@bizBannersStatusOne": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "bizBannersStatusMany": "{count} Banners • {status}",
+  "@bizBannersStatusMany": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "status": {
+        "type": "String"
+      }
+    }
+  },
+  "bizNDays": "{n} Days",
+  "@bizNDays": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizStartEndRange": "Start: {from}   →   End: {end}",
+  "@bizStartEndRange": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "from": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "bizFromDateLabel": "From: {date}",
+  "@bizFromDateLabel": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizUntilDateLabel": "Until: {date}",
+  "@bizUntilDateLabel": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizInvoiceColon": "Invoice: {no}",
+  "@bizInvoiceColon": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "no": {
+        "type": "String"
+      }
+    }
+  },
+  "bizPerDayPrice": "₹{amount}/day",
+  "@bizPerDayPrice": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "bizGstPct": "GST ({pct}%)",
+  "@bizGstPct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "bizPayAmount": "Pay ₹{amount}",
+  "@bizPayAmount": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "bizPricePerDayTimesDays": "₹{price}/day × {days} days",
+  "@bizPricePerDayTimesDays": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDiscountTotalPct": "−₹{amount} ({pct}%) off  →  Total: ₹{total}",
+  "@bizDiscountTotalPct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDiscountTotalAmt": "−₹{amount} off  →  Total: ₹{total}",
+  "@bizDiscountTotalAmt": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      },
+      "total": {
+        "type": "String"
+      }
+    }
+  },
+  "bizResultOne": "1 result",
+  "@bizResultOne": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizResultMany": "{n} results",
+  "@bizResultMany": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizExpiredOn": "Expired {date}",
+  "@bizExpiredOn": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizExpiresOn": "Expires {date}",
+  "@bizExpiresOn": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizErrorColon": "Error: {error}",
+  "@bizErrorColon": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDayTimesPriceOne": "{days} day × {price}/day",
+  "@bizDayTimesPriceOne": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDayTimesPriceMany": "{days} days × {price}/day",
+  "@bizDayTimesPriceMany": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      },
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "bizFailedColon": "Failed: {error}",
+  "@bizFailedColon": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDealCountOne": "1 Deal",
+  "@bizDealCountOne": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDealCountMany": "{n} Deals",
+  "@bizDealCountMany": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizPricePlusGst": "₹{price} + {pct}% GST",
+  "@bizPricePlusGst": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "bizPlanPeriodLine": "Plan: {plan}  •  {from} – {end}",
+  "@bizPlanPeriodLine": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "plan": {
+        "type": "String"
+      },
+      "from": {
+        "type": "String"
+      },
+      "end": {
+        "type": "String"
+      }
+    }
+  },
+  "bizBaseGstLine": "Base: ₹{base}  GST: ₹{gst}",
+  "@bizBaseGstLine": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "base": {
+        "type": "String"
+      },
+      "gst": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDiscountCodeLine": "Discount ({code}): −₹{amount}",
+  "@bizDiscountCodeLine": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "bizBannerTitleLine": "Banner: {title}",
+  "@bizBannerTitleLine": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bizProductTitleLine": "Product: {title}",
+  "@bizProductTitleLine": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bizUntitledWord": "Untitled",
+  "@bizUntitledWord": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizEndsOn": "Ends {date}",
+  "@bizEndsOn": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizDeleteDealNamed": "Delete \"{title}\"?",
+  "@bizDeleteDealNamed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "bizMaxDateLine": "Max: {date}",
+  "@bizMaxDateLine": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizRenewAmount": "Renew · {amount}",
+  "@bizRenewAmount": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "bizCodeAppliedNamed": "Code '{code}' applied",
+  "@bizCodeAppliedNamed": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "bizNActive": "{n} active",
+  "@bizNActive": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizVisitOn": "Visit {date}",
+  "@bizVisitOn": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizCallPhone": "Call {phone}",
+  "@bizCallPhone": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "bizAllProducts": "All Products",
+  "@bizAllProducts": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAllStores": "All Stores",
+  "@bizAllStores": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBannersTab": "Banners",
+  "@bizBannersTab": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizPaymentsTab": "Payments",
+  "@bizPaymentsTab": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizAdditionalProduct": "Additional product",
+  "@bizAdditionalProduct": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizBillingSubscriptions": "Billing & subscriptions",
+  "@bizBillingSubscriptions": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizTillDate": "Till: {date}",
+  "@bizTillDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizExpDate": "Exp: {date}",
+  "@bizExpDate": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "bizOneDayWord": "1 day",
+  "@bizOneDayWord": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizDaysCountWord": "{n} days",
+  "@bizDaysCountWord": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizProposalOne": "1 proposal",
+  "@bizProposalOne": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizProposalMany": "{n} proposals",
+  "@bizProposalMany": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "bizInfluencerSubscription": "Influencer Subscription",
+  "@bizInfluencerSubscription": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
+  },
+  "bizOffrOInfluencer": "OffrO Influencer",
+  "@bizOffrOInfluencer": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "influencer"
   }
 }
