@@ -7,6 +7,7 @@ import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
 import 'store_header.dart' show FullScreenImageViewer;
 import '../../../core/design/design.dart';
+import '../../../core/l10n/l10n.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Round 10 — shared pricing/discount resolution, used by both the card and
@@ -62,7 +63,7 @@ String _productImageUrl(Map<String, dynamic> p) => p['logo_url']?.toString() ?? 
 // the single price row (same red badge style used on the card) instead of
 // as a separate line above it, so it appears exactly once, next to the
 // price it applies to.
-Widget _productGalleryOverlay(Map<String, dynamic> p) {
+Widget _productGalleryOverlay(BuildContext ctx, Map<String, dynamic> p) {
   final title    = p['title']?.toString() ?? '';
   final subtitle = p['offer_text']?.toString() ?? '';
   final pricing  = _resolveProductPricing(p);
@@ -83,7 +84,7 @@ Widget _productGalleryOverlay(Map<String, dynamic> p) {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(color: OffroColors.terracotta, borderRadius: BorderRadius.circular(20)),
-            child: Text(pricing.discLabel,
+            child: Text(localizedDiscountLabel(ctx, pricing.discLabel),
                 style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
           ),
           const SizedBox(width: 8),
@@ -137,7 +138,7 @@ class StoreProductsSection extends StatelessWidget {
         pageBuilder: (_, __, ___) => FullScreenImageViewer(
           images: products.map(_productImageUrl).toList(),
           initialIndex: index,
-          bottomOverlays: products.map(_productGalleryOverlay).toList(),
+          bottomOverlays: products.map((p) => _productGalleryOverlay(context, p)).toList(),
           // ROUND 12 FOLLOW-UP (product viewer redesign): spacedOverlay
           // (image shifted up + a reserved gap below it) was what created
           // the "separate details panel" / unwanted side-bar look. Reverting
@@ -159,11 +160,11 @@ class StoreProductsSection extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 28, OffroSpacing.gutter, 14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('PRODUCTS AVAILABLE AT THIS STORE',
+          Text(context.l10n.prodsAvailableEyebrow,
               style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
           const SizedBox(height: 4),
           Row(children: [
-            Text('Featured Products', style: OffroText.title),
+            Text(context.l10n.prodsFeatured, style: OffroText.title),
             const SizedBox(width: 6),
             // FOLLOW-UP: single tap now opens the full-screen gallery, and
             // the older "view full details + leave a review" flow moved to
@@ -174,8 +175,8 @@ class StoreProductsSection extends StatelessWidget {
             // sheet, so it can't be confused with either).
             GestureDetector(
               onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Tip: Long-press a product image to view details and leave a review.'),
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(context.l10n.prodsTip),
                   backgroundColor: kPrimary,
                   duration: Duration(seconds: 4),
                   showCloseIcon: true,
@@ -285,7 +286,7 @@ class _ProductCardState extends State<_ProductCard> {
       if (mounted) {
         setState(() => _isFav = prev);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+          content: Text(context.l10n.homeFavoriteSaveFailed(friendlyError(e, l10n: context.l10n))),
           backgroundColor: OffroColors.error,
           duration: const Duration(seconds: 12),
           showCloseIcon: true));
@@ -379,7 +380,7 @@ class _ProductCardState extends State<_ProductCard> {
       child: Container(
         width: 210,
         height: 210,
-        margin: const EdgeInsets.only(right: 12),
+        margin: const EdgeInsetsDirectional.only(end: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: OffroColors.border, width: 1),
@@ -444,16 +445,16 @@ class _ProductCardState extends State<_ProductCard> {
             // card now (Task 3 removed the bottom-ribbon yellow discount
             // text that used to duplicate this).
             if (discLabel.isNotEmpty)
-              Positioned(top: 8, left: 8,
+              PositionedDirectional(top: 8, start: 8,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(color: OffroColors.terracotta, borderRadius: BorderRadius.circular(20)),
-                  child: Text(discLabel, style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
+                  child: Text(localizedDiscountLabel(context, discLabel), style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
                 )),
 
             // Favorite heart (top-right) — unchanged functionality, repositioned over the image
             if (widget.token.isNotEmpty)
-              Positioned(top: 6, right: 6,
+              PositionedDirectional(top: 6, end: 6,
                 child: GestureDetector(
                   onTap: _toggleFav,
                   child: Container(
@@ -548,7 +549,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
       if (mounted) {
         setState(() => _submitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Couldn't submit rating: ${friendlyError(e)}"), backgroundColor: OffroColors.error));
+          SnackBar(content: Text(context.l10n.prodRatingSubmitFailed(friendlyError(e, l10n: context.l10n))), backgroundColor: OffroColors.error));
       }
     }
   }
@@ -565,8 +566,8 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
     final avgRating = (p['rating'] as num?)?.toDouble() ?? 0.0;
 
     return Container(
-      padding: EdgeInsets.only(
-        left: 20, right: 20, top: 16,
+      padding: EdgeInsetsDirectional.only(
+        start: 20, end: 20, top: 16,
         bottom: MediaQuery.of(context).viewInsets.bottom + 28,
       ),
       decoration: const BoxDecoration(
@@ -655,7 +656,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               const Icon(Icons.calendar_today_rounded,
                   color: OffroColors.textMuted, size: 13),
               const SizedBox(width: 5),
-              Text('Valid till $validity',
+              Text(context.l10n.prodValidTill(validity),
                   style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
             ]),
           ],
@@ -666,7 +667,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
             const Divider(height: 1),
             const SizedBox(height: 16),
             Text(
-              _submitted ? 'Your Rating' : 'Rate this Product',
+              _submitted ? context.l10n.prodYourRating : context.l10n.prodRateThis,
               style: const TextStyle(
                   color: OffroColors.text,
                   fontSize: 14,
@@ -699,7 +700,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 controller: _reviewCtrl,
                 maxLines: 2,
                 decoration: InputDecoration(
-                  hintText: 'Write a short review (optional)',
+                  hintText: context.l10n.prodReviewHint,
                   hintStyle: TextStyle(
                       color: OffroColors.textMuted.withValues(alpha: .6), fontSize: 13),
                   border: OutlineInputBorder(
@@ -736,14 +737,14 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white))
-                      : const Text('Submit Rating',
+                      : Text(context.l10n.prodSubmitRating,
                           style: TextStyle(
                               fontWeight: FontWeight.w800)),
                 ),
               ),
             ] else ...[
               const SizedBox(height: 8),
-              const Text('Thanks for your rating! ⭐',
+              Text(context.l10n.prodThanksRating,
                   style: TextStyle(color: kPrimary, fontSize: 13)),
             ],
           ],
@@ -762,7 +763,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text('Got it',
+              child: Text(context.l10n.prodGotIt,
                   style: TextStyle(fontWeight: FontWeight.w800)),
             ),
           ),

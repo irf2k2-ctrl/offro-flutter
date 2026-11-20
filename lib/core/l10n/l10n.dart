@@ -51,7 +51,36 @@ String localizedCategoryName(BuildContext context, String name) {
     case 'automobile': return l.catAutomobile;
     case 'restaurant': return l.catRestaurant;
     case 'grocery': return l.catGrocery;
+    case 'pharmacy': return l.catPharmacy;
+    case 'fashion': return l.catFashion;
+    case 'beauty': return l.catBeauty;
+    case 'electronics': return l.catElectronics;
+    case 'education': return l.catEducation;
+    case 'hospital': return l.catHospital;
+    case 'cafe': return l.catCafe;
+    case 'fitness': return l.catFitness;
+    case 'jewelry': return l.catJewelry;
     default: return name;
+  }
+}
+
+/// A category card's small subtitle. Only the built-in fallback subtitles are translated; a subtitle from the server is shown as it is.
+String localizedCategorySubtitle(BuildContext context, String sub) {
+  final l = context.l10n;
+  switch (sub) {
+    case '500+ places': return l.catSubRestaurant;
+    case 'Health essentials': return l.catSubPharmacy;
+    case 'New arrivals': return l.catSubFashion;
+    case 'Skincare & more': return l.catSubBeauty;
+    case 'Trending gadgets': return l.catSubElectronics;
+    case 'Learn & grow': return l.catSubEducation;
+    case 'Healthcare near you': return l.catSubHospital;
+    case 'Coffee & more': return l.catSubCafe;
+    case 'Fresh & daily': return l.catSubGrocery;
+    case 'Stay strong': return l.catSubFitness;
+    case 'Precious finds': return l.catSubJewelry;
+    case 'Fresh baked daily': return l.catSubBakery;
+    default: return sub;
   }
 }
 
@@ -64,4 +93,80 @@ String localizedStoreHoursSub(BuildContext context, StoreHoursStatus s) {
   final mStr = m > 0 ? ':${m.toString().padLeft(2, '0')}' : '';
   final time = '$h12$mStr ${h >= 12 ? l.timePm : l.timeAm}';
   return s.subKind == 'closes' ? l.storeClosesAt(time) : l.storeOpensAt(time);
+}
+
+/// A filter chip's text. The chips keep their English value as the stable key (used for filtering); only the shown text changes.
+/// Known words are translated, category names go through [localizedCategoryName], anything else is shown as it is.
+String localizedFilterLabel(BuildContext context, String label) {
+  switch (label) {
+    case 'All': return context.l10n.commonAll;
+    case 'Ending soon': return context.l10n.dealsEndingSoon;
+    default: return localizedCategoryName(context, label);
+  }
+}
+
+/// The 12 short month names (Jan..Dec) in the app language. Used with Western digits for dates such as "5 Mar 2026".
+List<String> localizedMonthsShort(BuildContext context) {
+  final l = context.l10n;
+  return [l.monthJan, l.monthFeb, l.monthMar, l.monthApr, l.monthMay, l.monthJun, l.monthJul, l.monthAug, l.monthSep, l.monthOct, l.monthNov, l.monthDec];
+}
+
+/// A discount label such as "20% OFF". Only the generated "<n>% OFF" form is translated; any other text (written by a merchant) is
+/// shown as it is.
+String localizedDiscountLabel(BuildContext context, String label) {
+  final m = RegExp(r'^(\d+)% OFF$').firstMatch(label);
+  return m == null ? label : context.l10n.storeDiscOff(m.group(1)!);
+}
+
+/// Badge text on a store list card. Only the three built-in English words are translated; text written by an admin is shown as it is.
+String localizedTopCardBadge(BuildContext context, String label) {
+  final l = context.l10n;
+  switch (label) {
+    case 'New Store': return l.storeNewStoreTitle;
+    case 'Trending': return l.storeChipTrending;
+    case 'Popular': return l.storeChipPopular;
+    default: return label;
+  }
+}
+
+/// Shown text of a delete-account reason. The English text is what is sent to the server, so only the display is translated.
+String localizedDeleteReason(BuildContext context, String reason) {
+  final l = context.l10n;
+  switch (reason) {
+    case 'I no longer use the app': return l.delReasonUnused;
+    case 'I have privacy concerns': return l.delReasonPrivacy;
+    case 'I have a duplicate account': return l.delReasonDuplicate;
+    case 'Too many notifications or irrelevant content': return l.delReasonNoisy;
+    case 'Other': return l.delReasonOther;
+    default: return reason;
+  }
+}
+
+/// Text of one step on the location loading screen (index 0..3).
+String localizedLoadingStep(BuildContext context, int index) {
+  final l = context.l10n;
+  switch (index) {
+    case 0: return l.loadStep1;
+    case 1: return l.loadStep2;
+    case 2: return l.loadStep3;
+    default: return l.loadStep4;
+  }
+}
+
+/// Text of the glass ribbon on a store card ("🔥 TRENDING"). [key] is the admin badge key; [fallback] is the English text used for a key
+/// this function does not know.
+String localizedBadgeRibbon(BuildContext context, String key, String fallback) {
+  final l = context.l10n;
+  switch (key) {
+    case 'new_store': return '🆕 ${l.badgeNewStore}';
+    case 'just_opened': return '🎉 ${l.badgeJustOpened}';
+    case 'newly_added': return '✨ ${l.badgeNewlyAdded}';
+    case 'newly_opened': case 'newly_open': case 'new_open': case 'opened': return '🎉 ${l.badgeNewlyOpened}';
+    case 'trending': return '🔥 ${l.badgeTrending}';
+    case 'popular': return '⭐ ${l.badgePopular}';
+    case 'top_rated': return '🏆 ${l.badgeTopRated}';
+    case 'must_visit': return '📍 ${l.badgeMustVisit}';
+    case 'limited_offer': return '⏳ ${l.badgeLimitedOffer}';
+    default: return fallback;
+  }
 }

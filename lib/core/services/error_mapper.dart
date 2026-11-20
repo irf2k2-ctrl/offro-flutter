@@ -24,6 +24,8 @@
 // see call sites for the established pattern. Nothing here suppresses or
 // removes any existing debug logging.
 
+import '../../l10n/gen/app_localizations.dart';
+
 /// Maps any caught error/exception to a short, friendly, customer-safe
 /// message. Never returns raw technical text (exception class names,
 /// stack traces, certificate details, URLs, hostnames, file paths,
@@ -32,7 +34,8 @@
 /// requirement) is preserved as-is rather than replaced.
 String friendlyError(
   Object e, {
-  String fallback = "Something went wrong. Please try again.",
+  String fallback = _kDefaultFallback,
+  AppLocalizations? l10n, // pass context.l10n to get the message in the app language; null = English (unchanged)
 }) {
   final raw = e.toString();
 
@@ -51,12 +54,12 @@ String friendlyError(
     'No address associated with hostname',
     'ClientException', // package:http's own network-failure wrapper
   ])) {
-    return "We couldn't connect to OffrO right now. Please check your internet connection and try again.";
+    return l10n?.errConnect ?? "We couldn't connect to OffrO right now. Please check your internet connection and try again.";
   }
 
   // ── B) Timeout ────────────────────────────────────────────────────────
   if (_containsAny(raw, const ['TimeoutException', 'timed out', 'Timeout'])) {
-    return "OffrO is taking too long to respond. Please try again in a moment.";
+    return l10n?.errTimeout ?? "OffrO is taking too long to respond. Please try again in a moment.";
   }
 
   // ── C) Invalid / non-JSON / server response ──────────────────────────
@@ -71,23 +74,31 @@ String friendlyError(
     'Gateway Timeout',
     'Service Unavailable',
   ])) {
-    return "OffrO is temporarily unavailable. Please try again in a moment.";
+    return l10n?.errUnavailable ?? "OffrO is temporarily unavailable. Please try again in a moment.";
   }
 
   // ── D) Auth / session ─────────────────────────────────────────────────
   if (_looksLikeAuthError(raw)) {
-    return "Your session has expired. Please log in again.";
+    return l10n?.errSession ?? "Your session has expired. Please log in again.";
   }
 
   // ── E) Clean business message — preserve verbatim ────────────────────
   final cleaned = raw.replaceFirst(RegExp(r'^Exception:\s*'), '').trim();
   if (_looksLikeCleanBusinessMessage(cleaned)) {
+    if (l10n != null) {
+      // Messages written by the app's own API layer (not by the backend) have a translation.
+      if (cleaned == 'Network error. Please check your connection and try again.') return l10n.errApiNetwork;
+      if (cleaned == 'Unexpected response from server.' || cleaned == 'Unexpected response.') return l10n.errApiUnexpected;
+    }
     return cleaned;
   }
 
   // ── F) Empty / unknown / still-technical → generic fallback ─────────
+  if (l10n != null && fallback == _kDefaultFallback) return l10n.errGeneric;
   return fallback;
 }
+
+const String _kDefaultFallback = "Something went wrong. Please try again.";
 
 bool _containsAny(String haystack, List<String> needles) {
   final lower = haystack.toLowerCase();

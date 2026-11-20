@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/design/offro_tokens.dart' show OffroColors;
+import '../../../core/l10n/l10n.dart';
 
 class StoreHighlights extends StatelessWidget {
   final Map<String, dynamic> store;
@@ -23,19 +24,19 @@ class StoreHighlights extends StatelessWidget {
     // Review badge intentionally removed — shown in Reviews tab only
     if (isTrending)
       chips.add(_ChipData(
-          'Trending',
+          context.l10n.storeChipTrending,
           Icons.trending_up_rounded,
           OffroColors.terracotta,
           OffroColors.beige));
     if (isNew)
       chips.add(_ChipData(
-          'Just Opened',
+          context.l10n.storeChipJustOpened,
           Icons.fiber_new_rounded,
           const Color(0xFF4F745C),
           const Color(0xFFDDEEDF)));
     if (isPopular && !isTrending)
       chips.add(_ChipData(
-          'Popular',
+          context.l10n.storeChipPopular,
           Icons.thumb_up_rounded,
           const Color(0xFF4A7088),
           const Color(0xFFE1EBF2)));

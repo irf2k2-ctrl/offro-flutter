@@ -24,6 +24,7 @@ import '../../core/services/location_service.dart';
 import '../../core/services/location_store.dart';
 import 'location_access_card.dart';
 import '../../core/design/offro_tokens.dart' show OffroColors;
+import '../../core/l10n/l10n.dart';
 
 class LocationScreen extends StatefulWidget {
   final LocationMode mode;
@@ -153,7 +154,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         _autoSelect = false;
         setState(() {
           _detecting = false;
-          _detectError = "Couldn't get a precise GPS fix. Move to an open area or check your signal.";
+          _detectError = context.l10n.locGpsFailed;
         });
         return;
       }
@@ -168,7 +169,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       _detecting = false;
       _detected = loc;
       _detectedAt = loc == null ? null : DateTime.now();
-      _detectError = loc == null ? "Got your position but couldn't identify the city." : '';
+      _detectError = loc == null ? context.l10n.locCityUnknown : '';
     });
     // 3. The user asked for the current location → apply it right now.
     if (loc != null && _autoSelect) {
@@ -202,13 +203,13 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         return;
       case LocationAccess.serviceOff:
         await _settingsDialog(
-          message: "Your device's location services are turned off. Please turn them on in settings.",
+          message: context.l10n.locServicesOff,
           onGo: LocationService.openDeviceLocationSettings,
         );
         return;
       case LocationAccess.permissionDeniedForever:
         await _settingsDialog(
-          message: "Location permission is turned off for OffrO. Please allow it in app settings.",
+          message: context.l10n.locPermissionOff,
           onGo: LocationService.openAppSettings,
         );
         return;
@@ -222,17 +223,17 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
           _detect(fresh: true);
         } else if (res == LocationAccess.permissionDeniedForever) {
           await _settingsDialog(
-            message: "Location permission is turned off for OffrO. Please allow it in app settings.",
+            message: context.l10n.locPermissionOff,
             onGo: LocationService.openAppSettings,
           );
         } else if (res == LocationAccess.serviceOff) {
           await _settingsDialog(
-            message: "Your device's location services are turned off. Please turn them on in settings.",
+            message: context.l10n.locServicesOff,
             onGo: LocationService.openDeviceLocationSettings,
           );
         } else {
-          setState(() => _note = "Location permission wasn't allowed. Tap the card to try again, "
-              "or choose a city below.");
+          setState(() => _note = context.l10n.locPermissionDenied
+              );
         }
         return;
     }
@@ -242,11 +243,11 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Location not detected'),
+        title: Text(ctx.l10n.locNotDetected),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Go to settings')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.l10n.commonCancel)),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(ctx.l10n.locGoToSettings)),
         ],
       ),
     );
@@ -263,9 +264,9 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('City not supported yet'),
-          content: Text("OffrO isn't available in ${loc.city} yet. Please choose another city from the list."),
-          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+          title: Text(ctx.l10n.locCityUnsupportedTitle),
+          content: Text(ctx.l10n.locCityUnsupportedBody(loc.city)),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(ctx.l10n.commonOk))],
         ),
       );
       return;
@@ -308,7 +309,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         body: SafeArea(
           child: Column(children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+              padding: const EdgeInsetsDirectional.fromSTEB(8, 8, 16, 0),
               child: Row(children: [
                 if (!widget.mandatory)
                   IconButton(
@@ -317,7 +318,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
                   )
                 else
                   const SizedBox(width: 16, height: 48),
-                const Text('Location', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OffroColors.text)),
+                Text(context.l10n.locTitle, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OffroColors.text)),
               ]),
             ),
             Padding(
@@ -330,7 +331,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
                   if (_query.length >= 2) _loadAreasOnce();
                 },
                 decoration: InputDecoration(
-                  hintText: 'Search city, area or locality',
+                  hintText: context.l10n.locSearchHint,
                   hintStyle: const TextStyle(color: OffroColors.textMuted),
                   prefixIcon: const Icon(Icons.search_rounded, color: OffroColors.textMuted),
                   suffixIcon: _query.isEmpty
@@ -399,13 +400,13 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       return [Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),
         child: Column(children: [
-          const Text("Couldn't load cities. Check your connection and try again.",
+          Text(context.l10n.locCitiesLoadFailed,
               textAlign: TextAlign.center, style: TextStyle(color: OffroColors.textMuted, fontSize: 13.5)),
           const SizedBox(height: 10),
           OutlinedButton(
             onPressed: () { _citiesFuture = _loadCities(); },
             style: OutlinedButton.styleFrom(foregroundColor: kPrimary, side: const BorderSide(color: kPrimary)),
-            child: const Text('Try again'),
+            child: Text(context.l10n.locTryAgain),
           ),
         ]),
       )];
@@ -439,7 +440,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     final popular = _popular();
     final all = [..._cities]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return [
-      const Text('Popular cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
+      Text(context.l10n.locPopularCities, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
       const SizedBox(height: 12),
       LayoutBuilder(builder: (ctx, c) {
         final w = (c.maxWidth - 20) / 3;
@@ -453,7 +454,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         ]);
       }),
       const SizedBox(height: 24),
-      const Text('All cities', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
+      Text(context.l10n.locAllCities, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
       const SizedBox(height: 4),
       for (final c in all) _CityRow(
         title: c.name,
@@ -479,14 +480,14 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     }
     final out = <Widget>[];
     if (cityHits.isNotEmpty) {
-      out.add(const Text('Cities', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: OffroColors.text)));
+      out.add(Text(context.l10n.locCities, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: OffroColors.text)));
       for (final c in cityHits) {
         out.add(_CityRow(title: c.name, subtitle: c.state, selected: _isCurrentCity(c.name, c.state), onTap: () => _selectCity(c)));
       }
     }
     if (areaHits.isNotEmpty) {
       out.add(const SizedBox(height: 16));
-      out.add(const Text('Areas', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: OffroColors.text)));
+      out.add(Text(context.l10n.locAreas, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: OffroColors.text)));
       for (final h in areaHits.take(40)) {
         out.add(_CityRow(
           title: h.key,
@@ -504,9 +505,9 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       ));
     }
     if (out.isEmpty) {
-      out.add(const Padding(
+      out.add(Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: Text('No matching places found.',
+        child: Center(child: Text(context.l10n.locNoMatch,
             style: TextStyle(color: OffroColors.textMuted, fontSize: 13.5))),
       ));
     }

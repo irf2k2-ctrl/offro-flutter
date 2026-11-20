@@ -7,6 +7,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/services/error_mapper.dart';
 import '../../../core/design/design.dart';
+import '../../../core/l10n/l10n.dart';
 
 class StoreReviewsSection extends StatefulWidget {
   final String storeId;
@@ -105,16 +106,16 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
   Future<void> _submit() async {
     // Guard: never submit if storeId is empty
     if (widget.storeId.isEmpty) {
-      setState(() => _msg = 'Store not found. Cannot submit review.');
+      setState(() => _msg = context.l10n.revStoreNotFound);
       return;
     }
     final text = _textCtrl.text.trim();
     if (_draftRating == 0) {
-      setState(() => _msg = 'Please select a star rating');
+      setState(() => _msg = context.l10n.revSelectStar);
       return;
     }
     if (text.length < 5) {
-      setState(() => _msg = 'Write at least 5 characters');
+      setState(() => _msg = context.l10n.revMin5);
       return;
     }
     setState(() {
@@ -139,8 +140,8 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
       if (widget.token.isNotEmpty) await _loadUserReview(); // FIX4: refresh own review
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⭐ Review submitted! Thank you.'),
+          SnackBar(
+            content: Text(context.l10n.revSubmittedStar),
             backgroundColor: kPrimary,
             duration: Duration(seconds: 2),
           ),
@@ -149,7 +150,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
     } catch (e) {
       debugPrint('[OffrO] store review submit error: $e');
       setState(() {
-        _msg = friendlyError(e);
+        _msg = friendlyError(e, l10n: mounted ? context.l10n : null);
         _submitting = false;
       });
     }
@@ -161,7 +162,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
     if (widget.storeId.isEmpty) {
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-        child: Text('Store information unavailable.',
+        child: Text(context.l10n.revUnavailable,
             style: const TextStyle(color: OffroColors.textMuted, fontSize: 13)),
       );
     }
@@ -174,10 +175,10 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
         // ── Header ──
         Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('WHAT CUSTOMERS ARE SAYING',
+            Text(context.l10n.revEyebrow,
                 style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
             const SizedBox(height: 4),
-            Text('Reviews', style: OffroText.title),
+            Text(context.l10n.revTitle, style: OffroText.title),
           ]),
           const Spacer(),
           if (_avgRating > 0) ...[
@@ -193,12 +194,12 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
           ],
           if (_total > 0)
             Text(
-              '($_total review${_total == 1 ? "" : "s"})',
+              (_total == 1 ? context.l10n.revCountOne : context.l10n.revCountMany('$_total')),
               style: const TextStyle(
                   color: OffroColors.textMuted, fontSize: 12),
             ),
           if (_total == 0 && !_loading)
-            const Text('No reviews yet',
+            Text(context.l10n.revNoneTitle,
                 style:
                     TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         ]),
@@ -219,7 +220,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 Row(children: [
                   const Icon(Icons.person_rounded, color: kPrimary, size: 15),
                   const SizedBox(width: 6),
-                  const Text("Your Review",
+                  Text(context.l10n.revYourReview,
                       style: TextStyle(color: OffroColors.text, fontSize: 13, fontWeight: FontWeight.w800)),
                   const Spacer(),
                   GestureDetector(
@@ -228,10 +229,10 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                           color: kPrimary, borderRadius: BorderRadius.circular(10)),
-                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
                         Icon(Icons.edit_rounded, color: Colors.white, size: 12),
                         SizedBox(width: 4),
-                        Text("Edit",
+                        Text(context.l10n.revEdit,
                             style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                       ]),
                     ),
@@ -261,10 +262,10 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: kAccent),
                 ),
-                child: const Row(children: [
+                child: Row(children: [
                   Icon(Icons.rate_review_rounded, color: kPrimary, size: 18),
                   SizedBox(width: 10),
-                  Text('Write a review…',
+                  Text(context.l10n.revWrite,
                       style: TextStyle(color: OffroColors.textMuted, fontSize: 13)),
                 ]),
               ),
@@ -290,7 +291,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-              const Text('Your Rating',
+              Text(context.l10n.prodYourRating,
                   style: TextStyle(
                       color: OffroColors.text,
                       fontSize: 13,
@@ -304,7 +305,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                         () => _draftRating = i + 1.0),
                     child: Padding(
                       padding:
-                          const EdgeInsets.only(right: 4),
+                          const EdgeInsetsDirectional.only(end: 4),
                       child: Icon(
                         i < _draftRating
                             ? Icons.star_rounded
@@ -323,7 +324,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 controller: _textCtrl,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'Share your experience…',
+                  hintText: context.l10n.revShareExp,
                   hintStyle: const TextStyle(
                       color: OffroColors.textMuted, fontSize: 13),
                   filled: true,
@@ -370,7 +371,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                           borderRadius:
                               BorderRadius.circular(12)),
                     ),
-                    child: const Text('Cancel'),
+                    child: Text(context.l10n.commonCancel),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -395,7 +396,7 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 color: Colors.white))
-                        : const Text('Submit',
+                        : Text(context.l10n.revSubmit,
                             style: TextStyle(
                                 fontWeight:
                                     FontWeight.w800)),
@@ -424,16 +425,16 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
-              const Text(
-                'No reviews yet.',
+              Text(
+                context.l10n.revNoneDot,
                 style: TextStyle(
                     color: OffroColors.text,
                     fontSize: 14,
                     fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 2),
-              const Text(
-                'Be the first to review.',
+              Text(
+                context.l10n.revBeFirst,
                 style: TextStyle(
                     color: OffroColors.textMuted, fontSize: 13),
               ),
@@ -452,8 +453,8 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
             padding: const EdgeInsets.only(top: 8),
             child: GestureDetector(
               onTap: () => _showAllReviews(context),
-              child: const Text(
-                'View all reviews →',
+              child: Text(
+                context.l10n.revViewAll,
                 style: TextStyle(
                     color: kPrimary,
                     fontSize: 13,
@@ -490,9 +491,9 @@ class _StoreReviewsSectionState extends State<StoreReviewsSection> {
                   color: Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(2)),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Text('All Reviews',
+              child: Text(context.l10n.revAllTitle,
                   style: TextStyle(
                       color: OffroColors.text,
                       fontSize: 17,
@@ -518,17 +519,14 @@ class _ReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final name    = review['user_name']?.toString() ?? 'Anonymous';
+    final name    = review['user_name']?.toString() ?? context.l10n.revAnonymous;
     final rating  = (review['rating'] as num?)?.toDouble() ?? 0.0;
     final text    = review['text']?.toString() ?? '';
     final dateStr = review['created_at']?.toString() ?? '';
     String dateLabel = '';
     try {
       final dt = DateTime.parse(dateStr);
-      const months = [
-        'Jan','Feb','Mar','Apr','May','Jun',
-        'Jul','Aug','Sep','Oct','Nov','Dec',
-      ];
+      final months = localizedMonthsShort(context);
       dateLabel =
           '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {}
@@ -657,8 +655,8 @@ class _AllReviewsListState extends State<_AllReviewsList> {
               strokeWidth: 2, color: kPrimary));
     }
     if (_all.isEmpty) {
-      return const Center(
-          child: Text('No reviews yet',
+      return Center(
+          child: Text(context.l10n.revNoneTitle,
               style: TextStyle(color: OffroColors.textMuted)));
     }
     return ListView.builder(

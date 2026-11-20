@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/store_hours.dart';
 import '../../../core/design/design.dart';
+import '../../../core/l10n/l10n.dart';
 
 class StoreAboutSection extends StatefulWidget {
   final Map<String, dynamic> store;
@@ -46,7 +47,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('About', style: OffroText.title.copyWith(fontSize: 20)),
+            Text(context.l10n.storeTabAbout, style: OffroText.title.copyWith(fontSize: 20)),
             const SizedBox(height: 10),
 
             // Description
@@ -70,7 +71,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                 GestureDetector(
                   onTap: () => setState(() => _expanded = !_expanded),
                   child: Text(
-                    _expanded ? 'Show less' : 'Read more →',
+                    _expanded ? context.l10n.storeShowLess : context.l10n.storeReadMore,
                     style: const TextStyle(
                         color: kPrimary,
                         fontSize: 12,
@@ -111,7 +112,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Text(isOpen ? 'Open' : 'Closed',
+                        Text(isOpen ? context.l10n.storeOpenWord : context.l10n.storeClosedWord,
                           style: TextStyle(
                             color: dotColor,
                             fontSize: 13,
@@ -158,7 +159,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                   _infoRow(
                     icon: Icons.currency_rupee_rounded,
                     isFirst: false,
-                    child: Text('₹$costForTwo for two',
+                    child: Text(context.l10n.storeCostForTwo('$costForTwo'),
                       style: const TextStyle(
                           color: OffroColors.text, fontSize: 13)),
                   ),
@@ -168,7 +169,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                   _infoRow(
                     icon: Icons.restaurant_rounded,
                     isFirst: false,
-                    child: const Text('Dine-in available',
+                    child: Text(context.l10n.storeDineIn,
                       style: TextStyle(
                           color: OffroColors.text, fontSize: 13)),
                   ),

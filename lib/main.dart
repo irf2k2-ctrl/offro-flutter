@@ -732,10 +732,10 @@ class _MasonrySearchGrid extends StatelessWidget {
                 gradient:LinearGradient(begin:Alignment.topCenter,end:Alignment.bottomCenter,
                   colors:[Colors.transparent,Colors.transparent,Colors.black.withValues(alpha: .7)],stops:const[0,.5,1]),
               ))),
-              if(dist!=null) Positioned(top:7,right:7,child:Container(
+              if(dist!=null) PositionedDirectional(top:7,end:7,child:Container(
                 padding:const EdgeInsets.symmetric(horizontal:6,vertical:3),
                 decoration:BoxDecoration(color:Colors.black54,borderRadius:BorderRadius.circular(8)),
-                child:Text(dist<1?"${(dist*1000).round()}m":"${dist.toStringAsFixed(1)}km",
+                child:Text(dist<1?"${(dist*1000).round()}${context.l10n.unitMeter}":"${dist.toStringAsFixed(1)}${context.l10n.unitKm}",
                   style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.w700)),
               )),
               Positioned(bottom:0,left:0,right:0,child:Padding(
@@ -2414,20 +2414,20 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       savedCount: _favStoreIds.length,
       points: _walletPoints,
       activity: [
-        ProfileEntry(icon: OffroIcons.heart, label: "My Favourites", note: "Stores you saved",
-          onTap: () => gated("My Favourites", () => Navigator.push(context, appRoute(FavoritesPage(token: widget.token))).then((_) => _loadFavStores()))),
-        ProfileEntry(icon: OffroIcons.gift, label: "My Rewards", note: "Reward points and vouchers",
+        ProfileEntry(icon: OffroIcons.heart, label: context.l10n.profileFavourites, note: context.l10n.profileFavouritesNote,
+          onTap: () => gated(context.l10n.profileFavourites, () => Navigator.push(context, appRoute(FavoritesPage(token: widget.token))).then((_) => _loadFavStores()))),
+        ProfileEntry(icon: OffroIcons.gift, label: context.l10n.homeFeatureRewards, note: context.l10n.profileRewardsNote,
           onTap: () => _onNavTap(3)),
-        ProfileEntry(icon: OffroIcons.clock, label: "Scan History", note: "Points earned at stores",
-          onTap: () => gated("Scan History", () => Navigator.push(context, appRoute(HistoryPage(token: widget.token))))),
-        ProfileEntry(icon: OffroIcons.bell, label: "Notifications", note: "Offers, rewards and account updates",
+        ProfileEntry(icon: OffroIcons.clock, label: context.l10n.profileScanHistory, note: context.l10n.profileScanHistoryNote,
+          onTap: () => gated(context.l10n.profileScanHistory, () => Navigator.push(context, appRoute(HistoryPage(token: widget.token))))),
+        ProfileEntry(icon: OffroIcons.bell, label: context.l10n.profileNotifications, note: context.l10n.profileNotificationsNote,
           onTap: () => Navigator.push(context, appRoute(NotificationsPage()))),
       ],
       account: [
         if (!widget.isGuest)
-          ProfileEntry(icon: OffroIcons.sparkles, label: "Switch Mode", note: "Switch between User & Merchant",
+          ProfileEntry(icon: OffroIcons.sparkles, label: context.l10n.profileSwitchMode, note: context.l10n.profileSwitchModeNote,
             onTap: _openSwitchMode),
-        ProfileEntry(icon: OffroIcons.message, label: "Contact Offro", note: "Chat with us on WhatsApp",
+        ProfileEntry(icon: OffroIcons.message, label: context.l10n.profileContact, note: context.l10n.profileContactNote,
           onTap: () async {
             final s = await Api.getSocialLinks();
             final rawWa = s["whatsapp"] ?? "";
@@ -2439,24 +2439,24 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
           }),
       ],
       legal: [
-        ProfileEntry(icon: OffroIcons.store, label: "About Us",
-          onTap: () => _showInfoDialog("About Us", Api.getAboutUs,
-            fallback: "Offro connects local stores with customers through deals and loyalty points.")),
-        ProfileEntry(icon: OffroIcons.tag, label: "Terms & Conditions",
-          onTap: () => _showInfoDialog("Terms & Conditions", () => Api.fetchTerms("user"))),
-        ProfileEntry(icon: OffroIcons.shield, label: "Privacy Policy", note: "Includes delete account",
+        ProfileEntry(icon: OffroIcons.store, label: context.l10n.profileAboutUs,
+          onTap: () => _showInfoDialog(context.l10n.profileAboutUs, Api.getAboutUs,
+            fallback: context.l10n.profileAboutFallback)),
+        ProfileEntry(icon: OffroIcons.tag, label: context.l10n.profileTerms,
+          onTap: () => _showInfoDialog(context.l10n.profileTerms, () => Api.fetchTerms("user"))),
+        ProfileEntry(icon: OffroIcons.shield, label: context.l10n.profilePrivacy, note: context.l10n.profilePrivacyNote,
           onTap: () => Navigator.push(context, appRoute(PrivacyPolicyPage(token: widget.token)))),
-        ProfileEntry(icon: OffroIcons.route, label: "Refund Policy",
-          onTap: () => _showInfoDialog("Refund Policy", () => Api.fetchPolicy("refund"))),
+        ProfileEntry(icon: OffroIcons.route, label: context.l10n.profileRefund,
+          onTap: () => _showInfoDialog(context.l10n.profileRefund, () => Api.fetchPolicy("refund"))),
       ],
       sessionAction: widget.isGuest
-          ? ProfileEntry(icon: OffroIcons.user, label: "Login / Register",
+          ? ProfileEntry(icon: OffroIcons.user, label: context.l10n.homeLoginRegister,
               onTap: () async {
                 await Prefs.clearGuest();
                 Api.clearCache();
                 MyApp.goLogin();
               })
-          : ProfileEntry(icon: OffroIcons.arrow, label: "Logout", destructive: true,
+          : ProfileEntry(icon: OffroIcons.arrow, label: context.l10n.profileLogout, destructive: true,
               onTap: () async {
                 await Prefs.clear();
                 FcmService.reset();
@@ -2580,7 +2580,7 @@ class _SearchPageState extends State<_SearchPage> {
           style: const TextStyle(color:Colors.white, fontSize:15),
           cursorColor: Colors.white,
           decoration: InputDecoration(
-            hintText: "Search stores in ${widget.city}...",
+            hintText: context.l10n.searchStoresIn(widget.city),
             hintStyle: const TextStyle(color:Colors.white60, fontSize:14),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical:14),
@@ -2600,7 +2600,7 @@ class _SearchPageState extends State<_SearchPage> {
             ? Center(child:Column(mainAxisSize:MainAxisSize.min,children:[
                 const Icon(Icons.search_off,color:kAccent,size:56),
                 const SizedBox(height:12),
-                Text("No results for '$_q'",style:const TextStyle(color:OffroColors.textMuted,fontSize:15)),
+                Text(context.l10n.searchNoResults(_q),style:const TextStyle(color:OffroColors.textMuted,fontSize:15)),
               ]))
             : ListView.separated(
                 padding:const EdgeInsets.all(14),
@@ -2624,7 +2624,7 @@ class _SearchPageState extends State<_SearchPage> {
                           Text(s["store_name"]??"",style:const TextStyle(fontWeight:FontWeight.bold,color:OffroColors.text,fontSize:14)),
                           Text("${s['category']??''} · ${s['area']??''}",style:const TextStyle(color:OffroColors.textMuted,fontSize:12)),
                           if ((s['visit_points']??0)>0) Padding(padding:const EdgeInsets.only(top:3),
-                            child:Text("${s['visit_points']} pts on visit",style:const TextStyle(color:kPrimary,fontSize:11,fontWeight:FontWeight.w600))),
+                            child:Text(context.l10n.ptsOnVisit("${s['visit_points']}"),style:const TextStyle(color:kPrimary,fontSize:11,fontWeight:FontWeight.w600))),
                         ])),
                         const Icon(Icons.arrow_forward_ios_rounded,color:OffroColors.border,size:14),
                       ])));
@@ -2648,7 +2648,7 @@ class _SearchLandingGridState extends State<_SearchLandingGrid> {
   }
   @override Widget build(BuildContext context){
     if(_loading) return const Center(child:CircularProgressIndicator(color:kPrimary));
-    if(_stores.isEmpty) return const Center(child:Text("No stores yet",style:TextStyle(color:OffroColors.textMuted)));
+    if(_stores.isEmpty) return Center(child:Text(context.l10n.searchNoStores,style:TextStyle(color:OffroColors.textMuted)));
     return _MasonrySearchGrid(stores:_stores, token:widget.token);
   }
 }
@@ -2700,7 +2700,7 @@ class _ViewAllPageState extends State<_ViewAllPage>{
                 onChanged: (v)=>setState(()=>_q=v),
                 style: const TextStyle(color:OffroColors.text, fontSize:14),
                 decoration: InputDecoration(
-                  hintText: "Search store, area, offer...",
+                  hintText: context.l10n.searchStoreAreaOffer,
                   hintStyle: const TextStyle(color:OffroColors.textMuted, fontSize:13),
                   prefixIcon: const Icon(Icons.search, color:OffroColors.textMuted, size:20),
                   suffixIcon: _q.isNotEmpty ? IconButton(icon:const Icon(Icons.clear,size:18,color:OffroColors.textMuted), onPressed:(){_searchCtrl.clear();setState(()=>_q="");}) : null,
@@ -2715,7 +2715,7 @@ class _ViewAllPageState extends State<_ViewAllPage>{
       body: filtered.isEmpty
         ? Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
             const Icon(Icons.search_off,color:kAccent,size:56),const SizedBox(height:12),
-            Text(_q.isEmpty?"No stores yet":"No results for '$_q'",style:const TextStyle(color:OffroColors.textMuted,fontSize:15))]))
+            Text(_q.isEmpty?context.l10n.searchNoStores:context.l10n.searchNoResults(_q),style:const TextStyle(color:OffroColors.textMuted,fontSize:15))]))
         : ListView.builder(
             padding:const EdgeInsets.fromLTRB(14,8,14,24),
             itemCount:filtered.length,
@@ -2805,12 +2805,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Clear All Notifications?"),
-        content: const Text("This will permanently remove all your notifications."),
+        title: Text(context.l10n.notifClearTitle),
+        content: Text(context.l10n.notifClearBody),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(context.l10n.commonCancel)),
           TextButton(onPressed: () => Navigator.pop(context, true),
-            child: const Text("Clear All", style: TextStyle(color: Colors.red))),
+            child: Text(context.l10n.notifClearAll, style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -2836,11 +2836,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
       final hasTzMarker = RegExp(r'(Z|[+-]\d{2}:?\d{2})$').hasMatch(s);
       final dt   = DateTime.parse(hasTzMarker ? s : '${s}Z');
       final diff = DateTime.now().difference(dt);
-      if (diff.inMinutes < 1)  return "just now";
-      if (diff.inMinutes < 60) return "${diff.inMinutes}m ago";
-      if (diff.inHours  < 24)  return "${diff.inHours}h ago";
-      if (diff.inDays   < 7)   return "${diff.inDays}d ago";
-      return "${(diff.inDays / 7).floor()}w ago";
+      if (diff.inMinutes < 1)  return context.l10n.timeAgoJustNow;
+      if (diff.inMinutes < 60) return context.l10n.timeAgoMinutes("${diff.inMinutes}");
+      if (diff.inHours  < 24)  return context.l10n.timeAgoHours("${diff.inHours}");
+      if (diff.inDays   < 7)   return context.l10n.timeAgoDays("${diff.inDays}");
+      return context.l10n.timeAgoWeeks("${(diff.inDays / 7).floor()}");
     } catch (_) { return ""; }
   }
 
@@ -2850,13 +2850,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
       appBar: AppBar(
         backgroundColor: OffroColors.background,
         foregroundColor: OffroColors.text,
-        title: const Text("Notifications", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        title: Text(context.l10n.profileNotifications, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         elevation: 0,
         actions: [
           if (_notifs.isNotEmpty)
             TextButton(
               onPressed: _clearAll,
-              child: const Text("Clear All", style: TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w600)),
+              child: Text(context.l10n.notifClearAll, style: TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w600)),
             ),
         ],
       ),
@@ -2866,9 +2866,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
               ? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(Icons.notifications_none_rounded, size: 64, color: OffroColors.textMuted.withValues(alpha: .4)),
                   const SizedBox(height: 16),
-                  const Text("No notifications yet", style: TextStyle(color: OffroColors.textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
+                  Text(context.l10n.notifEmptyTitle, style: TextStyle(color: OffroColors.textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  const Text("You'll see deals and alerts here", style: TextStyle(color: OffroColors.textMuted, fontSize: 13)),
+                  Text(context.l10n.notifEmptyBody, style: TextStyle(color: OffroColors.textMuted, fontSize: 13)),
                 ]))
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),
@@ -2885,8 +2885,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       direction: DismissDirection.endToStart,
                       background: Container(
                         color: Colors.red.shade400,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
+                        alignment: AlignmentDirectional.centerEnd,
+                        padding: const EdgeInsetsDirectional.only(end: 20),
                         child: const Icon(Icons.delete_rounded, color: Colors.white, size: 26),
                       ),
                       onDismissed: (_) => _deleteNotif(i),
@@ -2922,10 +2922,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               ],
                               const SizedBox(height: 16),
                               Align(
-                                alignment: Alignment.centerRight,
+                                alignment: AlignmentDirectional.centerEnd,
                                 child: TextButton(
                                   onPressed: () => Navigator.pop(context),
-                                  child: const Text("Close", style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+                                  child: Text(context.l10n.commonClose, style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
                                 ),
                               ),
                             ]),
@@ -3019,7 +3019,7 @@ class _BrowseByCategoriesSection extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-          child: const Text("Browse by Categories",
+          child: Text(context.l10n.catBrowseTitle,
             style: TextStyle(color: OffroColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
         ),
         _buildMasonryGrid(context, displayCats),
@@ -3088,12 +3088,12 @@ class _BrowseByCategoriesSection extends StatelessWidget {
                   color: const Color(0xFFFFCC00).withValues(alpha:.45),
                   blurRadius: 10, offset: const Offset(0, 4))],
               ),
-              child: const Column(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add_rounded, color: OffroColors.text, size: 32),
                   SizedBox(height: 4),
-                  Text("View", style: TextStyle(
+                  Text(context.l10n.catView, style: TextStyle(
                     color: OffroColors.text,
                     fontSize: 11, fontWeight: FontWeight.w800)),
                 ],
@@ -3225,13 +3225,13 @@ class _CategoryCard extends StatelessWidget {
                   Text(icon, style: const TextStyle(fontSize: 26)),
                   const SizedBox(height: 4),
                 ],
-                Text(name,
+                Text(localizedCategoryName(context, name),
                   style: const TextStyle(
                     color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900,
                     shadows: [Shadow(blurRadius: 4, color: Colors.black54)]),
                   maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (sub.isNotEmpty)
-                  Text(sub,
+                  Text(localizedCategorySubtitle(context, sub),
                     style: TextStyle(color: Colors.white.withValues(alpha: .82), fontSize: 10,
                       shadows: const [Shadow(blurRadius: 3, color: Colors.black45)]),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -3344,7 +3344,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
       debugPrint('[OffrO] category stores load error: $e');
       if (mounted) {
         setState(() {
-          _error = friendlyError(e);
+          _error = friendlyError(e, l10n: mounted ? context.l10n : null);
           _loading = false;
         });
       }
@@ -3376,7 +3376,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
           child: TextField(
             onChanged: (v) => setState(() => _q = v),
             decoration: InputDecoration(
-              hintText: "Search ${widget.categoryName} stores...",
+              hintText: context.l10n.catSearchStores(widget.categoryName),
               hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
               prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 20),
               filled: true, fillColor: Colors.white,
@@ -3398,14 +3398,14 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     const Icon(Icons.error_outline_rounded, color: Color(0xFFc0392b), size: 40),
                     const SizedBox(height: 10),
-                    const Text("Couldn't load stores", style: TextStyle(color: OffroColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
+                    Text(context.l10n.homeCouldntLoadStores, style: TextStyle(color: OffroColors.text, fontWeight: FontWeight.w700, fontSize: 15)),
                     const SizedBox(height: 6),
                     Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
                     const SizedBox(height: 14),
                     ElevatedButton(
                       onPressed: () => setState(() { _loading = true; _load(); }),
                       style: ElevatedButton.styleFrom(backgroundColor: kPrimary, foregroundColor: Colors.white),
-                      child: const Text("Retry"),
+                      child: Text(context.l10n.commonRetry),
                     ),
                   ]),
                 ))
@@ -3413,7 +3413,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
               ? Center(child: Padding(
                   padding: const EdgeInsets.all(24),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text("No ${widget.categoryName} stores found",
+                    Text(context.l10n.catNoStoresFound(widget.categoryName),
                         style: const TextStyle(color: OffroColors.textMuted, fontSize: 14)),
                     // FIX: diagnostic — reveals the actual category strings stored
                     // in this city so a text-mismatch (e.g. "Restaurant " with a
@@ -3422,13 +3422,13 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                     if (_totalFetchedInCity > 0) ...[
                       const SizedBox(height: 10),
                       Text(
-                        "Found $_totalFetchedInCity store(s) in this city, but none matched \"${widget.categoryName}\".",
+                        context.l10n.catFoundButNone("$_totalFetchedInCity", widget.categoryName),
                         textAlign: TextAlign.center,
                         style: const TextStyle(color: OffroColors.textMuted, fontSize: 11)),
                       if (_categoriesSeen.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
-                          "Categories found: ${_categoriesSeen.join(', ')}",
+                          context.l10n.catCategoriesFound(_categoriesSeen.join(", ")),
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: OffroColors.textMuted, fontSize: 11, fontStyle: FontStyle.italic)),
                       ],
@@ -3484,7 +3484,7 @@ class _CategoryListScreenState extends State<_CategoryListScreen> {
         foregroundColor: OffroColors.text,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text("Categories",
+        title: Text(context.l10n.catCategoriesTitle,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: OffroColors.text)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
@@ -3505,8 +3505,8 @@ class _CategoryListScreenState extends State<_CategoryListScreen> {
             child: TextField(
               onChanged: (v) => setState(() => _q = v),
               style: const TextStyle(fontSize: 14, color: OffroColors.text),
-              decoration: const InputDecoration(
-                hintText: "Search categories...",
+              decoration: InputDecoration(
+                hintText: context.l10n.catSearchCategories,
                 hintStyle: TextStyle(color: OffroColors.textMuted, fontSize: 13),
                 prefixIcon: Icon(Icons.search_rounded, color: OffroColors.textMuted, size: 20),
                 border: InputBorder.none,
@@ -3518,7 +3518,7 @@ class _CategoryListScreenState extends State<_CategoryListScreen> {
         // Pinterest grid
         Expanded(
           child: cats.isEmpty
-            ? const Center(child: Text("No categories found", style: TextStyle(color: OffroColors.textMuted)))
+            ? Center(child: Text(context.l10n.catNoCategories, style: TextStyle(color: OffroColors.textMuted)))
             : SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(14, 8, 14, 32),
                 physics: const BouncingScrollPhysics(),
@@ -3776,7 +3776,7 @@ class _PinCard extends StatelessWidget {
 
             // ── Top-left: floating icon bubble ──
             if (!compact)
-              Positioned(top: 12, left: 12,
+              PositionedDirectional(top: 12, start: 12,
                 child: Container(
                   width: 36, height: 36,
                   decoration: BoxDecoration(
@@ -3786,11 +3786,10 @@ class _PinCard extends StatelessWidget {
                   ),
                   child: Center(child: Text(icon,
                     style: const TextStyle(fontSize: 16), textAlign: TextAlign.center)),
-                ),
-              )
+                ))
             else
               // compact: small icon no bubble
-              Positioned(top: 10, left: 10,
+              PositionedDirectional(top: 10, start: 10,
                 child: Container(
                   width: 28, height: 28,
                   decoration: BoxDecoration(
@@ -3799,8 +3798,7 @@ class _PinCard extends StatelessWidget {
                   ),
                   child: Center(child: Text(icon,
                     style: const TextStyle(fontSize: 12), textAlign: TextAlign.center)),
-                ),
-              ),
+                )),
 
             // ── Bottom text ribbon ──
             Positioned(left: 0, right: 0, bottom: 0,
@@ -3815,7 +3813,7 @@ class _PinCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(name,
+                    Text(localizedCategoryName(context, name),
                       maxLines: compact ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -3828,7 +3826,7 @@ class _PinCard extends StatelessWidget {
                       )),
                     if (sub.isNotEmpty && !compact) ...[
                       const SizedBox(height: 3),
-                      Text(sub,
+                      Text(localizedCategorySubtitle(context, sub),
                         maxLines: 1, overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: .85),
@@ -4011,8 +4009,8 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
     final expired   = _isExpired(endDate);
     final left      = _daysLeft(endDate);
     final endsText  = expired
-        ? "Expired"
-        : left == null ? "" : left <= 0 ? "Ends today" : left == 1 ? "Ends in 1 day" : "Ends in $left days";
+        ? ctx.l10n.dealExpired
+        : left == null ? "" : left <= 0 ? ctx.l10n.homeDealEndsToday : left == 1 ? ctx.l10n.dealEndsInOneDay : ctx.l10n.dealEndsInDays("$left");
     final sub = [if (storeName.isNotEmpty) storeName, if (storeArea.isNotEmpty) storeArea].join(" · ");
 
     return GestureDetector(
@@ -4053,7 +4051,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                     borderRadius: OffroRadii.pillRadius,
                     border: Border.all(color: Colors.white.withValues(alpha: .25)),
                   ),
-                  child: Text(category.isNotEmpty && category != "null" ? category.toUpperCase() : "LOCAL DEAL",
+                  child: Text(category.isNotEmpty && category != "null" ? category.toUpperCase() : ctx.l10n.dealLocalBadge,
                     style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w600, color: Colors.white)),
                 ),
               ]),
@@ -4086,7 +4084,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                       style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .65))),
                   ],
                   const Spacer(),
-                  Text("AVAILABLE IN STORE",
+                  Text(ctx.l10n.dealAvailableInStore,
                     style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: .65))),
                 ]),
               ),
@@ -4107,11 +4105,11 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
       physics: const BouncingScrollPhysics(),
       children: [
         OffroScreenHeader(
-          eyebrow: "Fresh around you",
-          title: "Local deals",
+          eyebrow: context.l10n.dealsEyebrow,
+          title: context.l10n.dealsTitle,
           description: widget.city.isNotEmpty
-              ? "Member-only prices and limited offers from verified businesses in ${widget.city}."
-              : "Member-only prices and limited offers from verified businesses nearby.",
+              ? context.l10n.dealsSubtitleCity(widget.city)
+              : context.l10n.dealsSubtitleNearby,
           showBack: !widget.embedded,
         ),
         // Search (kept from the previous Deals screen)
@@ -4132,7 +4130,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                 style: OffroText.body.copyWith(fontSize: 13, color: OffroColors.text),
                 cursorColor: OffroColors.primary,
                 decoration: InputDecoration(
-                  hintText: "Search deals, stores or areas",
+                  hintText: context.l10n.dealsSearch,
                   hintStyle: OffroText.body.copyWith(fontSize: 13, color: OffroColors.secondarySolid),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -4154,7 +4152,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
             child: Row(children: [
               for (final o in options)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: GestureDetector(
                     onTap: () => setState(() => _filter = o),
                     child: Container(
@@ -4164,7 +4162,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
                         borderRadius: OffroRadii.pillRadius,
                         border: _filter == o ? null : Border.all(color: OffroColors.border),
                       ),
-                      child: Text(o,
+                      child: Text(localizedFilterLabel(context, o),
                         style: OffroText.caption.copyWith(
                           fontSize: 12, fontWeight: FontWeight.w500,
                           color: _filter == o ? Colors.white : OffroColors.text)),
@@ -4186,10 +4184,10 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
               ),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text("THIS WEEK",
+                  Text(context.l10n.dealsThisWeek,
                     style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600, color: const Color(0xA6345148))),
                   const SizedBox(height: 4),
-                  Text("${items.length} active ${items.length == 1 ? 'deal' : 'deals'} for you",
+                  Text((items.length == 1 ? context.l10n.dealsActiveOne : context.l10n.dealsActiveMany('${items.length}')),
                     style: OffroText.titleSm.copyWith(fontSize: 18)),
                 ])),
                 Container(
@@ -4220,7 +4218,7 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
               child: Column(children: [
                 const OffroIcon(OffroIcons.tag, size: 28, color: OffroColors.accent),
                 const SizedBox(height: 12),
-                Text(_q.isEmpty && _filter == "All" ? "No active deals right now" : "No deals match your search",
+                Text(_q.isEmpty && _filter == "All" ? context.l10n.dealsNoneActive : context.l10n.dealsNoMatch,
                   style: OffroText.cardTitle.copyWith(fontSize: 13)),
               ]),
             ),
@@ -4327,7 +4325,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
         foregroundColor: OffroColors.text,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        title: const Text("All Areas",
+        title: Text(context.l10n.areasTitle,
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: OffroColors.text)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(58),
@@ -4339,7 +4337,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
               style: const TextStyle(color: OffroColors.text, fontSize: 14),
               cursorColor: kPrimary,
               decoration: InputDecoration(
-                hintText: "Search areas...",
+                hintText: context.l10n.areasSearch,
                 hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
                 prefixIcon: const Icon(Icons.search_rounded, color: kPrimary, size: 18),
                 filled: true,
@@ -4358,7 +4356,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
       ),
       body: filtered.isEmpty
         ? Center(child: Text(
-            _q.isEmpty ? "No areas available" : "No results for \"$_q\"",
+            _q.isEmpty ? context.l10n.areasNone : context.l10n.searchNoResultsDq(_q),
             style: const TextStyle(color: OffroColors.textMuted, fontSize: 15)))
         : ListView.separated(
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 32),
@@ -4388,7 +4386,7 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
                   child: Row(children: [
                     // Thumbnail
                     ClipRRect(
-                      borderRadius: const BorderRadius.horizontal(left: Radius.circular(16)),
+                      borderRadius: const BorderRadiusDirectional.horizontal(start: Radius.circular(16)),
                       child: SizedBox(
                         width: 76, height: 76,
                         child: imgUrl.isNotEmpty
@@ -4407,12 +4405,12 @@ class _AllAreasScreenState extends State<_AllAreasScreen> {
                           style: const TextStyle(
                             color: OffroColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 4),
-                        Text("$count Store${count == 1 ? "" : "s"}",
+                        Text((count == 1 ? context.l10n.areaCardStoreOne : context.l10n.areaCardStoreMany('$count')),
                           style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
                       ],
                     )),
                     const Padding(
-                      padding: EdgeInsets.only(right: 14),
+                      padding: EdgeInsetsDirectional.only(end: 14),
                       child: Icon(Icons.chevron_right_rounded, color: OffroColors.textMuted, size: 20)),
                   ]),
                 ),
@@ -4495,7 +4493,7 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
               onChanged: (v) => setState(() => _search = v),
               style: const TextStyle(fontSize: 14, color: OffroColors.text),
               decoration: InputDecoration(
-                hintText: "Search in ${widget.areaName}...",
+                hintText: context.l10n.areaSearchIn(widget.areaName),
                 hintStyle: const TextStyle(color: OffroColors.textMuted, fontSize: 13),
                 prefixIcon: const Icon(Icons.search_rounded, color: OffroColors.textMuted, size: 20),
                 border: InputBorder.none,
@@ -4507,17 +4505,17 @@ class _AreaDetailScreenState extends State<_AreaDetailScreen> {
         // Count label
         SliverToBoxAdapter(child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 2),
-          child: Text("${filtered.length} store${filtered.length == 1 ? "" : "s"} in ${widget.areaName}",
+          child: Text(filtered.length == 1 ? context.l10n.areaStoresOne(widget.areaName) : context.l10n.areaStoresMany("${filtered.length}", widget.areaName),
             style: const TextStyle(color: OffroColors.textMuted, fontSize: 12)),
         )),
         // Store list
         filtered.isEmpty
-          ? const SliverFillRemaining(child: Center(child: Column(
+          ? SliverFillRemaining(child: Center(child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.store_mall_directory_outlined, color: kAccent, size: 48),
                 SizedBox(height: 12),
-                Text("No stores found", style: TextStyle(color: OffroColors.textMuted, fontSize: 14)),
+                Text(context.l10n.areaNoStores, style: TextStyle(color: OffroColors.textMuted, fontSize: 14)),
               ])))
           : SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
@@ -5623,7 +5621,7 @@ class _DiscoverProductsSection extends StatelessWidget {
             FavState.instance.toggleProduct(pid);
             if (ctx2.mounted) {
               ScaffoldMessenger.of(ctx2).showSnackBar(SnackBar(
-                content: Text(ctx2.l10n.homeFavoriteSaveFailed(friendlyError(e))),
+                content: Text(ctx2.l10n.homeFavoriteSaveFailed(friendlyError(e, l10n: ctx2.l10n))),
                 backgroundColor: Colors.red.shade700,
                 duration: const Duration(seconds: 12),
                 showCloseIcon: true));
@@ -5893,7 +5891,7 @@ class _NearbyStoresSection extends StatelessWidget {
           FavState.instance.setStore(sid, prev); // restore
           if (ctx.mounted) {
             ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-              content: Text(ctx.l10n.homeFavoriteSaveFailed(friendlyError(e))),
+              content: Text(ctx.l10n.homeFavoriteSaveFailed(friendlyError(e, l10n: ctx.l10n))),
               backgroundColor: Colors.red.shade700,
               duration: const Duration(seconds: 12),
               showCloseIcon: true));
@@ -5999,7 +5997,7 @@ class _NearbyStoresSection extends StatelessWidget {
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       const OffroIcon(OffroIcons.pin, size: 10, color: Colors.white, filled: true),
                       const SizedBox(width: 4),
-                      Text(distKm < 1 ? "${(distKm * 1000).round()} m" : "${distKm.toStringAsFixed(1)} km",
+                      Text(distKm < 1 ? "${(distKm * 1000).round()} ${ctx.l10n.unitMeter}" : "${distKm.toStringAsFixed(1)} ${ctx.l10n.unitKm}",
                         style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white)),
                     ]),
                   )),
@@ -6238,8 +6236,8 @@ class _ExploreAreasSection extends StatelessWidget {
             }
             final distLabel = nearestKm != null
                 ? (nearestKm < 1.0
-                    ? "${(nearestKm * 1000).toStringAsFixed(0)} m"
-                    : "${nearestKm.toStringAsFixed(1)} km")
+                    ? "${(nearestKm * 1000).toStringAsFixed(0)} ${context.l10n.unitMeter}"
+                    : "${nearestKm.toStringAsFixed(1)} ${context.l10n.unitKm}")
                 : null;
 
             return GestureDetector(
@@ -6406,8 +6404,8 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
           bottom: false,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             OffroScreenHeader(
-              eyebrow: "Find what you need",
-              title: "All categories",
+              eyebrow: context.l10n.homeCategoriesEyebrow,
+              title: context.l10n.catAllCategories,
               showBack: true,
               onBack: () => Navigator.maybePop(context),
             ),
@@ -6416,7 +6414,7 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
               child: _loading
                 ? const Center(child: CircularProgressIndicator(color: OffroColors.primary))
                 : _cats.isEmpty
-                  ? Center(child: Text("No categories found",
+                  ? Center(child: Text(context.l10n.catNoCategories,
                       style: OffroText.body.copyWith(color: OffroColors.secondarySolid)))
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 4, OffroSpacing.gutter, 32),
@@ -6447,7 +6445,7 @@ class _BrowseAllCategoriesScreenState extends State<_BrowseAllCategoriesScreen> 
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(name,
+                            Text(localizedCategoryName(ctx, name),
                               maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
                               style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: OffroColors.text)),
                           ]),
@@ -6691,7 +6689,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                   child: const Icon(Icons.store_mall_directory_rounded, color: OffroColors.primary, size: 14),
                 ),
                 const SizedBox(height: 4),
-                const Text("See All\nStores",
+                Text(ctx.l10n.storeSeeAllStores,
                   style: TextStyle(color: OffroColors.primary, fontSize: 9, fontWeight: FontWeight.w800, height: 1.3),
                   textAlign: TextAlign.center),
               ]),
@@ -6825,14 +6823,14 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
   // Open/close status — logic moved verbatim out of _storeCard so the row-height
   // calculation below can know whether the status row will be shown. Returns
   // [statusLabel, closingInfo].
-  List<String> _storeStatus(Map<String,dynamic> s) {
+  List<String> _storeStatus(BuildContext ctx, Map<String,dynamic> s) {
     // Uses the shared computeStoreOpenStatus() — same logic as Store Detail.
     final st = computeStoreOpenStatus(
       s["open_time"]?.toString() ?? "",
       s["close_time"]?.toString() ?? "",
     );
     if (st == null) return ["", ""];
-    return [st.isOpen ? "Open" : "Closed", st.subLabel];
+    return [st.isOpen ? "Open" : "Closed", localizedStoreHoursSub(ctx, st)];
   }
 
   // Card geometry shared by _storeCard and the carousel row height. The card
@@ -6876,7 +6874,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     final cat      = s["category"]?.toString() ?? "";
     final rating   = (s["rating"] as num?)?.toDouble() ?? 0.0;
     final revCount = (s["rating_count"] ?? s["review_count"] as num?)?.toInt() ?? 0;
-    final st       = _storeStatus(s);
+    final st       = _storeStatus(ctx, s);
 
     final cardW  = _storeCardW(ctx);
     final imgH   = (cardW * 0.57).roundToDouble();
@@ -6900,7 +6898,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     }
     double statusH = 0;
     if (st[0].isNotEmpty || st[1].isNotEmpty) {
-      final pillH = st[0].isNotEmpty ? mh("Open Now", pillSt, 200) + 12 : 0.0;
+      final pillH = st[0].isNotEmpty ? mh(ctx.l10n.storeOpenNowCaps, pillSt, 200) + 12 : 0.0;
       final hoursH = st[1].isNotEmpty ? max(17.0, mh(st[1], hoursSt, 200)) : 0.0;
       statusH = 10 + 1 + 10 + max(max(pillH, hoursH), 22.0);
     }
@@ -6942,9 +6940,9 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
     final revCount  = (s["rating_count"] ?? s["review_count"] as num?)?.toInt() ?? 0;
     final dist      = (s["distance_km"] as num?)?.toDouble();
     final distTxt   = dist != null
-        ? (dist < 1.0 ? "${(dist * 1000).toStringAsFixed(0)} m" : "${dist.toStringAsFixed(1)} km")
+        ? (dist < 1.0 ? "${(dist * 1000).toStringAsFixed(0)} ${ctx.l10n.unitMeter}" : "${dist.toStringAsFixed(1)} ${ctx.l10n.unitKm}")
         : null; // Hide badge when GPS/distance not yet available
-    final _st         = _storeStatus(s);
+    final _st         = _storeStatus(ctx, s);
     final String statusLabel = _st[0];
     final String closingInfo = _st[1];
     // ── Badge key for glass ribbon ──
@@ -7039,7 +7037,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                       color: const Color(0xFF3a3a35),
                       alignment: Alignment.center,
                       child: Text(
-                        _badgeRibbonMeta[badgeKey]!["label"]!,
+                        localizedBadgeRibbon(ctx, badgeKey, _badgeRibbonMeta[badgeKey]!["label"]!),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -7090,7 +7088,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                         FavState.instance.setStore(id, prev); // restore
                         if (mounted) {
                           ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
-                            content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+                            content: Text(ctx.l10n.homeFavoriteSaveFailed(friendlyError(e, l10n: ctx.l10n))),
                             backgroundColor: Colors.red.shade700,
                             duration: const Duration(seconds: 12),
                             showCloseIcon: true));
@@ -7190,7 +7188,7 @@ class _BannerStoresBlockState extends State<_BannerStoresBlock> {
                           color: _open ? OffroColors.mint : const Color(0xFFfdf0f0),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Text(_open ? "Open Now" : _displayLabel,
+                        child: Text(_open ? _ctx.l10n.storeOpenNowCaps : (_displayLabel == "Closed" ? _ctx.l10n.homeClosed : _displayLabel),
                           style: TextStyle(
                             color: _open ? const Color(0xFF2f5a47) : const Color(0xFFc0392b),
                             fontSize: 13,
@@ -7404,7 +7402,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     if (widget.token.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: const Text("Please log in to submit a review."),
+          content: Text(context.l10n.reviewLoginRequired),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 5),
           showCloseIcon: true));
@@ -7445,7 +7443,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         }
       });
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Review submitted! Thank you."),
+        SnackBar(content: Text(context.l10n.reviewSubmitted),
           backgroundColor: OffroColors.primary));
     } catch (e) {
       debugPrint('[OffrO] product review submit error: $e');
@@ -7456,13 +7454,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         final isSessionExpired = errStr.contains("Session expired") || errStr.contains("401");
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(isSessionExpired
-              ? "Your session has expired. Please log in again to submit a review."
-              : friendlyError(e)),
+              ? context.l10n.reviewSessionExpired
+              : friendlyError(e, l10n: context.l10n)),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 12),
           showCloseIcon: true,
           action: isSessionExpired ? SnackBarAction(
-            label: "Login",
+            label: context.l10n.loginTabLogin,
             textColor: Colors.white,
             onPressed: () => MyApp.goLogin(),
           ) : null,
@@ -7473,7 +7471,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
   @override Widget build(BuildContext context) {
     final p = widget.product;
-    final title      = p["title"]?.toString() ?? p["name"]?.toString() ?? "Product";
+    final title      = p["title"]?.toString() ?? p["name"]?.toString() ?? context.l10n.prodTitleFallback;
     final storeObj   = p["store"];
     final storeName  = storeObj is Map
         ? (storeObj["store_name"] ?? storeObj["business_name"] ?? storeObj["merchant_name"] ?? storeObj["name"] ?? "").toString()
@@ -7557,7 +7555,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               child: Center(child: _resolveImageContained()),
             ),
           ),
-          Positioned(top: 40, right: 16,
+          PositionedDirectional(top: 40, end: 16,
             child: GestureDetector(
               onTap: () => Navigator.pop(ctx),
               child: Container(
@@ -7572,8 +7570,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         (storeData["admin_rating"] as num?)?.toDouble() ?? 0.0;
     final storeDist   = (storeData["distance_km"] as num?)?.toDouble();
     final distLabel   = storeDist != null
-        ? (storeDist < 1.0 ? "${(storeDist * 1000).toStringAsFixed(0)} m away"
-                           : "${storeDist.toStringAsFixed(1)} km away")
+        ? (storeDist < 1.0 ? context.l10n.storeDistAwaySpM((storeDist * 1000).toStringAsFixed(0))
+                           : context.l10n.storeDistAwaySpKm(storeDist.toStringAsFixed(1)))
         : "";
 
     return OffroFontScope(child: Scaffold(
@@ -7611,11 +7609,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ]),
               ),
               if (discBadge.isNotEmpty)
-                Positioned(left: 20, bottom: 40,
+                PositionedDirectional(start: 20, bottom: 40,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(color: OffroColors.primary, borderRadius: OffroRadii.pillRadius),
-                    child: Text(discBadge.toLowerCase().replaceAll(" off", "") + " off",
+                    child: Text(context.l10n.offSuffix(discBadge.toLowerCase().replaceAll(" off", "")),
                       style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w700, color: Colors.white)),
                   )),
             ]),
@@ -7694,7 +7692,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         ),
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text("Listed by",
+                          Text(context.l10n.prodListedBy,
                             style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
                           const SizedBox(height: 2),
                           Text(storeName, maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -7712,7 +7710,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           ],
                         ])),
                         const SizedBox(width: 8),
-                        Text("View store", style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+                        Text(context.l10n.prodViewStore, style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                         const SizedBox(width: 2),
                         const OffroIcon(OffroIcons.chevron, size: 14, color: OffroColors.primary),
                       ]),
@@ -7727,7 +7725,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
                             const Icon(Icons.info_outline_rounded, size: 12, color: OffroColors.amber),
                             const SizedBox(width: 5),
-                            Text("Store Currently Inactive",
+                            Text(context.l10n.prodStoreInactive,
                               style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: OffroColors.amber)),
                           ]),
                         ),
@@ -7739,14 +7737,14 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 // ── Product details ──
                 if (description.isNotEmpty) ...[
                   const SizedBox(height: 28),
-                  Text("Product details", style: OffroText.title.copyWith(fontSize: 20)),
+                  Text(context.l10n.prodDetails, style: OffroText.title.copyWith(fontSize: 20)),
                   const SizedBox(height: 10),
                   Text(description, style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.6, color: OffroColors.textMuted)),
                 ],
 
                 // ── Rate & Review ──
                 const SizedBox(height: 28),
-                Text("Rate & Review", style: OffroText.title.copyWith(fontSize: 20)),
+                Text(context.l10n.prodRateReview, style: OffroText.title.copyWith(fontSize: 20)),
                 const SizedBox(height: 12),
                 // Star rating selector (locked once review submitted)
                 AbsorbPointer(
@@ -7755,13 +7753,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     ...List.generate(5, (i) => GestureDetector(
                       onTap: () => setState(() => _userRating = i + 1.0),
                       child: Padding(
-                        padding: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsetsDirectional.only(end: 6),
                         child: Icon(
                           i < _userRating ? Icons.star_rounded : Icons.star_outline_rounded,
                           color: OffroColors.amber, size: 30)),
                     )),
                     const SizedBox(width: 8),
-                    Text(_userRating == 0 ? "Tap to rate" : ["","Poor","Fair","Good","Great","Excellent"][_userRating.toInt()],
+                    Text(_userRating == 0 ? context.l10n.prodTapToRate : ["",context.l10n.ratingPoor,context.l10n.ratingFair,context.l10n.ratingGood,context.l10n.ratingGreat,context.l10n.ratingExcellent][_userRating.toInt()],
                       style: OffroText.caption.copyWith(fontSize: 12.5, fontWeight: FontWeight.w600,
                         color: _userRating == 0 ? OffroColors.textMuted : OffroColors.primary)),
                   ])),
@@ -7772,7 +7770,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     maxLines: 3,
                     style: OffroText.body.copyWith(fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: "Share your experience with this product...",
+                      hintText: context.l10n.prodShareExperience,
                       hintStyle: OffroText.body.copyWith(fontSize: 13, color: OffroColors.textPlaceholder),
                       filled: true, fillColor: Colors.white,
                       contentPadding: const EdgeInsets.all(14),
@@ -7797,7 +7795,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       child: _reviewSubmitting
                         ? const SizedBox(width: 20, height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text("Submit Review", style: OffroText.button.copyWith(color: Colors.white, fontSize: 13)),
+                        : Text(context.l10n.prodSubmitReview, style: OffroText.button.copyWith(color: Colors.white, fontSize: 13)),
                     ),
                   ),
                 ] else
@@ -7807,7 +7805,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     child: Row(children: [
                       const Icon(Icons.check_circle_rounded, color: OffroColors.primary, size: 20),
                       const SizedBox(width: 10),
-                      Text("Thanks for your review!", style: OffroText.cardTitle.copyWith(fontSize: 13)),
+                      Text(context.l10n.prodThanksReview, style: OffroText.cardTitle.copyWith(fontSize: 13)),
                     ]),
                   ),
               ]),
@@ -7838,7 +7836,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           setState(() => _isFav = prev);
           FavState.instance.setProduct(pid, prev);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+            content: Text(context.l10n.homeFavoriteSaveFailed(friendlyError(e, l10n: context.l10n))),
             backgroundColor: Colors.red.shade700,
             duration: const Duration(seconds: 12),
             showCloseIcon: true));
@@ -7923,8 +7921,8 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
           bottom: false,
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             OffroScreenHeader(
-              eyebrow: "Across local stores",
-              title: "All products",
+              eyebrow: context.l10n.homeProductsEyebrow,
+              title: context.l10n.prodAllProducts,
               showBack: true,
               onBack: () => Navigator.maybePop(context),
             ),
@@ -7945,7 +7943,7 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
                   onTap: () => setState(() => _cat = active ? "All" : cat),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.only(right: 8),
+                    margin: const EdgeInsetsDirectional.only(end: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: active ? OffroColors.primary : OffroColors.surface,
@@ -7972,7 +7970,7 @@ class _ProductViewAllPageState extends State<ProductViewAllPage>{
                 decoration: const BoxDecoration(color: OffroColors.beige, shape: BoxShape.circle),
                 child: const Icon(Icons.storefront_outlined, color: OffroColors.secondarySolid, size: 40)),
               const SizedBox(height: 16),
-              Text("No products found",
+              Text(context.l10n.prodNoProducts,
                 style: OffroText.cardTitle.copyWith(fontSize: 16)),
             ])))
         else
@@ -8081,14 +8079,14 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
     if (_validSafe.isNotEmpty) {
       try {
         final _vdt = DateTime.parse(_validSafe);
-        const _vmo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        final _vmo = localizedMonthsShort(context);
         validity = "${_vdt.day} ${_vmo[_vdt.month-1]} ${_vdt.year}";
       } catch (_) {
         // Not ISO format — try dd/mm/yyyy or dd-mm-yyyy
         try {
           final parts = _validSafe.split(RegExp(r'[/\-]'));
           if (parts.length == 3) {
-            const _vmo2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            final _vmo2 = localizedMonthsShort(context);
             final d = int.parse(parts[0]); final m = int.parse(parts[1]); final y = int.parse(parts[2]);
             if (m >= 1 && m <= 12) validity = "$d ${_vmo2[m-1]} $y";
           }
@@ -8126,7 +8124,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               color: pal[0],
               borderRadius: BorderRadius.circular(30),
             ),
-            child: Text(title.isNotEmpty ? title : "Special Offer",
+            child: Text(title.isNotEmpty ? title : context.l10n.prodSpecialOffer,
               style: const TextStyle(color: OffroColors.primary, fontSize: 15, fontWeight: FontWeight.w900)),
           ),
           const SizedBox(height: 14),
@@ -8154,7 +8152,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
           Row(children: [
             Expanded(child: OutlinedButton.icon(
               icon: const Icon(Icons.close_rounded, size: 16),
-              label: const Text("Close", style: TextStyle(fontSize: 13)),
+              label: Text(context.l10n.commonClose, style: TextStyle(fontSize: 13)),
               style: OutlinedButton.styleFrom(
                 foregroundColor: OffroColors.primary,
                 side: const BorderSide(color: OffroColors.primary),
@@ -8166,7 +8164,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
             const SizedBox(width: 10),
             Expanded(child: ElevatedButton.icon(
               icon: const Icon(Icons.download_rounded, size: 16),
-              label: const Text("Download", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
+              label: Text(context.l10n.prodDownload, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: OffroColors.primary,
                 foregroundColor: Colors.white,
@@ -8202,14 +8200,14 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
     if (_validSafe.isNotEmpty) {
       try {
         final _vdt = DateTime.parse(_validSafe);
-        const _vmo = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        final _vmo = localizedMonthsShort(context);
         validity = "${_vdt.day} ${_vmo[_vdt.month-1]} ${_vdt.year}";
       } catch (_) {
         // Not ISO format — try dd/mm/yyyy or dd-mm-yyyy
         try {
           final parts = _validSafe.split(RegExp(r'[/\-]'));
           if (parts.length == 3) {
-            const _vmo2 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+            final _vmo2 = localizedMonthsShort(context);
             final d = int.parse(parts[0]); final m = int.parse(parts[1]); final y = int.parse(parts[2]);
             if (m >= 1 && m <= 12) validity = "$d ${_vmo2[m-1]} $y";
           }
@@ -8229,7 +8227,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
     String badgeLabel = "";
     Color  badgeColor = OffroColors.terracotta;
     if (isBestSeller) {
-      badgeLabel = "BEST SELLER";
+      badgeLabel = context.l10n.prodBestSeller;
       badgeColor = OffroColors.amber;
     } else if (discount.isNotEmpty && discount != "0") {
       badgeLabel = discount.contains("%") ? discount.replaceAll(RegExp(r'\s*OFF\s*', caseSensitive: false), "") : "$discount%";
@@ -8260,7 +8258,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
             ),
             // Offer badge top-left
             if (badgeLabel.isNotEmpty)
-              Positioned(top: 7, left: 7, child: Container(
+              PositionedDirectional(top: 7, start: 7, child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: badgeColor,
@@ -8271,7 +8269,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                   maxLines: 1),
               )),
             // Heart icon top-right — live toggle via FavState
-            Positioned(top: 7, right: 7, child: GestureDetector(
+            PositionedDirectional(top: 7, end: 7, child: GestureDetector(
               onTap: () async {
                 final pid = product["_id"]?.toString() ?? product["id"]?.toString() ?? "";
                 if (pid.isEmpty) return;
@@ -8284,7 +8282,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                   setState(() => _isFav = !next);
                   FavState.instance.setProduct(pid, !next);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+                    content: Text(context.l10n.homeFavoriteSaveFailed(friendlyError(e, l10n: context.l10n))),
                     backgroundColor: Colors.red.shade700,
                     duration: const Duration(seconds: 12),
                     showCloseIcon: true));
@@ -8308,7 +8306,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               final _pr = (product["rating"] as num?)?.toDouble() ?? 0.0;
               final _pc = (product["rating_count"] ?? product["review_count"] as num?)?.toInt() ?? 0;
               if (_pr <= 0) return const SizedBox.shrink();
-              return Positioned(bottom: 6, right: 7,
+              return PositionedDirectional(bottom: 6, end: 7,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                   decoration: BoxDecoration(color: OffroColors.primary, borderRadius: OffroRadii.pillRadius),
@@ -8320,8 +8318,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                     if (_pc > 0) Text(" ($_pc)",
                       style: OffroText.caption.copyWith(color: OffroColors.accent, fontSize: 9, fontWeight: FontWeight.w400)),
                   ]),
-                ),
-              );
+                ));
             }),
           ]),
 
@@ -8338,7 +8335,7 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
               if (storeName.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text("Seller: " + storeName,
+                  child: Text(context.l10n.prodSeller(storeName),
                     style: OffroText.caption.copyWith(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w400),
                     maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
@@ -8387,7 +8384,7 @@ class _VapSearchBarState extends State<_VapSearchBar> {
         style: OffroText.body.copyWith(color: OffroColors.text, fontSize: 14),
         cursorColor: OffroColors.primary,
         decoration: InputDecoration(
-          hintText: "Search products...",
+          hintText: context.l10n.prodSearch,
           hintStyle: OffroText.body.copyWith(color: OffroColors.secondarySolid, fontSize: 14),
           prefixIcon: const Icon(Icons.search_rounded, color: OffroColors.secondarySolid, size: 18),
           filled: true,

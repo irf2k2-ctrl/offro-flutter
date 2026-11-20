@@ -9,6 +9,7 @@ import '../../core/services/error_mapper.dart';
 import '../../core/services/rewards_state.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
+import '../../core/l10n/l10n.dart';
 
 class QRPage extends StatefulWidget {
   final String token; final VoidCallback? onDone;
@@ -18,24 +19,24 @@ class QRPage extends StatefulWidget {
 class _QRState extends State<QRPage>{
   bool _scanned=false;
   @override Widget build(BuildContext ctx)=>Scaffold(
-    appBar:AppBar(title:const Text("Scan Store QR"),backgroundColor:kPrimary,foregroundColor:Colors.white),
+    appBar:AppBar(title:Text(ctx.l10n.qrTitle),backgroundColor:kPrimary,foregroundColor:Colors.white),
     body:Stack(children:[
       MobileScanner(onDetect:(cap) async {
         if(_scanned)return; final raw = cap.barcodes.isNotEmpty ? cap.barcodes.first.rawValue ?? "" : ""; if(raw.isEmpty)return;
         setState(()=>_scanned=true);
         String? sid=raw.contains("store_id=")?raw.split("store_id=").last.split("&").first.trim():null;
-        if(sid==null||sid.isEmpty){if(!mounted)return;Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content:Text("❌ Invalid QR")));return;}
+        if(sid==null||sid.isEmpty){if(!mounted)return;Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(ctx.l10n.qrInvalid)));return;}
         try{
           final res=await Api.redeemQR(sid,widget.token); RewardsState.instance.markChanged(); widget.onDone?.call();
           if(!mounted)return; Navigator.pop(ctx);
           showDialog(context:ctx,builder:(_)=>AlertDialog(shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(16)),
-            title:Row(children:[const Icon(Icons.check_circle,color:kPrimary),const SizedBox(width:8),const Text("Points Added!")]),
-            content:Text("${res["message"]??"Done!"}\n\n🔐 Store QR has been refreshed for security."),
-            actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text("Great!",style:TextStyle(color:kPrimary)))]));
-        }catch(e){debugPrint('[OffrO] QR redeem error: $e');if(!mounted)return;Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(friendlyError(e))));}
+            title:Row(children:[const Icon(Icons.check_circle,color:kPrimary),const SizedBox(width:8),Text(ctx.l10n.qrPointsAdded)]),
+            content:Text("${res["message"]??ctx.l10n.qrDone}\n\n${ctx.l10n.qrRefreshedNote}"),
+            actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:Text(ctx.l10n.qrGreat,style:TextStyle(color:kPrimary)))]));
+        }catch(e){debugPrint('[OffrO] QR redeem error: $e');if(!mounted)return;Navigator.pop(ctx);ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content:Text(friendlyError(e, l10n: ctx.l10n))));}
       }),
       Center(child:Container(width:220,height:220,decoration:BoxDecoration(border:Border.all(color:kPrimary,width:3),borderRadius:BorderRadius.circular(16)))),
-      const Positioned(bottom:60,left:0,right:0,child:Text("Point at store QR code",textAlign:TextAlign.center,style:TextStyle(color:Colors.white,fontSize:14))),
+      Positioned(bottom:60,left:0,right:0,child:Text(ctx.l10n.qrPointAt,textAlign:TextAlign.center,style:TextStyle(color:Colors.white,fontSize:14))),
     ]),
   );
 }

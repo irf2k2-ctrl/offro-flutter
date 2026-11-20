@@ -144,7 +144,7 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Widget _identityCard() {
-    final name = widget.isGuest ? "Guest" : (widget.name.isEmpty ? "OffrO member" : widget.name);
+    final name = widget.isGuest ? context.l10n.profileGuestName : (widget.name.isEmpty ? context.l10n.profileMemberBadge : widget.name);
     return Padding(
       padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 24, OffroSpacing.gutter, 0),
       child: Container(

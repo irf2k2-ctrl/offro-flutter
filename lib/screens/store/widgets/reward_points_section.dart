@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../qr/qr_page.dart';
 import '../../../core/design/design.dart';
+import '../../../core/l10n/l10n.dart';
 
 class RewardPointsSection extends StatelessWidget {
   final int visitPoints;
@@ -35,8 +36,8 @@ class RewardPointsSection extends StatelessWidget {
             Icon(Icons.card_giftcard_outlined,
                 color: kAccent, size: 34),
             const SizedBox(height: 10),
-            const Text(
-              'Rewards coming soon',
+            Text(
+              context.l10n.storeRewardsSoon,
               style: TextStyle(
                   color: OffroColors.textMuted,
                   fontSize: 13,
@@ -119,8 +120,8 @@ class RewardPointsSection extends StatelessWidget {
                       crossAxisAlignment:
                           CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Earn Reward Points',
+                        Text(
+                          context.l10n.storeEarnPointsTitle,
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -128,7 +129,7 @@ class RewardPointsSection extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Scan QR after purchase to earn $visitPoints pts',
+                          context.l10n.storeEarnPointsBody('$visitPoints'),
                           style: TextStyle(
                               color: Colors.white
                                   .withValues(alpha: .80),
@@ -149,7 +150,7 @@ class RewardPointsSection extends StatelessWidget {
                                   BorderRadius.circular(12),
                             ),
                             child: Text(
-                              'Your Points: $currentPoints',
+                              context.l10n.storeYourPoints('$currentPoints'),
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 12,

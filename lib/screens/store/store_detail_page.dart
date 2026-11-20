@@ -23,6 +23,7 @@ import 'widgets/store_about_section.dart';
 import 'widgets/store_reviews_section.dart';
 import 'widgets/bottom_action_bar.dart';
 import '../../core/design/design.dart';
+import '../../core/l10n/l10n.dart';
 
 class StoreDetailPage extends StatefulWidget {
   final Map store;
@@ -340,7 +341,7 @@ class _StoreDetailPageState extends State<StoreDetailPage>
                           horizontal: 16),
                       tabs: _tabs
                           .map((t) => Tab(
-                              text: t,
+                              text: t == 'About' ? context.l10n.storeTabAbout : t == 'Products' ? context.l10n.storeTabProducts : t == 'Reviews' ? context.l10n.storeTabReviews : context.l10n.storeTabRewards,
                               height: 36))
                           .toList(),
                     ),

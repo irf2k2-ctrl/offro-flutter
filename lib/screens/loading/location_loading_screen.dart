@@ -18,6 +18,7 @@ import '../../core/utils/geo.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/prefs_service.dart';
+import '../../core/l10n/l10n.dart';
 
 typedef OnReadyCallback = void Function({
   required String city,
@@ -314,7 +315,7 @@ class _LocationLoadingScreenState extends State<LocationLoadingScreen>
                     color: i == _step ? kPrimary : const Color(0xFFB0BEC5),
                     size: i == _step ? 18 : 14),
                   const SizedBox(width: 8),
-                  Text(_stepLabels[i],
+                  Text(localizedLoadingStep(context, i),
                     style: TextStyle(
                       color: i == _step ? OffroColors.text : const Color(0xFFB0BEC5),
                       fontSize: i == _step ? 15 : 13,

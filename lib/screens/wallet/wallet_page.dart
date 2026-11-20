@@ -9,6 +9,7 @@ import '../../core/services/prefs_service.dart';
 import '../../core/services/rewards_state.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../../core/design/design.dart';
+import '../../core/l10n/l10n.dart';
 
 class WalletPage extends StatefulWidget {
   final String token;
@@ -61,22 +62,22 @@ class _WalletState extends State<WalletPage> {
     try {
       final r = await Api.withdraw(widget.token, 200);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r["message"] ?? "Done")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r["message"] ?? context.l10n.walletDone)));
       _load();
     } catch (e) {
       debugPrint('[OffrO] wallet withdraw error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(friendlyError(e, l10n: context.l10n))));
     }
   }
 
   static String _fmt(int n) =>
       n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
 
-  static String _dateLabel(String raw) {
+  static String _dateLabel(BuildContext ctx, String raw) {
     try {
       final dt = DateTime.parse(raw);
-      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      final months = localizedMonthsShort(ctx);
       return "${dt.day} ${months[dt.month - 1]} ${dt.year}";
     } catch (_) {
       return raw;
@@ -95,8 +96,8 @@ class _WalletState extends State<WalletPage> {
           color: OffroColors.primary,
           padding: const EdgeInsets.all(24),
           child: Stack(clipBehavior: Clip.hardEdge, children: [
-            Positioned(
-              right: -80, top: -88,
+            PositionedDirectional(
+              end: -80, top: -88,
               child: Container(
                 width: 208, height: 208,
                 decoration: BoxDecoration(
@@ -115,18 +116,18 @@ class _WalletState extends State<WalletPage> {
                     color: Colors.white.withValues(alpha: .10),
                     borderRadius: OffroRadii.pillRadius,
                   ),
-                  child: Text("REWARD POINTS",
+                  child: Text(context.l10n.walletBadge,
                     style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: .70))),
                 ),
               ]),
               const SizedBox(height: 44),
-              Text("Available balance",
+              Text(context.l10n.walletBalance,
                 style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .50))),
               const SizedBox(height: 4),
               Text.rich(TextSpan(children: [
                 TextSpan(text: _fmt(total),
                   style: OffroText.display.copyWith(fontSize: 43, letterSpacing: -2.6, height: 1.1, color: Colors.white)),
-                TextSpan(text: "  points",
+                TextSpan(text: "  ${context.l10n.walletPointsWord}",
                   style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .45))),
               ])),
               const SizedBox(height: 16),
@@ -138,7 +139,7 @@ class _WalletState extends State<WalletPage> {
                     color: Colors.white.withValues(alpha: canRedeem ? .20 : .12),
                     borderRadius: OffroRadii.pillRadius,
                   ),
-                  child: Text("Redeem",
+                  child: Text(context.l10n.walletRedeem,
                     style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w600,
                       color: Colors.white.withValues(alpha: canRedeem ? 1 : .55))),
                 ),
@@ -156,9 +157,9 @@ class _WalletState extends State<WalletPage> {
               ),
               const SizedBox(height: 8),
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text("$_redeemAt pts = ₹20 voucher",
+                Text(context.l10n.walletVoucherRate('$_redeemAt'),
                   style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .45))),
-                Text(canRedeem ? "Ready to redeem" : "$toGo pts to go",
+                Text(canRedeem ? context.l10n.walletReadyToRedeem : context.l10n.walletToGo('$toGo'),
                   style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .45))),
               ]),
             ]),
@@ -184,13 +185,13 @@ class _WalletState extends State<WalletPage> {
           Row(children: [
             const OffroIcon(OffroIcons.gift, size: 20, color: OffroColors.primary),
             const Spacer(),
-            Text("$_redeemAt pts",
+            Text(context.l10n.walletPtsOnly('$_redeemAt'),
               style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
           ]),
           const SizedBox(height: 36),
           Text("₹20", style: OffroText.headline.copyWith(fontSize: 30, letterSpacing: -1.8)),
           const SizedBox(height: 4),
-          Text("Promotional gift voucher · Amazon or Flipkart",
+          Text(context.l10n.walletVoucherDesc,
             style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
           const SizedBox(height: 16),
           GestureDetector(
@@ -203,7 +204,7 @@ class _WalletState extends State<WalletPage> {
                 color: canRedeem ? OffroColors.primary : OffroColors.primary.withValues(alpha: .35),
                 borderRadius: OffroRadii.pillRadius,
               ),
-              child: Text(canRedeem ? "Redeem" : "Earn $toGo more points",
+              child: Text(canRedeem ? context.l10n.walletRedeem : context.l10n.walletEarnMore('$toGo'),
                 style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
@@ -236,15 +237,15 @@ class _WalletState extends State<WalletPage> {
           borderRadius: BorderRadius.circular(22),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text("How rewards work", style: OffroText.cardTitle.copyWith(fontSize: 13)),
+          Text(context.l10n.walletHowTitle, style: OffroText.cardTitle.copyWith(fontSize: 13)),
           const SizedBox(height: 12),
-          line("Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher."),
-          line("Gift voucher delivery: 3-5 business days."),
-          line("Reward points never expire."),
+          line(context.l10n.walletHowLine1),
+          line(context.l10n.walletHowLine2),
+          line(context.l10n.walletHowLine3),
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: Text(
-              "Reward points are promotional loyalty points. They cannot be purchased, transferred, or exchanged for cash.",
+              context.l10n.walletHowDisclaimer,
               style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
           ),
         ]),
@@ -257,7 +258,7 @@ class _WalletState extends State<WalletPage> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 32, OffroSpacing.gutter, 0),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text("Recent activity", style: OffroText.title.copyWith(fontSize: 20)),
+        Text(context.l10n.walletRecent, style: OffroText.title.copyWith(fontSize: 20)),
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
@@ -269,7 +270,7 @@ class _WalletState extends State<WalletPage> {
           child: rows.isEmpty
               ? Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Text("No scans yet — points you earn at stores will show up here.",
+                  child: Text(context.l10n.walletNoScansHint,
                     style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
                 )
               : Column(children: [
@@ -294,7 +295,7 @@ class _WalletState extends State<WalletPage> {
                             maxLines: 1, overflow: TextOverflow.ellipsis,
                             style: OffroText.cardTitle.copyWith(fontSize: 12)),
                           const SizedBox(height: 2),
-                          Text("Earned · ${_dateLabel(((rows[i] as Map)["date"] ?? "").toString())}",
+                          Text(context.l10n.walletEarnedOn(_dateLabel(context, ((rows[i] as Map)["date"] ?? "").toString())),
                             style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
                         ])),
                         Text("+${(rows[i] as Map)["points"] ?? 0}",
@@ -321,18 +322,18 @@ class _WalletState extends State<WalletPage> {
               physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
               children: [
                 OffroScreenHeader(
-                  eyebrow: "Your local loyalty",
-                  title: "Rewards",
-                  description: "Every local purchase gets you closer to something good.",
+                  eyebrow: ctx.l10n.walletEyebrow,
+                  title: ctx.l10n.walletTitle,
+                  description: ctx.l10n.walletDesc,
                   showBack: !widget.embedded,
                 ),
                 _balanceCard(total),
                 Padding(
                   padding: const EdgeInsets.only(top: 28),
                   child: OffroSectionTitle(
-                    eyebrow: "Ready to use",
-                    title: "Your vouchers",
-                    actionLabel: "View history",
+                    eyebrow: ctx.l10n.walletVouchersEyebrow,
+                    title: ctx.l10n.walletVouchersTitle,
+                    actionLabel: ctx.l10n.walletViewHistory,
                     onAction: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => HistoryPage(token: widget.token))),
                   ),
                 ),
@@ -375,9 +376,9 @@ class _HistoryState extends State<HistoryPage>{
     if(mounted)setState(()=>_l=false);
   }
   @override Widget build(BuildContext ctx)=>Scaffold(
-    appBar:AppBar(title:const Text("Scan History"),backgroundColor:kPrimary,foregroundColor:Colors.white),backgroundColor:kBg,
+    appBar:AppBar(title:Text(ctx.l10n.scanHistoryTitle),backgroundColor:kPrimary,foregroundColor:Colors.white),backgroundColor:kBg,
     body:_l?const Center(child:CircularProgressIndicator(color:kPrimary)):
-    _h.isEmpty?Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[buildLogo(44,kAccent),const SizedBox(height:12),const Text("No scans yet",style:TextStyle(color:OffroColors.textMuted,fontSize:16))])):
+    _h.isEmpty?Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[buildLogo(44,kAccent),const SizedBox(height:12),Text(ctx.l10n.scanHistoryEmpty,style:TextStyle(color:OffroColors.textMuted,fontSize:16))])):
     ListView.separated(padding:const EdgeInsets.all(16),itemCount:_h.length,separatorBuilder:(_,__)=>const SizedBox(height:8),
       itemBuilder:(_,i){
         final h=_h[i] as Map;
@@ -387,7 +388,7 @@ class _HistoryState extends State<HistoryPage>{
         String dateLabel = dateRaw;
         try {
           final dt = DateTime.parse(dateRaw);
-          final months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          final months=localizedMonthsShort(ctx);
           dateLabel = "${dt.day} ${months[dt.month-1]} ${dt.year}  ${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}";
         } catch(_) {}
         return Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(14),border:Border.all(color:OffroColors.border)),
@@ -410,7 +411,7 @@ class _HistoryState extends State<HistoryPage>{
             Container(
               padding:const EdgeInsets.symmetric(horizontal:10,vertical:5),
               decoration:BoxDecoration(color:kLight,borderRadius:BorderRadius.circular(12)),
-              child:Text("+${h['points']} pts",style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold,fontSize:13)),
+              child:Text(ctx.l10n.walletPtsPlus('${h['points']}'),style:const TextStyle(color:kPrimary,fontWeight:FontWeight.bold,fontSize:13)),
             )]));
       },));
 }

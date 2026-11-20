@@ -5,6 +5,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import 'store_header.dart' show FullScreenImageViewer;
 import '../../../core/design/design.dart';
+import '../../../core/l10n/l10n.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Round 12 (Task 5): shared full-screen deal-gallery opener. Previously
@@ -60,7 +61,7 @@ void openDealGallery(BuildContext context, List<Map<String, dynamic>> dealsWithI
               if (seller.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text("Seller: $seller",
+                  child: Text(context.l10n.prodSeller(seller),
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
                 ),
@@ -111,10 +112,10 @@ class StoreOffersSection extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(0, 0, 0, 14),
           child: OffroSectionTitle(
             eyebrow: (deals.isNotEmpty && !loading)
-                ? 'Exclusive on OffrO · ${deals.length} deal${deals.length == 1 ? "" : "s"}'
-                : 'Exclusive on OffrO',
+                ? (deals.length == 1 ? context.l10n.storeExclusiveOne : context.l10n.storeExclusiveMany('${deals.length}'))
+                : context.l10n.storeExclusive,
             eyebrowColor: OffroColors.sageStrong,
-            title: "Deals from this store",
+            title: context.l10n.storeDealsFromStore,
           ),
         ),
 
@@ -175,7 +176,7 @@ class StoreOffersSection extends StatelessWidget {
               child: Column(children: [
                 const Icon(Icons.local_offer_outlined, color: OffroColors.primary, size: 32),
                 const SizedBox(height: 8),
-                Text('Offers coming soon',
+                Text(context.l10n.storeOffersSoon,
                     style: OffroText.caption.copyWith(
                         color: OffroColors.secondarySolid, fontSize: 13, fontWeight: FontWeight.w600)),
               ]),
@@ -215,7 +216,7 @@ class StoreOffersSection extends StatelessWidget {
                     child: Container(
                       width: 210,
                       height: 210,
-                      margin: EdgeInsets.only(right: idx < deals.length - 1 ? 12 : 0),
+                      margin: EdgeInsetsDirectional.only(end: idx < deals.length - 1 ? 12 : 0),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(OffroRadii.card),
                         border: Border.all(color: OffroColors.border, width: 1),
@@ -268,15 +269,15 @@ class StoreOffersSection extends StatelessWidget {
                             ),
                             // ── Discount % chip, top-left ──
                             if (discInt > 0)
-                              Positioned(
-                                top: 10, left: 10,
+                              PositionedDirectional(
+                                top: 10, start: 10,
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                   decoration: BoxDecoration(
                                     color: kPrimary,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text('$discInt% OFF',
+                                  child: Text(ctx.l10n.storeDiscOff('$discInt'),
                                     style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
                                 ),
                               ),
@@ -289,7 +290,7 @@ class StoreOffersSection extends StatelessWidget {
 
                 return Container(
                   width: 210,
-                  margin: EdgeInsets.only(right: idx < deals.length - 1 ? 12 : 0),
+                  margin: EdgeInsetsDirectional.only(end: idx < deals.length - 1 ? 12 : 0),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -304,8 +305,8 @@ class StoreOffersSection extends StatelessWidget {
                   child: Stack(
                     children: [
                       // ── Decorative green circles (background) ──
-                      Positioned(
-                        top: -30, right: -30,
+                      PositionedDirectional(
+                        top: -30, end: -30,
                         child: Container(
                           width: 110, height: 110,
                           decoration: BoxDecoration(
@@ -319,8 +320,8 @@ class StoreOffersSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Positioned(
-                        bottom: -20, left: -20,
+                      PositionedDirectional(
+                        bottom: -20, start: -20,
                         child: Container(
                           width: 90, height: 90,
                           decoration: BoxDecoration(
@@ -334,8 +335,8 @@ class StoreOffersSection extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Positioned(
-                        top: 70, right: 10,
+                      PositionedDirectional(
+                        top: 70, end: 10,
                         child: Container(
                           width: 36, height: 36,
                           decoration: BoxDecoration(
@@ -386,7 +387,7 @@ class StoreOffersSection extends StatelessWidget {
                                           ),
                                         ),
                                         Text(
-                                          'OFF',
+                                          ctx.l10n.storeOffWord,
                                           style: TextStyle(
                                             color: kPrimary.withValues(alpha: .8),
                                             fontSize: 10,

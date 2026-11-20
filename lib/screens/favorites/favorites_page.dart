@@ -10,6 +10,7 @@ import '../store/store_detail_page.dart';
 import '../../core/widgets/store_cards.dart';
 import '../../core/utils/navigation.dart';
 import '../../core/design/design.dart';
+import '../../core/l10n/l10n.dart';
 
 
 class FavoritesPage extends StatefulWidget {
@@ -33,11 +34,11 @@ class _FavoritesState extends State<FavoritesPage>{
         bottom: false,
         child: CustomScrollView(slivers: [
           SliverToBoxAdapter(child: OffroScreenHeader(
-            eyebrow: "Saved for later",
-            title: "My Favourites",
+            eyebrow: ctx.l10n.favEyebrow,
+            title: ctx.l10n.profileFavourites,
             description: _loading || _favs.isEmpty
                 ? null
-                : "${_favs.length} ${_favs.length == 1 ? 'place' : 'places'} you love, all in one spot.",
+                : (_favs.length == 1 ? ctx.l10n.favPlacesOne : ctx.l10n.favPlacesMany('${_favs.length}')),
             showBack: true,
           )),
           if (_loading)
@@ -56,9 +57,9 @@ class _FavoritesState extends State<FavoritesPage>{
                     child: const OffroIcon(OffroIcons.heart, size: 38, color: OffroColors.primary),
                   ),
                   const SizedBox(height: 20),
-                  Text("No favourites yet", style: OffroText.title.copyWith(fontSize: 20)),
+                  Text(ctx.l10n.favEmptyTitle, style: OffroText.title.copyWith(fontSize: 20)),
                   const SizedBox(height: 8),
-                  Text("Tap the heart on any store to save it here",
+                  Text(ctx.l10n.favEmptyBody,
                     textAlign: TextAlign.center,
                     style: OffroText.bodySmall.copyWith(fontSize: 13, color: OffroColors.textMuted)),
                 ]),

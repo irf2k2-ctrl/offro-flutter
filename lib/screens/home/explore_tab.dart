@@ -13,6 +13,7 @@ import '../../core/design/design.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/services/fav_state.dart';
+import '../../core/l10n/l10n.dart';
 
 class ExploreTab extends StatefulWidget {
   final List<Map<String, dynamic>> stores;
@@ -83,10 +84,10 @@ class _ExploreTabState extends State<ExploreTab> {
     return out;
   }
 
-  static String _distance(Map<String, dynamic> s) {
+  static String _distance(BuildContext ctx, Map<String, dynamic> s) {
     final d = (s['distance_km'] as num?)?.toDouble();
     if (d == null) return '';
-    return d < 1 ? '${(d * 1000).round()} m' : '${d.toStringAsFixed(1)} km';
+    return d < 1 ? '${(d * 1000).round()} ${ctx.l10n.unitMeter}' : '${d.toStringAsFixed(1)} ${ctx.l10n.unitKm}';
   }
 
   static String _image(Map<String, dynamic> s) {
@@ -111,7 +112,7 @@ class _ExploreTabState extends State<ExploreTab> {
       FavState.instance.setStore(sid, prev);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Couldn't save favorite: ${friendlyError(e)}"),
+          content: Text(context.l10n.homeFavoriteSaveFailed(friendlyError(e, l10n: context.l10n))),
           backgroundColor: Colors.red.shade700,
           duration: const Duration(seconds: 12),
           showCloseIcon: true,
@@ -128,17 +129,17 @@ class _ExploreTabState extends State<ExploreTab> {
     final categories = _counted('category').take(4).map((e) => e.key).toList();
     final areas = _counted('area').take(6).toList();
     final visible = _visible;
-    final cityLabel = widget.city.isNotEmpty ? widget.city : 'your city';
+    final cityLabel = widget.city.isNotEmpty ? widget.city : context.l10n.exploreYourCity;
 
     return ListView(
       padding: EdgeInsets.only(top: topPad, bottom: 124),
       physics: const BouncingScrollPhysics(),
       children: [
         OffroScreenHeader(
-          eyebrow: 'Discover $cityLabel',
-          title: 'Explore nearby',
+          eyebrow: context.l10n.exploreDiscover(cityLabel),
+          title: context.l10n.exploreTitle,
           description:
-              'Find independent businesses, useful services and local favourites around you.',
+              context.l10n.exploreDesc,
         ),
         // ── Search ──
         Padding(
@@ -161,7 +162,7 @@ class _ExploreTabState extends State<ExploreTab> {
                     style: OffroText.body.copyWith(fontSize: 13, color: OffroColors.text),
                     cursorColor: OffroColors.primary,
                     decoration: InputDecoration(
-                      hintText: 'Search stores, categories or areas',
+                      hintText: context.l10n.exploreSearchHint,
                       hintStyle: OffroText.body.copyWith(fontSize: 13, color: OffroColors.secondarySolid),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -184,7 +185,7 @@ class _ExploreTabState extends State<ExploreTab> {
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text('Searches business names, store categories and neighbourhoods.',
+              child: Text(context.l10n.exploreSearchNote,
                 style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textFaint)),
             ),
           ]),
@@ -200,9 +201,9 @@ class _ExploreTabState extends State<ExploreTab> {
               child: Row(children: [
                 for (final c in ['All', ...categories])
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsetsDirectional.only(end: 8),
                     child: _FilterChip(
-                      label: c,
+                      label: localizedFilterLabel(context, c),
                       selected: _category == c,
                       onTap: () => setState(() => _category = c),
                     ),
@@ -215,8 +216,8 @@ class _ExploreTabState extends State<ExploreTab> {
           Padding(
             padding: const EdgeInsets.only(top: 28),
             child: OffroSectionTitle(
-              eyebrow: 'Explore by area',
-              title: 'Neighbourhoods in $cityLabel',
+              eyebrow: context.l10n.exploreByArea,
+              title: context.l10n.exploreNeighbourhoodsIn(cityLabel),
             ),
           ),
           const SizedBox(height: 16),
@@ -227,7 +228,7 @@ class _ExploreTabState extends State<ExploreTab> {
             child: Row(children: [
               for (final a in areas)
                 Padding(
-                  padding: const EdgeInsets.only(right: 12),
+                  padding: const EdgeInsetsDirectional.only(end: 12),
                   child: _AreaCard(
                     name: a.key,
                     count: a.value,
@@ -242,10 +243,10 @@ class _ExploreTabState extends State<ExploreTab> {
         Padding(
           padding: const EdgeInsets.only(top: 32),
           child: OffroSectionTitle(
-            eyebrow: _area == null ? 'Around you' : 'Neighbourhood',
+            eyebrow: _area == null ? context.l10n.exploreAroundYou : context.l10n.exploreNeighbourhood,
             title: _area == null
-                ? '${visible.length} ${visible.length == 1 ? 'place' : 'places'} nearby'
-                : 'Stores in $_area',
+                ? (visible.length == 1 ? context.l10n.explorePlacesOne : context.l10n.explorePlacesMany('${visible.length}'))
+                : context.l10n.exploreStoresInArea(_area!),
           ),
         ),
         const SizedBox(height: 16),
@@ -260,10 +261,10 @@ class _ExploreTabState extends State<ExploreTab> {
                 border: Border.all(color: OffroColors.borderStrong),
               ),
               child: Column(children: [
-                Text('No matching stores yet',
+                Text(context.l10n.exploreNoMatchTitle,
                   style: OffroText.cardTitle.copyWith(fontSize: 13)),
                 const SizedBox(height: 4),
-                Text('Try another business name, category or neighbourhood.',
+                Text(context.l10n.exploreNoMatchBody,
                   textAlign: TextAlign.center,
                   style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
               ]),
@@ -287,7 +288,7 @@ class _ExploreTabState extends State<ExploreTab> {
     final sid = _s(s['_id']).isNotEmpty ? _s(s['_id']) : _s(s['id']);
     final name = _s(s['store_name']);
     final category = _s(s['category']);
-    final dist = _distance(s);
+    final dist = _distance(context, s);
     final offer = _s(s['offer']);
     final rating = (s['rating'] as num?)?.toDouble() ?? 0.0;
     final meta = [if (category.isNotEmpty) category, if (dist.isNotEmpty) dist].join(' · ');
@@ -330,7 +331,7 @@ class _ExploreTabState extends State<ExploreTab> {
                     onTap: () => _toggleFav(sid),
                     behavior: HitTestBehavior.opaque,
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 8, bottom: 8),
+                      padding: const EdgeInsetsDirectional.only(start: 8, bottom: 8),
                       child: ValueListenableBuilder<bool>(
                         valueListenable: FavState.instance.storeListenable(sid),
                         builder: (_, fav, __) => OffroIcon(OffroIcons.heart,
@@ -349,7 +350,7 @@ class _ExploreTabState extends State<ExploreTab> {
                           color: const Color(0x99B8D9C3),
                           borderRadius: OffroRadii.pillRadius,
                         ),
-                        child: Text('Offer · $offer', maxLines: 1, overflow: TextOverflow.ellipsis,
+                        child: Text(context.l10n.exploreOffer(offer), maxLines: 1, overflow: TextOverflow.ellipsis,
                           style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
                       ),
                     ),
@@ -428,7 +429,7 @@ class _AreaCard extends StatelessWidget {
           Text(name, maxLines: 1, overflow: TextOverflow.ellipsis,
             style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.text)),
           const SizedBox(height: 4),
-          Text('$count ${count == 1 ? 'store' : 'stores'}',
+          Text((count == 1 ? context.l10n.exploreStoreOne : context.l10n.exploreStoreMany('$count')),
             style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
         ]),
       ),

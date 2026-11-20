@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../qr/qr_page.dart';
 import '../../../core/design/design.dart';
+import '../../../core/l10n/l10n.dart';
 
 class BottomActionBar extends StatelessWidget {
   final Map<String, dynamic> store;
@@ -62,7 +63,7 @@ class BottomActionBar extends StatelessWidget {
                     const Icon(Icons.qr_code_scanner_rounded,
                         color: Colors.white, size: 20),
                     const SizedBox(width: 8),
-                    Text('Scan & Earn $visitPoints pts',
+                    Text(context.l10n.storeScanEarn('$visitPoints'),
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
@@ -100,8 +101,8 @@ class StoreScanQrCard extends StatelessWidget {
           color: OffroColors.mint,
           padding: const EdgeInsets.all(20),
           child: Stack(clipBehavior: Clip.hardEdge, children: [
-            Positioned(
-              right: -40, top: -50,
+            PositionedDirectional(
+              end: -40, top: -50,
               child: Container(
                 width: 120, height: 120,
                 decoration: BoxDecoration(
@@ -118,9 +119,9 @@ class StoreScanQrCard extends StatelessWidget {
               ),
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Scan the store QR', style: OffroText.cardTitle.copyWith(fontSize: 13)),
+                Text(context.l10n.storeScanCardTitle, style: OffroText.cardTitle.copyWith(fontSize: 13)),
                 const SizedBox(height: 4),
-                Text('Verify your visit/purchase and earn $visitPoints reward points.',
+                Text(context.l10n.storeScanCardBody('$visitPoints'),
                   style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.4,
                     color: OffroColors.primary.withValues(alpha: .65))),
               ])),
@@ -132,7 +133,7 @@ class StoreScanQrCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: .7),
                     borderRadius: OffroRadii.pillRadius),
-                  child: Text('Scan QR',
+                  child: Text(context.l10n.storeScanQr,
                     style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: OffroColors.primary)),
                 ),
               ),

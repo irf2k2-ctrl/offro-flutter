@@ -14,6 +14,7 @@ import '../../core/services/prefs_service.dart';
 import '../../core/utils/navigation.dart';
 import '../../main.dart' show MyApp;
 import '../../core/design/design.dart';
+import '../../core/l10n/l10n.dart';
 
 
 
@@ -50,13 +51,13 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
         bottom: false,
         child: _loading
           ? Column(children: [
-              const OffroScreenHeader(eyebrow: "Legal", title: "Privacy Policy", showBack: true),
+              OffroScreenHeader(eyebrow: context.l10n.legalEyebrow, title: context.l10n.legalPrivacyTitle, showBack: true),
               const Expanded(child: Center(child: CircularProgressIndicator(color: OffroColors.primary))),
             ])
           : ListView(
               padding: const EdgeInsets.only(bottom: 32),
               children: [
-                const OffroScreenHeader(eyebrow: "Legal", title: "Privacy Policy", showBack: true),
+                OffroScreenHeader(eyebrow: context.l10n.legalEyebrow, title: context.l10n.legalPrivacyTitle, showBack: true),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 20, OffroSpacing.gutter, 0),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -66,7 +67,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         if (_content.isEmpty)
-                          Text("Privacy policy content is being updated. Please check back later.",
+                          Text(context.l10n.legalPrivacyUpdating,
                             style: OffroText.bodySmall.copyWith(fontSize: 14, color: OffroColors.textMuted))
                         else ...[
                           Text(
@@ -78,7 +79,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                             GestureDetector(
                               onTap: () => setState(() => _expanded = !_expanded),
                               child: Text(
-                                _expanded ? "Read Less" : "Read More",
+                                _expanded ? context.l10n.legalReadLess : context.l10n.legalReadMore,
                                 style: OffroText.button.copyWith(color: OffroColors.primary, fontSize: 13),
                               ),
                             ),
@@ -87,7 +88,7 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                       ]),
                     ),
                     const SizedBox(height: 28),
-                    Text("ACCOUNT",
+                    Text(context.l10n.legalAccountCaps,
                       style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.8, color: OffroColors.sage)),
                     const SizedBox(height: 12),
                     // "Request to delete my account" tile
@@ -113,10 +114,10 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("Request to delete my account",
+                              Text(context.l10n.legalDeleteRequest,
                                 style: OffroText.cardTitle.copyWith(fontSize: 13, color: OffroColors.error)),
                               const SizedBox(height: 2),
-                              Text("All your data will be permanently removed",
+                              Text(context.l10n.legalDeleteRequestNote,
                                 style: OffroText.caption.copyWith(fontSize: 10.5, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
                             ],
                           )),
@@ -158,7 +159,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
       backgroundColor: OffroColors.background,
       body: SafeArea(
         child: Column(children: [
-          const OffroScreenHeader(eyebrow: "Account", title: "Delete Account", showBack: true),
+          OffroScreenHeader(eyebrow: context.l10n.delEyebrow, title: context.l10n.delTitle, showBack: true),
           Container(
             margin: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 20, OffroSpacing.gutter, 8),
             padding: const EdgeInsets.all(16),
@@ -170,7 +171,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
               const Icon(Icons.warning_amber_rounded, color: OffroColors.amber, size: 22),
               const SizedBox(width: 12),
               Expanded(child: Text(
-                "Once your account is deleted, your data cannot be retrieved. Signing up again will create a new account.",
+                context.l10n.delWarning,
                 style: OffroText.bodySmall.copyWith(fontSize: 12.5, height: 1.45, color: OffroColors.text),
               )),
             ]),
@@ -178,8 +179,8 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
           Padding(
             padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 12, OffroSpacing.gutter, 10),
             child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Select a reason for deleting your account",
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(context.l10n.delSelectReason,
                 style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w600, color: OffroColors.primary.withValues(alpha: .7))),
             ),
           ),
@@ -205,7 +206,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
                       color: selected ? OffroColors.primary : OffroColors.textPlaceholder, size: 20,
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: Text(r,
+                    Expanded(child: Text(localizedDeleteReason(ctx, r),
                       style: OffroText.cardTitle.copyWith(
                         fontSize: 13,
                         fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
@@ -224,7 +225,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
               child: ElevatedButton.icon(
                 onPressed: _selectedReason == null ? null : () => _showConfirmDialog(),
                 icon: const Icon(Icons.delete_forever_rounded, size: 18),
-                label: Text("Submit Delete Request", style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
+                label: Text(context.l10n.delSubmit, style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: OffroColors.error,
                   foregroundColor: Colors.white,
@@ -247,15 +248,15 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text("Delete Account?", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: OffroColors.text)),
+        title: Text(ctx.l10n.delConfirmTitle, style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: OffroColors.text)),
         content: Text(
-          "Your account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your data cannot be retrieved. Are you absolutely sure?",
+          ctx.l10n.delConfirmBody,
           style: TextStyle(fontFamily: OffroFonts.sans, fontSize: 14, color: OffroColors.text, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text("Cancel", style: TextStyle(fontFamily: OffroFonts.sans, color: OffroColors.textMuted, fontWeight: FontWeight.w600)),
+            child: Text(ctx.l10n.commonCancel, style: TextStyle(fontFamily: OffroFonts.sans, color: OffroColors.textMuted, fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -266,7 +267,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
               backgroundColor: Colors.red, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text("Yes, Delete", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w700)),
+            child: Text(ctx.l10n.delConfirmYes, style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -283,9 +284,9 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text("Deletion Requested", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: OffroColors.text)),
+          title: Text(ctx.l10n.delRequestedTitle, style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w800, color: OffroColors.text)),
           content: Text(
-            "Your account deletion request has been submitted. You have been logged out.",
+            ctx.l10n.delRequestedBody,
             style: TextStyle(fontFamily: OffroFonts.sans, fontSize: 14, color: OffroColors.text),
           ),
           actions: [
@@ -300,7 +301,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
                 backgroundColor: kPrimary, foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text("OK", style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w700)),
+              child: Text(ctx.l10n.commonOk, style: TextStyle(fontFamily: OffroFonts.sans, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -309,7 +310,7 @@ class _DeleteAccountReasonPageState extends State<DeleteAccountReasonPage> {
       debugPrint('[OffrO] delete account request error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit: ${friendlyError(e)}"),
+        SnackBar(content: Text(context.l10n.delSubmitFailed(friendlyError(e, l10n: context.l10n))),
           backgroundColor: Colors.red),
       );
     }

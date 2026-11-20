@@ -8,6 +8,7 @@ import '../../../core/widgets/base64_image.dart' show decodeBase64ImageCached;
 import '../../../core/utils/store_hours.dart';
 import '../../../core/utils/image_url.dart' show resolveImageUrl;
 import '../../../core/design/design.dart';
+import '../../../core/l10n/l10n.dart';
 
 class StoreHeader extends StatelessWidget {
   final Map<String, dynamic> store;
@@ -49,7 +50,7 @@ class StoreHeader extends StatelessWidget {
 
   /// Badge label (Trending / New store / …) from the same store fields the
   /// old inline badge used. Returns null when there is no badge.
-  String? _badgeLabel() {
+  String? _badgeLabel(BuildContext ctx) {
     const meta = <String, String>{
       'new_store':     'NEW STORE',
       'just_opened':   'JUST OPENED',
@@ -90,15 +91,28 @@ class StoreHeader extends StatelessWidget {
         }
       }
     }
-    return key == null ? null : meta[key];
+    if (key == null) return null;
+    final l = ctx.l10n;
+    switch (key) {
+      case 'new_store': return l.badgeNewStore;
+      case 'just_opened': return l.badgeJustOpened;
+      case 'newly_added': return l.badgeNewlyAdded;
+      case 'newly_opened': return l.badgeNewlyOpened;
+      case 'trending': return l.badgeTrending;
+      case 'popular': return l.badgePopular;
+      case 'top_rated': return l.badgeTopRated;
+      case 'must_visit': return l.badgeMustVisit;
+      case 'limited_offer': return l.badgeLimitedOffer;
+      default: return meta[key];
+    }
   }
 
   /// "Offer · 20% off" from the store's real offer / deals. Null if none.
-  String? _offerLabel() {
+  String? _offerLabel(BuildContext ctx) {
     final offer = store['offer']?.toString().trim() ?? '';
     if (offer.isNotEmpty && offer.toLowerCase() != 'null') {
       final m = RegExp(r'(\d+)\s*%').firstMatch(offer);
-      return m != null ? 'Offer · ${m.group(1)}% off' : 'Offer · $offer';
+      return m != null ? ctx.l10n.storeOfferPct(m.group(1)!) : ctx.l10n.exploreOffer(offer);
     }
     final deals = store['deals'];
     if (deals is List) {
@@ -109,7 +123,7 @@ class StoreHeader extends StatelessWidget {
           if (v > best) best = v;
         }
       }
-      if (best > 0) return 'Offer · $best% off';
+      if (best > 0) return ctx.l10n.storeOfferPct('$best');
     }
     return null;
   }
@@ -129,10 +143,10 @@ class StoreHeader extends StatelessWidget {
     final locationText = [area, city].where((x) => x.isNotEmpty).join(', ');
     final distText = distKm == null
         ? ''
-        : (distKm < 1 ? '${(distKm * 1000).round()} m' : '${distKm.toStringAsFixed(1)} km');
+        : (distKm < 1 ? '${(distKm * 1000).round()} ${context.l10n.unitMeter}' : '${distKm.toStringAsFixed(1)} ${context.l10n.unitKm}');
     final mainImage = images.isNotEmpty ? images[0] : '';
-    final offer = _offerLabel();
-    final badge = _badgeLabel();
+    final offer = _offerLabel(context);
+    final badge = _badgeLabel(context);
     final topInset = MediaQuery.of(context).padding.top;
     const heroH = 320.0;
 
@@ -207,7 +221,7 @@ class StoreHeader extends StatelessWidget {
             ]),
           ),
           if (offer != null)
-            Positioned(left: 20, bottom: 44, child: pill(offer)),
+            PositionedDirectional(start: 20, bottom: 44, child: pill(offer)),
         ]),
       ),
 
@@ -266,7 +280,7 @@ class StoreHeader extends StatelessWidget {
                   store['open_time']?.toString() ?? '', store['close_time']?.toString() ?? '');
               if (status == null) return const SizedBox.shrink();
               final isOpen = status.isOpen;
-              final sub = status.subLabel;
+              final sub = localizedStoreHoursSub(ctx, status);
               final fg = isOpen ? OffroColors.success : OffroColors.error;
               return Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -276,7 +290,7 @@ class StoreHeader extends StatelessWidget {
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Container(width: 6, height: 6, decoration: BoxDecoration(color: fg, shape: BoxShape.circle)),
                     const SizedBox(width: 6),
-                    Text(isOpen ? 'Open' : 'Closed',
+                    Text(isOpen ? ctx.l10n.storeOpenWord : ctx.l10n.storeClosedWord,
                       style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
                     if (sub.isNotEmpty)
                       Text(' · $sub', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w500, color: fg)),
@@ -361,16 +375,16 @@ class _ActionButtonsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final btns = [
-      _BtnData('Call',       OffroIcons.phone,   _call),
-      _BtnData('WhatsApp',   OffroIcons.message, _whatsapp),
-      _BtnData('Directions', OffroIcons.route,   _directions),
+      _BtnData(context.l10n.storeCall,       OffroIcons.phone,   _call),
+      _BtnData(context.l10n.storeWhatsApp,   OffroIcons.message, _whatsapp),
+      _BtnData(context.l10n.storeDirections, OffroIcons.route,   _directions),
     ];
     return Row(
       children: btns.asMap().entries.map((e) {
         final b = e.value;
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(left: e.key == 0 ? 0 : 10),
+            padding: EdgeInsetsDirectional.only(start: e.key == 0 ? 0 : 10),
             child: GestureDetector(
               onTap: b.onTap,
               child: Container(

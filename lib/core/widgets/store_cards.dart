@@ -16,16 +16,17 @@ import 'package:path_provider/path_provider.dart';
 import 'package:offro_user/screens/store/store_detail_page.dart';
 import 'package:offro_user/core/utils/navigation.dart';
 import '../design/offro_tokens.dart' show OffroColors, OffroShadows;
+import '../l10n/l10n.dart';
 
 // ── Open/close status helper ──────────────────────────────────────────────────
-({bool? isOpen, String label, String sub}) _getStoreStatus(Map store) {
+({bool? isOpen, String label, String sub}) _getStoreStatus(BuildContext ctx, Map store) {
   // Uses the shared computeStoreOpenStatus() — same logic as Store Detail.
   final st = computeStoreOpenStatus(
     store['open_time']?.toString() ?? '',
     store['close_time']?.toString() ?? '',
   );
   if (st == null) return (isOpen: null, label: '', sub: '');
-  return (isOpen: st.isOpen, label: st.isOpen ? 'Open' : 'Closed', sub: st.subLabel);
+  return (isOpen: st.isOpen, label: st.isOpen ? 'Open' : 'Closed', sub: localizedStoreHoursSub(ctx, st));
 }
 
 // PromoSliderCard, NitHorizontalCard, ProductViewAllPage
@@ -369,7 +370,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
     final double rating   = ((store["rating"] as num?)?.toDouble() ?? 0.0);
     final double? distKm  = (store["distance_km"] as num?)?.toDouble();
     final pm              = hasDeal ? RegExp(r'([\d.]+)%').firstMatch(offerStr) : null;
-    final String dealLbl  = pm != null ? "${pm.group(1)}% OFF" : (hasDeal?"Deal":"");
+    final String dealLbl  = pm != null ? context.l10n.storeDiscOff(pm.group(1)!) : (hasDeal?context.l10n.storeDealWord:"");
 
     // Image layer: swipeable PageView if multiple images, else single
     Widget imgLayer = allImgs.isEmpty
@@ -390,7 +391,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
         imgLayer,
         // tiny dot indicator at top-right when multiple images
         if(allImgs.length > 1)
-          Positioned(top:6,right:6,child:Container(
+          PositionedDirectional(top:6,end:6,child:Container(
             padding:const EdgeInsets.symmetric(horizontal:5,vertical:2),
             decoration:BoxDecoration(color:Colors.black45,borderRadius:BorderRadius.circular(8)),
             child:Row(mainAxisSize:MainAxisSize.min, children:
@@ -410,7 +411,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
             stops:const[0,.4,.7,1]),
         ))),
         // deal badge
-        if(hasDeal) Positioned(top:8,left:8,child:Container(
+        if(hasDeal) PositionedDirectional(top:8,start:8,child:Container(
           padding:const EdgeInsets.symmetric(horizontal:6,vertical:3),
           decoration:BoxDecoration(color:Colors.deepOrange.withValues(alpha: .9),borderRadius:BorderRadius.circular(8)),
           child:Text("🔥 $dealLbl",style:const TextStyle(color:Colors.white,fontSize:9,fontWeight:FontWeight.w800)),
@@ -430,18 +431,18 @@ class _GridStoreCardState extends State<GridStoreCard> {
                 const SizedBox(width:4),
               ],
               if(category.isNotEmpty) Container(
-                margin:const EdgeInsets.only(right:4),
+                margin:const EdgeInsetsDirectional.only(end:4),
                 padding:const EdgeInsets.symmetric(horizontal:5,vertical:2),
                 decoration:BoxDecoration(color:kPrimary.withValues(alpha: .80),borderRadius:BorderRadius.circular(6)),
                 child:Text(category,style:const TextStyle(color:Colors.white,fontSize:8,fontWeight:FontWeight.w700)),
               ),
               if(distKm!=null) Container(
-                margin:const EdgeInsets.only(right:4),
+                margin:const EdgeInsetsDirectional.only(end:4),
                 padding:const EdgeInsets.symmetric(horizontal:5,vertical:2),
                 decoration:BoxDecoration(color:Colors.black45,borderRadius:BorderRadius.circular(6)),
                 child:Row(mainAxisSize:MainAxisSize.min,children:[
                   const Icon(Icons.near_me_rounded,color:Colors.white70,size:8),const SizedBox(width:2),
-                  Text(distKm<1?"${(distKm*1000).round()}m away":"${distKm.toStringAsFixed(1)}km away",
+                  Text(distKm<1?context.l10n.storeDistAwayM('${(distKm*1000).round()}'):context.l10n.storeDistAwayKm(distKm.toStringAsFixed(1)),
                     style:const TextStyle(color:Colors.white,fontSize:8,fontWeight:FontWeight.w700)),
                 ]),
               ),
@@ -533,12 +534,12 @@ class TopStoreCard extends StatelessWidget {
     final offerStr = (store["offer"] ?? "").toString();
     final hasDeal  = offerStr.isNotEmpty && ((store["deal_count"] ?? 0) as num) > 0;
     final discMatch = hasDeal ? RegExp(r'(\d+)%').firstMatch(offerStr) : null;
-    final dealLabel = discMatch != null ? "${discMatch.group(1)}% OFF" : (hasDeal ? "Deal" : "");
+    final dealLabel = discMatch != null ? context.l10n.storeDiscOff(discMatch.group(1)!) : (hasDeal ? context.l10n.storeDealWord : "");
     final imgSrc   = _resolveImg();
     final badgeLabel = _badgeLabel();
 
     // Open/close status — uses shared helper (same as NitHorizontalCard)
-    final _st        = _getStoreStatus(store);
+    final _st        = _getStoreStatus(context, store);
     final _closeTime = store["close_time"]?.toString() ?? "";
     final String _statusLabel = _st.label;
     final Color  _statusBg    = _st.isOpen == true
@@ -562,12 +563,12 @@ class TopStoreCard extends StatelessWidget {
         // ── Left image ──
         Stack(children: [
           ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(19)),
+            borderRadius: const BorderRadiusDirectional.horizontal(start: Radius.circular(19)),
             child: SizedBox(width: 100, height: 90, child: _buildImage(imgSrc, name)),
           ),
           // Deal badge over image
           if (dealLabel.isNotEmpty)
-            Positioned(top: 8, left: 8,
+            PositionedDirectional(top: 8, start: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
@@ -582,7 +583,7 @@ class TopStoreCard extends StatelessWidget {
         // ── Right info ──
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 11, 10, 11),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
               // Name + badge chip
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -597,7 +598,7 @@ class TopStoreCard extends StatelessWidget {
                       color: _badgeColor(badgeLabel),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(badgeLabel,
+                    child: Text(localizedTopCardBadge(context, badgeLabel),
                       style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
                   ),
                 ],
@@ -631,7 +632,7 @@ class TopStoreCard extends StatelessWidget {
                   const Icon(Icons.near_me_rounded, color: OffroColors.secondarySolid, size: 11),
                   const SizedBox(width: 2),
                   Text(
-                    distKm < 1 ? "${(distKm*1000).round()}m away" : "${distKm.toStringAsFixed(1)}km away",
+                    distKm < 1 ? context.l10n.storeDistAwayM('${(distKm*1000).round()}') : context.l10n.storeDistAwayKm(distKm.toStringAsFixed(1)),
                     style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w500)),
                 ],
                 const Spacer(),
@@ -644,7 +645,7 @@ class TopStoreCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
-                      Text(_statusLabel,
+                      Text(_st.isOpen == true ? context.l10n.storeOpenWord : context.l10n.storeClosedWord,
                         style: TextStyle(color: _statusTxt, fontSize: 10, fontWeight: FontWeight.w700)),
                       if (_statusSub.isNotEmpty)
                         Text(_statusSub,
@@ -657,7 +658,7 @@ class TopStoreCard extends StatelessWidget {
         ),
         // Chevron
         const Padding(
-          padding: EdgeInsets.only(right: 12, top: 35),
+          padding: EdgeInsetsDirectional.only(end: 12, top: 35),
           child: Icon(Icons.chevron_right_rounded, color: OffroColors.accent, size: 20),
         ),
       ]),

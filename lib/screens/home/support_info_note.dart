@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/design/design.dart';
+import '../../core/l10n/l10n.dart';
 
 /// Exact wording required for the profile screens.
 const String kProfileSupportNote =
@@ -38,7 +39,7 @@ class SupportInfoNote extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              kProfileSupportNote,
+              context.l10n.profileSupportNote,
               style: OffroText.caption.copyWith(
                 fontSize: 12, fontWeight: FontWeight.w500, height: 1.4, color: OffroColors.primary),
             ),

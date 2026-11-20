@@ -872,5 +872,1861 @@
   "@homeRefreshFailed": {
     "description": "Snackbar when the stores could not be refreshed",
     "x-screen": "home"
+  },
+  "profileFavourites": "My Favourites",
+  "@profileFavourites": {
+    "description": "Profile menu item",
+    "x-screen": "profile"
+  },
+  "profileFavouritesNote": "Stores you saved",
+  "@profileFavouritesNote": {
+    "description": "Profile menu note",
+    "x-screen": "profile"
+  },
+  "profileRewardsNote": "Reward points and vouchers",
+  "@profileRewardsNote": {
+    "description": "Profile menu note",
+    "x-screen": "profile"
+  },
+  "profileScanHistory": "Scan History",
+  "@profileScanHistory": {
+    "description": "Profile menu item and screen title",
+    "x-screen": "profile"
+  },
+  "profileScanHistoryNote": "Points earned at stores",
+  "@profileScanHistoryNote": {
+    "description": "Profile menu note",
+    "x-screen": "profile"
+  },
+  "profileNotifications": "Notifications",
+  "@profileNotifications": {
+    "description": "Profile menu item and screen title",
+    "x-screen": "profile"
+  },
+  "profileNotificationsNote": "Offers, rewards and account updates",
+  "@profileNotificationsNote": {
+    "description": "Profile menu note",
+    "x-screen": "profile"
+  },
+  "profileSwitchMode": "Switch Mode",
+  "@profileSwitchMode": {
+    "description": "Profile menu item",
+    "x-screen": "profile"
+  },
+  "profileSwitchModeNote": "Switch between User & Merchant",
+  "@profileSwitchModeNote": {
+    "description": "Profile menu note",
+    "x-screen": "profile"
+  },
+  "profileContact": "Contact Offro",
+  "@profileContact": {
+    "description": "Profile menu item",
+    "x-screen": "profile"
+  },
+  "profileContactNote": "Chat with us on WhatsApp",
+  "@profileContactNote": {
+    "description": "Profile menu note",
+    "x-screen": "profile"
+  },
+  "profileAboutUs": "About Us",
+  "@profileAboutUs": {
+    "description": "Profile menu item and dialog title",
+    "x-screen": "profile"
+  },
+  "profileAboutFallback": "Offro connects local stores with customers through deals and loyalty points.",
+  "@profileAboutFallback": {
+    "description": "About dialog text shown when the admin has not set one",
+    "x-screen": "profile"
+  },
+  "profileTerms": "Terms & Conditions",
+  "@profileTerms": {
+    "description": "Profile menu item and dialog title",
+    "x-screen": "profile"
+  },
+  "profilePrivacy": "Privacy Policy",
+  "@profilePrivacy": {
+    "description": "Profile menu item",
+    "x-screen": "profile"
+  },
+  "profilePrivacyNote": "Includes delete account",
+  "@profilePrivacyNote": {
+    "description": "Profile menu note",
+    "x-screen": "profile"
+  },
+  "profileRefund": "Refund Policy",
+  "@profileRefund": {
+    "description": "Profile menu item and dialog title",
+    "x-screen": "profile"
+  },
+  "profileLogout": "Logout",
+  "@profileLogout": {
+    "description": "Profile menu item",
+    "x-screen": "profile"
+  },
+  "commonCancel": "Cancel",
+  "@commonCancel": {
+    "description": "Generic button",
+    "x-screen": "common"
+  },
+  "commonClose": "Close",
+  "@commonClose": {
+    "description": "Generic button",
+    "x-screen": "common"
+  },
+  "commonAll": "All",
+  "@commonAll": {
+    "description": "Filter chip: everything",
+    "x-screen": "common"
+  },
+  "notifClearTitle": "Clear All Notifications?",
+  "@notifClearTitle": {
+    "description": "Dialog title",
+    "x-screen": "notif"
+  },
+  "notifClearBody": "This will permanently remove all your notifications.",
+  "@notifClearBody": {
+    "description": "Dialog text",
+    "x-screen": "notif"
+  },
+  "notifClearAll": "Clear All",
+  "@notifClearAll": {
+    "description": "Button",
+    "x-screen": "notif"
+  },
+  "notifEmptyTitle": "No notifications yet",
+  "@notifEmptyTitle": {
+    "description": "Empty state title",
+    "x-screen": "notif"
+  },
+  "notifEmptyBody": "You'll see deals and alerts here",
+  "@notifEmptyBody": {
+    "description": "Empty state text",
+    "x-screen": "notif"
+  },
+  "timeAgoJustNow": "just now",
+  "@timeAgoJustNow": {
+    "description": "Relative time",
+    "x-screen": "notif"
+  },
+  "timeAgoMinutes": "{n}m ago",
+  "@timeAgoMinutes": {
+    "description": "Relative time; {n} is a number of minutes",
+    "x-screen": "notif",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "timeAgoHours": "{n}h ago",
+  "@timeAgoHours": {
+    "description": "Relative time; {n} is a number of hours",
+    "x-screen": "notif",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "timeAgoDays": "{n}d ago",
+  "@timeAgoDays": {
+    "description": "Relative time; {n} is a number of days",
+    "x-screen": "notif",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "timeAgoWeeks": "{n}w ago",
+  "@timeAgoWeeks": {
+    "description": "Relative time; {n} is a number of weeks",
+    "x-screen": "notif",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "searchStoresIn": "Search stores in {city}...",
+  "@searchStoresIn": {
+    "description": "Search field hint; {city} is the city name",
+    "x-screen": "search",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNoResults": "No results for '{q}'",
+  "@searchNoResults": {
+    "description": "Empty state; {q} is what the user typed",
+    "x-screen": "search",
+    "placeholders": {
+      "q": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNoResultsDq": "No results for \"{q}\"",
+  "@searchNoResultsDq": {
+    "description": "Empty state; {q} is what the user typed",
+    "x-screen": "search",
+    "placeholders": {
+      "q": {
+        "type": "String"
+      }
+    }
+  },
+  "searchNoStores": "No stores yet",
+  "@searchNoStores": {
+    "description": "Empty state",
+    "x-screen": "search"
+  },
+  "searchStoreAreaOffer": "Search store, area, offer...",
+  "@searchStoreAreaOffer": {
+    "description": "Search field hint",
+    "x-screen": "search"
+  },
+  "catSearchStores": "Search {category} stores...",
+  "@catSearchStores": {
+    "description": "Search field hint; {category} is a category name",
+    "x-screen": "categories",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "catNoStoresFound": "No {category} stores found",
+  "@catNoStoresFound": {
+    "description": "Empty state; {category} is a category name",
+    "x-screen": "categories",
+    "placeholders": {
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "catFoundButNone": "Found {count} store(s) in this city, but none matched \"{category}\".",
+  "@catFoundButNone": {
+    "description": "Empty state detail; {count} is a number, {category} a category name",
+    "x-screen": "categories",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "catCategoriesFound": "Categories found: {list}",
+  "@catCategoriesFound": {
+    "description": "Empty state detail; {list} is a comma separated list",
+    "x-screen": "categories",
+    "placeholders": {
+      "list": {
+        "type": "String"
+      }
+    }
+  },
+  "catCategoriesTitle": "Categories",
+  "@catCategoriesTitle": {
+    "description": "Screen title",
+    "x-screen": "categories"
+  },
+  "catSearchCategories": "Search categories...",
+  "@catSearchCategories": {
+    "description": "Search field hint",
+    "x-screen": "categories"
+  },
+  "catNoCategories": "No categories found",
+  "@catNoCategories": {
+    "description": "Empty state",
+    "x-screen": "categories"
+  },
+  "catAllCategories": "All categories",
+  "@catAllCategories": {
+    "description": "Screen title",
+    "x-screen": "categories"
+  },
+  "dealsEndingSoon": "Ending soon",
+  "@dealsEndingSoon": {
+    "description": "Filter chip",
+    "x-screen": "deals"
+  },
+  "dealExpired": "Expired",
+  "@dealExpired": {
+    "description": "Deal status",
+    "x-screen": "deals"
+  },
+  "dealEndsInOneDay": "Ends in 1 day",
+  "@dealEndsInOneDay": {
+    "description": "Deal status",
+    "x-screen": "deals"
+  },
+  "dealEndsInDays": "Ends in {days} days",
+  "@dealEndsInDays": {
+    "description": "Deal status; {days} is a number",
+    "x-screen": "deals",
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "dealLocalBadge": "LOCAL DEAL",
+  "@dealLocalBadge": {
+    "description": "Deal card badge when the deal has no category",
+    "x-screen": "deals"
+  },
+  "dealAvailableInStore": "AVAILABLE IN STORE",
+  "@dealAvailableInStore": {
+    "description": "Deal card footer",
+    "x-screen": "deals"
+  },
+  "dealsEyebrow": "Fresh around you",
+  "@dealsEyebrow": {
+    "description": "Screen header: small label",
+    "x-screen": "deals"
+  },
+  "dealsTitle": "Local deals",
+  "@dealsTitle": {
+    "description": "Screen header title",
+    "x-screen": "deals"
+  },
+  "dealsSubtitleCity": "Member-only prices and limited offers from verified businesses in {city}.",
+  "@dealsSubtitleCity": {
+    "description": "Screen header subtitle; {city} is the city",
+    "x-screen": "deals",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "dealsSubtitleNearby": "Member-only prices and limited offers from verified businesses nearby.",
+  "@dealsSubtitleNearby": {
+    "description": "Screen header subtitle",
+    "x-screen": "deals"
+  },
+  "dealsSearch": "Search deals, stores or areas",
+  "@dealsSearch": {
+    "description": "Search field hint",
+    "x-screen": "deals"
+  },
+  "dealsThisWeek": "THIS WEEK",
+  "@dealsThisWeek": {
+    "description": "Count banner label",
+    "x-screen": "deals"
+  },
+  "dealsNoneActive": "No active deals right now",
+  "@dealsNoneActive": {
+    "description": "Empty state",
+    "x-screen": "deals"
+  },
+  "dealsNoMatch": "No deals match your search",
+  "@dealsNoMatch": {
+    "description": "Empty state when a search has no match",
+    "x-screen": "deals"
+  },
+  "areasTitle": "All Areas",
+  "@areasTitle": {
+    "description": "Screen title",
+    "x-screen": "areas"
+  },
+  "areasSearch": "Search areas...",
+  "@areasSearch": {
+    "description": "Search field hint",
+    "x-screen": "areas"
+  },
+  "areasNone": "No areas available",
+  "@areasNone": {
+    "description": "Empty state",
+    "x-screen": "areas"
+  },
+  "areaSearchIn": "Search in {area}...",
+  "@areaSearchIn": {
+    "description": "Search field hint; {area} is the area name",
+    "x-screen": "areas",
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "areaStoresOne": "1 store in {area}",
+  "@areaStoresOne": {
+    "description": "Count line, exactly one store; {area} is the area name",
+    "x-screen": "areas",
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "areaStoresMany": "{count} stores in {area}",
+  "@areaStoresMany": {
+    "description": "Count line; {count} is a number, {area} the area name",
+    "x-screen": "areas",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "areaNoStores": "No stores found",
+  "@areaNoStores": {
+    "description": "Empty state",
+    "x-screen": "areas"
+  },
+  "storeSeeAllStores": "See All\nStores",
+  "@storeSeeAllStores": {
+    "description": "Last card of a store carousel (two lines)",
+    "x-screen": "areas"
+  },
+  "unitMeter": "m",
+  "@unitMeter": {
+    "description": "Distance unit: metres",
+    "x-screen": "common"
+  },
+  "unitKm": "km",
+  "@unitKm": {
+    "description": "Distance unit: kilometres",
+    "x-screen": "common"
+  },
+  "ptsOnVisit": "{points} pts on visit",
+  "@ptsOnVisit": {
+    "description": "Store card: points earned per visit; {points} is a number",
+    "x-screen": "search",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "storeOpenNowCaps": "Open Now",
+  "@storeOpenNowCaps": {
+    "description": "Store card status pill",
+    "x-screen": "store"
+  },
+  "badgeNewStore": "NEW STORE",
+  "@badgeNewStore": {
+    "description": "Store badge",
+    "x-screen": "store"
+  },
+  "offSuffix": "{amount} off",
+  "@offSuffix": {
+    "description": "Discount badge; {amount} is the amount such as 20%",
+    "x-screen": "product",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "prodTitleFallback": "Product",
+  "@prodTitleFallback": {
+    "description": "Name shown when a product has no title",
+    "x-screen": "product"
+  },
+  "prodListedBy": "Listed by",
+  "@prodListedBy": {
+    "description": "Product page: small label above the store name",
+    "x-screen": "product"
+  },
+  "prodViewStore": "View store",
+  "@prodViewStore": {
+    "description": "Product page: link to the store",
+    "x-screen": "product"
+  },
+  "prodStoreInactive": "Store Currently Inactive",
+  "@prodStoreInactive": {
+    "description": "Product page: notice",
+    "x-screen": "product"
+  },
+  "prodDetails": "Product details",
+  "@prodDetails": {
+    "description": "Product page: section title",
+    "x-screen": "product"
+  },
+  "prodRateReview": "Rate & Review",
+  "@prodRateReview": {
+    "description": "Product page: section title",
+    "x-screen": "product"
+  },
+  "prodTapToRate": "Tap to rate",
+  "@prodTapToRate": {
+    "description": "Rating prompt",
+    "x-screen": "product"
+  },
+  "ratingPoor": "Poor",
+  "@ratingPoor": {
+    "description": "Star rating word",
+    "x-screen": "product"
+  },
+  "ratingFair": "Fair",
+  "@ratingFair": {
+    "description": "Star rating word",
+    "x-screen": "product"
+  },
+  "ratingGood": "Good",
+  "@ratingGood": {
+    "description": "Star rating word",
+    "x-screen": "product"
+  },
+  "ratingGreat": "Great",
+  "@ratingGreat": {
+    "description": "Star rating word",
+    "x-screen": "product"
+  },
+  "ratingExcellent": "Excellent",
+  "@ratingExcellent": {
+    "description": "Star rating word",
+    "x-screen": "product"
+  },
+  "prodShareExperience": "Share your experience with this product...",
+  "@prodShareExperience": {
+    "description": "Review field hint",
+    "x-screen": "product"
+  },
+  "prodSubmitReview": "Submit Review",
+  "@prodSubmitReview": {
+    "description": "Button",
+    "x-screen": "product"
+  },
+  "prodThanksReview": "Thanks for your review!",
+  "@prodThanksReview": {
+    "description": "Message after a review was sent",
+    "x-screen": "product"
+  },
+  "reviewLoginRequired": "Please log in to submit a review.",
+  "@reviewLoginRequired": {
+    "description": "Snackbar",
+    "x-screen": "product"
+  },
+  "reviewSubmitted": "Review submitted! Thank you.",
+  "@reviewSubmitted": {
+    "description": "Snackbar",
+    "x-screen": "product"
+  },
+  "reviewSessionExpired": "Your session has expired. Please log in again to submit a review.",
+  "@reviewSessionExpired": {
+    "description": "Snackbar",
+    "x-screen": "product"
+  },
+  "prodAllProducts": "All products",
+  "@prodAllProducts": {
+    "description": "Screen title",
+    "x-screen": "product"
+  },
+  "prodNoProducts": "No products found",
+  "@prodNoProducts": {
+    "description": "Empty state",
+    "x-screen": "product"
+  },
+  "prodSearch": "Search products...",
+  "@prodSearch": {
+    "description": "Search field hint",
+    "x-screen": "product"
+  },
+  "prodSeller": "Seller: {name}",
+  "@prodSeller": {
+    "description": "Product card line; {name} is the store name",
+    "x-screen": "product",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "prodBestSeller": "BEST SELLER",
+  "@prodBestSeller": {
+    "description": "Product card badge",
+    "x-screen": "product"
+  },
+  "monthJan": "Jan",
+  "@monthJan": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthFeb": "Feb",
+  "@monthFeb": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthMar": "Mar",
+  "@monthMar": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthApr": "Apr",
+  "@monthApr": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthMay": "May",
+  "@monthMay": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthJun": "Jun",
+  "@monthJun": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthJul": "Jul",
+  "@monthJul": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthAug": "Aug",
+  "@monthAug": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthSep": "Sep",
+  "@monthSep": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthOct": "Oct",
+  "@monthOct": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthNov": "Nov",
+  "@monthNov": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "monthDec": "Dec",
+  "@monthDec": {
+    "description": "Month name used in short dates",
+    "x-screen": "common"
+  },
+  "errGeneric": "Something went wrong. Please try again.",
+  "@errGeneric": {
+    "description": "Generic error message",
+    "x-screen": "error"
+  },
+  "errConnect": "We couldn't connect to OffrO right now. Please check your internet connection and try again.",
+  "@errConnect": {
+    "description": "Error: no connection",
+    "x-screen": "error"
+  },
+  "errTimeout": "OffrO is taking too long to respond. Please try again in a moment.",
+  "@errTimeout": {
+    "description": "Error: timeout",
+    "x-screen": "error"
+  },
+  "errUnavailable": "OffrO is temporarily unavailable. Please try again in a moment.",
+  "@errUnavailable": {
+    "description": "Error: server problem",
+    "x-screen": "error"
+  },
+  "errSession": "Your session has expired. Please log in again.",
+  "@errSession": {
+    "description": "Error: login expired",
+    "x-screen": "error"
+  },
+  "errApiNetwork": "Network error. Please check your connection and try again.",
+  "@errApiNetwork": {
+    "description": "Error text produced by the app's API layer",
+    "x-screen": "error"
+  },
+  "errApiUnexpected": "Unexpected response from server.",
+  "@errApiUnexpected": {
+    "description": "Error text produced by the app's API layer",
+    "x-screen": "error"
+  },
+  "profileGuestName": "Guest",
+  "@profileGuestName": {
+    "description": "Name shown on the identity card for a guest",
+    "x-screen": "profile"
+  },
+  "profileSupportNote": "Need to update your profile? Contact support, we will help you right away.",
+  "@profileSupportNote": {
+    "description": "Note below the identity card",
+    "x-screen": "profile"
+  },
+  "favEyebrow": "Saved for later",
+  "@favEyebrow": {
+    "description": "Screen header eyebrow",
+    "x-screen": "favourites"
+  },
+  "favPlacesOne": "1 place you love, all in one spot.",
+  "@favPlacesOne": {
+    "description": "Header description, exactly one favourite",
+    "x-screen": "favourites"
+  },
+  "favPlacesMany": "{count} places you love, all in one spot.",
+  "@favPlacesMany": {
+    "description": "Header description; {count} is a number",
+    "x-screen": "favourites",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "favEmptyTitle": "No favourites yet",
+  "@favEmptyTitle": {
+    "description": "Empty state title",
+    "x-screen": "favourites"
+  },
+  "favEmptyBody": "Tap the heart on any store to save it here",
+  "@favEmptyBody": {
+    "description": "Empty state body",
+    "x-screen": "favourites"
+  },
+  "qrTitle": "Scan Store QR",
+  "@qrTitle": {
+    "description": "Scanner screen title",
+    "x-screen": "qr"
+  },
+  "qrInvalid": "❌ Invalid QR",
+  "@qrInvalid": {
+    "description": "Snackbar when the scanned code is not a store code",
+    "x-screen": "qr"
+  },
+  "qrPointsAdded": "Points Added!",
+  "@qrPointsAdded": {
+    "description": "Dialog title after a successful scan",
+    "x-screen": "qr"
+  },
+  "qrDone": "Done!",
+  "@qrDone": {
+    "description": "Fallback message when the server sends none",
+    "x-screen": "qr"
+  },
+  "qrRefreshedNote": "🔐 Store QR has been refreshed for security.",
+  "@qrRefreshedNote": {
+    "description": "Dialog note below the server message",
+    "x-screen": "qr"
+  },
+  "qrGreat": "Great!",
+  "@qrGreat": {
+    "description": "Dialog button",
+    "x-screen": "qr"
+  },
+  "qrPointAt": "Point at store QR code",
+  "@qrPointAt": {
+    "description": "Scanner hint",
+    "x-screen": "qr"
+  },
+  "exploreYourCity": "your city",
+  "@exploreYourCity": {
+    "description": "Fallback when the city is unknown",
+    "x-screen": "explore"
+  },
+  "exploreDiscover": "Discover {city}",
+  "@exploreDiscover": {
+    "description": "Eyebrow; {city} is the city name",
+    "x-screen": "explore",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreTitle": "Explore nearby",
+  "@exploreTitle": {
+    "description": "Screen title",
+    "x-screen": "explore"
+  },
+  "exploreDesc": "Find independent businesses, useful services and local favourites around you.",
+  "@exploreDesc": {
+    "description": "Screen description",
+    "x-screen": "explore"
+  },
+  "exploreSearchHint": "Search stores, categories or areas",
+  "@exploreSearchHint": {
+    "description": "Search field hint",
+    "x-screen": "explore"
+  },
+  "exploreSearchNote": "Searches business names, store categories and neighbourhoods.",
+  "@exploreSearchNote": {
+    "description": "Small note below the search field",
+    "x-screen": "explore"
+  },
+  "exploreByArea": "Explore by area",
+  "@exploreByArea": {
+    "description": "Section eyebrow",
+    "x-screen": "explore"
+  },
+  "exploreNeighbourhoodsIn": "Neighbourhoods in {city}",
+  "@exploreNeighbourhoodsIn": {
+    "description": "Section title; {city} is the city name",
+    "x-screen": "explore",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreAroundYou": "Around you",
+  "@exploreAroundYou": {
+    "description": "Results eyebrow",
+    "x-screen": "explore"
+  },
+  "exploreNeighbourhood": "Neighbourhood",
+  "@exploreNeighbourhood": {
+    "description": "Results eyebrow when an area is selected",
+    "x-screen": "explore"
+  },
+  "explorePlacesOne": "1 place nearby",
+  "@explorePlacesOne": {
+    "description": "Results title, exactly one place",
+    "x-screen": "explore"
+  },
+  "explorePlacesMany": "{count} places nearby",
+  "@explorePlacesMany": {
+    "description": "Results title; {count} is a number",
+    "x-screen": "explore",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreStoresInArea": "Stores in {area}",
+  "@exploreStoresInArea": {
+    "description": "Results title when an area is selected; {area} is the area name",
+    "x-screen": "explore",
+    "placeholders": {
+      "area": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreNoMatchTitle": "No matching stores yet",
+  "@exploreNoMatchTitle": {
+    "description": "Empty state title",
+    "x-screen": "explore"
+  },
+  "exploreNoMatchBody": "Try another business name, category or neighbourhood.",
+  "@exploreNoMatchBody": {
+    "description": "Empty state body",
+    "x-screen": "explore"
+  },
+  "exploreOffer": "Offer · {offer}",
+  "@exploreOffer": {
+    "description": "Store card offer line; {offer} is the offer text",
+    "x-screen": "explore",
+    "placeholders": {
+      "offer": {
+        "type": "String"
+      }
+    }
+  },
+  "exploreStoreOne": "1 store",
+  "@exploreStoreOne": {
+    "description": "Area card count, exactly one",
+    "x-screen": "explore"
+  },
+  "exploreStoreMany": "{count} stores",
+  "@exploreStoreMany": {
+    "description": "Area card count; {count} is a number",
+    "x-screen": "explore",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "walletDone": "Done",
+  "@walletDone": {
+    "description": "Snackbar fallback after redeeming when the server sends no message",
+    "x-screen": "wallet"
+  },
+  "walletBadge": "REWARD POINTS",
+  "@walletBadge": {
+    "description": "Balance card badge",
+    "x-screen": "wallet"
+  },
+  "walletBalance": "Available balance",
+  "@walletBalance": {
+    "description": "Balance card label",
+    "x-screen": "wallet"
+  },
+  "walletPointsWord": "points",
+  "@walletPointsWord": {
+    "description": "Word shown after the balance number",
+    "x-screen": "wallet"
+  },
+  "walletRedeem": "Redeem",
+  "@walletRedeem": {
+    "description": "Button",
+    "x-screen": "wallet"
+  },
+  "walletVoucherRate": "{points} pts = ₹20 voucher",
+  "@walletVoucherRate": {
+    "description": "Balance card footnote; {points} is a number",
+    "x-screen": "wallet",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "walletReadyToRedeem": "Ready to redeem",
+  "@walletReadyToRedeem": {
+    "description": "Balance card status",
+    "x-screen": "wallet"
+  },
+  "walletToGo": "{points} pts to go",
+  "@walletToGo": {
+    "description": "Balance card status; {points} is a number",
+    "x-screen": "wallet",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "walletPtsOnly": "{points} pts",
+  "@walletPtsOnly": {
+    "description": "Voucher card cost; {points} is a number",
+    "x-screen": "wallet",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "walletVoucherDesc": "Promotional gift voucher · Amazon or Flipkart",
+  "@walletVoucherDesc": {
+    "description": "Voucher card description",
+    "x-screen": "wallet"
+  },
+  "walletEarnMore": "Earn {points} more points",
+  "@walletEarnMore": {
+    "description": "Disabled redeem button; {points} is a number",
+    "x-screen": "wallet",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "walletHowTitle": "How rewards work",
+  "@walletHowTitle": {
+    "description": "Card title",
+    "x-screen": "wallet"
+  },
+  "walletHowLine1": "Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher.",
+  "@walletHowLine1": {
+    "description": "Rewards rule",
+    "x-screen": "wallet"
+  },
+  "walletHowLine2": "Gift voucher delivery: 3-5 business days.",
+  "@walletHowLine2": {
+    "description": "Rewards rule",
+    "x-screen": "wallet"
+  },
+  "walletHowLine3": "Reward points never expire.",
+  "@walletHowLine3": {
+    "description": "Rewards rule",
+    "x-screen": "wallet"
+  },
+  "walletHowDisclaimer": "Reward points are promotional loyalty points. They cannot be purchased, transferred, or exchanged for cash.",
+  "@walletHowDisclaimer": {
+    "description": "Rewards disclaimer",
+    "x-screen": "wallet"
+  },
+  "walletRecent": "Recent activity",
+  "@walletRecent": {
+    "description": "Section title",
+    "x-screen": "wallet"
+  },
+  "walletNoScansHint": "No scans yet — points you earn at stores will show up here.",
+  "@walletNoScansHint": {
+    "description": "Empty state",
+    "x-screen": "wallet"
+  },
+  "walletEarnedOn": "Earned · {date}",
+  "@walletEarnedOn": {
+    "description": "Activity row; {date} is a formatted date",
+    "x-screen": "wallet",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "walletEyebrow": "Your local loyalty",
+  "@walletEyebrow": {
+    "description": "Screen eyebrow",
+    "x-screen": "wallet"
+  },
+  "walletTitle": "Rewards",
+  "@walletTitle": {
+    "description": "Screen title",
+    "x-screen": "wallet"
+  },
+  "walletDesc": "Every local purchase gets you closer to something good.",
+  "@walletDesc": {
+    "description": "Screen description",
+    "x-screen": "wallet"
+  },
+  "walletVouchersEyebrow": "Ready to use",
+  "@walletVouchersEyebrow": {
+    "description": "Section eyebrow",
+    "x-screen": "wallet"
+  },
+  "walletVouchersTitle": "Your vouchers",
+  "@walletVouchersTitle": {
+    "description": "Section title",
+    "x-screen": "wallet"
+  },
+  "walletViewHistory": "View history",
+  "@walletViewHistory": {
+    "description": "Section action",
+    "x-screen": "wallet"
+  },
+  "scanHistoryTitle": "Scan History",
+  "@scanHistoryTitle": {
+    "description": "Scan history screen title",
+    "x-screen": "wallet"
+  },
+  "scanHistoryEmpty": "No scans yet",
+  "@scanHistoryEmpty": {
+    "description": "Scan history empty state",
+    "x-screen": "wallet"
+  },
+  "walletPtsPlus": "+{points} pts",
+  "@walletPtsPlus": {
+    "description": "Scan history points chip; {points} is a number",
+    "x-screen": "wallet",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "storeTabAbout": "About",
+  "@storeTabAbout": {
+    "description": "Store page tab",
+    "x-screen": "store"
+  },
+  "storeTabProducts": "Products",
+  "@storeTabProducts": {
+    "description": "Store page tab",
+    "x-screen": "store"
+  },
+  "storeTabReviews": "Reviews",
+  "@storeTabReviews": {
+    "description": "Store page tab",
+    "x-screen": "store"
+  },
+  "storeTabRewards": "Rewards",
+  "@storeTabRewards": {
+    "description": "Store page tab",
+    "x-screen": "store"
+  },
+  "storeScanEarn": "Scan & Earn {points} pts",
+  "@storeScanEarn": {
+    "description": "Bottom bar button; {points} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "storeScanCardTitle": "Scan the store QR",
+  "@storeScanCardTitle": {
+    "description": "Scan card title",
+    "x-screen": "store"
+  },
+  "storeScanCardBody": "Verify your visit/purchase and earn {points} reward points.",
+  "@storeScanCardBody": {
+    "description": "Scan card body; {points} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "storeScanQr": "Scan QR",
+  "@storeScanQr": {
+    "description": "Scan card button",
+    "x-screen": "store"
+  },
+  "storeRewardsSoon": "Rewards coming soon",
+  "@storeRewardsSoon": {
+    "description": "Rewards tab empty state",
+    "x-screen": "store"
+  },
+  "storeEarnPointsTitle": "Earn Reward Points",
+  "@storeEarnPointsTitle": {
+    "description": "Rewards card title",
+    "x-screen": "store"
+  },
+  "storeEarnPointsBody": "Scan QR after purchase to earn {points} pts",
+  "@storeEarnPointsBody": {
+    "description": "Rewards card body; {points} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "storeYourPoints": "Your Points: {points}",
+  "@storeYourPoints": {
+    "description": "Rewards card; {points} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      }
+    }
+  },
+  "storeShowLess": "Show less",
+  "@storeShowLess": {
+    "description": "About section toggle",
+    "x-screen": "store"
+  },
+  "storeReadMore": "Read more →",
+  "@storeReadMore": {
+    "description": "About section toggle",
+    "x-screen": "store"
+  },
+  "storeOpenWord": "Open",
+  "@storeOpenWord": {
+    "description": "Opening-hours status",
+    "x-screen": "store"
+  },
+  "storeClosedWord": "Closed",
+  "@storeClosedWord": {
+    "description": "Opening-hours status",
+    "x-screen": "store"
+  },
+  "storeCostForTwo": "₹{amount} for two",
+  "@storeCostForTwo": {
+    "description": "About row; {amount} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
+  "storeDineIn": "Dine-in available",
+  "@storeDineIn": {
+    "description": "About row",
+    "x-screen": "store"
+  },
+  "storeChipTrending": "Trending",
+  "@storeChipTrending": {
+    "description": "Highlight chip",
+    "x-screen": "store"
+  },
+  "storeChipJustOpened": "Just Opened",
+  "@storeChipJustOpened": {
+    "description": "Highlight chip",
+    "x-screen": "store"
+  },
+  "storeChipPopular": "Popular",
+  "@storeChipPopular": {
+    "description": "Highlight chip",
+    "x-screen": "store"
+  },
+  "storeOfferPct": "Offer · {pct}% off",
+  "@storeOfferPct": {
+    "description": "Offer pill on the store photo; {pct} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "storeCall": "Call",
+  "@storeCall": {
+    "description": "Action button",
+    "x-screen": "store"
+  },
+  "storeWhatsApp": "WhatsApp",
+  "@storeWhatsApp": {
+    "description": "Action button",
+    "x-screen": "store"
+  },
+  "storeDirections": "Directions",
+  "@storeDirections": {
+    "description": "Action button",
+    "x-screen": "store"
+  },
+  "storeExclusiveOne": "Exclusive on OffrO · 1 deal",
+  "@storeExclusiveOne": {
+    "description": "Offers eyebrow, exactly one deal",
+    "x-screen": "store"
+  },
+  "storeExclusiveMany": "Exclusive on OffrO · {count} deals",
+  "@storeExclusiveMany": {
+    "description": "Offers eyebrow; {count} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "storeExclusive": "Exclusive on OffrO",
+  "@storeExclusive": {
+    "description": "Offers eyebrow",
+    "x-screen": "store"
+  },
+  "storeDealsFromStore": "Deals from this store",
+  "@storeDealsFromStore": {
+    "description": "Offers section title",
+    "x-screen": "store"
+  },
+  "storeOffersSoon": "Offers coming soon",
+  "@storeOffersSoon": {
+    "description": "Offers empty state",
+    "x-screen": "store"
+  },
+  "storeDiscOff": "{pct}% OFF",
+  "@storeDiscOff": {
+    "description": "Deal chip; {pct} is a number",
+    "x-screen": "store",
+    "placeholders": {
+      "pct": {
+        "type": "String"
+      }
+    }
+  },
+  "storeOffWord": "OFF",
+  "@storeOffWord": {
+    "description": "Deal card big discount label",
+    "x-screen": "store"
+  },
+  "prodsAvailableEyebrow": "PRODUCTS AVAILABLE AT THIS STORE",
+  "@prodsAvailableEyebrow": {
+    "description": "Products tab eyebrow",
+    "x-screen": "store"
+  },
+  "prodsFeatured": "Featured Products",
+  "@prodsFeatured": {
+    "description": "Products tab title",
+    "x-screen": "store"
+  },
+  "prodsTip": "Tip: Long-press a product image to view details and leave a review.",
+  "@prodsTip": {
+    "description": "Snackbar tip",
+    "x-screen": "store"
+  },
+  "prodRatingSubmitFailed": "Couldn't submit rating: {error}",
+  "@prodRatingSubmitFailed": {
+    "description": "Snackbar; {error} is the error text",
+    "x-screen": "store",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "prodValidTill": "Valid till {date}",
+  "@prodValidTill": {
+    "description": "Product sheet; {date} is the validity date text",
+    "x-screen": "store",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "prodYourRating": "Your Rating",
+  "@prodYourRating": {
+    "description": "Product sheet heading after rating",
+    "x-screen": "store"
+  },
+  "prodRateThis": "Rate this Product",
+  "@prodRateThis": {
+    "description": "Product sheet heading",
+    "x-screen": "store"
+  },
+  "prodReviewHint": "Write a short review (optional)",
+  "@prodReviewHint": {
+    "description": "Product sheet field hint",
+    "x-screen": "store"
+  },
+  "prodSubmitRating": "Submit Rating",
+  "@prodSubmitRating": {
+    "description": "Product sheet button",
+    "x-screen": "store"
+  },
+  "prodThanksRating": "Thanks for your rating! ⭐",
+  "@prodThanksRating": {
+    "description": "Product sheet message",
+    "x-screen": "store"
+  },
+  "prodGotIt": "Got it",
+  "@prodGotIt": {
+    "description": "Dialog button",
+    "x-screen": "store"
+  },
+  "revStoreNotFound": "Store not found. Cannot submit review.",
+  "@revStoreNotFound": {
+    "description": "Validation message",
+    "x-screen": "reviews"
+  },
+  "revSelectStar": "Please select a star rating",
+  "@revSelectStar": {
+    "description": "Validation message",
+    "x-screen": "reviews"
+  },
+  "revMin5": "Write at least 5 characters",
+  "@revMin5": {
+    "description": "Validation message",
+    "x-screen": "reviews"
+  },
+  "revSubmittedStar": "⭐ Review submitted! Thank you.",
+  "@revSubmittedStar": {
+    "description": "Snackbar",
+    "x-screen": "reviews"
+  },
+  "revUnavailable": "Store information unavailable.",
+  "@revUnavailable": {
+    "description": "Message",
+    "x-screen": "reviews"
+  },
+  "revEyebrow": "WHAT CUSTOMERS ARE SAYING",
+  "@revEyebrow": {
+    "description": "Section eyebrow",
+    "x-screen": "reviews"
+  },
+  "revTitle": "Reviews",
+  "@revTitle": {
+    "description": "Section title",
+    "x-screen": "reviews"
+  },
+  "revCountOne": "(1 review)",
+  "@revCountOne": {
+    "description": "Count, exactly one",
+    "x-screen": "reviews"
+  },
+  "revCountMany": "({count} reviews)",
+  "@revCountMany": {
+    "description": "Count; {count} is a number",
+    "x-screen": "reviews",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "revNoneTitle": "No reviews yet",
+  "@revNoneTitle": {
+    "description": "Empty state title",
+    "x-screen": "reviews"
+  },
+  "revYourReview": "Your Review",
+  "@revYourReview": {
+    "description": "Card title",
+    "x-screen": "reviews"
+  },
+  "revEdit": "Edit",
+  "@revEdit": {
+    "description": "Button",
+    "x-screen": "reviews"
+  },
+  "revWrite": "Write a review…",
+  "@revWrite": {
+    "description": "Field hint",
+    "x-screen": "reviews"
+  },
+  "revShareExp": "Share your experience…",
+  "@revShareExp": {
+    "description": "Field hint",
+    "x-screen": "reviews"
+  },
+  "revSubmit": "Submit",
+  "@revSubmit": {
+    "description": "Button",
+    "x-screen": "reviews"
+  },
+  "revNoneDot": "No reviews yet.",
+  "@revNoneDot": {
+    "description": "Empty state",
+    "x-screen": "reviews"
+  },
+  "revBeFirst": "Be the first to review.",
+  "@revBeFirst": {
+    "description": "Empty state",
+    "x-screen": "reviews"
+  },
+  "revViewAll": "View all reviews →",
+  "@revViewAll": {
+    "description": "Link",
+    "x-screen": "reviews"
+  },
+  "revAllTitle": "All Reviews",
+  "@revAllTitle": {
+    "description": "Sheet title",
+    "x-screen": "reviews"
+  },
+  "revAnonymous": "Anonymous",
+  "@revAnonymous": {
+    "description": "Name shown when the reviewer has none",
+    "x-screen": "reviews"
+  },
+  "storeDealWord": "Deal",
+  "@storeDealWord": {
+    "description": "Small deal badge on a store card when there is no percentage",
+    "x-screen": "store"
+  },
+  "storeNewStoreTitle": "New Store",
+  "@storeNewStoreTitle": {
+    "description": "Store card badge",
+    "x-screen": "store"
+  },
+  "storeDistAwayM": "{n}m away",
+  "@storeDistAwayM": {
+    "description": "Store card distance; {n} is a number of metres",
+    "x-screen": "store",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "storeDistAwayKm": "{n}km away",
+  "@storeDistAwayKm": {
+    "description": "Store card distance; {n} is a number of kilometres",
+    "x-screen": "store",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "locGpsFailed": "Couldn't get a precise GPS fix. Move to an open area or check your signal.",
+  "@locGpsFailed": {
+    "description": "Error text under the location card",
+    "x-screen": "location"
+  },
+  "locCityUnknown": "Got your position but couldn't identify the city.",
+  "@locCityUnknown": {
+    "description": "Error text under the location card",
+    "x-screen": "location"
+  },
+  "locServicesOff": "Your device's location services are turned off. Please turn them on in settings.",
+  "@locServicesOff": {
+    "description": "Dialog message",
+    "x-screen": "location"
+  },
+  "locPermissionOff": "Location permission is turned off for OffrO. Please allow it in app settings.",
+  "@locPermissionOff": {
+    "description": "Dialog message",
+    "x-screen": "location"
+  },
+  "locPermissionDenied": "Location permission wasn't allowed. Tap the card to try again, or choose a city below.",
+  "@locPermissionDenied": {
+    "description": "Note under the location card",
+    "x-screen": "location"
+  },
+  "locNotDetected": "Location not detected",
+  "@locNotDetected": {
+    "description": "Dialog title",
+    "x-screen": "location"
+  },
+  "locGoToSettings": "Go to settings",
+  "@locGoToSettings": {
+    "description": "Dialog button",
+    "x-screen": "location"
+  },
+  "locCityUnsupportedTitle": "City not supported yet",
+  "@locCityUnsupportedTitle": {
+    "description": "Dialog title",
+    "x-screen": "location"
+  },
+  "locCityUnsupportedBody": "OffrO isn't available in {city} yet. Please choose another city from the list.",
+  "@locCityUnsupportedBody": {
+    "description": "Dialog body; {city} is a city name",
+    "x-screen": "location",
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "commonOk": "OK",
+  "@commonOk": {
+    "description": "Dialog button",
+    "x-screen": "common"
+  },
+  "locTitle": "Location",
+  "@locTitle": {
+    "description": "Screen title",
+    "x-screen": "location"
+  },
+  "locSearchHint": "Search city, area or locality",
+  "@locSearchHint": {
+    "description": "Search field hint",
+    "x-screen": "location"
+  },
+  "locCitiesLoadFailed": "Couldn't load cities. Check your connection and try again.",
+  "@locCitiesLoadFailed": {
+    "description": "Error text",
+    "x-screen": "location"
+  },
+  "locTryAgain": "Try again",
+  "@locTryAgain": {
+    "description": "Button",
+    "x-screen": "location"
+  },
+  "locPopularCities": "Popular cities",
+  "@locPopularCities": {
+    "description": "Section title",
+    "x-screen": "location"
+  },
+  "locAllCities": "All cities",
+  "@locAllCities": {
+    "description": "Section title",
+    "x-screen": "location"
+  },
+  "locCities": "Cities",
+  "@locCities": {
+    "description": "Search results heading",
+    "x-screen": "location"
+  },
+  "locAreas": "Areas",
+  "@locAreas": {
+    "description": "Search results heading",
+    "x-screen": "location"
+  },
+  "locNoMatch": "No matching places found.",
+  "@locNoMatch": {
+    "description": "Empty state",
+    "x-screen": "location"
+  },
+  "legalEyebrow": "Legal",
+  "@legalEyebrow": {
+    "description": "Header eyebrow",
+    "x-screen": "legal"
+  },
+  "legalPrivacyTitle": "Privacy Policy",
+  "@legalPrivacyTitle": {
+    "description": "Screen title",
+    "x-screen": "legal"
+  },
+  "legalPrivacyUpdating": "Privacy policy content is being updated. Please check back later.",
+  "@legalPrivacyUpdating": {
+    "description": "Shown when the policy text is empty",
+    "x-screen": "legal"
+  },
+  "legalReadLess": "Read Less",
+  "@legalReadLess": {
+    "description": "Toggle",
+    "x-screen": "legal"
+  },
+  "legalReadMore": "Read More",
+  "@legalReadMore": {
+    "description": "Toggle",
+    "x-screen": "legal"
+  },
+  "legalAccountCaps": "ACCOUNT",
+  "@legalAccountCaps": {
+    "description": "Section label",
+    "x-screen": "legal"
+  },
+  "legalDeleteRequest": "Request to delete my account",
+  "@legalDeleteRequest": {
+    "description": "Row title",
+    "x-screen": "legal"
+  },
+  "legalDeleteRequestNote": "All your data will be permanently removed",
+  "@legalDeleteRequestNote": {
+    "description": "Row note",
+    "x-screen": "legal"
+  },
+  "delReasonUnused": "I no longer use the app",
+  "@delReasonUnused": {
+    "description": "Reason option",
+    "x-screen": "delete"
+  },
+  "delReasonPrivacy": "I have privacy concerns",
+  "@delReasonPrivacy": {
+    "description": "Reason option",
+    "x-screen": "delete"
+  },
+  "delReasonDuplicate": "I have a duplicate account",
+  "@delReasonDuplicate": {
+    "description": "Reason option",
+    "x-screen": "delete"
+  },
+  "delReasonNoisy": "Too many notifications or irrelevant content",
+  "@delReasonNoisy": {
+    "description": "Reason option",
+    "x-screen": "delete"
+  },
+  "delReasonOther": "Other",
+  "@delReasonOther": {
+    "description": "Reason option",
+    "x-screen": "delete"
+  },
+  "delEyebrow": "Account",
+  "@delEyebrow": {
+    "description": "Header eyebrow",
+    "x-screen": "delete"
+  },
+  "delTitle": "Delete Account",
+  "@delTitle": {
+    "description": "Screen title",
+    "x-screen": "delete"
+  },
+  "delWarning": "Once your account is deleted, your data cannot be retrieved. Signing up again will create a new account.",
+  "@delWarning": {
+    "description": "Warning banner",
+    "x-screen": "delete"
+  },
+  "delSelectReason": "Select a reason for deleting your account",
+  "@delSelectReason": {
+    "description": "Label above the reasons",
+    "x-screen": "delete"
+  },
+  "delSubmit": "Submit Delete Request",
+  "@delSubmit": {
+    "description": "Button",
+    "x-screen": "delete"
+  },
+  "delConfirmTitle": "Delete Account?",
+  "@delConfirmTitle": {
+    "description": "Dialog title",
+    "x-screen": "delete"
+  },
+  "delConfirmBody": "Your account will be marked for deletion. You will be logged out immediately and cannot log in again.\n\nOnce deleted, your data cannot be retrieved. Are you absolutely sure?",
+  "@delConfirmBody": {
+    "description": "Dialog body",
+    "x-screen": "delete"
+  },
+  "delConfirmYes": "Yes, Delete",
+  "@delConfirmYes": {
+    "description": "Dialog button",
+    "x-screen": "delete"
+  },
+  "delRequestedTitle": "Deletion Requested",
+  "@delRequestedTitle": {
+    "description": "Dialog title",
+    "x-screen": "delete"
+  },
+  "delRequestedBody": "Your account deletion request has been submitted. You have been logged out.",
+  "@delRequestedBody": {
+    "description": "Dialog body",
+    "x-screen": "delete"
+  },
+  "delSubmitFailed": "Failed to submit: {error}",
+  "@delSubmitFailed": {
+    "description": "Snackbar; {error} is the error text",
+    "x-screen": "delete",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "loadStep1": "Locating your position...",
+  "@loadStep1": {
+    "description": "Loading screen step",
+    "x-screen": "loading"
+  },
+  "loadStep2": "Finding nearby deals...",
+  "@loadStep2": {
+    "description": "Loading screen step",
+    "x-screen": "loading"
+  },
+  "loadStep3": "Checking local stores...",
+  "@loadStep3": {
+    "description": "Loading screen step",
+    "x-screen": "loading"
+  },
+  "loadStep4": "Loading today's offers...",
+  "@loadStep4": {
+    "description": "Loading screen step",
+    "x-screen": "loading"
+  },
+  "catBrowseTitle": "Browse by Categories",
+  "@catBrowseTitle": {
+    "description": "Section title",
+    "x-screen": "categories"
+  },
+  "catView": "View",
+  "@catView": {
+    "description": "Tile label",
+    "x-screen": "categories"
+  },
+  "catPharmacy": "Pharmacy",
+  "@catPharmacy": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catFashion": "Fashion",
+  "@catFashion": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catBeauty": "Beauty",
+  "@catBeauty": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catElectronics": "Electronics",
+  "@catElectronics": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catEducation": "Education",
+  "@catEducation": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catHospital": "Hospital",
+  "@catHospital": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catCafe": "Cafe",
+  "@catCafe": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catFitness": "Fitness",
+  "@catFitness": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catJewelry": "Jewelry",
+  "@catJewelry": {
+    "description": "Category name",
+    "x-screen": "categories"
+  },
+  "catSubRestaurant": "500+ places",
+  "@catSubRestaurant": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubPharmacy": "Health essentials",
+  "@catSubPharmacy": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubFashion": "New arrivals",
+  "@catSubFashion": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubBeauty": "Skincare & more",
+  "@catSubBeauty": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubElectronics": "Trending gadgets",
+  "@catSubElectronics": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubEducation": "Learn & grow",
+  "@catSubEducation": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubHospital": "Healthcare near you",
+  "@catSubHospital": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubCafe": "Coffee & more",
+  "@catSubCafe": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubGrocery": "Fresh & daily",
+  "@catSubGrocery": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubFitness": "Stay strong",
+  "@catSubFitness": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubJewelry": "Precious finds",
+  "@catSubJewelry": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "catSubBakery": "Fresh baked daily",
+  "@catSubBakery": {
+    "description": "Category subtitle",
+    "x-screen": "categories"
+  },
+  "dealsActiveOne": "1 active deal for you",
+  "@dealsActiveOne": {
+    "description": "Deals header, exactly one deal",
+    "x-screen": "deals"
+  },
+  "dealsActiveMany": "{count} active deals for you",
+  "@dealsActiveMany": {
+    "description": "Deals header; {count} is a number",
+    "x-screen": "deals",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "areaCardStoreOne": "1 Store",
+  "@areaCardStoreOne": {
+    "description": "Area card count, exactly one",
+    "x-screen": "areas"
+  },
+  "areaCardStoreMany": "{count} Stores",
+  "@areaCardStoreMany": {
+    "description": "Area card count; {count} is a number",
+    "x-screen": "areas",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "storeDistAwaySpM": "{n} m away",
+  "@storeDistAwaySpM": {
+    "description": "Distance with a space; {n} is a number of metres",
+    "x-screen": "store",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "storeDistAwaySpKm": "{n} km away",
+  "@storeDistAwaySpKm": {
+    "description": "Distance with a space; {n} is a number of kilometres",
+    "x-screen": "store",
+    "placeholders": {
+      "n": {
+        "type": "String"
+      }
+    }
+  },
+  "prodSpecialOffer": "Special Offer",
+  "@prodSpecialOffer": {
+    "description": "Fallback offer title in the product dialog",
+    "x-screen": "product"
+  },
+  "prodDownload": "Download",
+  "@prodDownload": {
+    "description": "Product dialog button",
+    "x-screen": "product"
   }
 }
