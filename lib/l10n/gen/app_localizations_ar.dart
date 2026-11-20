@@ -2178,7 +2178,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bizPleaseSetTheStoreLocation =>
-      'يرجى تحديد موقع المتجر باستخدام "استخدام الموقع الحالي" أو رابط خرائط Google';
+      'يرجى تحديد موقع المتجر باستخدام \"استخدام الموقع الحالي\" أو رابط خرائط Google';
 
   @override
   String get bizMobileNumberIsRequired => 'رقم الجوال مطلوب';
@@ -3196,7 +3196,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizDeleteProductBody(String title) {
-    return 'سيتم حذف "$title" نهائيًا ولا يمكن إعادة تفعيله. لن يتم استرداد أي مبلغ تم دفعه لهذا المنتج.';
+    return 'سيتم حذف \"$title\" نهائيًا ولا يمكن إعادة تفعيله. لن يتم استرداد أي مبلغ تم دفعه لهذا المنتج.';
   }
 
   @override
@@ -3267,11 +3267,11 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bizSetStoreLocationFirst =>
-      'يرجى تحديد موقع المتجر باستخدام "استخدام الموقع الحالي" أو رابط خرائط Google قبل إنشاء المتجر.';
+      'يرجى تحديد موقع المتجر باستخدام \"استخدام الموقع الحالي\" أو رابط خرائط Google قبل إنشاء المتجر.';
 
   @override
   String get bizStoreLocationIncomplete =>
-      'يبدو موقع المتجر غير مكتمل. استخدم "استخدام الموقع الحالي" أو رابط خرائط Google لتحديد موقع صحيح.';
+      'يبدو موقع المتجر غير مكتمل. استخدم \"استخدام الموقع الحالي\" أو رابط خرائط Google لتحديد موقع صحيح.';
 
   @override
   String bizPaymentCancelledOrFailed(String error) {
@@ -3319,7 +3319,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizViewersVisitedStore(String pct) {
-    return 'زار $pct% من المشاهدين المتجر (ضغطوا على "البائع")';
+    return 'زار $pct% من المشاهدين المتجر (ضغطوا على \"البائع\")';
   }
 
   @override
@@ -3340,7 +3340,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizPurchasePendingNamed(String store) {
-    return 'عملية شرائك لـ "$store" بانتظار موافقة الإدارة.';
+    return 'عملية شرائك لـ \"$store\" بانتظار موافقة الإدارة.';
   }
 
   @override
@@ -3557,7 +3557,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizDeleteDealNamed(String title) {
-    return 'حذف "$title"؟';
+    return 'حذف \"$title\"؟';
   }
 
   @override

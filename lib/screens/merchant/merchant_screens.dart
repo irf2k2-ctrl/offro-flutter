@@ -1194,7 +1194,7 @@ class _AddBannerState extends State<AddBannerPage> {
   }
 
   static String _ctaId(Map<String,dynamic> m) => (m["_id"] ?? m["id"] ?? "").toString();
-  static String _ctaName(Map<String,dynamic> m, String type) {
+         String _ctaName(Map<String,dynamic> m, String type) {
     for (final k in const ["title", "deal_title", "name", "product_name", "voucher_name"]) {
       final v = (m[k] ?? "").toString().trim();
       if (v.isNotEmpty) return v;

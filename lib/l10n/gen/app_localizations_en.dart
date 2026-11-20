@@ -636,7 +636,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String searchNoResultsDq(String q) {
-    return 'No results for "$q"';
+    return 'No results for \"$q\"';
   }
 
   @override
@@ -657,7 +657,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String catFoundButNone(String count, String category) {
-    return 'Found $count store(s) in this city, but none matched "$category".';
+    return 'Found $count store(s) in this city, but none matched \"$category\".';
   }
 
   @override
@@ -2186,7 +2186,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bizPleaseSetTheStoreLocation =>
-      'Please set the store location using "Use current location" or a Google Maps link';
+      'Please set the store location using \"Use current location\" or a Google Maps link';
 
   @override
   String get bizMobileNumberIsRequired => 'Mobile number is required';
@@ -3215,7 +3215,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String bizDeleteProductBody(String title) {
-    return '"$title" will be permanently removed and cannot be reactivated. Any payment already made for this product will not be refunded.';
+    return '\"$title\" will be permanently removed and cannot be reactivated. Any payment already made for this product will not be refunded.';
   }
 
   @override
@@ -3286,11 +3286,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bizSetStoreLocationFirst =>
-      'Please set the store\'s location using "Use Current Location" or a Google Maps link before creating the store.';
+      'Please set the store\'s location using \"Use Current Location\" or a Google Maps link before creating the store.';
 
   @override
   String get bizStoreLocationIncomplete =>
-      'The store location looks incomplete. Use "Use Current Location" or a Google Maps link to set a valid location.';
+      'The store location looks incomplete. Use \"Use Current Location\" or a Google Maps link to set a valid location.';
 
   @override
   String bizPaymentCancelledOrFailed(String error) {
@@ -3359,7 +3359,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String bizPurchasePendingNamed(String store) {
-    return 'Your "$store" purchase is now pending admin approval.';
+    return 'Your \"$store\" purchase is now pending admin approval.';
   }
 
   @override
@@ -3576,7 +3576,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String bizDeleteDealNamed(String title) {
-    return 'Delete "$title"?';
+    return 'Delete \"$title\"?';
   }
 
   @override

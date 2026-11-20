@@ -1259,7 +1259,7 @@ abstract class AppLocalizations {
   /// Empty state; {q} is what the user typed
   ///
   /// In en, this message translates to:
-  /// **'No results for "{q}"'**
+  /// **'No results for \"{q}\"'**
   String searchNoResultsDq(String q);
 
   /// Empty state
@@ -1289,7 +1289,7 @@ abstract class AppLocalizations {
   /// Empty state detail; {count} is a number, {category} a category name
   ///
   /// In en, this message translates to:
-  /// **'Found {count} store(s) in this city, but none matched "{category}".'**
+  /// **'Found {count} store(s) in this city, but none matched \"{category}\".'**
   String catFoundButNone(String count, String category);
 
   /// Empty state detail; {list} is a comma separated list
@@ -4067,7 +4067,7 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Please set the store location using "Use current location" or a Google Maps link'**
+  /// **'Please set the store location using \"Use current location\" or a Google Maps link'**
   String get bizPleaseSetTheStoreLocation;
 
   /// Merchant/Influencer text
@@ -5969,7 +5969,7 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'"{title}" will be permanently removed and cannot be reactivated. Any payment already made for this product will not be refunded.'**
+  /// **'\"{title}\" will be permanently removed and cannot be reactivated. Any payment already made for this product will not be refunded.'**
   String bizDeleteProductBody(String title);
 
   /// Merchant/Influencer text
@@ -6059,13 +6059,13 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Please set the store\'s location using "Use Current Location" or a Google Maps link before creating the store.'**
+  /// **'Please set the store\'s location using \"Use Current Location\" or a Google Maps link before creating the store.'**
   String get bizSetStoreLocationFirst;
 
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'The store location looks incomplete. Use "Use Current Location" or a Google Maps link to set a valid location.'**
+  /// **'The store location looks incomplete. Use \"Use Current Location\" or a Google Maps link to set a valid location.'**
   String get bizStoreLocationIncomplete;
 
   /// Merchant/Influencer text
@@ -6155,7 +6155,7 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Your "{store}" purchase is now pending admin approval.'**
+  /// **'Your \"{store}\" purchase is now pending admin approval.'**
   String bizPurchasePendingNamed(String store);
 
   /// Merchant/Influencer text
@@ -6431,7 +6431,7 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Delete "{title}"?'**
+  /// **'Delete \"{title}\"?'**
   String bizDeleteDealNamed(String title);
 
   /// Merchant/Influencer text
