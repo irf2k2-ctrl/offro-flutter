@@ -158,17 +158,20 @@ class Api {
   }
 
   // ── User ──
-  static Future<Map<String,dynamic>> loginUser(String phone) => _post("/user/account-login", {"phone": phone});
+  static Future<Map<String,dynamic>> loginUser(String phone, {String? country}) =>
+      _post("/user/account-login", {"phone": phone, if (country != null) "country": country});
 
   /// Unified account login — checks users + merchants, returns one token + is_merchant flag
-  static Future<Map<String,dynamic>> loginAccount(String phone) => _post("/user/account-login", {"phone": phone});
+  static Future<Map<String,dynamic>> loginAccount(String phone, {String? country}) =>
+      _post("/user/account-login", {"phone": phone, if (country != null) "country": country});
   /// Version id of the registration checkbox wording. MUST match
   /// REGISTRATION_CONSENT_VERSION in the backend (services/wa_consent.py).
   static const String registrationConsentVersion = "reg-wa-2026-11-18";
   static Future<Map<String,dynamic>> registerUser(String name, String phone,
-          {bool consent = false, bool whatsappConsent = false}) =>
+          {bool consent = false, bool whatsappConsent = false, String? country}) =>
       _post("/user/register", {
         "name": name, "phone": phone, "city": "",
+        if (country != null) "country": country,
         if (consent) "consent": true,
         if (consent && whatsappConsent) ...{
           "whatsapp_consent": true,
@@ -184,9 +187,9 @@ class Api {
   /// server-availability failure is rethrown so the caller can show a
   /// proper connection/server error instead; only a real, successful
   /// "not registered" response from the backend returns false.
-  static Future<bool> checkUserPhone(String phone) async {
+  static Future<bool> checkUserPhone(String phone, {String? country}) async {
     try {
-      final d = await _post("/user/check-phone", {"phone": phone});
+      final d = await _post("/user/check-phone", {"phone": phone, if (country != null) "country": country});
       return d["registered"] == true;
     } catch (e) {
       final s = e.toString();
@@ -206,9 +209,9 @@ class Api {
 
   /// Check phone in BOTH users + merchants collections.
   /// Returns {"registered": bool, "role": "user"|"merchant"|"both"|"none"}
-  static Future<Map<String, dynamic>> checkPhoneFull(String phone) async {
+  static Future<Map<String, dynamic>> checkPhoneFull(String phone, {String? country}) async {
     try {
-      final d = await _post("/user/check-phone", {"phone": phone});
+      final d = await _post("/user/check-phone", {"phone": phone, if (country != null) "country": country});
       return {
         "registered": d["registered"] == true,
         "role": d["role"]?.toString() ?? (d["registered"] == true ? "user" : "none"),
@@ -254,11 +257,13 @@ class Api {
       rethrow;
     }
   }
-  static Future<Map<String,dynamic>> loginMerchant(String phone) => _post("/merchant/login", {"phone": phone});
+  static Future<Map<String,dynamic>> loginMerchant(String phone, {String? country}) =>
+      _post("/merchant/login", {"phone": phone, if (country != null) "country": country});
   /// Unified login — same OTP flow, returns merchant token via /user/merchant-login
-  static Future<Map<String,dynamic>> loginMerchantUnified(String phone) => _post("/merchant/login", {"phone": phone});
-  static Future<Map<String,dynamic>> registerMerchant(String name, String phone, String city, String area) =>
-      _post("/merchant/register", {"name": name, "phone": phone, "city": city, "area": area});
+  static Future<Map<String,dynamic>> loginMerchantUnified(String phone, {String? country}) =>
+      _post("/merchant/login", {"phone": phone, if (country != null) "country": country});
+  static Future<Map<String,dynamic>> registerMerchant(String name, String phone, String city, String area, {String? country}) =>
+      _post("/merchant/register", {"name": name, "phone": phone, "city": city, "area": area, if (country != null) "country": country});
   static Future<List> getMerchantStores(String token) async {
     try { return await _get("/merchant/stores", token: token); } catch (_) { return []; }
   }
@@ -620,9 +625,9 @@ class Api {
       _post("/merchant/discounts/validate", {"code": code, if (scope != null) "checkout_scope": scope}, token: token);
 
   // Check merchant phone registered before sending OTP (Item 8)
-  static Future<bool> checkMerchantPhone(String phone) async {
+  static Future<bool> checkMerchantPhone(String phone, {String? country}) async {
     try {
-      final d = await _post("/merchant/check-phone", {"phone": phone});
+      final d = await _post("/merchant/check-phone", {"phone": phone, if (country != null) "country": country});
       return d["ok"] == true;
     } catch (_) { return false; }
   }

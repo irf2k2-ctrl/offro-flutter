@@ -21,6 +21,10 @@ import '../../core/utils/navigation.dart';
 import '../../core/design/design.dart' show OffroColors, OffroShadows, OffroText, OffroRadii, OffroIcon, OffroIcons, OffroIconData;
 // STAGING-ONLY MSG91 probe (inactive unless OTP_TOKEN_PROBE=true + debug + exact Staging host)
 import '../../core/services/otp_probe_store.dart';
+import '../../core/phone/phone_country.dart';
+import '../../core/phone/country_picker_sheet.dart';
+import '../../core/phone/phone_input.dart';
+import '../../core/phone/device_country.dart';
 import 'otp_probe_results_screen.dart';
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
@@ -1199,12 +1203,9 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
-  static String _normalisePhone(String raw) {
-    final p = raw.trim().replaceAll(' ', '').replaceAll('-', '');
-    if (p.startsWith('+')) return p;
-    if (p.length == 12 && p.startsWith('91')) return '+$p';
-    return '+91$p';
-  }
+  // Phase E: the selected country. India unless the device suggests otherwise; the user can always change it.
+  PhoneCountry _country = kDefaultPhoneCountry;
+  bool _countryChosenByUser = false;
 
   bool _loading = false;
   String _msg   = '';
@@ -1244,6 +1245,26 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     _slideCtrl.forward();
     _fadeCtrl.forward();
     _socialFuture = Api.getSocialLinks();
+    _suggestCountry();
+  }
+
+  /// Pre-selects a country from the SIM / network / device locale (no permission, nothing sent anywhere).
+  /// A country the user already picked is never overridden.
+  Future<void> _suggestCountry() async {
+    final s = await detectInitialCountry();
+    if (!mounted || _countryChosenByUser) return;
+    if (s.country != _country) setState(() => _country = s.country);
+  }
+
+  void _onCountryChanged(PhoneCountry c) {
+    final max = maxPhoneInputLength(c);
+    final t = westernDigits(_phoneC.text);
+    setState(() {
+      _country = c;
+      _countryChosenByUser = true;
+      _msg = '';
+      if (t.length > max) _phoneC.text = t.substring(0, max);
+    });
   }
 
   @override void dispose() {
@@ -1256,26 +1277,26 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
 
   Future<void> _sendOtp() async {
     final rawPhone = _phoneC.text.trim();
-    final digits = rawPhone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (rawPhone.isEmpty) { _setMsg('Enter your mobile number'); return; }
-    if (digits.length != 10) { _setMsg('Enter a valid 10-digit mobile number'); return; }
+    final chk = checkPhoneInput(_country, rawPhone);   // India: the unchanged 10-digit rule. Others: libphonenumber mobile check.
+    if (!chk.ok) { _setMsg(chk.message); return; }
     if (_isReg && _nameC.text.trim().isEmpty) { _setMsg('Enter your name'); return; }
     if (_isReg && !_agreed) { _setMsg('Please tick the box to accept the Terms & Conditions and Privacy Policy and consent to WhatsApp updates from OffrO, to continue'); return; }
 
-    final phone = _normalisePhone(rawPhone);
-    final e164  = phone.startsWith('+') ? phone.substring(1) : phone;
+    final phone = chk.e164;                 // '+<dial><national>'
+    final e164  = phone.substring(1);       // digits-only, as the MSG91 widget has always been given
+    final iso   = _country.iso;
 
     setState(() { _loading = true; _msg = ''; });
     try {
       // Pre-OTP phone check
       if (_isReg) {
         // Registration: block if already registered
-        final check = await Api.checkUserPhone(phone);
+        final check = await Api.checkUserPhone(phone, country: iso);
         if (check) { _setMsg('This number is already registered. Please login.'); setState(() => _loading = false); return; }
-        await Api.registerUser(_nameC.text.trim(), phone, consent: _agreed, whatsappConsent: _agreed);
+        await Api.registerUser(_nameC.text.trim(), phone, consent: _agreed, whatsappConsent: _agreed, country: iso);
       } else {
         // Login: block if NOT registered
-        final check = await Api.checkUserPhone(phone);
+        final check = await Api.checkUserPhone(phone, country: iso);
         if (!check) { _setMsg('Number not registered. Please register first.'); setState(() => _loading = false); return; }
       }
 
@@ -1658,17 +1679,15 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     TextField(
       controller: _phoneC,
       keyboardType: TextInputType.phone,
-      maxLength: 10,
+      maxLength: maxPhoneInputLength(_country),
+      inputFormatters: [PhoneDigitsFormatter(maxPhoneInputLength(_country))],
       style: OffroText.body.copyWith(fontSize: 14, letterSpacing: 0.5),
       decoration: _decoration(
-        hint: '98765 43210',
-        prefix: Container(
-          margin: const EdgeInsets.only(left: 16, right: 12),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text('+91', style: OffroText.cardTitle.copyWith(fontSize: 14)),
-            Container(width: 1, height: 18, color: const Color(0x1A000000), margin: const EdgeInsets.only(left: 12)),
-          ]),
-        ),
+        hint: phoneInputHint(_country),
+        prefix: Row(mainAxisSize: MainAxisSize.min, children: [
+          CountryCodeButton(country: _country, onChanged: _onCountryChanged, enabled: !_loading),
+          Container(width: 1, height: 18, color: const Color(0x1A000000), margin: const EdgeInsetsDirectional.only(end: 12)),
+        ]),
         prefixConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
       ),
     );
