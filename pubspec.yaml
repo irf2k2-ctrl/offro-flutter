@@ -63,6 +63,9 @@ dependencies:
   path_provider: ^2.1.2
   smart_auth: 3.2.0
 
+  # Phone validation (Phase E): libphonenumber metadata in pure Dart, used for per-country mobile validation on the client
+  phone_numbers_parser: ^9.0.25
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

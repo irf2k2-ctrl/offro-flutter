@@ -13,6 +13,9 @@ import '../auth/login_screen.dart' show SwitchModeSheet;
 import '../../main.dart' show MyApp;
 import '../../core/services/prefs_service.dart';
 import '../../core/services/fcm_service.dart';
+import '../../core/phone/phone_country.dart';
+import '../../core/phone/country_picker_sheet.dart';
+import '../../core/phone/phone_input.dart';
 import '../../core/design/design.dart' show OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones, OffroBottomNav, OffroNavVariant, OffroNavItem, OffroScreenHeader;
 import '../../core/widgets/brand_logo.dart' show buildImageLogo;
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
@@ -1134,6 +1137,7 @@ class InfluencerProfileFormScreen extends StatefulWidget {
 class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScreen> {
   final _nameC = TextEditingController();
   final _phoneC = TextEditingController();
+  PhoneCountry _phoneCountry = kDefaultPhoneCountry; // India keeps the 10-digit format; other countries are sent as +E.164
   final _bioC = TextEditingController();
   final _instaC = TextEditingController();
   final _ytC = TextEditingController();
@@ -1187,7 +1191,9 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     final e = widget.existing;
     if (e != null) {
       _nameC.text = e["name"]?.toString() ?? "";
-      _phoneC.text = e["phone"]?.toString() ?? "";
+      final storedPhone = e["phone"]?.toString() ?? "";
+      final sp = splitE164(storedPhone);             // '+966501234567' -> Saudi Arabia + 501234567
+      if (sp != null) { _phoneCountry = sp.country; _phoneC.text = sp.national; } else { _phoneC.text = storedPhone; }
       _bioC.text = e["bio"]?.toString() ?? "";
       _selState = (e["state"]?.toString().isNotEmpty ?? false) ? e["state"].toString() : null;
       _selCity = (e["city"]?.toString().isNotEmpty ?? false) ? e["city"].toString() : null;
@@ -1271,10 +1277,21 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     // Issue 2: validate exactly-10-digits on Save too, not just via the
     // input formatter (which only blocks typing past 10 — this also
     // catches an empty/short value if the user backspaced).
-    final phone = _phoneC.text.trim();
-    if (phone.isNotEmpty && phone.length != 10) {
-      setState(() => _errorMsg = "Please enter a valid 10-digit mobile number.");
-      return null;
+    final phoneRaw = _phoneC.text.trim();
+    var phone = phoneRaw;
+    if (phoneRaw.isNotEmpty) {
+      if (_phoneCountry.iso == 'IN') {
+        // India: the existing 10-digit format, sent exactly as before.
+        if (phoneRaw.length != 10) {
+          setState(() => _errorMsg = "Please enter a valid 10-digit mobile number.");
+          return null;
+        }
+      } else {
+        // Any other supported country: validated for that country and sent as +E.164 (which the server accepts).
+        final chk = checkPhoneInput(_phoneCountry, phoneRaw);
+        if (!chk.ok) { setState(() => _errorMsg = chk.message); return null; }
+        phone = chk.e164;
+      }
     }
     if (requireImage && _photoB64.isEmpty && !_existingPhotoUrl.startsWith("http")) {
       setState(() => _errorMsg = "Profile image is required to publish your influencer profile.");
@@ -1593,14 +1610,20 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           TextField(
             controller: _phoneC,
             keyboardType: TextInputType.number,
-            // Issue 2: numeric only, hard-capped at 10 digits — cannot
-            // type an 11th digit at all, matching the backend's exact
-            // 10-digit requirement.
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(10),
-            ],
-            decoration: _dec("10-digit mobile number"),
+            // Issue 2: numeric only. India stays hard-capped at 10 digits (the backend's exact 10-digit requirement for
+            // Indian numbers); other countries use their own maximum.
+            inputFormatters: [PhoneDigitsFormatter(maxPhoneInputLength(_phoneCountry))],
+            decoration: _dec(_phoneCountry.iso == 'IN' ? "10-digit mobile number" : phoneInputHint(_phoneCountry)).copyWith(
+              prefixIcon: CountryCodeButton(
+                country: _phoneCountry,
+                onChanged: (c) => setState(() {
+                  _phoneCountry = c;
+                  final t = westernDigits(_phoneC.text), max = maxPhoneInputLength(c);
+                  if (t.length > max) _phoneC.text = t.substring(0, max);
+                }),
+              ),
+              prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+            ),
           ),
           const SizedBox(height: 20),
           const Text("Social Links", style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
