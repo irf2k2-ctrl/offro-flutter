@@ -14,6 +14,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/design/design.dart';
+import '../../core/l10n/l10n.dart';
+import '../../core/l10n/language_sheet.dart';
+import '../../core/l10n/locale_controller.dart';
 import '../../core/services/api_service.dart';
 import 'support_info_note.dart';
 
@@ -169,7 +172,7 @@ class _ProfileTabState extends State<ProfileTab> {
                 color: Colors.white.withValues(alpha: .55),
                 borderRadius: OffroRadii.pillRadius,
               ),
-              child: Text(widget.isGuest ? "Browsing as guest" : "OffrO member",
+              child: Text(widget.isGuest ? context.l10n.profileGuestBadge : context.l10n.profileMemberBadge,
                 style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w600, color: OffroColors.primary)),
             ),
           ])),
@@ -193,9 +196,9 @@ class _ProfileTabState extends State<ProfileTab> {
     return Padding(
       padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 16, OffroSpacing.gutter, 0),
       child: Row(children: [
-        tile("${widget.savedCount}", "Saved"),
+        tile("${widget.savedCount}", context.l10n.profileStatSaved),
         const SizedBox(width: 8),
-        tile(_fmt(widget.points), "Points"),
+        tile(_fmt(widget.points), context.l10n.profileStatPoints),
       ]),
     );
   }
@@ -263,14 +266,22 @@ class _ProfileTabState extends State<ProfileTab> {
       padding: EdgeInsets.only(top: topPad, bottom: 124),
       physics: const BouncingScrollPhysics(),
       children: [
-        const OffroScreenHeader(eyebrow: "Your OffrO", title: "Profile", showBack: false),
+        OffroScreenHeader(eyebrow: context.l10n.profileEyebrow, title: context.l10n.profileTitle, showBack: false),
         _identityCard(),
         if (!widget.isGuest) const SupportInfoNote(),
         _stats(),
-        _group("My activity", widget.activity, top: 32),
-        _group("Account", widget.account),
-        _group("About & legal", widget.legal),
-        _group("Session", [widget.sessionAction]),
+        _group(context.l10n.profileGroupActivity, widget.activity, top: 32),
+        _group(context.l10n.profileGroupAccount, widget.account),
+        _group(context.l10n.profileGroupLanguage, [
+          ProfileEntry(
+            icon: OffroIcons.compass,
+            label: context.l10n.languageRowLabel,
+            note: LocaleController.instance.locale.languageCode == 'ar' ? context.l10n.languageNameAr : context.l10n.languageNameEn,
+            onTap: () => showLanguageSheet(context),
+          ),
+        ]),
+        _group(context.l10n.profileGroupLegal, widget.legal),
+        _group(context.l10n.profileGroupSession, [widget.sessionAction]),
       ],
     );
   }

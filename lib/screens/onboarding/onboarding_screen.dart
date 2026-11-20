@@ -9,6 +9,8 @@ import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/widgets/brand_logo.dart';
 import '../auth/login_screen.dart';
 import '../../core/utils/navigation.dart';
+import '../../core/l10n/l10n.dart';
+import '../../core/l10n/language_sheet.dart';
 
 class OnboardingScreen extends StatefulWidget {
   final VoidCallback? onComplete;
@@ -50,6 +52,16 @@ class _OnboardingState extends State<OnboardingScreen> {
       "subtitle": "Redeem your points for Amazon & Flipkart vouchers",
     },
   ];
+
+  // Slide text is only visible when the slide image fails to load (the designed images carry their own English text).
+  String _slideTitle(BuildContext c, int i, String fallback) {
+    final l = c.l10n;
+    return i == 0 ? l.onboardingSlide1Title : i == 1 ? l.onboardingSlide2Title : i == 2 ? l.onboardingSlide3Title : fallback;
+  }
+  String _slideSubtitle(BuildContext c, int i, String fallback) {
+    final l = c.l10n;
+    return i == 0 ? l.onboardingSlide1Subtitle : i == 1 ? l.onboardingSlide2Subtitle : i == 2 ? l.onboardingSlide3Subtitle : fallback;
+  }
 
   @override void dispose() {
     _pc.dispose();
@@ -101,8 +113,8 @@ class _OnboardingState extends State<OnboardingScreen> {
                 return _OnboardingSlide(
                   webp: slide["webp"]!,
                   png:  slide["png"]!,
-                  title: slide["title"]!,
-                  subtitle: slide["subtitle"]!,
+                  title: _slideTitle(context, i, slide["title"]!),
+                  subtitle: _slideSubtitle(context, i, slide["subtitle"]!),
                   isLast: i == _slides.length - 1,
                   onGetStarted: _goToLogin,
                 );
@@ -110,11 +122,18 @@ class _OnboardingState extends State<OnboardingScreen> {
             ),
           ),
 
-          // ── Skip button — top-right with safe area offset ──
+          // ── Language switch — top-start (left in English, right in Arabic) ──
+          PositionedDirectional(
+            top: mq.padding.top + 12,
+            start: 16,
+            child: const LanguageButton(onDark: false),
+          ),
+
+          // ── Skip button — top-end with safe area offset ──
           if (_idx < _slides.length - 1)
-            Positioned(
+            PositionedDirectional(
               top: mq.padding.top + 12,
-              right: 16,
+              end: 16,
               child: GestureDetector(
                 onTap: _goToLogin,
                 child: Container(
@@ -124,9 +143,9 @@ class _OnboardingState extends State<OnboardingScreen> {
                     borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: kPrimary.withOpacity(0.25)),
                   ),
-                  child: const Text(
-                    "Skip",
-                    style: TextStyle(
+                  child: Text(
+                    context.l10n.onboardingSkip,
+                    style: const TextStyle(
                       color: kPrimary,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,

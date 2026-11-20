@@ -18,6 +18,8 @@ import '../../core/widgets/brand_logo.dart';
 import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/utils/navigation.dart';
+import '../../core/l10n/l10n.dart';
+import '../../core/l10n/language_sheet.dart';
 import '../../core/design/design.dart' show OffroColors, OffroShadows, OffroText, OffroRadii, OffroIcon, OffroIcons, OffroIconData;
 // STAGING-ONLY MSG91 probe (inactive unless OTP_TOKEN_PROBE=true + debug + exact Staging host)
 import '../../core/services/otp_probe_store.dart';
@@ -426,19 +428,22 @@ class _OtpScreenState extends State<OtpScreen> {
               child: const Icon(Icons.lock_outline_rounded, color: OffroColors.primary, size: 26),
             ),
             const SizedBox(height: 20),
-            Text('VERIFICATION', style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 2.0, color: OffroColors.sage)),
+            Text(context.l10n.otpEyebrow, style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 2.0, color: OffroColors.sage)),
             const SizedBox(height: 8),
             Text.rich(TextSpan(children: [
-              TextSpan(text: 'Verify your ', style: OffroText.display.copyWith(fontSize: 32, letterSpacing: -1.9)),
-              TextSpan(text: 'number', style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 32, letterSpacing: -0.8))),
+              TextSpan(text: '${context.l10n.otpTitleLead} ', style: OffroText.display.copyWith(fontSize: 32, letterSpacing: -1.9)),
+              TextSpan(text: context.l10n.otpTitleAccent, style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 32, letterSpacing: -0.8))),
             ])),
             const SizedBox(height: 10),
-            Text('We sent a 4-digit OTP to\n${widget.phone}',
+            Text(context.l10n.otpSentTo(ltrIsolate(context, widget.phone)),
               style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.5, color: OffroColors.textMuted)),
             const SizedBox(height: 32),
             // OTP boxes
             AutofillGroup(
-              child: Row(
+              // Digits always run left to right, also in Arabic (right-to-left) layout.
+              child: Directionality(
+               textDirection: TextDirection.ltr,
+               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(4, (i) => Container(
                   width: 62, height: 66,
@@ -468,6 +473,7 @@ class _OtpScreenState extends State<OtpScreen> {
                   ),
                 )),
               ),
+              ),
             ),
             if (_msg.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -490,7 +496,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 child: _loading
                   ? const SizedBox(width: 22, height: 22,
                       child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                  : Text('Verify OTP', style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
+                  : Text(context.l10n.otpVerifyButton, style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
               ),
             ),
             const SizedBox(height: 20),
@@ -500,10 +506,10 @@ class _OtpScreenState extends State<OtpScreen> {
                 ? const SizedBox(height: 20, width: 20,
                     child: CircularProgressIndicator(color: OffroColors.primary, strokeWidth: 2))
                 : RichText(text: TextSpan(children: [
-                    TextSpan(text: "Didn't receive OTP? ",
+                    TextSpan(text: '${context.l10n.otpDidntReceive} ',
                       style: OffroText.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
                     TextSpan(
-                      text: _resendSecs > 0 ? 'Resend in ${_resendSecs}s' : 'Resend OTP',
+                      text: _resendSecs > 0 ? context.l10n.otpResendIn('$_resendSecs') : context.l10n.otpResendAction,
                       style: OffroText.caption.copyWith(
                         fontSize: 13, fontWeight: FontWeight.w700,
                         color: _resendSecs > 0 ? OffroColors.textMuted : OffroColors.primary)),
@@ -514,7 +520,7 @@ class _OtpScreenState extends State<OtpScreen> {
               Center(child: GestureDetector(
                 key: const ValueKey('sms_fallback_link'),
                 onTap: (_resendSecs == 0 && !_resending && !_loading) ? () => _resend(smsFallback: true) : null,
-                child: Text('Send code by SMS instead',
+                child: Text(context.l10n.otpSmsFallback,
                   style: OffroText.caption.copyWith(
                     fontSize: 13, fontWeight: FontWeight.w700,
                     color: (_resendSecs == 0 && !_resending) ? OffroColors.primary : OffroColors.textMuted)),
@@ -670,10 +676,10 @@ class _ContinueAsState extends State<ContinueAsScreen>
 
   String get _enterLabel {
     switch (_selected) {
-      case 'user': return 'Enter as Customer';
-      case 'merchant': return 'Enter as Merchant';
-      case 'influencer': return 'Enter as Influencer';
-      default: return 'Select a role to continue';
+      case 'user': return context.l10n.roleEnterCustomer;
+      case 'merchant': return context.l10n.roleEnterMerchant;
+      case 'influencer': return context.l10n.roleEnterInfluencer;
+      default: return context.l10n.roleSelectPrompt;
     }
   }
 
@@ -698,16 +704,16 @@ class _ContinueAsState extends State<ContinueAsScreen>
                     decoration: BoxDecoration(
                       color: OffroColors.mint,
                       borderRadius: OffroRadii.pillRadius),
-                    child: Text('MAKE OFFRO YOURS',
+                    child: Text(context.l10n.roleEyebrow,
                       style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
                   ),
                   const SizedBox(height: 16),
                   Text.rich(TextSpan(children: [
-                    TextSpan(text: 'How will you use\n', style: OffroText.display.copyWith(fontSize: 35, height: 1.05, letterSpacing: -2.1)),
-                    TextSpan(text: 'OffrO?', style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 35, height: 1.05, letterSpacing: -1))),
+                    TextSpan(text: '${context.l10n.roleTitleLead}\n', style: OffroText.display.copyWith(fontSize: 35, height: 1.05, letterSpacing: -2.1)),
+                    TextSpan(text: context.l10n.roleTitleBrand, style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 35, height: 1.05, letterSpacing: -1))),
                   ])),
                   const SizedBox(height: 14),
-                  Text('Choose your starting space. You can add another role later from your profile.',
+                  Text(context.l10n.roleSubtitle,
                     style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.5, color: OffroColors.textMuted)),
                   const SizedBox(height: 28),
 
@@ -715,8 +721,8 @@ class _ContinueAsState extends State<ContinueAsScreen>
                     role: 'user',
                     selected: _selected == 'user',
                     onTap: () => setState(() => _selected = 'user'),
-                    title: 'Customer',
-                    desc: 'Discover places, products and local offers',
+                    title: context.l10n.roleCustomer,
+                    desc: context.l10n.roleCustomerDesc,
                     tileColor: OffroColors.mint,
                     iconColor: OffroColors.primary,
                     icon: OffroIcons.user,
@@ -726,8 +732,8 @@ class _ContinueAsState extends State<ContinueAsScreen>
                     role: 'merchant',
                     selected: _selected == 'merchant',
                     onTap: () => setState(() => _selected = 'merchant'),
-                    title: 'Merchant',
-                    desc: 'Grow your business and manage your storefront',
+                    title: context.l10n.roleMerchant,
+                    desc: context.l10n.roleMerchantDesc,
                     tileColor: OffroColors.beige,
                     iconColor: OffroColors.primary,
                     icon: OffroIcons.store,
@@ -740,8 +746,8 @@ class _ContinueAsState extends State<ContinueAsScreen>
                     role: 'influencer',
                     selected: _selected == 'influencer',
                     onTap: () => setState(() => _selected = 'influencer'),
-                    title: 'Influencer',
-                    desc: 'Create local stories and collaborate with brands',
+                    title: context.l10n.roleInfluencer,
+                    desc: context.l10n.roleInfluencerDesc,
                     tileColor: const Color(0xFFE5E4F1),
                     iconColor: const Color(0xFF66648A),
                     icon: OffroIcons.sparkles,
@@ -769,9 +775,9 @@ class _ContinueAsState extends State<ContinueAsScreen>
                       ),
                       const SizedBox(width: 12),
                       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Remember my choice', style: OffroText.cardTitle.copyWith(fontSize: 13)),
+                        Text(context.l10n.roleRemember, style: OffroText.cardTitle.copyWith(fontSize: 13)),
                         const SizedBox(height: 2),
-                        Text('You can change this anytime from Profile',
+                        Text(context.l10n.roleRememberHint,
                           style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
                       ]),
                     ]),
@@ -1093,8 +1099,8 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
   Widget build(BuildContext context) {
     // Figma role-selection visual language. Switch logic (_switch, Prefs,
     // merchant terms, live influencer-role check) is unchanged.
-    final modeLabel = widget.currentMode == 'user' ? 'Customer'
-        : widget.currentMode == 'merchant' ? 'Merchant' : 'Influencer';
+    final modeLabel = widget.currentMode == 'user' ? context.l10n.roleCustomer
+        : widget.currentMode == 'merchant' ? context.l10n.roleMerchant : context.l10n.roleInfluencer;
     return Container(
       decoration: const BoxDecoration(
         color: OffroColors.background,
@@ -1112,30 +1118,30 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
           decoration: BoxDecoration(
             color: OffroColors.mint,
             borderRadius: OffroRadii.pillRadius),
-          child: Text('MAKE OFFRO YOURS',
+          child: Text(context.l10n.roleEyebrow,
             style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
         ),
         const SizedBox(height: 14),
         Text.rich(TextSpan(children: [
-          TextSpan(text: 'Switch ', style: OffroText.display.copyWith(fontSize: 30, letterSpacing: -1.8)),
-          TextSpan(text: 'mode', style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 30, letterSpacing: -0.8))),
+          TextSpan(text: '${context.l10n.switchTitleLead} ', style: OffroText.display.copyWith(fontSize: 30, letterSpacing: -1.8)),
+          TextSpan(text: context.l10n.switchTitleAccent, style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 30, letterSpacing: -0.8))),
         ])),
         const SizedBox(height: 8),
-        Text('You are currently in $modeLabel mode',
+        Text(context.l10n.switchCurrently(modeLabel),
           style: OffroText.bodySmall.copyWith(fontSize: 13, color: OffroColors.textMuted)),
         const SizedBox(height: 22),
         _ModeTile(
           icon: OffroIcons.user, tileColor: OffroColors.mint, iconColor: OffroColors.primary,
-          title: 'Customer',
-          subtitle: 'Browse stores, products and offers',
+          title: context.l10n.roleCustomer,
+          subtitle: context.l10n.switchCustomerSubtitle,
           active: widget.currentMode == 'user',
           onTap: _loading ? null : () => _switch('user'),
         ),
         const SizedBox(height: 12),
         _ModeTile(
           icon: OffroIcons.store, tileColor: OffroColors.beige, iconColor: OffroColors.primary,
-          title: 'Merchant',
-          subtitle: 'Manage store, products and banners',
+          title: context.l10n.roleMerchant,
+          subtitle: context.l10n.switchMerchantSubtitle,
           active: widget.currentMode == 'merchant',
           onTap: _loading ? null : () => _switch('merchant'),
         ),
@@ -1146,8 +1152,8 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
           const SizedBox(height: 12),
           _ModeTile(
             icon: OffroIcons.sparkles, tileColor: const Color(0xFFE5E4F1), iconColor: const Color(0xFF66648A),
-            title: 'Influencer',
-            subtitle: 'Manage your influencer profile',
+            title: context.l10n.roleInfluencer,
+            subtitle: context.l10n.switchInfluencerSubtitle,
             active: widget.currentMode == 'influencer',
             onTap: _loading ? null : () => _switch('influencer'),
           ),
@@ -1460,26 +1466,28 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                     Row(children: [
                       buildImageLogo(height: 36),
                       const Spacer(),
+                      const LanguageButton(),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: .55),
                           borderRadius: OffroRadii.pillRadius),
-                        child: Text('LOCAL, MADE EASY',
+                        child: Text(context.l10n.loginBadge,
                           style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
                       ),
                     ]),
                     const SizedBox(height: 40),
-                    Text('WELCOME TO YOUR NEIGHBOURHOOD',
+                    Text(context.l10n.loginWelcomeEyebrow,
                       style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 2.0, color: OffroColors.primary.withValues(alpha: .6))),
                     const SizedBox(height: 12),
                     Text.rich(TextSpan(children: [
-                      TextSpan(text: 'Find more to ', style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
-                      TextSpan(text: 'love', style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -1))),
-                      TextSpan(text: ', nearby.', style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
+                      TextSpan(text: '${context.l10n.loginHeroLead} ', style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
+                      TextSpan(text: context.l10n.loginHeroAccent, style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -1))),
+                      TextSpan(text: context.l10n.loginHeroTail, style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
                     ])),
                     const SizedBox(height: 16),
-                    Text('Local stores, thoughtful offers and people worth discovering—all in one place.',
+                    Text(context.l10n.loginHeroBody,
                       style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.5, color: OffroColors.primary.withValues(alpha: .65))),
                   ]),
                 ]),
@@ -1505,8 +1513,8 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                           color: OffroColors.beige,
                           borderRadius: OffroRadii.pillRadius),
                         child: Row(children: [
-                          _tabBtn('Login', !_isReg, () => setState(() { _isReg = false; _msg = ''; })),
-                          _tabBtn('Register', _isReg, () {
+                          _tabBtn(context.l10n.loginTabLogin, !_isReg, () => setState(() { _isReg = false; _msg = ''; })),
+                          _tabBtn(context.l10n.loginTabRegister, _isReg, () {
                             FocusScope.of(context).unfocus();
                             setState(() { _isReg = true; _msg = ''; });
                             Future.delayed(const Duration(milliseconds: 300), () {
@@ -1519,8 +1527,8 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
 
                       // Name field (register only)
                       if (_isReg) ...[
-                        _label('Your name'),
-                        _field(_nameC, 'Enter your full name', Icons.person_outline_rounded,
+                        _label(context.l10n.loginYourName),
+                        _field(_nameC, context.l10n.loginNameHint, Icons.person_outline_rounded,
                           keyboardType: TextInputType.text,
                           focusNode: _nameFocus,
                           textCapitalization: TextCapitalization.words,
@@ -1532,7 +1540,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                       ],
 
                       // Phone field
-                      _label('Mobile number'),
+                      _label(context.l10n.loginMobile),
                       _phoneField(),
                       const SizedBox(height: 16),
 
@@ -1596,7 +1604,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                             ? const SizedBox(width: 22, height: 22,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                             : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Text(_isReg ? 'Register & get verification code' : 'Get verification code',
+                                Text(_isReg ? context.l10n.loginRegisterGetCode : context.l10n.loginGetCode,
                                   style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
                                 const SizedBox(width: 8),
                                 const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
@@ -1610,7 +1618,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                         Expanded(child: Container(height: 1, color: const Color(0x14000000))),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('OR', style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.4, color: OffroColors.secondarySolid)),
+                          child: Text(context.l10n.loginOr, style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.4, color: OffroColors.secondarySolid)),
                         ),
                         Expanded(child: Container(height: 1, color: const Color(0x14000000))),
                       ]),
@@ -1626,14 +1634,14 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                             side: BorderSide(color: OffroColors.primary.withValues(alpha: .18)),
                             shape: const StadiumBorder(),
                           ),
-                          child: Text('Continue as guest',
+                          child: Text(context.l10n.loginGuest,
                             style: OffroText.button.copyWith(color: OffroColors.primary, fontSize: 12.5)),
                         ),
                       ),
                       const SizedBox(height: 24),
 
                       // Social bar (admin-configured links)
-                      Center(child: Text('FOLLOW THE LOCAL STORY',
+                      Center(child: Text(context.l10n.loginFollow,
                         style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.secondarySolid))),
                       const SizedBox(height: 10),
                       _socialBar(),
@@ -1713,6 +1721,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   Widget _phoneField() =>
     TextField(
       controller: _phoneC,
+      textDirection: TextDirection.ltr,   // phone digits always run left to right (also in Arabic layout)
       keyboardType: TextInputType.phone,
       maxLength: maxPhoneInputLength(_country),
       inputFormatters: [PhoneDigitsFormatter(maxPhoneInputLength(_country))],

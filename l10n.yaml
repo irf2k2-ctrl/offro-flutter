@@ -1,0 +1,12 @@
+# Flutter localization (Phase I). Run `flutter gen-l10n` after changing an .arb file; generated Dart goes to lib/l10n/gen.
+# Rules for the .arb files (checked by tools/check_l10n.py):
+#  - app_en.arb is the template; app_ar.arb must have exactly the same keys and placeholders.
+#  - Placeholders are String-typed only, so numbers stay Western digits (0-9) in every language.
+#  - No ICU plural/select in Phase I (plural strings stay bundled-only and are added in a later phase).
+arb-dir: lib/l10n
+template-arb-file: app_en.arb
+output-dir: lib/l10n/gen
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false
+use-escaping: false

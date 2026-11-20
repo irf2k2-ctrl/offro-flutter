@@ -48,6 +48,9 @@ import 'screens/merchant/merchant_screens.dart';
 import 'screens/favorites/favorites_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
+import 'core/l10n/l10n.dart';
+import 'core/l10n/locale_controller.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'screens/home/influencer_section.dart';
 import 'screens/influencer/my_influencer_profile.dart';
 import 'screens/wallet/wallet_page.dart';
@@ -333,6 +336,8 @@ Future<void> main() async {
     // a dark hero (onboarding) set their own style.
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent, statusBarIconBrightness: Brightness.dark, statusBarBrightness: Brightness.light));
   } catch (e) { }
+  // Saved app language (English unless the user chose another one). Never throws.
+  await LocaleController.instance.load();
   runApp(const MyApp());
 }
 
@@ -642,8 +647,19 @@ class MyApp extends StatelessWidget {
     );
   }
 
-  @override Widget build(BuildContext context) => MaterialApp(
+  @override Widget build(BuildContext context) => AnimatedBuilder(
+    animation: LocaleController.instance,
+    builder: (context, _) => MaterialApp(
     debugShowCheckedModeBanner: false,
+    // Language: English until the user picks another one (never the device language). Arabic switches the layout to RTL.
+    locale: LocaleController.instance.locale,
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
     navigatorKey: navigatorKey,
     navigatorObservers: [routeObserver],
     builder: (ctx, child) => Stack(
@@ -658,7 +674,7 @@ class MyApp extends StatelessWidget {
       onOnboarding: goOnboarding,
       onLogin:      goLogin,
     ),
-  );
+  ));
 }
 
 

@@ -13,6 +13,8 @@ class OffroFonts {
   OffroFonts._();
   static const String sans  = 'Manrope';
   static const String serif = 'Lora';
+  /// Fallback for Arabic glyphs (Manrope has none); Latin text keeps using Manrope.
+  static const String arabic = 'NotoSansArabic';
 }
 
 class OffroText {

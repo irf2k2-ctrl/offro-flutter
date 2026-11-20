@@ -47,7 +47,12 @@ class _R extends OffroIconPrimitive {
 /// Immutable description of an icon.
 class OffroIconData {
   final List<OffroIconPrimitive> primitives;
-  const OffroIconData(this.primitives);
+
+  /// True for glyphs that point in a reading direction (arrow, chevron, back). OffroIcon draws them flipped horizontally
+  /// in a right-to-left layout (Arabic) so "forward" still points forward. Everything else is drawn as designed.
+  final bool mirrorInRtl;
+
+  const OffroIconData(this.primitives, {this.mirrorInRtl = false});
 }
 
 /// The icon set (names match the design prototype).
@@ -68,18 +73,18 @@ class OffroIcons {
   static const OffroIconData doctor = OffroIconData([_P('M8 3v4a4 4 0 0 0 8 0V3M12 11v3a5 5 0 0 0 5 5h1'), _C(19, 18, 2)]);
   static const OffroIconData heart = OffroIconData([_P('M20.5 8.8c0 5.2-8.5 10-8.5 10s-8.5-4.8-8.5-10A4.6 4.6 0 0 1 12 6.4a4.6 4.6 0 0 1 8.5 2.4Z')]);
   static const OffroIconData star = OffroIconData([_P('m12 3 2.7 5.5 6 .9-4.4 4.3 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.3 6-.9L12 3Z')]);
-  static const OffroIconData arrow = OffroIconData([_P('M5 12h14m-5-5 5 5-5 5')]);
+  static const OffroIconData arrow = OffroIconData([_P('M5 12h14m-5-5 5 5-5 5')], mirrorInRtl: true);
   static const OffroIconData home = OffroIconData([_P('m3.5 10 8.5-7 8.5 7v10H15v-6H9v6H3.5V10Z')]);
   static const OffroIconData compass = OffroIconData([_C(12, 12, 9), _P('m15.5 8.5-2 5-5 2 2-5 5-2Z')]);
   static const OffroIconData tag = OffroIconData([_P('M20 13 13 20l-9-9V4h7l9 9Z'), _C(8.5, 8.5, 1.5)]);
   static const OffroIconData gift = OffroIconData([_P('M3 10h18v11H3zM2 6h20v4H2zM12 6v15'), _P('M12 6H8.5A2.5 2.5 0 1 1 11 3.5L12 6Zm0 0h3.5A2.5 2.5 0 1 0 13 3.5L12 6Z')]);
   static const OffroIconData user = OffroIconData([_C(12, 8, 4), _P('M4.5 21c.7-4.5 3.2-6.7 7.5-6.7s6.8 2.2 7.5 6.7')]);
   static const OffroIconData clock = OffroIconData([_C(12, 12, 9), _P('M12 7v5l3 2')]);
-  static const OffroIconData chevron = OffroIconData([_P('m9 18 6-6-6-6')]);
+  static const OffroIconData chevron = OffroIconData([_P('m9 18 6-6-6-6')], mirrorInRtl: true);
   static const OffroIconData phone = OffroIconData([_P('M6.5 3h3l1.3 4-2.2 1.8a16 16 0 0 0 6.6 6.6l1.8-2.2 4 1.3v3c0 1.9-1.6 3.5-3.5 3.3C9.7 20 4 14.3 3.2 6.5 3 4.6 4.6 3 6.5 3Z')]);
   static const OffroIconData message = OffroIconData([_P('M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z'), _P('M9 9.5c.8 2.2 2.2 3.6 4.5 4.5')]);
   static const OffroIconData route = OffroIconData([_C(6, 18, 2.5), _C(18, 6, 2.5), _P('M8.5 18h2c5 0 1-12 5-12')]);
-  static const OffroIconData back = OffroIconData([_P('m15 18-6-6 6-6')]);
+  static const OffroIconData back = OffroIconData([_P('m15 18-6-6 6-6')], mirrorInRtl: true);
   static const OffroIconData check = OffroIconData([_P('m5 12 4 4L19 6')]);
   static const OffroIconData store = OffroIconData([_P('M4 10v10h16V10M3 10l2-6h14l2 6'), _P('M3 10a3 3 0 0 0 5 2 3 3 0 0 0 4 0 3 3 0 0 0 4 0 3 3 0 0 0 5-2M9 20v-5h6v5')]);
   static const OffroIconData sparkles = OffroIconData([_P('m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3Z'), _P('m18.5 14 .7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3ZM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13Z')]);
@@ -144,7 +149,11 @@ class OffroIcon extends StatelessWidget {
       size: Size(size, size),
       painter: _OffroIconPainter(data, c, filled, strokeWidth),
     );
-    final box = SizedBox(width: size, height: size, child: painter);
+    Widget box = SizedBox(width: size, height: size, child: painter);
+    // Right-to-left (Arabic): direction-pointing glyphs are flipped. maybeOf: no ancestor means left-to-right (unchanged).
+    if (data.mirrorInRtl && Directionality.maybeOf(context) == TextDirection.rtl) {
+      box = Transform.flip(flipX: true, child: box);
+    }
     if (semanticLabel == null) return ExcludeSemantics(child: box);
     return Semantics(label: semanticLabel, image: true, child: box);
   }

@@ -48,6 +48,7 @@ class OffroTheme {
       useMaterial3:
           false, // matches the current app; Material 3 is a later, separate decision
       fontFamily: OffroFonts.sans,
+      fontFamilyFallback: const [OffroFonts.arabic],
       colorScheme: scheme,
       primaryColor: OffroColors.primary,
       scaffoldBackgroundColor: OffroColors.background,

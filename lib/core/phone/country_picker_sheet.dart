@@ -7,13 +7,14 @@
 
 import 'package:flutter/material.dart';
 
+import '../l10n/l10n.dart';
 import 'phone_country.dart';
 
 /// Opens a bottom sheet with the country list and returns the chosen country, or null when dismissed.
 Future<PhoneCountry?> showCountryPickerSheet(
   BuildContext context, {
   PhoneCountry? selected,
-  String title = 'Select country',
+  String? title,
   List<PhoneCountry> countries = kPhoneCountries,
 }) {
   return showModalBottomSheet<PhoneCountry>(
@@ -28,12 +29,13 @@ class CountryPickerSheet extends StatelessWidget {
   const CountryPickerSheet({
     super.key,
     this.selected,
-    this.title = 'Select country',
+    this.title,
     this.countries = kPhoneCountries,
   });
 
   final PhoneCountry? selected;
-  final String title;
+  /// null = the localized default ("Select country").
+  final String? title;
   final List<PhoneCountry> countries;
 
   @override
@@ -45,7 +47,7 @@ class CountryPickerSheet extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsetsDirectional.only(start: 20, end: 20, bottom: 8),
-            child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            child: Text(title ?? context.l10n.countryPickerTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ),
           Flexible(
             child: ListView(
