@@ -1290,7 +1290,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       } else {
         // Any other supported country: validated for that country and sent as +E.164 (which the server accepts).
         final chk = checkPhoneInput(_phoneCountry, phoneRaw);
-        if (!chk.ok) { setState(() => _errorMsg = chk.message); return null; }
+        if (!chk.ok) { setState(() => _errorMsg = localizedPhoneInputError(context, _phoneCountry, chk)); return null; }
         phone = chk.e164;
       }
     }

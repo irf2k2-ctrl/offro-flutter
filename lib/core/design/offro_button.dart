@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'offro_icons.dart';
 import 'offro_tokens.dart';
 import 'offro_typography.dart';
+import '../l10n/l10n.dart';
 
 enum OffroButtonVariant { primary, secondary, small }
 
@@ -203,8 +204,8 @@ class OffroIconButton extends StatelessWidget {
               ),
             ),
             if (showDot)
-              Positioned(
-                right: size * 0.26,
+              PositionedDirectional(
+                end: size * 0.26,
                 top: size * 0.2,
                 child: IgnorePointer(
                   child: Container(
@@ -215,8 +216,7 @@ class OffroIconButton extends StatelessWidget {
                       shape: BoxShape.circle,
                     ),
                   ),
-                ),
-              ),
+                )),
           ],
         ),
       ),
@@ -235,7 +235,7 @@ class OffroBackButton extends StatelessWidget {
       icon: OffroIcons.back,
       size: 44,
       iconSize: 20,
-      semanticLabel: 'Back',
+      semanticLabel: context.l10n.commonBack,
       onPressed: onPressed ?? () => Navigator.maybePop(context),
     );
   }

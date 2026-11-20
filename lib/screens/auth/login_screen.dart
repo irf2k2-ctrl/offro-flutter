@@ -323,7 +323,7 @@ class _OtpScreenState extends State<OtpScreen> {
   Future<void> _verify() async {
     final otp = _enteredOtp;
     if (otp.length < 4) {
-      setState(() { _msg = 'Enter 4-digit OTP'; _msgOk = false; }); return;
+      setState(() { _msg = context.l10n.authEnterOtp4; _msgOk = false; }); return;
     }
     if (_loading) return;
     setState(() { _loading = true; _msg = ''; });
@@ -343,7 +343,7 @@ class _OtpScreenState extends State<OtpScreen> {
       if (resp != null && resp['type'] == 'success') {
         await widget.onVerified();
       } else {
-        final err = resp?['message']?.toString() ?? 'Incorrect OTP. Please try again.';
+        final err = resp?['message']?.toString() ?? context.l10n.authOtpIncorrect;
         if (mounted) setState(() { _msg = err; _msgOk = false; _loading = false; });
       }
     } catch (e) {
@@ -352,7 +352,7 @@ class _OtpScreenState extends State<OtpScreen> {
       debugPrint('[OffrO] OTP verify error: $e');
       if (otpProbeEnabled) OtpProbeStore.instance.captureFailure(); // probe: nothing about e is kept
       if (mounted) setState(() {
-        _msg = friendlyError(e, fallback: "Unable to verify OTP right now. Please try again.");
+        _msg = friendlyError(e, fallback: context.l10n.authOtpVerifyFailed, l10n: mounted ? context.l10n : null);
         _msgOk = false; _loading = false;
       });
     }
@@ -375,7 +375,7 @@ class _OtpScreenState extends State<OtpScreen> {
         final ok = resp != null && resp['type'] == 'success';
         setState(() {
           _msgOk = ok;
-          _msg = ok ? (smsFallback ? 'Code sent by SMS.' : 'OTP resent successfully.') : (resp?['message']?.toString() ?? 'Resend failed.');
+          _msg = ok ? (smsFallback ? context.l10n.authCodeSentSms : context.l10n.authOtpResent) : (resp?['message']?.toString() ?? context.l10n.authResendFailed);
           _resending = false;
         });
         if (ok) {
@@ -392,7 +392,7 @@ class _OtpScreenState extends State<OtpScreen> {
       // as _verify() above.
       debugPrint('[OffrO] OTP resend error: $e');
       if (mounted) setState(() {
-        _msg = friendlyError(e, fallback: "Unable to resend OTP right now. Please try again.");
+        _msg = friendlyError(e, fallback: context.l10n.authOtpResendFailed, l10n: mounted ? context.l10n : null);
         _msgOk = false; _resending = false;
       });
       _smsGate.invalidate();                              // resend threw: discard any held code,
@@ -408,9 +408,9 @@ class _OtpScreenState extends State<OtpScreen> {
       backgroundColor: OffroColors.background,
       body: SafeArea(child: Column(children: [
         Align(
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 0, 0),
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 0, 0),
             child: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, color: OffroColors.primary, size: 18),
               onPressed: () => Navigator.pop(context),
@@ -561,7 +561,7 @@ class _AccountBootstrapScreen extends StatefulWidget {
 }
 
 class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
-  String _status = 'Setting up your account...';
+  String _status = '';
   String _err = '';
 
   @override
@@ -573,7 +573,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
   Future<void> _run() async {
     if (mounted) setState(() {
       _err = '';
-      _status = 'Setting up your account...';
+      _status = context.l10n.authSettingUpAccount;
     });
 
     Map<String, dynamic> d;
@@ -582,7 +582,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
       d = await Api.loginAccount(widget.phone);
     } catch (e) {
       debugPrint('[OffrO] account bootstrap login error: $e');
-      if (mounted) setState(() => _err = friendlyError(e));
+      if (mounted) setState(() => _err = friendlyError(e, l10n: mounted ? context.l10n : null));
       return;
     }
 
@@ -608,7 +608,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
               const SizedBox(width: 26, height: 26,
                 child: CircularProgressIndicator(color: kLight, strokeWidth: 2.5)),
               const SizedBox(height: 20),
-              Text(_status, textAlign: TextAlign.center,
+              Text(_status.isEmpty ? context.l10n.authSettingUpAccount : _status, textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white.withValues(alpha: .8), fontSize: 14)),
             ] else ...[
               Text(_err, textAlign: TextAlign.center,
@@ -617,7 +617,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
               ElevatedButton(
                 onPressed: _run,
                 style: ElevatedButton.styleFrom(backgroundColor: kLight, foregroundColor: kPrimary),
-                child: const Text('Retry'),
+                child: Text(context.l10n.commonRetry),
               ),
             ],
           ]),
@@ -668,7 +668,7 @@ class _ContinueAsState extends State<ContinueAsScreen>
       await widget.onRoleSelected(_selected!, _remember);
     } catch (e) {
       debugPrint('[OffrO] role selection error: $e');
-      if (mounted) setState(() => _err = friendlyError(e));
+      if (mounted) setState(() => _err = friendlyError(e, l10n: mounted ? context.l10n : null));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -969,13 +969,13 @@ class _MerchantLoadingState extends State<MerchantLoadingScreen>
                 child: const Icon(Icons.storefront_rounded, color: kLight, size: 38),
               ),
               const SizedBox(height: 28),
-              Text('Preparing your business dashboard$dots',
+              Text(context.l10n.authPreparingDashboard(dots),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 19, fontWeight: FontWeight.w800, height: 1.3)),
               const SizedBox(height: 10),
-              Text('Loading stores, products and activity...',
+              Text(context.l10n.authLoadingBusinessData,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: .6),
@@ -1091,7 +1091,7 @@ class _SwitchModeSheetState extends State<SwitchModeSheet> {
       widget.onSwitch(role);
     } catch (e) {
       debugPrint('[OffrO] switch mode error: $e');
-      if (mounted) setState(() { _msg = friendlyError(e); _loading = false; });
+      if (mounted) setState(() { _msg = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
 
@@ -1318,9 +1318,9 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   Future<void> _sendOtp() async {
     final rawPhone = _phoneC.text.trim();
     final chk = checkPhoneInput(_country, rawPhone);   // India: the unchanged 10-digit rule. Others: libphonenumber mobile check.
-    if (!chk.ok) { _setMsg(chk.message); return; }
-    if (_isReg && _nameC.text.trim().isEmpty) { _setMsg('Enter your name'); return; }
-    if (_isReg && !_agreed) { _setMsg('Please tick the box to accept the Terms & Conditions and Privacy Policy and consent to WhatsApp updates from OffrO, to continue'); return; }
+    if (!chk.ok) { _setMsg(localizedPhoneInputError(context, _country, chk)); return; }
+    if (_isReg && _nameC.text.trim().isEmpty) { _setMsg(context.l10n.authEnterYourName); return; }
+    if (_isReg && !_agreed) { _setMsg(context.l10n.authAcceptTermsRequired); return; }
 
     final phone = chk.e164;                 // '+<dial><national>'
     final e164  = phone.substring(1);       // digits-only, as the MSG91 widget has always been given
@@ -1332,12 +1332,12 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       if (_isReg) {
         // Registration: block if already registered
         final check = await Api.checkUserPhone(phone, country: iso);
-        if (check) { _setMsg('This number is already registered. Please login.'); setState(() => _loading = false); return; }
+        if (check) { _setMsg(context.l10n.authAlreadyRegistered); setState(() => _loading = false); return; }
         await Api.registerUser(_nameC.text.trim(), phone, consent: _agreed, whatsappConsent: _agreed, country: iso);
       } else {
         // Login: block if NOT registered
         final check = await Api.checkUserPhone(phone, country: iso);
-        if (!check) { _setMsg('Number not registered. Please register first.'); setState(() => _loading = false); return; }
+        if (!check) { _setMsg(context.l10n.authNotRegistered); setState(() => _loading = false); return; }
       }
 
       // Send OTP — start the SMS User Consent listener FIRST so the SMS
@@ -1351,7 +1351,8 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         // customer, while a clean SDK message (if any) is preserved.
         final err = friendlyError(
           sendResp?['message']?.toString() ?? '',
-          fallback: "Unable to send OTP right now. Please try again.",
+          fallback: context.l10n.authOtpSendFailed,
+          l10n: mounted ? context.l10n : null,
         );
         _setMsg(err); return;
       }
@@ -1393,7 +1394,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       // failures now always go through the shared classifier.
       debugPrint('[OffrO] send OTP flow error: $e');
       SmsConsentOtp.cancel();
-      _setMsg(friendlyError(e));
+      _setMsg(friendlyError(e, l10n: mounted ? context.l10n : null));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -1408,7 +1409,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     // is otherwise unchanged.
     final token = accountData['token']?.toString() ?? '';
     final name  = accountData['name']?.toString()  ?? '';
-    if (token.isEmpty) throw Exception('Login failed — please try again.');
+    if (token.isEmpty) throw Exception(context.l10n.authLoginFailed);
 
     final roles      = (accountData['roles'] as List?)?.map((r) => r.toString()).toList() ?? [role];
     final isMerchant = roles.contains('merchant');
@@ -1454,11 +1455,11 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                 color: OffroColors.mint,
                 padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 28, 24, 64),
                 child: Stack(clipBehavior: Clip.hardEdge, children: [
-                  Positioned(right: -72, top: -90, child: Container(
+                  PositionedDirectional(end: -72, top: -90, child: Container(
                     width: 192, height: 192,
                     decoration: BoxDecoration(shape: BoxShape.circle,
                       border: Border.all(color: Colors.white.withValues(alpha: .25), width: 34)))),
-                  Positioned(left: -90, bottom: -110, child: Container(
+                  PositionedDirectional(start: -90, bottom: -110, child: Container(
                     width: 192, height: 192,
                     decoration: BoxDecoration(shape: BoxShape.circle,
                       color: OffroColors.accent.withValues(alpha: .45)))),
@@ -1562,11 +1563,11 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                             ),
                             const SizedBox(width: 10),
                             Expanded(child: Wrap(children: [
-                              Text('I agree to the ', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
-                              _legalLink('Terms & Conditions', () => _showPolicy('Terms & Conditions', Api.fetchTerms('user'))),
-                              Text(' and ', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
-                              _legalLink('Privacy Policy', () => _showPolicy('Privacy Policy', Api.fetchPolicy('privacy'))),
-                              Text(' and consent to receive updates and promotional messages from OffrO via WhatsApp.', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
+                              Text('${context.l10n.authAgreeTo} ', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
+                              _legalLink(context.l10n.profileTerms, () => _showPolicy(context.l10n.profileTerms, Api.fetchTerms('user'))),
+                              Text(' ${context.l10n.authAnd} ', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
+                              _legalLink(context.l10n.profilePrivacy, () => _showPolicy(context.l10n.profilePrivacy, Api.fetchPolicy('privacy'))),
+                              Text(' ${context.l10n.authConsentWhatsApp}', style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, height: 1.55, color: OffroColors.textMuted)),
                             ])),
                           ]),
                         ),
@@ -1858,7 +1859,7 @@ class OffroDialog extends StatelessWidget {
     content: SingleChildScrollView(child: Text(body,
       style: OffroText.body.copyWith(fontSize: 13, height: 1.65))),
     actions: [TextButton(onPressed: () => Navigator.pop(context),
-      child: Text('Close', style: OffroText.button.copyWith(color: OffroColors.primary, fontSize: 13)))],
+      child: Text(context.l10n.commonClose, style: OffroText.button.copyWith(color: OffroColors.primary, fontSize: 13)))],
   );
 }
 
@@ -1895,7 +1896,7 @@ class _MerchantTermsDialogState extends State<_MerchantTermsDialog> {
       backgroundColor: OffroColors.background,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      title: Text('Merchant Terms & Conditions',
+      title: Text(context.l10n.authMerchantTermsTitle,
         style: OffroText.title.copyWith(fontSize: 19)),
       content: SizedBox(
         width: double.maxFinite,
@@ -1905,7 +1906,7 @@ class _MerchantTermsDialogState extends State<_MerchantTermsDialog> {
             Expanded(child: SingleChildScrollView(
               child: Text(
                 _content.isEmpty
-                  ? 'Merchant terms and conditions will be posted here.'
+                  ? context.l10n.authMerchantTermsEmpty
                   : _content,
                 style: OffroText.body.copyWith(fontSize: 13, height: 1.6),
               ),
@@ -1926,7 +1927,7 @@ class _MerchantTermsDialogState extends State<_MerchantTermsDialog> {
                     : null,
                 ),
                 const SizedBox(width: 8),
-                Text('I agree to the Merchant Terms',
+                Text(context.l10n.authAgreeMerchantTerms,
                   style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w500, color: OffroColors.textMuted)),
               ]),
             ),
@@ -1935,7 +1936,7 @@ class _MerchantTermsDialogState extends State<_MerchantTermsDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: Text('Cancel', style: OffroText.button.copyWith(color: OffroColors.textMuted, fontSize: 13)),
+          child: Text(context.l10n.commonCancel, style: OffroText.button.copyWith(color: OffroColors.textMuted, fontSize: 13)),
         ),
         ElevatedButton(
           onPressed: _agreed ? () async {
@@ -1949,7 +1950,7 @@ class _MerchantTermsDialogState extends State<_MerchantTermsDialog> {
             elevation: 0,
             shape: const StadiumBorder(),
           ),
-          child: Text('Accept & Continue', style: OffroText.button.copyWith(color: Colors.white, fontSize: 13)),
+          child: Text(context.l10n.authAcceptContinue, style: OffroText.button.copyWith(color: Colors.white, fontSize: 13)),
         ),
       ],
     );

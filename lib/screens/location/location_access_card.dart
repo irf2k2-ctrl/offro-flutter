@@ -8,6 +8,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/models/offro_location.dart';
 import '../../core/services/location_service.dart';
 import '../../core/design/offro_tokens.dart' show OffroColors;
+import '../../core/l10n/l10n.dart';
 
 const Color _kRed = Color(0xFFD64545);
 const Color _kRedBg = Color(0xFFFDECEC);
@@ -35,41 +36,41 @@ class LocationAccessCard extends StatelessWidget {
     Color bg = Colors.white;
     Color iconColor = kPrimary;
     IconData icon = Icons.my_location_rounded;
-    String title = 'Checking location…';
+    String title = context.l10n.locCardChecking;
     String subtitle = '';
     Widget? trailing;
 
     if (a == LocationAccess.serviceOff) {
       border = _kRed; bg = _kRedBg; iconColor = _kRed;
       icon = Icons.location_off_rounded;
-      title = 'Location services are off';
-      subtitle = 'Turn on your device location to see places near you';
+      title = context.l10n.locCardServicesOff;
+      subtitle = context.l10n.locCardServicesOffSub;
       trailing = const Icon(Icons.arrow_forward_rounded, color: _kRed, size: 20);
     } else if (a == LocationAccess.permissionDenied) {
       border = _kRed; bg = _kRedBg; iconColor = _kRed;
       icon = Icons.map_outlined;
-      title = 'Enable location permissions';
-      subtitle = 'for more relevant suggestions near you';
+      title = context.l10n.locCardEnablePerm;
+      subtitle = context.l10n.locCardEnablePermSub;
       trailing = const Icon(Icons.arrow_forward_rounded, color: _kRed, size: 20);
     } else if (a == LocationAccess.permissionDeniedForever) {
       border = _kRed; bg = _kRedBg; iconColor = _kRed;
       icon = Icons.location_disabled_rounded;
-      title = 'Location permission is blocked';
-      subtitle = 'Allow location for OffrO in app settings';
+      title = context.l10n.locCardBlocked;
+      subtitle = context.l10n.locCardBlockedSub;
       trailing = const Icon(Icons.arrow_forward_rounded, color: _kRed, size: 20);
     } else if (a == LocationAccess.ready) {
       border = kPrimary; bg = OffroColors.mintFill; iconColor = kPrimary;
       icon = Icons.my_location_rounded;
-      title = 'Use current location';
+      title = context.l10n.bizUseCurrentLocation;
       if (detecting) {
-        subtitle = 'Detecting your location…';
+        subtitle = context.l10n.locCardDetecting;
         trailing = const SizedBox(width: 18, height: 18,
             child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary));
       } else if (detected != null) {
         subtitle = '${detected!.title}\n${detected!.subtitle}';
         trailing = const Icon(Icons.chevron_right_rounded, color: kPrimary);
       } else if (detectError.isNotEmpty) {
-        subtitle = '$detectError Tap to retry.';
+        subtitle = context.l10n.locCardTapRetry(detectError);
         trailing = const Icon(Icons.refresh_rounded, color: kPrimary);
       }
     } else {

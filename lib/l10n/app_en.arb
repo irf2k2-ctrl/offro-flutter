@@ -6168,5 +6168,280 @@
   "@bizOffrOInfluencer": {
     "description": "Merchant/Influencer text",
     "x-screen": "influencer"
+  },
+  "authEnterOtp4": "Enter 4-digit OTP",
+  "@authEnterOtp4": {
+    "description": "OTP screen: shown when fewer than 4 digits were entered",
+    "x-screen": "login"
+  },
+  "authOtpIncorrect": "Incorrect OTP. Please try again.",
+  "@authOtpIncorrect": {
+    "description": "OTP screen: wrong code (used when the server gives no message)",
+    "x-screen": "login"
+  },
+  "authOtpVerifyFailed": "Unable to verify OTP right now. Please try again.",
+  "@authOtpVerifyFailed": {
+    "description": "OTP screen: verification failed for a technical reason",
+    "x-screen": "login"
+  },
+  "authCodeSentSms": "Code sent by SMS.",
+  "@authCodeSentSms": {
+    "description": "OTP screen: the code was sent by SMS instead",
+    "x-screen": "login"
+  },
+  "authOtpResent": "OTP resent successfully.",
+  "@authOtpResent": {
+    "description": "OTP screen: code sent again",
+    "x-screen": "login"
+  },
+  "authResendFailed": "Resend failed.",
+  "@authResendFailed": {
+    "description": "OTP screen: resend failed (no server message)",
+    "x-screen": "login"
+  },
+  "authOtpResendFailed": "Unable to resend OTP right now. Please try again.",
+  "@authOtpResendFailed": {
+    "description": "OTP screen: resend failed for a technical reason",
+    "x-screen": "login"
+  },
+  "authSettingUpAccount": "Setting up your account...",
+  "@authSettingUpAccount": {
+    "description": "Shown while the account is prepared after login",
+    "x-screen": "login"
+  },
+  "authPreparingDashboard": "Preparing your business dashboard{dots}",
+  "@authPreparingDashboard": {
+    "description": "Merchant login splash; {dots} is an animated '...' that must stay at the end",
+    "x-screen": "login",
+    "placeholders": {
+      "dots": {
+        "type": "String"
+      }
+    }
+  },
+  "authLoadingBusinessData": "Loading stores, products and activity...",
+  "@authLoadingBusinessData": {
+    "description": "Merchant login splash, second line",
+    "x-screen": "login"
+  },
+  "authEnterYourName": "Enter your name",
+  "@authEnterYourName": {
+    "description": "Registration: name missing",
+    "x-screen": "login"
+  },
+  "authAcceptTermsRequired": "Please tick the box to accept the Terms & Conditions and Privacy Policy and consent to WhatsApp updates from OffrO, to continue",
+  "@authAcceptTermsRequired": {
+    "description": "Registration: the consent checkbox is not ticked",
+    "x-screen": "login"
+  },
+  "authAlreadyRegistered": "This number is already registered. Please login.",
+  "@authAlreadyRegistered": {
+    "description": "Registration: number already has an account",
+    "x-screen": "login"
+  },
+  "authNotRegistered": "Number not registered. Please register first.",
+  "@authNotRegistered": {
+    "description": "Login: number has no account",
+    "x-screen": "login"
+  },
+  "authOtpSendFailed": "Unable to send OTP right now. Please try again.",
+  "@authOtpSendFailed": {
+    "description": "Login: the code could not be sent",
+    "x-screen": "login"
+  },
+  "authLoginFailed": "Login failed — please try again.",
+  "@authLoginFailed": {
+    "description": "Login: generic failure",
+    "x-screen": "login"
+  },
+  "authAgreeTo": "I agree to the",
+  "@authAgreeTo": {
+    "description": "Consent line, start: 'I agree to the [Terms & Conditions] and [Privacy Policy] and consent ...' (spaces are added in code)",
+    "x-screen": "login"
+  },
+  "authAnd": "and",
+  "@authAnd": {
+    "description": "Consent line, joins the two links",
+    "x-screen": "login"
+  },
+  "authConsentWhatsApp": "and consent to receive updates and promotional messages from OffrO via WhatsApp.",
+  "@authConsentWhatsApp": {
+    "description": "Consent line, end",
+    "x-screen": "login"
+  },
+  "authMerchantTermsTitle": "Merchant Terms & Conditions",
+  "@authMerchantTermsTitle": {
+    "description": "Merchant terms dialog title",
+    "x-screen": "login"
+  },
+  "authMerchantTermsEmpty": "Merchant terms and conditions will be posted here.",
+  "@authMerchantTermsEmpty": {
+    "description": "Merchant terms dialog: shown while the server has no text",
+    "x-screen": "login"
+  },
+  "authAgreeMerchantTerms": "I agree to the Merchant Terms",
+  "@authAgreeMerchantTerms": {
+    "description": "Merchant terms dialog checkbox",
+    "x-screen": "login"
+  },
+  "authAcceptContinue": "Accept & Continue",
+  "@authAcceptContinue": {
+    "description": "Merchant terms dialog button",
+    "x-screen": "login"
+  },
+  "phoneEnterNumber": "Enter your mobile number",
+  "@phoneEnterNumber": {
+    "description": "Phone field validation",
+    "x-screen": "phone"
+  },
+  "phoneInvalid10": "Enter a valid 10-digit mobile number",
+  "@phoneInvalid10": {
+    "description": "Phone field validation for India",
+    "x-screen": "phone"
+  },
+  "phoneInvalidCountry": "Enter a valid {country} mobile number",
+  "@phoneInvalidCountry": {
+    "description": "Phone field validation; {country} is the country name",
+    "x-screen": "phone",
+    "placeholders": {
+      "country": {
+        "type": "String"
+      }
+    }
+  },
+  "countryNameIN": "India",
+  "@countryNameIN": {
+    "description": "Country name in the country picker",
+    "x-screen": "phone"
+  },
+  "countryNameJO": "Jordan",
+  "@countryNameJO": {
+    "description": "Country name in the country picker",
+    "x-screen": "phone"
+  },
+  "countryNameNP": "Nepal",
+  "@countryNameNP": {
+    "description": "Country name in the country picker",
+    "x-screen": "phone"
+  },
+  "countryNamePH": "Philippines",
+  "@countryNamePH": {
+    "description": "Country name in the country picker",
+    "x-screen": "phone"
+  },
+  "countryNameSA": "Saudi Arabia",
+  "@countryNameSA": {
+    "description": "Country name in the country picker",
+    "x-screen": "phone"
+  },
+  "locGateTitle": "Allow location access",
+  "@locGateTitle": {
+    "description": "Location gate title",
+    "x-screen": "location"
+  },
+  "locGateBody": "OffrO needs your location to show nearby and relevant content.",
+  "@locGateBody": {
+    "description": "Location gate explanation",
+    "x-screen": "location"
+  },
+  "locGateBlockedMsg": "Location permission is turned off for OffrO. You can allow it in app settings, or choose your city manually.",
+  "@locGateBlockedMsg": {
+    "description": "Location gate: permission blocked for good",
+    "x-screen": "location"
+  },
+  "locGateServiceOffMsg": "Your device's location services are off. Turn them on, or choose your city manually.",
+  "@locGateServiceOffMsg": {
+    "description": "Location gate: device location is off",
+    "x-screen": "location"
+  },
+  "locGateDeniedMsg": "Location permission wasn't allowed. You can still choose your city manually.",
+  "@locGateDeniedMsg": {
+    "description": "Location gate: permission not allowed",
+    "x-screen": "location"
+  },
+  "locGateOpenSettings": "Open app settings",
+  "@locGateOpenSettings": {
+    "description": "Location gate button",
+    "x-screen": "location"
+  },
+  "locGateAllow": "Allow location",
+  "@locGateAllow": {
+    "description": "Location gate main button",
+    "x-screen": "location"
+  },
+  "locGateChooseManually": "Choose city manually",
+  "@locGateChooseManually": {
+    "description": "Location gate secondary button",
+    "x-screen": "location"
+  },
+  "locCardChecking": "Checking location…",
+  "@locCardChecking": {
+    "description": "Location card title while checking",
+    "x-screen": "location"
+  },
+  "locCardServicesOff": "Location services are off",
+  "@locCardServicesOff": {
+    "description": "Location card title",
+    "x-screen": "location"
+  },
+  "locCardServicesOffSub": "Turn on your device location to see places near you",
+  "@locCardServicesOffSub": {
+    "description": "Location card subtitle",
+    "x-screen": "location"
+  },
+  "locCardEnablePerm": "Enable location permissions",
+  "@locCardEnablePerm": {
+    "description": "Location card title",
+    "x-screen": "location"
+  },
+  "locCardEnablePermSub": "for more relevant suggestions near you",
+  "@locCardEnablePermSub": {
+    "description": "Location card subtitle",
+    "x-screen": "location"
+  },
+  "locCardBlocked": "Location permission is blocked",
+  "@locCardBlocked": {
+    "description": "Location card title",
+    "x-screen": "location"
+  },
+  "locCardBlockedSub": "Allow location for OffrO in app settings",
+  "@locCardBlockedSub": {
+    "description": "Location card subtitle",
+    "x-screen": "location"
+  },
+  "locCardDetecting": "Detecting your location…",
+  "@locCardDetecting": {
+    "description": "Location card subtitle while detecting",
+    "x-screen": "location"
+  },
+  "locCardTapRetry": "{error} Tap to retry.",
+  "@locCardTapRetry": {
+    "description": "Location card: {error} is a message, then a retry hint",
+    "x-screen": "location",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "splashTagline": "Discover · Save · Earn",
+  "@splashTagline": {
+    "description": "Tagline under the logo",
+    "x-screen": "splash"
+  },
+  "commonBack": "Back",
+  "@commonBack": {
+    "description": "Accessible label of the back button",
+    "x-screen": "common"
+  },
+  "stateErrorTitle": "Couldn't load this",
+  "@stateErrorTitle": {
+    "description": "Default title of the shared error state",
+    "x-screen": "common"
+  },
+  "stateErrorMessage": "Check your connection and try again.",
+  "@stateErrorMessage": {
+    "description": "Default message of the shared error state",
+    "x-screen": "common"
   }
 }

@@ -3658,4 +3658,180 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bizOffrOInfluencer => 'OffrO Influencer';
+
+  @override
+  String get authEnterOtp4 => 'Enter 4-digit OTP';
+
+  @override
+  String get authOtpIncorrect => 'Incorrect OTP. Please try again.';
+
+  @override
+  String get authOtpVerifyFailed =>
+      'Unable to verify OTP right now. Please try again.';
+
+  @override
+  String get authCodeSentSms => 'Code sent by SMS.';
+
+  @override
+  String get authOtpResent => 'OTP resent successfully.';
+
+  @override
+  String get authResendFailed => 'Resend failed.';
+
+  @override
+  String get authOtpResendFailed =>
+      'Unable to resend OTP right now. Please try again.';
+
+  @override
+  String get authSettingUpAccount => 'Setting up your account...';
+
+  @override
+  String authPreparingDashboard(String dots) {
+    return 'Preparing your business dashboard$dots';
+  }
+
+  @override
+  String get authLoadingBusinessData =>
+      'Loading stores, products and activity...';
+
+  @override
+  String get authEnterYourName => 'Enter your name';
+
+  @override
+  String get authAcceptTermsRequired =>
+      'Please tick the box to accept the Terms & Conditions and Privacy Policy and consent to WhatsApp updates from OffrO, to continue';
+
+  @override
+  String get authAlreadyRegistered =>
+      'This number is already registered. Please login.';
+
+  @override
+  String get authNotRegistered =>
+      'Number not registered. Please register first.';
+
+  @override
+  String get authOtpSendFailed =>
+      'Unable to send OTP right now. Please try again.';
+
+  @override
+  String get authLoginFailed => 'Login failed — please try again.';
+
+  @override
+  String get authAgreeTo => 'I agree to the';
+
+  @override
+  String get authAnd => 'and';
+
+  @override
+  String get authConsentWhatsApp =>
+      'and consent to receive updates and promotional messages from OffrO via WhatsApp.';
+
+  @override
+  String get authMerchantTermsTitle => 'Merchant Terms & Conditions';
+
+  @override
+  String get authMerchantTermsEmpty =>
+      'Merchant terms and conditions will be posted here.';
+
+  @override
+  String get authAgreeMerchantTerms => 'I agree to the Merchant Terms';
+
+  @override
+  String get authAcceptContinue => 'Accept & Continue';
+
+  @override
+  String get phoneEnterNumber => 'Enter your mobile number';
+
+  @override
+  String get phoneInvalid10 => 'Enter a valid 10-digit mobile number';
+
+  @override
+  String phoneInvalidCountry(String country) {
+    return 'Enter a valid $country mobile number';
+  }
+
+  @override
+  String get countryNameIN => 'India';
+
+  @override
+  String get countryNameJO => 'Jordan';
+
+  @override
+  String get countryNameNP => 'Nepal';
+
+  @override
+  String get countryNamePH => 'Philippines';
+
+  @override
+  String get countryNameSA => 'Saudi Arabia';
+
+  @override
+  String get locGateTitle => 'Allow location access';
+
+  @override
+  String get locGateBody =>
+      'OffrO needs your location to show nearby and relevant content.';
+
+  @override
+  String get locGateBlockedMsg =>
+      'Location permission is turned off for OffrO. You can allow it in app settings, or choose your city manually.';
+
+  @override
+  String get locGateServiceOffMsg =>
+      'Your device\'s location services are off. Turn them on, or choose your city manually.';
+
+  @override
+  String get locGateDeniedMsg =>
+      'Location permission wasn\'t allowed. You can still choose your city manually.';
+
+  @override
+  String get locGateOpenSettings => 'Open app settings';
+
+  @override
+  String get locGateAllow => 'Allow location';
+
+  @override
+  String get locGateChooseManually => 'Choose city manually';
+
+  @override
+  String get locCardChecking => 'Checking location…';
+
+  @override
+  String get locCardServicesOff => 'Location services are off';
+
+  @override
+  String get locCardServicesOffSub =>
+      'Turn on your device location to see places near you';
+
+  @override
+  String get locCardEnablePerm => 'Enable location permissions';
+
+  @override
+  String get locCardEnablePermSub => 'for more relevant suggestions near you';
+
+  @override
+  String get locCardBlocked => 'Location permission is blocked';
+
+  @override
+  String get locCardBlockedSub => 'Allow location for OffrO in app settings';
+
+  @override
+  String get locCardDetecting => 'Detecting your location…';
+
+  @override
+  String locCardTapRetry(String error) {
+    return '$error Tap to retry.';
+  }
+
+  @override
+  String get splashTagline => 'Discover · Save · Earn';
+
+  @override
+  String get commonBack => 'Back';
+
+  @override
+  String get stateErrorTitle => 'Couldn\'t load this';
+
+  @override
+  String get stateErrorMessage => 'Check your connection and try again.';
 }

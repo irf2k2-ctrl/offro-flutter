@@ -9,6 +9,7 @@ import 'offro_button.dart';
 import 'offro_icons.dart';
 import 'offro_tokens.dart';
 import 'offro_typography.dart';
+import '../l10n/l10n.dart';
 
 class _StateBody extends StatelessWidget {
   final OffroIconData icon;
@@ -98,28 +99,32 @@ class OffroEmptyState extends StatelessWidget {
 
 /// "Something went wrong" state with an optional Retry action.
 class OffroErrorState extends StatelessWidget {
-  final String title;
+  /// Marks "use the standard message in the app language" (a caller can still pass null for no message).
+  static const String useDefaultMessage = '\u0000default';
+
+  final String? title; // null = the standard title in the app language
   final String? message;
   final VoidCallback? onRetry;
-  final String retryLabel;
+  final String? retryLabel; // null = the standard label in the app language
 
   const OffroErrorState({
     super.key,
-    this.title = "Couldn't load this",
-    this.message = 'Check your connection and try again.',
+    this.title,
+    this.message = useDefaultMessage,
     this.onRetry,
-    this.retryLabel = 'Try again',
+    this.retryLabel,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l = context.l10n;
     return _StateBody(
       icon: OffroIcons.clock,
       iconBackground: const Color(0xFFF7E1DA),
       iconColor: OffroColors.error,
-      title: title,
-      message: message,
-      actionLabel: onRetry == null ? null : retryLabel,
+      title: title ?? l.stateErrorTitle,
+      message: message == useDefaultMessage ? l.stateErrorMessage : message,
+      actionLabel: onRetry == null ? null : (retryLabel ?? l.locTryAgain),
       onAction: onRetry,
     );
   }

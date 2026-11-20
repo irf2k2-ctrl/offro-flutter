@@ -6553,6 +6553,318 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OffrO Influencer'**
   String get bizOffrOInfluencer;
+
+  /// OTP screen: shown when fewer than 4 digits were entered
+  ///
+  /// In en, this message translates to:
+  /// **'Enter 4-digit OTP'**
+  String get authEnterOtp4;
+
+  /// OTP screen: wrong code (used when the server gives no message)
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect OTP. Please try again.'**
+  String get authOtpIncorrect;
+
+  /// OTP screen: verification failed for a technical reason
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to verify OTP right now. Please try again.'**
+  String get authOtpVerifyFailed;
+
+  /// OTP screen: the code was sent by SMS instead
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent by SMS.'**
+  String get authCodeSentSms;
+
+  /// OTP screen: code sent again
+  ///
+  /// In en, this message translates to:
+  /// **'OTP resent successfully.'**
+  String get authOtpResent;
+
+  /// OTP screen: resend failed (no server message)
+  ///
+  /// In en, this message translates to:
+  /// **'Resend failed.'**
+  String get authResendFailed;
+
+  /// OTP screen: resend failed for a technical reason
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to resend OTP right now. Please try again.'**
+  String get authOtpResendFailed;
+
+  /// Shown while the account is prepared after login
+  ///
+  /// In en, this message translates to:
+  /// **'Setting up your account...'**
+  String get authSettingUpAccount;
+
+  /// Merchant login splash; {dots} is an animated '...' that must stay at the end
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing your business dashboard{dots}'**
+  String authPreparingDashboard(String dots);
+
+  /// Merchant login splash, second line
+  ///
+  /// In en, this message translates to:
+  /// **'Loading stores, products and activity...'**
+  String get authLoadingBusinessData;
+
+  /// Registration: name missing
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your name'**
+  String get authEnterYourName;
+
+  /// Registration: the consent checkbox is not ticked
+  ///
+  /// In en, this message translates to:
+  /// **'Please tick the box to accept the Terms & Conditions and Privacy Policy and consent to WhatsApp updates from OffrO, to continue'**
+  String get authAcceptTermsRequired;
+
+  /// Registration: number already has an account
+  ///
+  /// In en, this message translates to:
+  /// **'This number is already registered. Please login.'**
+  String get authAlreadyRegistered;
+
+  /// Login: number has no account
+  ///
+  /// In en, this message translates to:
+  /// **'Number not registered. Please register first.'**
+  String get authNotRegistered;
+
+  /// Login: the code could not be sent
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to send OTP right now. Please try again.'**
+  String get authOtpSendFailed;
+
+  /// Login: generic failure
+  ///
+  /// In en, this message translates to:
+  /// **'Login failed — please try again.'**
+  String get authLoginFailed;
+
+  /// Consent line, start: 'I agree to the [Terms & Conditions] and [Privacy Policy] and consent ...' (spaces are added in code)
+  ///
+  /// In en, this message translates to:
+  /// **'I agree to the'**
+  String get authAgreeTo;
+
+  /// Consent line, joins the two links
+  ///
+  /// In en, this message translates to:
+  /// **'and'**
+  String get authAnd;
+
+  /// Consent line, end
+  ///
+  /// In en, this message translates to:
+  /// **'and consent to receive updates and promotional messages from OffrO via WhatsApp.'**
+  String get authConsentWhatsApp;
+
+  /// Merchant terms dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant Terms & Conditions'**
+  String get authMerchantTermsTitle;
+
+  /// Merchant terms dialog: shown while the server has no text
+  ///
+  /// In en, this message translates to:
+  /// **'Merchant terms and conditions will be posted here.'**
+  String get authMerchantTermsEmpty;
+
+  /// Merchant terms dialog checkbox
+  ///
+  /// In en, this message translates to:
+  /// **'I agree to the Merchant Terms'**
+  String get authAgreeMerchantTerms;
+
+  /// Merchant terms dialog button
+  ///
+  /// In en, this message translates to:
+  /// **'Accept & Continue'**
+  String get authAcceptContinue;
+
+  /// Phone field validation
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your mobile number'**
+  String get phoneEnterNumber;
+
+  /// Phone field validation for India
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid 10-digit mobile number'**
+  String get phoneInvalid10;
+
+  /// Phone field validation; {country} is the country name
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid {country} mobile number'**
+  String phoneInvalidCountry(String country);
+
+  /// Country name in the country picker
+  ///
+  /// In en, this message translates to:
+  /// **'India'**
+  String get countryNameIN;
+
+  /// Country name in the country picker
+  ///
+  /// In en, this message translates to:
+  /// **'Jordan'**
+  String get countryNameJO;
+
+  /// Country name in the country picker
+  ///
+  /// In en, this message translates to:
+  /// **'Nepal'**
+  String get countryNameNP;
+
+  /// Country name in the country picker
+  ///
+  /// In en, this message translates to:
+  /// **'Philippines'**
+  String get countryNamePH;
+
+  /// Country name in the country picker
+  ///
+  /// In en, this message translates to:
+  /// **'Saudi Arabia'**
+  String get countryNameSA;
+
+  /// Location gate title
+  ///
+  /// In en, this message translates to:
+  /// **'Allow location access'**
+  String get locGateTitle;
+
+  /// Location gate explanation
+  ///
+  /// In en, this message translates to:
+  /// **'OffrO needs your location to show nearby and relevant content.'**
+  String get locGateBody;
+
+  /// Location gate: permission blocked for good
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is turned off for OffrO. You can allow it in app settings, or choose your city manually.'**
+  String get locGateBlockedMsg;
+
+  /// Location gate: device location is off
+  ///
+  /// In en, this message translates to:
+  /// **'Your device\'s location services are off. Turn them on, or choose your city manually.'**
+  String get locGateServiceOffMsg;
+
+  /// Location gate: permission not allowed
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission wasn\'t allowed. You can still choose your city manually.'**
+  String get locGateDeniedMsg;
+
+  /// Location gate button
+  ///
+  /// In en, this message translates to:
+  /// **'Open app settings'**
+  String get locGateOpenSettings;
+
+  /// Location gate main button
+  ///
+  /// In en, this message translates to:
+  /// **'Allow location'**
+  String get locGateAllow;
+
+  /// Location gate secondary button
+  ///
+  /// In en, this message translates to:
+  /// **'Choose city manually'**
+  String get locGateChooseManually;
+
+  /// Location card title while checking
+  ///
+  /// In en, this message translates to:
+  /// **'Checking location…'**
+  String get locCardChecking;
+
+  /// Location card title
+  ///
+  /// In en, this message translates to:
+  /// **'Location services are off'**
+  String get locCardServicesOff;
+
+  /// Location card subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on your device location to see places near you'**
+  String get locCardServicesOffSub;
+
+  /// Location card title
+  ///
+  /// In en, this message translates to:
+  /// **'Enable location permissions'**
+  String get locCardEnablePerm;
+
+  /// Location card subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'for more relevant suggestions near you'**
+  String get locCardEnablePermSub;
+
+  /// Location card title
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is blocked'**
+  String get locCardBlocked;
+
+  /// Location card subtitle
+  ///
+  /// In en, this message translates to:
+  /// **'Allow location for OffrO in app settings'**
+  String get locCardBlockedSub;
+
+  /// Location card subtitle while detecting
+  ///
+  /// In en, this message translates to:
+  /// **'Detecting your location…'**
+  String get locCardDetecting;
+
+  /// Location card: {error} is a message, then a retry hint
+  ///
+  /// In en, this message translates to:
+  /// **'{error} Tap to retry.'**
+  String locCardTapRetry(String error);
+
+  /// Tagline under the logo
+  ///
+  /// In en, this message translates to:
+  /// **'Discover · Save · Earn'**
+  String get splashTagline;
+
+  /// Accessible label of the back button
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get commonBack;
+
+  /// Default title of the shared error state
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load this'**
+  String get stateErrorTitle;
+
+  /// Default message of the shared error state
+  ///
+  /// In en, this message translates to:
+  /// **'Check your connection and try again.'**
+  String get stateErrorMessage;
 }
 
 class _AppLocalizationsDelegate

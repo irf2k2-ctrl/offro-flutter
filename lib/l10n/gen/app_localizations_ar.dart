@@ -3639,4 +3639,179 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bizOffrOInfluencer => 'مؤثر OffrO';
+
+  @override
+  String get authEnterOtp4 => 'أدخل رمز التحقق المكوّن من 4 أرقام';
+
+  @override
+  String get authOtpIncorrect => 'رمز التحقق غير صحيح. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get authOtpVerifyFailed =>
+      'تعذر التحقق من الرمز حاليًا. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get authCodeSentSms => 'تم إرسال الرمز عبر رسالة نصية.';
+
+  @override
+  String get authOtpResent => 'تمت إعادة إرسال الرمز بنجاح.';
+
+  @override
+  String get authResendFailed => 'فشلت إعادة الإرسال.';
+
+  @override
+  String get authOtpResendFailed =>
+      'تعذرت إعادة إرسال الرمز حاليًا. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get authSettingUpAccount => 'جارٍ إعداد حسابك...';
+
+  @override
+  String authPreparingDashboard(String dots) {
+    return 'جارٍ تجهيز لوحة نشاطك التجاري$dots';
+  }
+
+  @override
+  String get authLoadingBusinessData =>
+      'جارٍ تحميل المتاجر والمنتجات والنشاط...';
+
+  @override
+  String get authEnterYourName => 'أدخل اسمك';
+
+  @override
+  String get authAcceptTermsRequired =>
+      'يرجى تحديد المربع لقبول الشروط والأحكام وسياسة الخصوصية والموافقة على تحديثات WhatsApp من OffrO للمتابعة';
+
+  @override
+  String get authAlreadyRegistered =>
+      'هذا الرقم مسجّل بالفعل. يرجى تسجيل الدخول.';
+
+  @override
+  String get authNotRegistered => 'هذا الرقم غير مسجّل. يرجى التسجيل أولًا.';
+
+  @override
+  String get authOtpSendFailed =>
+      'تعذر إرسال الرمز حاليًا. يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get authLoginFailed => 'فشل تسجيل الدخول — يرجى المحاولة مرة أخرى.';
+
+  @override
+  String get authAgreeTo => 'أوافق على';
+
+  @override
+  String get authAnd => 'و';
+
+  @override
+  String get authConsentWhatsApp =>
+      'وأوافق على تلقي التحديثات والرسائل الترويجية من OffrO عبر WhatsApp.';
+
+  @override
+  String get authMerchantTermsTitle => 'شروط وأحكام التاجر';
+
+  @override
+  String get authMerchantTermsEmpty => 'ستُنشر شروط وأحكام التاجر هنا.';
+
+  @override
+  String get authAgreeMerchantTerms => 'أوافق على شروط التاجر';
+
+  @override
+  String get authAcceptContinue => 'قبول ومتابعة';
+
+  @override
+  String get phoneEnterNumber => 'أدخل رقم جوالك';
+
+  @override
+  String get phoneInvalid10 => 'أدخل رقم جوال صحيحًا من 10 أرقام';
+
+  @override
+  String phoneInvalidCountry(String country) {
+    return 'أدخل رقم جوال صحيحًا في $country';
+  }
+
+  @override
+  String get countryNameIN => 'الهند';
+
+  @override
+  String get countryNameJO => 'الأردن';
+
+  @override
+  String get countryNameNP => 'نيبال';
+
+  @override
+  String get countryNamePH => 'الفلبين';
+
+  @override
+  String get countryNameSA => 'المملكة العربية السعودية';
+
+  @override
+  String get locGateTitle => 'السماح بالوصول إلى الموقع';
+
+  @override
+  String get locGateBody =>
+      'يحتاج OffrO إلى موقعك لعرض المحتوى القريب والمناسب لك.';
+
+  @override
+  String get locGateBlockedMsg =>
+      'إذن الموقع متوقف لتطبيق OffrO. يمكنك السماح به من إعدادات التطبيق، أو اختيار مدينتك يدويًا.';
+
+  @override
+  String get locGateServiceOffMsg =>
+      'خدمات الموقع في جهازك متوقفة. شغّلها، أو اختر مدينتك يدويًا.';
+
+  @override
+  String get locGateDeniedMsg =>
+      'لم يتم السماح بإذن الموقع. ما زال بإمكانك اختيار مدينتك يدويًا.';
+
+  @override
+  String get locGateOpenSettings => 'فتح إعدادات التطبيق';
+
+  @override
+  String get locGateAllow => 'السماح بالموقع';
+
+  @override
+  String get locGateChooseManually => 'اختيار المدينة يدويًا';
+
+  @override
+  String get locCardChecking => 'جارٍ التحقق من الموقع…';
+
+  @override
+  String get locCardServicesOff => 'خدمات الموقع متوقفة';
+
+  @override
+  String get locCardServicesOffSub =>
+      'شغّل موقع جهازك لعرض الأماكن القريبة منك';
+
+  @override
+  String get locCardEnablePerm => 'فعّل أذونات الموقع';
+
+  @override
+  String get locCardEnablePermSub => 'للحصول على اقتراحات أنسب بالقرب منك';
+
+  @override
+  String get locCardBlocked => 'إذن الموقع محظور';
+
+  @override
+  String get locCardBlockedSub =>
+      'اسمح بالموقع لتطبيق OffrO من إعدادات التطبيق';
+
+  @override
+  String get locCardDetecting => 'جارٍ تحديد موقعك…';
+
+  @override
+  String locCardTapRetry(String error) {
+    return '$error اضغط لإعادة المحاولة.';
+  }
+
+  @override
+  String get splashTagline => 'اكتشف · وفّر · اكسب';
+
+  @override
+  String get commonBack => 'رجوع';
+
+  @override
+  String get stateErrorTitle => 'تعذر تحميل هذا المحتوى';
+
+  @override
+  String get stateErrorMessage => 'تحقق من اتصالك وحاول مرة أخرى.';
 }

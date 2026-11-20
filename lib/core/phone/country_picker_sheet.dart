@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../l10n/l10n.dart';
 import 'phone_country.dart';
+import '../l10n/l10n.dart';
 
 /// Opens a bottom sheet with the country list and returns the chosen country, or null when dismissed.
 Future<PhoneCountry?> showCountryPickerSheet(
@@ -57,7 +58,7 @@ class CountryPickerSheet extends StatelessWidget {
                   ListTile(
                     key: ValueKey('country_${c.iso}'),
                     leading: Text(c.flag, style: const TextStyle(fontSize: 24)),
-                    title: Text(c.name),
+                    title: Text(localizedCountryName(context, c)),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

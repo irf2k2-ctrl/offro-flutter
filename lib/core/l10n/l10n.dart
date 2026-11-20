@@ -11,6 +11,8 @@ import 'package:flutter/widgets.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../l10n/gen/app_localizations_en.dart';
 import '../utils/store_hours.dart';
+import '../phone/phone_country.dart';
+import '../phone/phone_input.dart';
 import 'locale_controller.dart';
 
 export '../../l10n/gen/app_localizations.dart' show AppLocalizations;
@@ -178,4 +180,27 @@ String localizedBadgeRibbon(BuildContext context, String key, String fallback) {
     case 'limited_offer': return '⏳ ${l.badgeLimitedOffer}';
     default: return fallback;
   }
+}
+
+/// A supported country's name in the app language (the country list itself keeps the English name for logic and the server).
+String localizedCountryName(BuildContext context, PhoneCountry country) {
+  final l = context.l10n;
+  switch (country.iso) {
+    case 'IN': return l.countryNameIN;
+    case 'JO': return l.countryNameJO;
+    case 'NP': return l.countryNameNP;
+    case 'PH': return l.countryNamePH;
+    case 'SA': return l.countryNameSA;
+    default: return country.name;
+  }
+}
+
+/// The message to show for a phone number that failed [checkPhoneInput]. The English message inside the result is unchanged; this only
+/// chooses the text in the app language (same three cases as the rules in phone_input.dart).
+String localizedPhoneInputError(BuildContext context, PhoneCountry country, PhoneInputResult result) {
+  if (result.ok) return result.message;
+  final l = context.l10n;
+  if (result.error == PhoneInputError.empty) return l.phoneEnterNumber;
+  if (country.iso == 'IN') return l.phoneInvalid10;
+  return l.phoneInvalidCountry(localizedCountryName(context, country));
 }

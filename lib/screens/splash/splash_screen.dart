@@ -9,6 +9,7 @@ import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/services/api_service.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
+import '../../core/l10n/l10n.dart';
 
 // SplashScreen uses callbacks to navigate — avoids circular imports with main.dart.
 // main.dart is responsible for passing the correct navigation callbacks.
@@ -141,8 +142,8 @@ class _SplashState extends State<SplashScreen> with SingleTickerProviderStateMix
               // ── OFFRO Logo — white background, green logo ──
               buildImageLogo(height: 110, white: false),
               const SizedBox(height: 14),
-              const Text(
-                "Discover · Save · Earn",
+              Text(
+                context.l10n.splashTagline,
                 style: TextStyle(
                   color: OffroColors.textMuted,
                   fontSize: 12,

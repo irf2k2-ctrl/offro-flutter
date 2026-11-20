@@ -14,6 +14,7 @@ import '../../core/services/location_service.dart';
 import '../../core/services/location_store.dart';
 import 'location_screen.dart';
 import '../../core/design/offro_tokens.dart' show OffroColors;
+import '../../core/l10n/l10n.dart';
 
 class LocationAccessGate extends StatefulWidget {
   final LocationMode mode;
@@ -26,6 +27,7 @@ class LocationAccessGate extends StatefulWidget {
 
 class _LocationAccessGateState extends State<LocationAccessGate> {
   String _msg = '';
+  bool _showSettings = false;
   bool _busy = false;
 
   void _openScreen() {
@@ -43,19 +45,19 @@ class _LocationAccessGateState extends State<LocationAccessGate> {
 
   Future<void> _allow() async {
     if (_busy) return;
-    setState(() { _busy = true; _msg = ''; });
+    setState(() { _busy = true; _msg = ''; _showSettings = false; });
     final res = await LocationService.requestPermission();
     if (!mounted) return;
     setState(() => _busy = false);
     if (res == LocationAccess.ready) {
       _openScreen();
     } else if (res == LocationAccess.permissionDeniedForever) {
-      setState(() => _msg = 'Location permission is turned off for OffrO. You can allow it in app '
-          'settings, or choose your city manually.');
+      setState(() { _showSettings = true; _msg = context.l10n.locGateBlockedMsg; }
+          );
     } else if (res == LocationAccess.serviceOff) {
-      setState(() => _msg = "Your device's location services are off. Turn them on, or choose your city manually.");
+      setState(() => _msg = context.l10n.locGateServiceOffMsg);
     } else {
-      setState(() => _msg = "Location permission wasn't allowed. You can still choose your city manually.");
+      setState(() => _msg = context.l10n.locGateDeniedMsg);
     }
   }
 
@@ -73,20 +75,20 @@ class _LocationAccessGateState extends State<LocationAccessGate> {
               child: const Icon(Icons.location_on_rounded, color: kPrimary, size: 48),
             ),
             const SizedBox(height: 24),
-            const Text('Allow location access',
+            Text(context.l10n.locGateTitle,
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: OffroColors.text)),
             const SizedBox(height: 10),
-            const Text('OffrO needs your location to show nearby and relevant content.',
+            Text(context.l10n.locGateBody,
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14.5, color: OffroColors.textMuted, height: 1.4)),
             if (_msg.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(_msg, textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 13, color: Color(0xFFD64545), height: 1.35)),
-              if (_msg.contains('app settings'))
+              if (_showSettings)
                 TextButton(
                   onPressed: LocationService.openAppSettings,
-                  child: const Text('Open app settings', style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
+                  child: Text(context.l10n.locGateOpenSettings, style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700)),
                 ),
             ],
             const SizedBox(height: 28),
@@ -99,13 +101,13 @@ class _LocationAccessGateState extends State<LocationAccessGate> {
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Text('Allow location', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
+                child: Text(context.l10n.locGateAllow, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
               ),
             ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: _openScreen,
-              child: const Text('Choose city manually',
+              child: Text(context.l10n.locGateChooseManually,
                   style: TextStyle(color: kPrimary, fontWeight: FontWeight.w700, fontSize: 14.5)),
             ),
           ]),
