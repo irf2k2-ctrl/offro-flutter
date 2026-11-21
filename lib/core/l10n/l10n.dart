@@ -3,7 +3,7 @@
 // THE single access point for translated text (Phase I).
 //   Text(context.l10n.loginGuest)
 // Screens never import the generated class directly. A later phase can put remote (admin-published) overrides behind this one
-// accessor without touching any screen again.
+// accessor without touching any screen again (Phase K: see core/l10n/remote/; the delegate in main.dart and offroNoContext below).
 //
 // Generated code lives in lib/l10n/gen (run `flutter gen-l10n`).
 import 'package:flutter/widgets.dart';
@@ -14,38 +14,57 @@ import '../utils/store_hours.dart';
 import '../phone/phone_country.dart';
 import '../phone/phone_input.dart';
 import 'locale_controller.dart';
+import 'remote/remote_localizations.dart';
+import 'remote/remote_translation_service.dart';
 
 export '../../l10n/gen/app_localizations.dart' show AppLocalizations;
 
 extension OffroL10n on BuildContext {
   /// Falls back to the bundled English text when the widget is not under the app's localization delegates (a stand-alone
   /// MaterialApp such as a diagnostic screen, or a test), so a missing delegate can never crash a screen.
-  AppLocalizations get l10n => Localizations.of<AppLocalizations>(this, AppLocalizations) ?? AppLocalizationsEn();
+  AppLocalizations get l10n =>
+      Localizations.of<AppLocalizations>(this, AppLocalizations) ??
+      AppLocalizationsEn();
 }
 
 /// Text for code that has no BuildContext (a top-level helper, a static method). It follows the app language chosen in
 /// [LocaleController]; with English selected the text is exactly the English text. Prefer `context.l10n` wherever a context exists.
-AppLocalizations get offroNoContext => lookupAppLocalizations(LocaleController.instance.locale);
+AppLocalizations get offroNoContext {
+  final locale = LocaleController.instance.locale;
+  return buildAppLocalizations(locale,
+      RemoteTranslationService.instance.overridesFor(locale.languageCode));
+}
 
 /// Keeps a phone number (or other always-left-to-right token) in order inside right-to-left text. In left-to-right layouts the value
 /// is returned UNCHANGED, so English text is exactly as before. Use only for values passed as placeholder arguments.
 String ltrIsolate(BuildContext context, String value) =>
-    Directionality.of(context) == TextDirection.rtl ? '\u2066$value\u2069' : value;
+    Directionality.of(context) == TextDirection.rtl
+        ? '\u2066$value\u2069'
+        : value;
 
 /// Text of a bottom-navigation tab. The tab items keep their English label as a stable identity; the shown text comes from here.
 /// An unknown label is returned unchanged, so a tab added later still renders.
 String localizedNavLabel(BuildContext context, String label) {
   final l = context.l10n;
   switch (label) {
-    case 'Home': return l.navHome;
-    case 'Explore': return l.navExplore;
-    case 'Deals': return l.navDeals;
-    case 'Rewards': return l.navRewards;
-    case 'Profile': return l.navProfile;
-    case 'Invoices': return l.navInvoices;
-    case 'Activity': return l.navActivity;
-    case 'Opportunities': return l.navOpportunities;
-    default: return label;
+    case 'Home':
+      return l.navHome;
+    case 'Explore':
+      return l.navExplore;
+    case 'Deals':
+      return l.navDeals;
+    case 'Rewards':
+      return l.navRewards;
+    case 'Profile':
+      return l.navProfile;
+    case 'Invoices':
+      return l.navInvoices;
+    case 'Activity':
+      return l.navActivity;
+    case 'Opportunities':
+      return l.navOpportunities;
+    default:
+      return label;
   }
 }
 
@@ -54,20 +73,34 @@ String localizedNavLabel(BuildContext context, String label) {
 String localizedCategoryName(BuildContext context, String name) {
   final l = context.l10n;
   switch (name.trim().toLowerCase()) {
-    case 'bakery': return l.catBakery;
-    case 'automobile': return l.catAutomobile;
-    case 'restaurant': return l.catRestaurant;
-    case 'grocery': return l.catGrocery;
-    case 'pharmacy': return l.catPharmacy;
-    case 'fashion': return l.catFashion;
-    case 'beauty': return l.catBeauty;
-    case 'electronics': return l.catElectronics;
-    case 'education': return l.catEducation;
-    case 'hospital': return l.catHospital;
-    case 'cafe': return l.catCafe;
-    case 'fitness': return l.catFitness;
-    case 'jewelry': return l.catJewelry;
-    default: return name;
+    case 'bakery':
+      return l.catBakery;
+    case 'automobile':
+      return l.catAutomobile;
+    case 'restaurant':
+      return l.catRestaurant;
+    case 'grocery':
+      return l.catGrocery;
+    case 'pharmacy':
+      return l.catPharmacy;
+    case 'fashion':
+      return l.catFashion;
+    case 'beauty':
+      return l.catBeauty;
+    case 'electronics':
+      return l.catElectronics;
+    case 'education':
+      return l.catEducation;
+    case 'hospital':
+      return l.catHospital;
+    case 'cafe':
+      return l.catCafe;
+    case 'fitness':
+      return l.catFitness;
+    case 'jewelry':
+      return l.catJewelry;
+    default:
+      return name;
   }
 }
 
@@ -75,19 +108,32 @@ String localizedCategoryName(BuildContext context, String name) {
 String localizedCategorySubtitle(BuildContext context, String sub) {
   final l = context.l10n;
   switch (sub) {
-    case '500+ places': return l.catSubRestaurant;
-    case 'Health essentials': return l.catSubPharmacy;
-    case 'New arrivals': return l.catSubFashion;
-    case 'Skincare & more': return l.catSubBeauty;
-    case 'Trending gadgets': return l.catSubElectronics;
-    case 'Learn & grow': return l.catSubEducation;
-    case 'Healthcare near you': return l.catSubHospital;
-    case 'Coffee & more': return l.catSubCafe;
-    case 'Fresh & daily': return l.catSubGrocery;
-    case 'Stay strong': return l.catSubFitness;
-    case 'Precious finds': return l.catSubJewelry;
-    case 'Fresh baked daily': return l.catSubBakery;
-    default: return sub;
+    case '500+ places':
+      return l.catSubRestaurant;
+    case 'Health essentials':
+      return l.catSubPharmacy;
+    case 'New arrivals':
+      return l.catSubFashion;
+    case 'Skincare & more':
+      return l.catSubBeauty;
+    case 'Trending gadgets':
+      return l.catSubElectronics;
+    case 'Learn & grow':
+      return l.catSubEducation;
+    case 'Healthcare near you':
+      return l.catSubHospital;
+    case 'Coffee & more':
+      return l.catSubCafe;
+    case 'Fresh & daily':
+      return l.catSubGrocery;
+    case 'Stay strong':
+      return l.catSubFitness;
+    case 'Precious finds':
+      return l.catSubJewelry;
+    case 'Fresh baked daily':
+      return l.catSubBakery;
+    default:
+      return sub;
   }
 }
 
@@ -106,18 +152,35 @@ String localizedStoreHoursSub(BuildContext context, StoreHoursStatus s) {
 /// Known words are translated, category names go through [localizedCategoryName], anything else is shown as it is.
 String localizedFilterLabel(BuildContext context, String label) {
   switch (label) {
-    case 'All': return context.l10n.commonAll;
-    case 'Ending soon': return context.l10n.dealsEndingSoon;
-    default: return localizedCategoryName(context, label);
+    case 'All':
+      return context.l10n.commonAll;
+    case 'Ending soon':
+      return context.l10n.dealsEndingSoon;
+    default:
+      return localizedCategoryName(context, label);
   }
 }
 
 /// The 12 short month names (Jan..Dec) in the app language. Used with Western digits for dates such as "5 Mar 2026".
-List<String> localizedMonthsShort(BuildContext context) => monthsShortOf(context.l10n);
+List<String> localizedMonthsShort(BuildContext context) =>
+    monthsShortOf(context.l10n);
 
 /// Same as [localizedMonthsShort] for code that already holds an [AppLocalizations] (or uses [offroNoContext]).
 List<String> monthsShortOf(AppLocalizations l) {
-  return [l.monthJan, l.monthFeb, l.monthMar, l.monthApr, l.monthMay, l.monthJun, l.monthJul, l.monthAug, l.monthSep, l.monthOct, l.monthNov, l.monthDec];
+  return [
+    l.monthJan,
+    l.monthFeb,
+    l.monthMar,
+    l.monthApr,
+    l.monthMay,
+    l.monthJun,
+    l.monthJul,
+    l.monthAug,
+    l.monthSep,
+    l.monthOct,
+    l.monthNov,
+    l.monthDec
+  ];
 }
 
 /// A discount label such as "20% OFF". Only the generated "<n>% OFF" form is translated; any other text (written by a merchant) is
@@ -131,10 +194,14 @@ String localizedDiscountLabel(BuildContext context, String label) {
 String localizedTopCardBadge(BuildContext context, String label) {
   final l = context.l10n;
   switch (label) {
-    case 'New Store': return l.storeNewStoreTitle;
-    case 'Trending': return l.storeChipTrending;
-    case 'Popular': return l.storeChipPopular;
-    default: return label;
+    case 'New Store':
+      return l.storeNewStoreTitle;
+    case 'Trending':
+      return l.storeChipTrending;
+    case 'Popular':
+      return l.storeChipPopular;
+    default:
+      return label;
   }
 }
 
@@ -142,14 +209,22 @@ String localizedTopCardBadge(BuildContext context, String label) {
 String localizedDeleteReason(BuildContext context, String reason) {
   final l = context.l10n;
   switch (reason) {
-    case 'I no longer use the app': return l.delReasonUnused;
-    case 'I have privacy concerns': return l.delReasonPrivacy;
-    case 'I have a duplicate account': return l.delReasonDuplicate;
-    case 'Too many notifications or irrelevant content': return l.delReasonNoisy;
-    case 'Other': return l.delReasonOther;
-    case 'I no longer run my business': return l.bizINoLongerRunMy;
-    case 'The app is not working properly for me': return l.bizTheAppIsNotWorking;
-    default: return reason;
+    case 'I no longer use the app':
+      return l.delReasonUnused;
+    case 'I have privacy concerns':
+      return l.delReasonPrivacy;
+    case 'I have a duplicate account':
+      return l.delReasonDuplicate;
+    case 'Too many notifications or irrelevant content':
+      return l.delReasonNoisy;
+    case 'Other':
+      return l.delReasonOther;
+    case 'I no longer run my business':
+      return l.bizINoLongerRunMy;
+    case 'The app is not working properly for me':
+      return l.bizTheAppIsNotWorking;
+    default:
+      return reason;
   }
 }
 
@@ -157,10 +232,14 @@ String localizedDeleteReason(BuildContext context, String reason) {
 String localizedLoadingStep(BuildContext context, int index) {
   final l = context.l10n;
   switch (index) {
-    case 0: return l.loadStep1;
-    case 1: return l.loadStep2;
-    case 2: return l.loadStep3;
-    default: return l.loadStep4;
+    case 0:
+      return l.loadStep1;
+    case 1:
+      return l.loadStep2;
+    case 2:
+      return l.loadStep3;
+    default:
+      return l.loadStep4;
   }
 }
 
@@ -169,16 +248,29 @@ String localizedLoadingStep(BuildContext context, int index) {
 String localizedBadgeRibbon(BuildContext context, String key, String fallback) {
   final l = context.l10n;
   switch (key) {
-    case 'new_store': return '🆕 ${l.badgeNewStore}';
-    case 'just_opened': return '🎉 ${l.badgeJustOpened}';
-    case 'newly_added': return '✨ ${l.badgeNewlyAdded}';
-    case 'newly_opened': case 'newly_open': case 'new_open': case 'opened': return '🎉 ${l.badgeNewlyOpened}';
-    case 'trending': return '🔥 ${l.badgeTrending}';
-    case 'popular': return '⭐ ${l.badgePopular}';
-    case 'top_rated': return '🏆 ${l.badgeTopRated}';
-    case 'must_visit': return '📍 ${l.badgeMustVisit}';
-    case 'limited_offer': return '⏳ ${l.badgeLimitedOffer}';
-    default: return fallback;
+    case 'new_store':
+      return '🆕 ${l.badgeNewStore}';
+    case 'just_opened':
+      return '🎉 ${l.badgeJustOpened}';
+    case 'newly_added':
+      return '✨ ${l.badgeNewlyAdded}';
+    case 'newly_opened':
+    case 'newly_open':
+    case 'new_open':
+    case 'opened':
+      return '🎉 ${l.badgeNewlyOpened}';
+    case 'trending':
+      return '🔥 ${l.badgeTrending}';
+    case 'popular':
+      return '⭐ ${l.badgePopular}';
+    case 'top_rated':
+      return '🏆 ${l.badgeTopRated}';
+    case 'must_visit':
+      return '📍 ${l.badgeMustVisit}';
+    case 'limited_offer':
+      return '⏳ ${l.badgeLimitedOffer}';
+    default:
+      return fallback;
   }
 }
 
@@ -186,18 +278,25 @@ String localizedBadgeRibbon(BuildContext context, String key, String fallback) {
 String localizedCountryName(BuildContext context, PhoneCountry country) {
   final l = context.l10n;
   switch (country.iso) {
-    case 'IN': return l.countryNameIN;
-    case 'JO': return l.countryNameJO;
-    case 'NP': return l.countryNameNP;
-    case 'PH': return l.countryNamePH;
-    case 'SA': return l.countryNameSA;
-    default: return country.name;
+    case 'IN':
+      return l.countryNameIN;
+    case 'JO':
+      return l.countryNameJO;
+    case 'NP':
+      return l.countryNameNP;
+    case 'PH':
+      return l.countryNamePH;
+    case 'SA':
+      return l.countryNameSA;
+    default:
+      return country.name;
   }
 }
 
 /// The message to show for a phone number that failed [checkPhoneInput]. The English message inside the result is unchanged; this only
 /// chooses the text in the app language (same three cases as the rules in phone_input.dart).
-String localizedPhoneInputError(BuildContext context, PhoneCountry country, PhoneInputResult result) {
+String localizedPhoneInputError(
+    BuildContext context, PhoneCountry country, PhoneInputResult result) {
   if (result.ok) return result.message;
   final l = context.l10n;
   if (result.error == PhoneInputError.empty) return l.phoneEnterNumber;
