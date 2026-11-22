@@ -5,8 +5,20 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/app_constants.dart';
+import '../l10n/locale_controller.dart';
 
 class Api {
+  /// Legal / information documents (Terms, Privacy, Refund, KYC, About Us, Merchant Terms): the app asks for the document in the
+  /// language it is showing. English (and anything unknown) keeps the request EXACTLY as it always was (no `lang`). For another
+  /// language the server answers with that language's PUBLISHED translation, or with the English text when there is none, so the
+  /// customer never sees an empty page. The server also validates the code; nothing here can reach another environment.
+  static String withDocLang(String path, String lang) {
+    final code = lang.trim().toLowerCase();
+    if (code.isEmpty || code == 'en' || !RegExp(r'^[a-z]{2,3}$').hasMatch(code)) return path;
+    return path.contains('?') ? '$path&lang=$code' : '$path?lang=$code';
+  }
+  static String _docPath(String path) => withDocLang(path, LocaleController.instance.locale.languageCode);
+
   static Map<String,String> _h(String? token) => {
     "Content-Type": "application/json",
     if (token != null) "Authorization": "Bearer $token",
@@ -342,7 +354,7 @@ class Api {
     try { return await _get("/merchant/transactions", token: token); } catch (_) { return []; }
   }
   static Future<String> getMerchantTerms() async {
-    try { final d = await _get("/merchant/terms"); return d["content"] ?? ""; } catch (_) { return ""; }
+    try { final d = await _get(_docPath("/merchant/terms")); return d["content"] ?? ""; } catch (_) { return ""; }
   }
   static Future<Map<String,dynamic>?> acceptMerchantTerms(String token) async {
     try { return Map<String,dynamic>.from(await _post("/merchant/accept-terms", {"version": "1.0"}, token: token)); } catch (_) { return null; }
@@ -473,10 +485,10 @@ class Api {
     }
   }
   static Future<String> fetchTerms(String type) async {
-    try { final d = await _get("/terms/$type"); return d["content"] ?? ""; } catch (_) { return ""; }
+    try { final d = await _get(_docPath("/terms/$type")); return d["content"] ?? ""; } catch (_) { return ""; }
   }
   static Future<String> fetchPolicy(String type) async {
-    try { final d = await _get("/policy/$type"); return d["content"] ?? ""; } catch (_) { return ""; }
+    try { final d = await _get(_docPath("/policy/$type")); return d["content"] ?? ""; } catch (_) { return ""; }
   }
   static Future<Map<String,dynamic>> getSocialLinks() async {
     try { return Map<String,dynamic>.from(await _get("/social")); } catch(_){ return {}; }
@@ -509,7 +521,7 @@ class Api {
     try { return Map<String,dynamic>.from(await _get("/merchant/me", token: token)); } catch(_) { return null; }
   }
   static Future<String> getAboutUs() async {
-    try { final d = await _get("/about"); return d["content"] ?? ""; } catch (_) { return ""; }
+    try { final d = await _get(_docPath("/about")); return d["content"] ?? ""; } catch (_) { return ""; }
   }
   // ── Public Products ──
   static Future<List> getPublicProducts({String city = ''}) async {
