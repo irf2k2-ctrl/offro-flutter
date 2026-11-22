@@ -52,6 +52,9 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
   List<SupportedCity> _cities = const [];    // cities shown in the list
   bool _citiesLoading = true;
   late Future<void> _citiesFuture;
+  String? _loadedCountry;     // the account country the list was loaded for (null = guest / unknown)
+  bool _reloadQueued = false;
+  String _lang = '';           // app language the names are shown in (read in build, so a language change re-renders the list)
 
   LocationAccess? _access;
   OffroLocation? _detected;
@@ -98,14 +101,19 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
 
   // ── data ────────────────────────────────────────────────────────────────
   Future<void> _loadCities() async {
+    // The account's registered phone country (one account = one country for Customer, Merchant and Influencer modes). null = guest.
+    final country = Api.customerCountry;
+    _loadedCountry = country;
     if (mounted) setState(() => _citiesLoading = true);
-    final list = await LocationService.fetchSupportedCities();
+    final list = await LocationService.fetchSupportedCities(country: country, lang: _lang);
     if (!mounted) return;
+    if (country != Api.customerCountry) return;      // the account changed while loading: a newer load is already queued
     setState(() {
       _supported = list;
-      // ONE shared list for Customer AND Merchant: every Indian city (with
-      // its state). OffrO stores or not — Home's No-Store state handles empty cities.
-      _cities = LocationService.allIndiaCities(list);
+      // ONE shared list for Customer AND Merchant, for THIS country only: India (and guests, as before) = the bundled India reference
+      // merged with the server cities; any other country = the server's cities for that country. OffrO stores or not -
+      // Home's No-Store state handles empty cities.
+      _cities = LocationService.citiesFor(country, list);
       _citiesLoading = false;
     });
   }
@@ -302,6 +310,17 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
   // ── UI ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    // Names follow the app language: Localizations changes when the language is switched, which rebuilds this screen (no re-fetch needed:
+    // every city carries its translations, and the selected city is still the canonical one).
+    _lang = Localizations.localeOf(context).languageCode;
+    // The account's country changed since the list was loaded (e.g. a different account signed in): load that country's cities.
+    if (_loadedCountry != Api.customerCountry && !_reloadQueued && !_citiesLoading) {
+      _reloadQueued = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _reloadQueued = false;
+        if (mounted) _citiesFuture = _loadCities();
+      });
+    }
     return PopScope(
       canPop: !widget.mandatory,
       child: Scaffold(
@@ -414,6 +433,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     return const [];
   }
 
+  // Top-up for Popular Cities: part of the bundled India reference, so it is used ONLY with that reference (India / guest), never for another country.
   static const _metros = ['Mumbai', 'New Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune'];
 
   /// OffrO-active cities first, topped up with major metros (no labels).
@@ -425,6 +445,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       final match = _cities.where((x) => x.name.toLowerCase() == c.name.toLowerCase());
       out.add(match.isNotEmpty ? match.first : c);
     }
+    if (!LocationService.usesBundledIndiaReference(_loadedCountry)) return out;
     for (final m in _metros) {
       if (out.length >= 6) break;
       if (has(m)) continue;
@@ -438,7 +459,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     final status = _citiesStatus();
     if (status.isNotEmpty) return status;
     final popular = _popular();
-    final all = [..._cities]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final all = [..._cities]..sort((a, b) => a.labelFor(_lang).toLowerCase().compareTo(b.labelFor(_lang).toLowerCase()));
     return [
       Text(context.l10n.locPopularCities, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
       const SizedBox(height: 12),
@@ -447,7 +468,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         return Wrap(spacing: 10, runSpacing: 10, children: [
           for (final p in popular)
             SizedBox(width: w, child: _CityTile(
-              name: p.name,
+              name: p.labelFor(_lang),
               selected: _isCurrentCity(p.name, p.state),
               onTap: () => _selectCity(p),
             )),
@@ -457,7 +478,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       Text(context.l10n.locAllCities, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
       const SizedBox(height: 4),
       for (final c in all) _CityRow(
-        title: c.name,
+        title: c.labelFor(_lang),
         subtitle: c.state,
         selected: _isCurrentCity(c.name, c.state),
         onTap: () => _selectCity(c),
@@ -469,9 +490,10 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     final status = _citiesStatus();
     if (status.isNotEmpty) return status;
     final q = _query.toLowerCase();
+    // Search matches the shown (translated) name, the English name and the state; selection still uses the canonical city.
     final cityHits = _cities.where((c) =>
-        c.name.toLowerCase().contains(q) || c.state.toLowerCase().contains(q)).toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        c.labelFor(_lang).toLowerCase().contains(q) || c.name.toLowerCase().contains(q) || c.state.toLowerCase().contains(q)).toList()
+      ..sort((a, b) => a.labelFor(_lang).toLowerCase().compareTo(b.labelFor(_lang).toLowerCase()));
     final areaHits = <MapEntry<String, SupportedCity>>[];
     for (final c in _cities) {
       for (final a in (_areas[c.name] ?? const <String>[])) {
@@ -482,7 +504,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     if (cityHits.isNotEmpty) {
       out.add(Text(context.l10n.locCities, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: OffroColors.text)));
       for (final c in cityHits) {
-        out.add(_CityRow(title: c.name, subtitle: c.state, selected: _isCurrentCity(c.name, c.state), onTap: () => _selectCity(c)));
+        out.add(_CityRow(title: c.labelFor(_lang), subtitle: c.state, selected: _isCurrentCity(c.name, c.state), onTap: () => _selectCity(c)));
       }
     }
     if (areaHits.isNotEmpty) {
@@ -491,7 +513,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       for (final h in areaHits.take(40)) {
         out.add(_CityRow(
           title: h.key,
-          subtitle: [h.value.name, h.value.state].where((e) => e.isNotEmpty).join(', '),
+          subtitle: [h.value.labelFor(_lang), h.value.state].where((e) => e.isNotEmpty).join(', '),
           selected: false,
           onTap: () => _selectArea(h.key, h.value),
         ));

@@ -81,7 +81,26 @@ class OffroLocation {
 
 /// A city OffrO currently supports (from GET /cities).
 class SupportedCity {
+  /// The canonical (English) name. It is what is stored on a chosen location and used for matching; it never changes with the app language.
   final String name;
   final String state; // resolved client-side; may be empty
-  const SupportedCity({required this.name, this.state = ''});
+  /// The city's id from the City Master ('' for a bundled reference city). Selection and matching never depend on the translated label.
+  final String id;
+  /// {language code: translated name} from the City Master ({} when the city has no translations).
+  final Map<String, String> names;
+  const SupportedCity({required this.name, this.state = '', this.id = '', this.names = const {}});
+
+  /// The name to SHOW for app language [lang]: its own translation (exact code, then its base language: 'ar-SA' -> 'ar'), else [name].
+  String labelFor(String? lang) => cityDisplayName(name, names, lang);
+}
+
+/// Display name of a city for app language [lang]; falls back to the English/canonical [name] when there is no (non-blank) translation.
+String cityDisplayName(String name, Map<String, String> names, String? lang) {
+  final code = (lang ?? '').trim().toLowerCase().replaceAll('_', '-');
+  if (code.isEmpty || names.isEmpty) return name;
+  for (final k in <String>{code, code.split('-').first}) {
+    final v = names[k];
+    if (v != null && v.trim().isNotEmpty) return v.trim();
+  }
+  return name;
 }

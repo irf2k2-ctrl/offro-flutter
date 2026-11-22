@@ -584,8 +584,19 @@ class Api {
     try { return await _get("/promo-sliders"); } catch(_) { return []; }
   }
 
-  static Future<List> getCities() async {
-    try { return await _get("/cities"); } catch(_) { return []; }
+  /// Path of the cities request. With no arguments it is the plain "/cities" every older build used. [country] (the signed-in account's ISO
+  /// country) makes the SERVER return only that country's cities; [lang] asks for translated display names (the app also translates locally).
+  static String citiesPath({String? country, String? lang}) {
+    final q = <String>[];
+    final c = (country ?? '').trim().toUpperCase();
+    final l = (lang ?? '').trim();
+    if (c.isNotEmpty) q.add('country=${Uri.encodeQueryComponent(c)}');
+    if (l.isNotEmpty) q.add('lang=${Uri.encodeQueryComponent(l)}');
+    return q.isEmpty ? '/cities' : '/cities?${q.join('&')}';
+  }
+
+  static Future<List> getCities({String? country, String? lang}) async {
+    try { return await _get(citiesPath(country: country, lang: lang)); } catch(_) { return []; }
   }
 
   /// Fetch default fallback images — tries /admin/default-images then /default-images

@@ -125,21 +125,59 @@ class LocationService {
   // ── Supported cities ────────────────────────────────────────────────────
   /// Cities OffrO currently supports (GET /cities, admin-managed).
   /// Returns an empty list when the request fails.
-  static Future<List<SupportedCity>> fetchSupportedCities() async {
+  ///
+  /// [country] = the signed-in account's country (ISO): the server returns only that country's cities. null (guest / country unknown)
+  /// keeps the long-standing unfiltered request.
+  static Future<List<SupportedCity>> fetchSupportedCities({String? country, String? lang}) async {
     try {
-      final raw = await Api.getCities().timeout(const Duration(seconds: 10));
+      final raw = await Api.getCities(country: country, lang: lang).timeout(const Duration(seconds: 10));
       final out = <SupportedCity>[];
       final seen = <String>{};
       for (final c in raw) {
         if (c is! Map) continue;
         final name = (c['name'] ?? '').toString().trim();
         if (name.isEmpty || !seen.add(name.toLowerCase())) continue;
-        out.add(SupportedCity(name: name, state: stateForCity(name)));
+        out.add(SupportedCity(
+          name: name,
+          // The bundled state table is India's: use it only when the cities are India's (or the country is unknown, as before).
+          state: usesBundledIndiaReference(country) ? stateForCity(name) : '',
+          id: (c['id'] ?? '').toString(),
+          names: parseCityNames(c['names']),
+        ));
       }
       return out;
     } catch (_) {
       return const [];
     }
+  }
+
+  /// {language: name} from the City Master payload; anything that is not a non-blank string is dropped.
+  static Map<String, String> parseCityNames(dynamic raw) {
+    if (raw is! Map) return const {};
+    final out = <String, String>{};
+    raw.forEach((k, v) {
+      final key = k.toString().trim().toLowerCase();
+      final val = v is String ? v.trim() : '';
+      if (key.isNotEmpty && val.isNotEmpty) out[key] = val;
+    });
+    return out;
+  }
+
+  /// The bundled reference data ([kIndiaCities]) belongs to ONE country. It is shown to that country's accounts and, exactly as before,
+  /// to guests / unresolved accounts (the long-standing behaviour); an account of any other country never sees it.
+  static const String bundledReferenceCountry = 'IN';
+  static bool usesBundledIndiaReference(String? country) {
+    final c = (country ?? '').trim().toUpperCase();
+    return c.isEmpty || c == bundledReferenceCountry;
+  }
+
+  /// The cities offered for [country]: the bundled India list merged with the server cities for India / unknown; for every other
+  /// country ONLY the server's (already country-filtered) cities.
+  static List<SupportedCity> citiesFor(String? country, List<SupportedCity> supported) {
+    if (usesBundledIndiaReference(country)) return allIndiaCities(supported);
+    final out = [...supported];
+    out.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return out;
   }
 
   static bool isSupported(String city, List<SupportedCity> supported) {
@@ -165,10 +203,12 @@ class LocationService {
   static List<SupportedCity> allIndiaCities(List<SupportedCity> supported) {
     final out = <SupportedCity>[];
     final seen = <String>{};
+    final byName = {for (final s in supported) s.name.toLowerCase(): s};   // server city of the same name: keep its id and translations
     kIndiaCities.forEach((state, cities) {
       for (final c in cities) {
         if (seen.add('${c.toLowerCase()}|${state.toLowerCase()}')) {
-          out.add(SupportedCity(name: c, state: state));
+          final s = byName[c.toLowerCase()];
+          out.add(SupportedCity(name: c, state: state, id: s?.id ?? '', names: s?.names ?? const {}));
         }
       }
     });
