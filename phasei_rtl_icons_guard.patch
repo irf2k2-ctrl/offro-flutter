@@ -1,0 +1,198 @@
+diff --git a/lib/core/design/offro_icons.dart b/lib/core/design/offro_icons.dart
+index 8a7a699..b7b7431 100644
+--- a/lib/core/design/offro_icons.dart
++++ b/lib/core/design/offro_icons.dart
+@@ -47,7 +47,12 @@ class _R extends OffroIconPrimitive {
+ /// Immutable description of an icon.
+ class OffroIconData {
+   final List<OffroIconPrimitive> primitives;
+-  const OffroIconData(this.primitives);
++
++  /// True for glyphs that point in a reading direction (arrow, chevron, back). OffroIcon draws them flipped horizontally
++  /// in a right-to-left layout (Arabic) so "forward" still points forward. Everything else is drawn as designed.
++  final bool mirrorInRtl;
++
++  const OffroIconData(this.primitives, {this.mirrorInRtl = false});
+ }
+ 
+ /// The icon set (names match the design prototype).
+@@ -68,18 +73,18 @@ class OffroIcons {
+   static const OffroIconData doctor = OffroIconData([_P('M8 3v4a4 4 0 0 0 8 0V3M12 11v3a5 5 0 0 0 5 5h1'), _C(19, 18, 2)]);
+   static const OffroIconData heart = OffroIconData([_P('M20.5 8.8c0 5.2-8.5 10-8.5 10s-8.5-4.8-8.5-10A4.6 4.6 0 0 1 12 6.4a4.6 4.6 0 0 1 8.5 2.4Z')]);
+   static const OffroIconData star = OffroIconData([_P('m12 3 2.7 5.5 6 .9-4.4 4.3 1 6-5.3-2.8-5.3 2.8 1-6-4.4-4.3 6-.9L12 3Z')]);
+-  static const OffroIconData arrow = OffroIconData([_P('M5 12h14m-5-5 5 5-5 5')]);
++  static const OffroIconData arrow = OffroIconData([_P('M5 12h14m-5-5 5 5-5 5')], mirrorInRtl: true);
+   static const OffroIconData home = OffroIconData([_P('m3.5 10 8.5-7 8.5 7v10H15v-6H9v6H3.5V10Z')]);
+   static const OffroIconData compass = OffroIconData([_C(12, 12, 9), _P('m15.5 8.5-2 5-5 2 2-5 5-2Z')]);
+   static const OffroIconData tag = OffroIconData([_P('M20 13 13 20l-9-9V4h7l9 9Z'), _C(8.5, 8.5, 1.5)]);
+   static const OffroIconData gift = OffroIconData([_P('M3 10h18v11H3zM2 6h20v4H2zM12 6v15'), _P('M12 6H8.5A2.5 2.5 0 1 1 11 3.5L12 6Zm0 0h3.5A2.5 2.5 0 1 0 13 3.5L12 6Z')]);
+   static const OffroIconData user = OffroIconData([_C(12, 8, 4), _P('M4.5 21c.7-4.5 3.2-6.7 7.5-6.7s6.8 2.2 7.5 6.7')]);
+   static const OffroIconData clock = OffroIconData([_C(12, 12, 9), _P('M12 7v5l3 2')]);
+-  static const OffroIconData chevron = OffroIconData([_P('m9 18 6-6-6-6')]);
++  static const OffroIconData chevron = OffroIconData([_P('m9 18 6-6-6-6')], mirrorInRtl: true);
+   static const OffroIconData phone = OffroIconData([_P('M6.5 3h3l1.3 4-2.2 1.8a16 16 0 0 0 6.6 6.6l1.8-2.2 4 1.3v3c0 1.9-1.6 3.5-3.5 3.3C9.7 20 4 14.3 3.2 6.5 3 4.6 4.6 3 6.5 3Z')]);
+   static const OffroIconData message = OffroIconData([_P('M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z'), _P('M9 9.5c.8 2.2 2.2 3.6 4.5 4.5')]);
+   static const OffroIconData route = OffroIconData([_C(6, 18, 2.5), _C(18, 6, 2.5), _P('M8.5 18h2c5 0 1-12 5-12')]);
+-  static const OffroIconData back = OffroIconData([_P('m15 18-6-6 6-6')]);
++  static const OffroIconData back = OffroIconData([_P('m15 18-6-6 6-6')], mirrorInRtl: true);
+   static const OffroIconData check = OffroIconData([_P('m5 12 4 4L19 6')]);
+   static const OffroIconData store = OffroIconData([_P('M4 10v10h16V10M3 10l2-6h14l2 6'), _P('M3 10a3 3 0 0 0 5 2 3 3 0 0 0 4 0 3 3 0 0 0 4 0 3 3 0 0 0 5-2M9 20v-5h6v5')]);
+   static const OffroIconData sparkles = OffroIconData([_P('m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3Z'), _P('m18.5 14 .7 2.3 2.3.7-2.3.7-.7 2.3-.7-2.3-2.3-.7 2.3-.7.7-2.3ZM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8L5 13Z')]);
+@@ -144,7 +149,11 @@ class OffroIcon extends StatelessWidget {
+       size: Size(size, size),
+       painter: _OffroIconPainter(data, c, filled, strokeWidth),
+     );
+-    final box = SizedBox(width: size, height: size, child: painter);
++    Widget box = SizedBox(width: size, height: size, child: painter);
++    // Right-to-left (Arabic): direction-pointing glyphs are flipped. maybeOf: no ancestor means left-to-right (unchanged).
++    if (data.mirrorInRtl && Directionality.maybeOf(context) == TextDirection.rtl) {
++      box = Transform.flip(flipX: true, child: box);
++    }
+     if (semanticLabel == null) return ExcludeSemantics(child: box);
+     return Semantics(label: semanticLabel, image: true, child: box);
+   }
+diff --git a/test/l10n_rtl_icons_and_guard_test.dart b/test/l10n_rtl_icons_and_guard_test.dart
+new file mode 100644
+index 0000000..faea556
+--- /dev/null
++++ b/test/l10n_rtl_icons_and_guard_test.dart
+@@ -0,0 +1,139 @@
++// Phase I follow-up tests (no generated localizations needed):
++//  1. directional custom icons (OffroIcons.chevron / back / arrow) mirror in right-to-left layouts and nothing else changes
++//  2. guard: the migrated English strings must not reappear as hard-coded literals in the pilot screens
++import 'dart:convert';
++import 'dart:io';
++
++import 'package:flutter/material.dart';
++import 'package:flutter_test/flutter_test.dart';
++
++import 'package:offro_user/core/design/offro_icons.dart';
++
++Widget host(TextDirection d, Widget child) => Directionality(textDirection: d, child: Center(child: child));
++
++Finder flip() => find.descendant(of: find.byType(OffroIcon), matching: find.byType(Transform));
++
++void main() {
++  group('directional icons', () {
++    final directional = <String, OffroIconData>{
++      'chevron': OffroIcons.chevron,
++      'back': OffroIcons.back,
++      'arrow': OffroIcons.arrow,
++    };
++
++    test('exactly the three directional glyphs are marked for mirroring', () {
++      for (final e in directional.entries) {
++        expect(e.value.mirrorInRtl, isTrue, reason: e.key);
++      }
++      final others = <String, OffroIconData>{
++        'user': OffroIcons.user, 'home': OffroIcons.home, 'search': OffroIcons.search, 'check': OffroIcons.check,
++        'heart': OffroIcons.heart, 'store': OffroIcons.store, 'phone': OffroIcons.phone, 'pin': OffroIcons.pin,
++        'play': OffroIcons.play, 'share': OffroIcons.share, 'compass': OffroIcons.compass, 'bell': OffroIcons.bell,
++      };
++      for (final e in others.entries) {
++        expect(e.value.mirrorInRtl, isFalse, reason: e.key);
++      }
++    });
++
++    for (final e in directional.entries) {
++      testWidgets('${e.key}: unchanged in English, flipped horizontally in Arabic', (t) async {
++        await t.pumpWidget(host(TextDirection.ltr, OffroIcon(e.value, size: 24)));
++        expect(flip(), findsNothing, reason: 'English (LTR) must be exactly as before');
++
++        await t.pumpWidget(host(TextDirection.rtl, OffroIcon(e.value, size: 24)));
++        expect(flip(), findsOneWidget);
++        final m = t.widget<Transform>(flip()).transform;
++        expect(m.entry(0, 0), -1.0, reason: 'mirrored on the x axis');
++        expect(m.entry(1, 1), 1.0, reason: 'not flipped vertically');
++        expect(t.getSize(find.byType(OffroIcon)), const Size(24, 24), reason: 'size is unchanged');
++      });
++    }
++
++    testWidgets('non-directional icons are never flipped, in either direction', (t) async {
++      for (final d in TextDirection.values) {
++        await t.pumpWidget(host(d, Row(mainAxisSize: MainAxisSize.min, children: [
++          OffroIcon(OffroIcons.user), OffroIcon(OffroIcons.home), OffroIcon(OffroIcons.check), OffroIcon(OffroIcons.play),
++        ])));
++        expect(flip(), findsNothing, reason: '$d');
++      }
++    });
++
++    testWidgets('the icon is still drawn by the same painter and keeps its semantics', (t) async {
++      await t.pumpWidget(host(TextDirection.rtl, OffroIcon(OffroIcons.chevron, size: 14, semanticLabel: 'next')));
++      expect(find.descendant(of: find.byType(OffroIcon), matching: find.byType(CustomPaint)), findsWidgets);
++      expect(find.bySemanticsLabel('next'), findsOneWidget);
++    });
++
++    testWidgets('without any Directionality ancestor nothing is mirrored and nothing throws', (t) async {
++      // No Directionality widget anywhere above the icon (Center/SizedBox/CustomPaint do not need one).
++      bool? ancestorFound;
++      await t.pumpWidget(Center(
++        child: Builder(builder: (context) {
++          ancestorFound = Directionality.maybeOf(context) != null;
++          return OffroIcon(OffroIcons.chevron, size: 24);
++        }),
++      ));
++      expect(ancestorFound, isFalse, reason: 'test setup must really have no Directionality ancestor');
++      expect(t.takeException(), isNull);
++      expect(find.byType(OffroIcon), findsOneWidget);
++      expect(flip(), findsNothing, reason: 'no ancestor means left-to-right behaviour: not mirrored');
++    });
++  });
++
++  group('pilot screens contain no hard-coded copies of the migrated English text', () {
++    const pilotFiles = [
++      'lib/screens/auth/login_screen.dart',
++      'lib/screens/onboarding/onboarding_screen.dart',
++      'lib/screens/home/profile_tab.dart',
++      'lib/core/phone/country_picker_sheet.dart',
++      'lib/core/l10n/language_sheet.dart',
++    ];
++
++    /// Known, intentional exceptions: file -> keys whose English text may still appear as a literal there.
++    ///  * onboarding slide text is the fallback DATA used when a slide image fails; it is mapped to l10n at display time.
++    ///  * profile_tab: "OffrO member" is the display-name fallback for a signed-in user without a name. It is a name placeholder,
++    ///    not a label; migrating it is Phase J.
++    const allowed = <String, Set<String>>{
++      'lib/screens/onboarding/onboarding_screen.dart': {
++        'onboardingSlide1Title', 'onboardingSlide1Subtitle', 'onboardingSlide2Title',
++        'onboardingSlide2Subtitle', 'onboardingSlide3Title', 'onboardingSlide3Subtitle',
++      },
++      'lib/screens/home/profile_tab.dart': {'profileMemberBadge'},
++    };
++
++    String stripComments(String s) {
++      final noBlock = s.replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '');
++      return noBlock.split('\n').map((l) => l.replaceAll(RegExp(r'''(?<![:'"])//.*$'''), '')).join('\n');
++    }
++
++    /// Keys whose English value appears as a quoted literal in [source]. Values with {placeholders} are skipped (they are
++    /// composed at run time); comments are ignored.
++    List<String> hardCoded(String source, Map<String, String> en) {
++      final code = stripComments(source);
++      final hits = <String>[];
++      en.forEach((k, v) {
++        if (v.contains('{')) return;
++        final lit = v.replaceAll('\n', r'\n');
++        if (code.contains("'$lit'") || code.contains('"$lit"')) hits.add(k);
++      });
++      return hits;
++    }
++
++    final arb = jsonDecode(File('lib/l10n/app_en.arb').readAsStringSync()) as Map<String, dynamic>;
++    final en = {for (final e in arb.entries) if (!e.key.startsWith('@')) e.key: e.value as String};
++
++    test('the guard itself detects a hard-coded literal and ignores comments', () {
++      expect(hardCoded("Text('Verify OTP')", en), contains('otpVerifyButton'));
++      expect(hardCoded('Text("Continue as guest")', en), contains('loginGuest'));
++      expect(hardCoded("// Text('Verify OTP')\n/// 'Skip' and \"Skip\"", en), isEmpty);
++      expect(hardCoded('Text(context.l10n.otpVerifyButton)', en), isEmpty);
++    });
++
++    for (final f in pilotFiles) {
++      test(f, () {
++        final hits = hardCoded(File(f).readAsStringSync(), en).where((k) => !(allowed[f] ?? {}).contains(k)).toList();
++        expect(hits, isEmpty, reason: '$f still hard-codes the English text of: $hits - use context.l10n instead');
++      });
++    }
++  });
++}

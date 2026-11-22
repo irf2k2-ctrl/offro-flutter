@@ -177,7 +177,7 @@ void main() {
       en.homeCategoriesEyebrow: 1, // all-categories screen (Customer batch)
       en.catBakery: 1, en.catRestaurant: 1, en.catGrocery: 1, // category tone tables keyed by name (logic, not display)
       en.homeProductsEyebrow: 1,   // products list screen (Customer batch)
-      en.homeClosed: 1,            // banner store card (Customer batch)
+      en.homeClosed: 2,            // banner store card (Customer batch) + _storeStatus(): the 'Closed' STATUS VALUE that is compared and then shown via l10n.homeClosed (logic, not display text; added in Customer batch 2)
       en.homeFeatureRewards: 1,    // profile menu (Customer batch)
       en.homeCouldntLoadStores: 1, // category stores screen (Customer batch)
       en.commonRetry: 1,           // other screens (shared components batch)

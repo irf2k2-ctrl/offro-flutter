@@ -8,12 +8,15 @@
 //   3. Arabic not in the manifest            -> drop the cache and the overrides (nothing published).
 //   4. same version+hash as what we hold     -> only refresh the "last confirmed" time (no download).
 //   5. otherwise GET /translations/ar?track=app, validate, write the cache, then switch the overrides in one step.
+// Both requests are conditional (If-None-Match with the ETag stored for THIS environment); a 304 reuses the stored, validated copy.
 // Any network / HTTP / format failure keeps whatever is currently in use (cache or bundled) and never reaches the UI.
 //
 // Traffic: nothing at all happens for English users or when the feature is off. Automatic triggers are throttled.
-// Everything is a no-op unless [remoteTranslationsAllowed] (build flag + staging host).
+// Everything is a no-op unless [remoteTranslationsAllowed] (build flag + an exact allowlisted staging or production host). The
+// service only ever requests paths on its own configured host, and re-checks the allowlist itself (not only the build flag).
 
 import 'dart:async';
+import 'dart:convert' show utf8;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -55,6 +58,21 @@ enum RemoteRefreshOutcome {
   failedKeptCurrent,
 }
 
+/// One HTTP answer: 200 with a body, or 304 (only ever returned when we sent If-None-Match).
+class _Resp {
+  const _Resp(this.status, this.bytes, this.etag);
+  final int status;
+  final List<int> bytes;
+  final String? etag;
+  bool get notModified => status == 304;
+}
+
+class _Fetched {
+  const _Fetched(this.payload, this.etag);
+  final RemotePayload payload;
+  final String? etag;
+}
+
 class _Transient implements Exception {
   const _Transient(this.why);
   final String why;
@@ -79,11 +97,18 @@ class RemoteTranslationService extends ChangeNotifier
       Duration(minutes: 2),
       Duration(minutes: 10)
     ],
-  })  : enabled = enabled ?? remoteTranslationsAllowed(),
-        _baseUrl = (baseUrl ?? kBaseUrl).trim().replaceAll(RegExp(r'/+$'), ''),
+  })  : _baseUrl = (baseUrl ?? kBaseUrl).trim().replaceAll(RegExp(r'/+$'), ''),
+        enabled = (enabled ?? remoteTranslationsAllowed()) &&
+            isRemoteTranslationsApiUrl(
+                (baseUrl ?? kBaseUrl).trim().replaceAll(RegExp(r'/+$'), '')),
         _client = client ?? http.Client(),
         _ownsClient = client == null,
-        _cache = cache ?? RemoteTranslationCache(schema: schema),
+        _cache = cache ??
+            RemoteTranslationCache(
+                schema: schema,
+                environment: remoteTranslationEnvironmentOf(
+                        (baseUrl ?? kBaseUrl).trim())
+                    ?.name),
         _now = clock ?? DateTime.now,
         _currentLanguage = currentLanguage ??
             (() => LocaleController.instance.locale.languageCode),
@@ -92,7 +117,7 @@ class RemoteTranslationService extends ChangeNotifier
   /// The app-wide instance.
   static final RemoteTranslationService instance = RemoteTranslationService();
 
-  /// False in every build made without ENABLE_REMOTE_TRANSLATIONS=true on the staging backend.
+  /// False in every build made without ENABLE_REMOTE_TRANSLATIONS=true, and for any base URL that is not an allowlisted host.
   final bool enabled;
 
   final Duration requestTimeout;
@@ -223,8 +248,9 @@ class RemoteTranslationService extends ChangeNotifier
         await _confirm();
         return _definitive(RemoteRefreshOutcome.unchanged);
       }
-      final payload = await _fetchLanguage(entry);
-      if (payload == null) {
+      final fetched = await _fetchLanguage(entry);
+      final payload = fetched?.payload;
+      if (fetched == null || payload == null) {
         // The language file vanished between the two calls: kill switch or unpublish. Safest is bundled text.
         await _dropAll();
         return _definitive(RemoteRefreshOutcome.notPublished);
@@ -236,6 +262,7 @@ class RemoteTranslationService extends ChangeNotifier
         hash: payload.hash,
         strings: payload.strings,
         checkedAtMs: now,
+        etag: fetched.etag,
       ));
       _checkedAtMs = now;
       _setOverrides(RemoteOverrides(
@@ -274,11 +301,15 @@ class RemoteTranslationService extends ChangeNotifier
   }
 
   // ── network ────────────────────────────────────────────────────────────────────────────────────────────────────────
-  Future<List<int>?> _get(String path, {bool notFoundIsNull = false}) async {
+  /// [ifNoneMatch] is sent only when it is a well-formed ETag we stored ourselves. A 304 is accepted only in that case.
+  Future<_Resp?> _get(String path,
+      {String? ifNoneMatch, bool notFoundIsNull = false}) async {
+    final sendTag = isValidEtag(ifNoneMatch);
     final http.Response r;
     try {
-      r = await _client.get(Uri.parse('$_baseUrl$path'), headers: const {
-        'Accept': 'application/json'
+      r = await _client.get(Uri.parse('$_baseUrl$path'), headers: {
+        'Accept': 'application/json',
+        if (sendTag) 'If-None-Match': ifNoneMatch!,
       }).timeout(requestTimeout);
     } on TimeoutException {
       throw const _Transient('timeout');
@@ -286,52 +317,97 @@ class RemoteTranslationService extends ChangeNotifier
       throw const _Transient('network'); // no internet, DNS, TLS, bad URL...
     }
     if (r.statusCode == 404 && notFoundIsNull) return null;
+    if (r.statusCode == 304) {
+      if (!sendTag) throw const _Transient('http_304');
+      return const _Resp(304, <int>[], null);
+    }
     if (r.statusCode != 200)
       throw _Transient(
           'http_${r.statusCode}'); // includes 429 and 5xx: keep what we have
     if (r.bodyBytes.length > _maxBodyBytes)
       throw const _Transient('invalid_data');
-    return r.bodyBytes;
+    final tag = r.headers['etag']?.trim();
+    return _Resp(200, r.bodyBytes, isValidEtag(tag) ? tag : null);
   }
 
+  /// Conditional request: the stored manifest ETag is sent as If-None-Match; on 304 the stored (previously validated) body is used.
+  /// The manifest is then judged exactly as before (kill switch, published?, version + hash).
   Future<RemoteManifest> _fetchManifest() async {
-    final bytes = await _get('/translations/manifest');
+    final stored = await _cache.readManifest();
+    final res = (await _get('/translations/manifest', ifNoneMatch: stored?.etag))!;
+    final List<int> bytes = res.notModified && stored != null
+        ? utf8.encode(stored.body)
+        : res.bytes;
     final m = RemoteTranslationValidator.parseManifest(
-        RemoteTranslationValidator.decodeBytes(bytes!));
-    if (m == null) throw const _Transient('invalid_data');
+        RemoteTranslationValidator.decodeBytes(bytes));
+    if (m == null) {
+      await _cache.clearManifest(); // never keep a tag whose body we cannot use
+      throw const _Transient('invalid_data');
+    }
+    if (!res.notModified) {
+      if (res.etag != null) {
+        await _cache.writeManifest(
+            res.etag!, utf8.decode(bytes, allowMalformed: true));
+      } else {
+        await _cache.clearManifest();
+      }
+    }
     return m;
   }
 
-  /// Null when the backend answers 404 (not available).
-  Future<RemotePayload?> _fetchLanguage(ManifestEntry entry) async {
-    final bytes = await _get(
-        '/translations/$kRemoteLanguage?track=$kRemoteTrack',
-        notFoundIsNull: true);
-    if (bytes == null) return null;
-    final res = RemoteTranslationValidator.parseLanguageFile(
-      RemoteTranslationValidator.decodeBytes(bytes),
+  /// Null when the backend answers 404 (not available). Sends the stored language ETag; on 304 the stored (re-validated) set is used,
+  /// but only if it still agrees with the manifest (version never older, same hash for the same version).
+  Future<_Fetched?> _fetchLanguage(ManifestEntry entry) async {
+    final stored = await _cache.read(kRemoteLanguage);
+    final res = await _get('/translations/$kRemoteLanguage?track=$kRemoteTrack',
+        ifNoneMatch: stored?.etag, notFoundIsNull: true);
+    if (res == null) return null;
+    if (res.notModified) {
+      if (stored == null) throw const _Transient('invalid_data');
+      if (stored.version < entry.version ||
+          (stored.version == entry.version && stored.hash != entry.hash)) {
+        throw const _Transient('invalid_data');
+      }
+      return _Fetched(
+          RemotePayload(
+              lang: stored.lang,
+              version: stored.version,
+              hash: stored.hash,
+              strings: stored.strings,
+              rejected: 0),
+          stored.etag);
+    }
+    final res2 = RemoteTranslationValidator.parseLanguageFile(
+      RemoteTranslationValidator.decodeBytes(res.bytes),
       lang: kRemoteLanguage,
       schema: _schema,
       minVersion: entry.version,
     );
-    final p = res.payload;
+    final p = res2.payload;
     if (p == null)
-      throw _Transient(res.error == 'stale_version' ? 'stale' : 'invalid_data');
+      throw _Transient(
+          res2.error == 'stale_version' ? 'stale' : 'invalid_data');
     if (p.version == entry.version && p.hash != entry.hash)
       throw const _Transient('invalid_data'); // inconsistent with the manifest
-    return p;
+    return _Fetched(p, res.etag);
   }
 
   // ── state ──────────────────────────────────────────────────────────────────────────────────────────────────────────
   Future<void> _confirm() async {
     final now = _now().millisecondsSinceEpoch;
     _checkedAtMs = now;
+    // Keep the ETag stored with this exact version (only when the stored set is the one in use).
+    final stored = await _cache.read(kRemoteLanguage);
+    final same = stored != null &&
+        stored.version == _overrides.version &&
+        stored.hash == _overrides.hash;
     await _cache.write(CachedTranslations(
       lang: _overrides.lang,
       version: _overrides.version,
       hash: _overrides.hash,
       strings: _overrides.strings,
       checkedAtMs: now,
+      etag: same ? stored.etag : null,
     ));
   }
 

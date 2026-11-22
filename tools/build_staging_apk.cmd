@@ -1,7 +1,7 @@
 @echo off
 REM OffrO - STAGING Android APK (Phase K). Run from the project ROOT (the folder that contains pubspec.yaml).
 REM Staging backend + remote (published) Arabic translations ON. Never use this for a production build:
-REM remote translations also require the exact staging API host, so they cannot activate against any other backend.
+REM remote translations also require an exact allowlisted API host, and a staging build only ever talks to the staging server.
 REM
 REM If your usual flow needs the razorpay_flutter namespace patch after "pub get" (fix_razorpay.ps1), run it between
 REM the two steps below, exactly as you do for your normal builds.

@@ -364,8 +364,8 @@ Future<void> main() async {
   } catch (e) {}
   // Saved app language (English unless the user chose another one). Never throws.
   await LocaleController.instance.load();
-  // Phase K: remote (published) Arabic translations. A complete no-op unless this build has ENABLE_REMOTE_TRANSLATIONS=true on the
-  // staging backend. Loads the cached set first so Arabic shows the last published text at once, then refreshes in the background.
+  // Phase K: remote (published) Arabic translations. A complete no-op unless this build has ENABLE_REMOTE_TRANSLATIONS=true on an allowlisted
+  // staging or production host. Loads the cached set first so Arabic shows the last published text at once, then refreshes in the background.
   await RemoteTranslationService.instance.init();
   RemoteTranslationService.instance.attach();
   runApp(const MyApp());

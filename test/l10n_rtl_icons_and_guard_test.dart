@@ -93,10 +93,15 @@ void main() {
     ///  * onboarding slide text is the fallback DATA used when a slide image fails; it is mapped to l10n at display time.
     ///  * profile_tab: "OffrO member" is the display-name fallback for a signed-in user without a name. It is a name placeholder,
     ///    not a label; migrating it is Phase J.
+    ///  * login_screen: 'WhatsApp' is the brand name on the social-link icon; it is the same word in every language. The Store batch
+    ///    later added a `storeWhatsApp` key with identical English text, which is why the guard now sees a match.
+    ///  * onboarding slide 3 title is "Earn Reward Points", the same English text as the later `storeEarnPointsTitle` key; the slide
+    ///    text is already an allowed fallback (see above).
     const allowed = <String, Set<String>>{
+      'lib/screens/auth/login_screen.dart': {'storeWhatsApp'},
       'lib/screens/onboarding/onboarding_screen.dart': {
         'onboardingSlide1Title', 'onboardingSlide1Subtitle', 'onboardingSlide2Title',
-        'onboardingSlide2Subtitle', 'onboardingSlide3Title', 'onboardingSlide3Subtitle',
+        'onboardingSlide2Subtitle', 'onboardingSlide3Title', 'onboardingSlide3Subtitle', 'storeEarnPointsTitle',
       },
       'lib/screens/home/profile_tab.dart': {'profileMemberBadge'},
     };

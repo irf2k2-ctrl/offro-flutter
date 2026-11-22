@@ -33,6 +33,15 @@ Widget liveApp(Widget home) => AnimatedBuilder(
       builder: (_, __) => app(home, locale: LocaleController.instance.locale),
     );
 
+/// OtpScreen.dispose() calls SmsConsentOtp.cancel(), which on (test-default) Android would reach the real smart_auth plugin; no
+/// native side answers in a test run, so its 2 s guard timer would still be pending when the test ends. A no-op fake avoids that.
+class _NoopSmsNative implements SmsConsentNative {
+  @override
+  Future<void> removeListener() async {}
+  @override
+  Future<String?> waitForCode() async => null;
+}
+
 Widget otp() => OtpScreen(phone: '+962791234567', reqId: 'R', onVerified: () async {}, countryIso: 'JO');
 
 void main() {
@@ -106,6 +115,9 @@ void main() {
   });
 
   group('OTP screen (pilot)', () {
+    setUp(() => SmsConsentOtp.debugNative = _NoopSmsNative());
+    tearDown(() => SmsConsentOtp.debugNative = null);
+
     testWidgets('English text is unchanged and the phone number has no hidden characters', (t) async {
       await t.pumpWidget(app(otp()));
       expect(find.text('VERIFICATION'), findsOneWidget);
@@ -184,11 +196,24 @@ void main() {
       await t.pumpWidget(liveApp(tab()));
       expect(find.text('LANGUAGE'), findsOneWidget);
       expect(find.text('App language'), findsOneWidget);
+      // The Language row is the 5th block of a ListView (header, identity card, stats, Activity, Account, then Language). In the default
+      // 800x600 test window it sits below the fold: it is BUILT (the finders above see it, thanks to the list's cache extent) but a tap
+      // at its position hits nothing, so the chooser never opens. Scroll it into view first (a no-op when it is already visible).
+      await t.ensureVisible(find.text('App language'));
+      await t.pumpAndSettle();
       await t.tap(find.text('App language'));
       await t.pumpAndSettle();
+      // Diagnostics: the chooser really is open (title and both options present) before the Arabic option is tapped.
+      expect(find.text('Choose language'), findsOneWidget, reason: 'the language chooser did not open');
+      expect(find.byKey(const ValueKey('language_option_en')), findsOneWidget);
+      expect(find.byKey(const ValueKey('language_option_ar')), findsOneWidget);
       await t.tap(find.byKey(const ValueKey('language_option_ar')));
       await t.pumpAndSettle();
       expect(find.text('اللغة'), findsWidgets);
+      // ensureVisible scrolled the list down to reach the Language row, which pushed the page header out of the built range.
+      // Scroll back to the top so the (Arabic) title can be asserted; the assertion itself is unchanged.
+      await t.drag(find.byType(ListView).first, const Offset(0, 3000));
+      await t.pumpAndSettle();
       expect(find.text('الملف الشخصي'), findsOneWidget);
     });
   });

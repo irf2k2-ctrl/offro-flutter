@@ -129,7 +129,7 @@ void main() {
     return s;
   }
 
-  Future<CachedTranslations?> cached() => RemoteTranslationCache().read('ar');
+  Future<CachedTranslations?> cached() => RemoteTranslationCache(environment: 'staging').read('ar');
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -148,7 +148,7 @@ void main() {
 
   group('1. remote translations disabled', () {
     test('no request, no cache read, no overrides', () async {
-      await RemoteTranslationCache().write(CachedTranslations(
+      await RemoteTranslationCache(environment: 'staging').write(CachedTranslations(
           lang: 'ar',
           version: 3,
           hash: hashOf(3),
@@ -406,7 +406,7 @@ void main() {
 
   group('11. cached translation fallback', () {
     Future<void> seed({required int ageDays, int version = 7}) =>
-        RemoteTranslationCache().write(CachedTranslations(
+        RemoteTranslationCache(environment: 'staging').write(CachedTranslations(
           lang: 'ar',
           version: version,
           hash: hashOf(version),
@@ -461,12 +461,58 @@ void main() {
           'version': 2,
           'hash': hashOf(2),
           'checked_at': now.millisecondsSinceEpoch,
+          // Stored by a STAGING build (the service under test is a staging service). Since Stage 5 every stored entry carries the
+          // environment that wrote it, and an entry without a matching label is ignored on purpose.
+          'environment': 'staging',
           'strings': {k: 'ok'},
         }),
       });
       final s = make();
       await s.init();
       expect(s.overrides.strings, {k: 'ok'});
+    });
+    test(
+        'incompatible entries inside a cache are dropped while the valid ones stay',
+        () async {
+      final good = plainKeys(4);
+      SharedPreferences.setMockInitialValues({
+        RemoteTranslationCache.keyFor('ar'): jsonEncode({
+          'format': 1,
+          'lang': 'ar',
+          'version': 2,
+          'hash': hashOf(2),
+          'checked_at': now.millisecondsSinceEpoch,
+          'environment': 'staging',
+          'strings': {
+            for (final g in good) g: 'ok $g',
+            'keyThatThisAppVersionDoesNotHave': 'x',
+          },
+        }),
+      });
+      final s = make();
+      await s.init();
+      expect(s.overrides.strings, {for (final g in good) g: 'ok $g'});
+    });
+    test(
+        'a cache stored without an environment label, or by the other environment, is ignored',
+        () async {
+      final k = plainKeys(1).single;
+      for (final env in <String?>[null, 'production']) {
+        SharedPreferences.setMockInitialValues({
+          RemoteTranslationCache.keyFor('ar'): jsonEncode({
+            'format': 1,
+            'lang': 'ar',
+            'version': 2,
+            'hash': hashOf(2),
+            'checked_at': now.millisecondsSinceEpoch,
+            if (env != null) 'environment': env,
+            'strings': {k: 'ok'},
+          }),
+        });
+        final s = make();
+        await s.init();
+        expect(s.overrides.isEmpty, isTrue, reason: 'environment=$env');
+      }
     });
     test('an unchanged check refreshes the cache age without downloading',
         () async {

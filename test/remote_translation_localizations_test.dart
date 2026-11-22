@@ -20,7 +20,7 @@ import 'package:offro_user/l10n/gen/app_localizations_ar.dart';
 import 'package:offro_user/l10n/gen/app_localizations_en.dart';
 
 const String stagingUrl = 'https://offro-backend-staging-d375.up.railway.app';
-const String productionLikeUrl =
+const String productionUrl =
     'https://offro-backend-production.up.railway.app';
 
 RemoteOverrides ov(Map<String, String> m, {int version = 1}) => RemoteOverrides(
@@ -251,30 +251,40 @@ void main() {
           RemoteTranslationService.instance.overridesFor('ar').isEmpty, isTrue);
     });
     test(
-        'the flag alone is not enough: only the exact staging backend activates it',
+        'the flag alone is not enough: only the exact staging or production host activates it',
         () {
       expect(
           remoteTranslationsAllowed(flag: true, baseUrl: stagingUrl), isTrue);
+      expect(remoteTranslationsAllowed(flag: true, baseUrl: productionUrl),
+          isTrue);
       for (final url in [
         '',
         '   ',
-        productionLikeUrl,
         'https://offro-backend-staging-d375.up.railway.app.evil.example',
         'http://offro-backend-staging-d375.up.railway.app',
         'https://user@offro-backend-staging-d375.up.railway.app',
         'https://offro-backend-staging-d375.up.railway.app:8443',
         'https://evil.example/offro-backend-staging-d375.up.railway.app',
+        'https://offro-backend-production.up.railway.app.evil.example',
+        'http://offro-backend-production.up.railway.app',
+        'https://user@offro-backend-production.up.railway.app',
+        'https://offro-backend-production.up.railway.app:8443',
+        'https://evil.example/offro-backend-production.up.railway.app',
+        'https://offro-backend-production.up.railway.app.',
+        'https://api.offro-backend-production.up.railway.app',
+        'https://offro-backend-production.up.railway.app?x=1',
+        'https://offro-backend-other.up.railway.app',
         'not a url',
       ]) {
         expect(remoteTranslationsAllowed(flag: true, baseUrl: url), isFalse,
             reason: url);
       }
     });
-    test('without the flag nothing activates, not even on the staging backend',
+    test('without the flag nothing activates, not even on an allowlisted host',
         () {
       expect(
           remoteTranslationsAllowed(flag: false, baseUrl: stagingUrl), isFalse);
-      expect(remoteTranslationsAllowed(flag: false, baseUrl: productionLikeUrl),
+      expect(remoteTranslationsAllowed(flag: false, baseUrl: productionUrl),
           isFalse);
     });
   });
