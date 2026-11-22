@@ -175,6 +175,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   // ── STEP 0: Flutter binding MUST be first ──
   WidgetsFlutterBinding.ensureInitialized();
+  // Country-specific default images: the customer's country comes from the stored account phone (read before the request starts).
+  try {
+    Api.setCustomerCountryFromPhone((await Prefs.get())['phone']);
+  } catch (_) {}
   // Start /default-images NOW (Home reuses it) and load last session's copy for an instant hero.
   Api.prefetchDefaultImages();
   try {
@@ -627,6 +631,7 @@ class MyApp extends StatelessWidget {
       final freshName = resp['name']?.toString() ?? name;
       if (freshToken.isNotEmpty) {
         await Prefs.save(freshToken, freshName, phone, 'user', userId: freshId);
+        Api.setCustomerCountryFromPhone(phone);
         await Prefs.saveMode('user');
         goHome(
             token: freshToken,
@@ -676,6 +681,7 @@ class MyApp extends StatelessWidget {
             loginResp['account_id']?.toString() ??
             '';
         await Prefs.save(token, mName, phone, 'merchant', userId: mId);
+        Api.setCustomerCountryFromPhone(phone);
         await Prefs.saveMerchantId(mId);
         await Prefs.saveMode('merchant');
         merchantData = await Api.getMerchantMe(token);

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/app_constants.dart';
 import '../l10n/locale_controller.dart';
+import '../l10n/phone/phone_country.dart';
 
 class Api {
   /// Legal / information documents (Terms, Privacy, Refund, KYC, About Us, Merchant Terms): the app asks for the document in the
@@ -594,6 +595,18 @@ class Api {
   static DateTime? _prefetchedAt;
   /// Last session's /default-images payload (loaded from Prefs in main()).
   static Map<String,dynamic> cachedHeroDefaults = {};
+  /// The signed-in customer's country (ISO, derived from the account phone). Sent to /default-images so the server returns the
+  /// images mapped to that country. Unknown (guest / not signed in) -> nothing is sent -> the server returns the unmapped
+  /// (All countries) images, i.e. exactly what older apps always received.
+  static String? customerCountry;
+  static void setCustomerCountryFromPhone(String? phone) {
+    customerCountry = countryIsoForPhone(phone);
+  }
+  /// Path of the default-images request for [country]: plain "/default-images" when the country is unknown.
+  static String defaultImagesPath([String? country]) {
+    final iso = (country ?? customerCountry ?? '').trim().toUpperCase();
+    return iso.isEmpty ? "/default-images" : "/default-images?country=${Uri.encodeQueryComponent(iso)}";
+  }
   static void prefetchDefaultImages() {
     _prefetchedAt = DateTime.now();
     _prefetchedDefaults = getDefaultImages();
@@ -606,8 +619,8 @@ class Api {
     return f;
   }
 
-  static Future<Map<String,dynamic>> getDefaultImages() async {
-    for (final path in ["/default-images"]) {
+  static Future<Map<String,dynamic>> getDefaultImages({String? country}) async {
+    for (final path in [defaultImagesPath(country)]) {
       try {
         final raw = await _get(path).timeout(const Duration(seconds: 8));
         if (raw is Map && raw.isNotEmpty) {

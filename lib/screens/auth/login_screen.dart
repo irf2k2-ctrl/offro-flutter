@@ -1424,6 +1424,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     final city = accountData['city']?.toString() ?? '';
 
     await Prefs.save(token, name, phone, role, userId: userId);
+    Api.setCustomerCountryFromPhone(phone);
     await Prefs.saveRoles(roles);
     if (isMerchant) await Prefs.saveMerchantId(accountData['merchant_id']?.toString() ?? '');
     await Prefs.saveMode(role);
