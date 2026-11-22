@@ -5,7 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:offro_user/core/design/design.dart' show OffroIcons;
+import 'package:offro_user/core/design/design.dart' show OffroIcons, OffroColors;
 import 'package:offro_user/core/l10n/l10n.dart';
 import 'package:offro_user/core/l10n/language_sheet.dart';
 import 'package:offro_user/core/l10n/locale_controller.dart';
@@ -186,6 +186,15 @@ void main() {
       await LocaleController.instance.setLanguage('ar');
       await t.pumpAndSettle();
       expect(find.text('English'), findsOneWidget);
+    });
+
+    testWidgets('the login-screen language button is filled with the Login | Register tan and still opens the chooser', (t) async {
+      await t.pumpWidget(liveApp(const Scaffold(body: LanguageButton(filled: true))));
+      final box = t.widget<Container>(find.descendant(of: find.byKey(const ValueKey('language_button')), matching: find.byType(Container)).first);
+      expect((box.decoration as BoxDecoration).color, OffroColors.beige);
+      await t.tap(find.byKey(const ValueKey('language_button')));
+      await t.pumpAndSettle();
+      expect(find.text('Choose language'), findsOneWidget);
     });
 
     testWidgets('Profile has a Language row that opens the chooser; section titles follow the language', (t) async {

@@ -1468,16 +1468,8 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                     Row(children: [
                       buildImageLogo(height: 36),
                       const Spacer(),
-                      LanguageButton(countryIso: _country.iso),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: .55),
-                          borderRadius: OffroRadii.pillRadius),
-                        child: Text(context.l10n.loginBadge,
-                          style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
-                      ),
+                      // Language chooser: moved here, to where the "LOCAL, MADE EASY" badge used to sit; same tan/brown as the Login | Register buttons.
+                      LanguageButton(countryIso: _country.iso, filled: true),
                     ]),
                     const SizedBox(height: 40),
                     Text(context.l10n.loginWelcomeEyebrow,
@@ -1491,6 +1483,17 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                     const SizedBox(height: 16),
                     Text(context.l10n.loginHeroBody,
                       style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.5, color: OffroColors.primary.withValues(alpha: .65))),
+                    const SizedBox(height: 16),
+                    // "LOCAL, MADE EASY" badge: moved below the hero text; its look (white pill, primary text) is unchanged.
+                    Container(
+                      key: const ValueKey('login_badge'),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: .55),
+                        borderRadius: OffroRadii.pillRadius),
+                      child: Text(context.l10n.loginBadge,
+                        style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.primary)),
+                    ),
                   ]),
                 ]),
               ),

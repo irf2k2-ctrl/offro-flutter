@@ -95,8 +95,12 @@ class _LanguageSheetState extends State<_LanguageSheet> {
 
 /// Small pill for the login / onboarding screens: shows the OTHER language's name and opens the chooser.
 class LanguageButton extends StatelessWidget {
-  const LanguageButton({super.key, this.onDark = false, this.countryIso});
+  const LanguageButton({super.key, this.onDark = false, this.countryIso, this.filled = false});
   final bool onDark;
+
+  /// Login screen: the pill is filled with the same tan/brown (OffroColors.beige) as the Login | Register buttons. Behaviour is identical;
+  /// only the colours differ, and the default (false) keeps every other screen exactly as it was.
+  final bool filled;
 
   /// The selected country, when the screen has one (the login screen does); it narrows the languages the chooser offers.
   final String? countryIso;
@@ -126,9 +130,9 @@ class LanguageButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: fg.withValues(alpha: .12),
+            color: filled ? OffroColors.beige : fg.withValues(alpha: .12),
             borderRadius: OffroRadii.pillRadius,
-            border: Border.all(color: fg.withValues(alpha: .25)),
+            border: Border.all(color: filled ? OffroColors.beige : fg.withValues(alpha: .25)),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.language_rounded, size: 14, color: fg),
