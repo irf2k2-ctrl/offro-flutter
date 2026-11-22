@@ -137,6 +137,8 @@ class RemoteTranslationService extends ChangeNotifier
   static const int _maxBodyBytes = 2 * 1024 * 1024;
 
   RemoteOverrides _overrides = RemoteOverrides.empty;
+  Map<String, Set<String>> _languageCountries = const <String, Set<String>>{};
+  DateTime? _lastCountriesAttempt;
   int _checkedAtMs = 0;
   DateTime? _lastAttempt;
   DateTime? _lastSuccess;
@@ -150,6 +152,51 @@ class RemoteTranslationService extends ChangeNotifier
   /// The overrides currently in use (empty when none).
   RemoteOverrides get overrides => _overrides;
 
+  /// Where each language is offered (language code -> ISO country codes), from the last valid manifest. Empty when unknown, when
+  /// remote translations are off, or while the kill switch is on; the language chooser then lists every bundled language.
+  Map<String, Set<String>> get languageCountries => _languageCountries;
+
+  void _setLanguageCountries(Map<String, Set<String>> next) {
+    if (_sameMapping(_languageCountries, next)) return;
+    _languageCountries = next;
+    notifyListeners();
+  }
+
+  static bool _sameMapping(Map<String, Set<String>> a, Map<String, Set<String>> b) {
+    if (a.length != b.length) return false;
+    for (final e in a.entries) {
+      final o = b[e.key];
+      if (o == null || o.length != e.value.length || !o.containsAll(e.value)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// Reads only the stored (already validated) manifest, so the mapping is known offline. Never throws.
+  Future<void> _loadCachedCountries() async {
+    try {
+      final stored = await _cache.readManifest();
+      if (stored == null) return;
+      final m = RemoteTranslationValidator.parseManifest(
+          RemoteTranslationValidator.decodeBytes(utf8.encode(stored.body)));
+      if (m != null && m.active) _setLanguageCountries(m.languageCountries);
+    } catch (_) {/* no mapping: every bundled language is listed */}
+  }
+
+  /// Refreshes ONLY the language -> country mapping (one small manifest request; no language file). Used when the language chooser
+  /// opens, because English users otherwise cause no traffic. Throttled, single-flight, never throws, a no-op when disabled.
+  Future<void> refreshCountries() async {
+    if (!enabled || _inflight != null) return;
+    final now = _now();
+    final last = _lastCountriesAttempt;
+    if (last != null && now.difference(last) < minAttemptGap) return;
+    _lastCountriesAttempt = now;
+    try {
+      await _fetchManifest();
+    } catch (_) {/* keep the mapping we have */}
+  }
+
   /// The overrides to use for [lang]: only the remote language ever gets any, English never does.
   RemoteOverrides overridesFor(String lang) =>
       enabled && lang == kRemoteLanguage ? _overrides : RemoteOverrides.empty;
@@ -158,6 +205,7 @@ class RemoteTranslationService extends ChangeNotifier
   Future<void> init() async {
     if (!enabled || _initialised) return;
     _initialised = true;
+    await _loadCachedCountries();
     try {
       final c = await _cache.read(kRemoteLanguage);
       if (c == null) return;
@@ -344,6 +392,7 @@ class RemoteTranslationService extends ChangeNotifier
       await _cache.clearManifest(); // never keep a tag whose body we cannot use
       throw const _Transient('invalid_data');
     }
+    _setLanguageCountries(m.active ? m.languageCountries : const <String, Set<String>>{});
     if (!res.notModified) {
       if (res.etag != null) {
         await _cache.writeManifest(

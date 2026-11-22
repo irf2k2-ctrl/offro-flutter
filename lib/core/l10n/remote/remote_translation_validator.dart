@@ -49,9 +49,15 @@ class RemoteManifest {
   const RemoteManifest(
       {required this.killSwitch,
       required this.overridesEnabled,
-      required this.appTracks});
+      required this.appTracks,
+      this.languageCountries = const <String, Set<String>>{}});
   final bool killSwitch;
   final bool overridesEnabled;
+
+  /// language code -> ISO codes of the countries the language is offered in (English included). An EMPTY set, a language that is
+  /// not listed, or an empty map all mean "no restriction". Absent from older backends and while the kill switch is on.
+  /// It never affects the text, the versions or the hashes; it only decides which languages the chooser lists.
+  final Map<String, Set<String>> languageCountries;
 
   /// language code -> published App-track version. Only languages that have a published App track are listed.
   final Map<String, ManifestEntry> appTracks;
@@ -70,6 +76,9 @@ class RemoteTranslationValidator {
   static final RegExp _langRe = RegExp(r'^[a-z]{2,3}$');
   static final RegExp _keyRe = RegExp(r'^[A-Za-z][A-Za-z0-9_]{0,99}$');
   static final RegExp _hashRe = RegExp(r'^[0-9a-f]{64}$');
+  static final RegExp _isoRe = RegExp(r'^[A-Z]{2}$');
+  static const int maxMappedLanguages = 50;
+  static const int maxCountriesPerLanguage = 250;
   static final RegExp _placeholderRe = RegExp(r'\{([A-Za-z_][A-Za-z0-9_]*)\}');
   static final RegExp _tagRe = RegExp(r'<\s*/?\s*[A-Za-z!?]');
   static final RegExp _entityRe =
@@ -210,7 +219,30 @@ class RemoteTranslationValidator {
     return RemoteManifest(
         killSwitch: kill,
         overridesEnabled: enabled,
-        appTracks: Map<String, ManifestEntry>.unmodifiable(tracks));
+        appTracks: Map<String, ManifestEntry>.unmodifiable(tracks),
+        languageCountries: parseLanguageCountries(decoded['language_countries']));
+  }
+
+  /// The language -> countries mapping of a manifest. Lenient on purpose: anything malformed is skipped (never an error), so a
+  /// bad mapping can only mean "no restriction", never a hidden language and never a rejected manifest.
+  static Map<String, Set<String>> parseLanguageCountries(Object? raw) {
+    if (raw is! Map) return const <String, Set<String>>{};
+    final out = <String, Set<String>>{};
+    for (final e in raw.entries) {
+      if (out.length >= maxMappedLanguages) break;
+      final code = e.key;
+      final list = e.value;
+      if (code is! String || !isValidLanguageCode(code) || list is! List) {
+        continue;
+      }
+      final isos = <String>{};
+      for (final c in list) {
+        if (isos.length >= maxCountriesPerLanguage) break;
+        if (c is String && _isoRe.hasMatch(c)) isos.add(c);
+      }
+      out[code] = Set<String>.unmodifiable(isos);
+    }
+    return Map<String, Set<String>>.unmodifiable(out);
   }
 
   /// Decodes UTF-8 JSON bytes (never `latin1`, so Arabic survives). Null on any problem.

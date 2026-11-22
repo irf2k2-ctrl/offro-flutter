@@ -1467,7 +1467,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                     Row(children: [
                       buildImageLogo(height: 36),
                       const Spacer(),
-                      const LanguageButton(),
+                      LanguageButton(countryIso: _country.iso),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

@@ -17,6 +17,7 @@ import '../../core/design/design.dart';
 import '../../core/l10n/l10n.dart';
 import '../../core/l10n/language_sheet.dart';
 import '../../core/l10n/locale_controller.dart';
+import '../../core/phone/phone_country.dart' show countryIsoForPhone;
 import '../../core/services/api_service.dart';
 import 'support_info_note.dart';
 
@@ -277,7 +278,7 @@ class _ProfileTabState extends State<ProfileTab> {
             icon: OffroIcons.compass,
             label: context.l10n.languageRowLabel,
             note: LocaleController.instance.locale.languageCode == 'ar' ? context.l10n.languageNameAr : context.l10n.languageNameEn,
-            onTap: () => showLanguageSheet(context),
+            onTap: () => showLanguageSheet(context, countryIso: countryIsoForPhone(widget.phone)),
           ),
         ]),
         _group(context.l10n.profileGroupLegal, widget.legal),

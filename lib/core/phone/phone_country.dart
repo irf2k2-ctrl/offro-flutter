@@ -48,6 +48,25 @@ PhoneCountry? phoneCountryByIso(String? iso) {
   return null;
 }
 
+/// The supported country an account phone number belongs to, as an ISO code, or null when it cannot be told.
+/// Numbers are stored as '+<calling code><national number>'. A number without a calling code is only recognised in the legacy
+/// Indian shapes (10 digits, or 91 + 10 digits), the same convention the backend uses; nothing else is guessed.
+String? countryIsoForPhone(String? phone) {
+  var raw = (phone ?? '').trim().replaceAll(RegExp(r'[\s\-()]'), '');
+  if (raw.isEmpty || !RegExp(r'^\+?\d+$').hasMatch(raw)) return null;
+  if (raw.startsWith('00')) raw = '+${raw.substring(2)}';
+  if (raw.startsWith('+')) {
+    final digits = raw.substring(1);
+    for (final c in kPhoneCountries) {
+      if (digits.startsWith(c.dial)) return c.iso;
+    }
+    return null;
+  }
+  if (raw.length == 10) return 'IN';
+  if (raw.length == 12 && raw.startsWith('91')) return 'IN';
+  return null;
+}
+
 /// The supported country for a calling code such as '966' or '+966', or null.
 PhoneCountry? phoneCountryByDial(String? dial) {
   var k = (dial ?? '').trim();

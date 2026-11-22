@@ -2,27 +2,70 @@
 //
 // Language chooser used by Login/Onboarding (compact button) and Profile (row). Language names are always shown in their own
 // language and script, so a user can find their language whichever language is active.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../design/design.dart';
 import 'l10n.dart';
+import 'language_availability.dart';
 import 'locale_controller.dart';
+import 'remote/remote_translation_service.dart';
 
-Future<void> showLanguageSheet(BuildContext context) {
+/// The languages to list for [countryIso] (null = country unknown = all). Uses the mapping the admin dashboard published, when
+/// the app has one; otherwise every bundled language, exactly as before.
+List<String> languageCodesForCountry(String? countryIso) => availableLanguageCodes(
+      bundled: LocaleController.supportedCodes,
+      countryIso: countryIso,
+      mapping: RemoteTranslationService.instance.languageCountries,
+      currentCode: LocaleController.instance.locale.languageCode,
+    );
+
+/// [countryIso] is the country the user is in or has selected (null when unknown); it only narrows the list, see
+/// language_availability.dart.
+Future<void> showLanguageSheet(BuildContext context, {String? countryIso}) {
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
-    builder: (ctx) => const _LanguageSheet(),
+    builder: (ctx) => _LanguageSheet(countryIso: countryIso),
   );
 }
 
-class _LanguageSheet extends StatelessWidget {
-  const _LanguageSheet();
+class _LanguageSheet extends StatefulWidget {
+  const _LanguageSheet({this.countryIso});
+  final String? countryIso;
+
+  @override
+  State<_LanguageSheet> createState() => _LanguageSheetState();
+}
+
+class _LanguageSheetState extends State<_LanguageSheet> {
+  @override
+  void initState() {
+    super.initState();
+    final s = RemoteTranslationService.instance;
+    s.addListener(_changed);
+    // English users otherwise never contact the server, so look for the latest country mapping now (throttled, silent, no-op when
+    // remote translations are off). The list below updates by itself if it changed.
+    unawaited(s.refreshCountries());
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    RemoteTranslationService.instance.removeListener(_changed);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final l = context.l10n;
     final current = LocaleController.instance.locale.languageCode;
+    final codes = languageCodesForCountry(widget.countryIso);
+    String nameOf(String code) => code == 'ar' ? l.languageNameAr : l.languageNameEn;
     Widget option(String code, String name) => ListTile(
           key: ValueKey('language_option_$code'),
           title: Text(name, style: OffroText.cardTitle.copyWith(fontSize: 15)),
@@ -43,8 +86,7 @@ class _LanguageSheet extends StatelessWidget {
           child: Text(l.languageSheetNote,
               style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
         ),
-        option('en', l.languageNameEn),
-        option('ar', l.languageNameAr),
+        for (final code in codes) option(code, nameOf(code)),
         const SizedBox(height: 8),
       ]),
     );
@@ -53,11 +95,23 @@ class _LanguageSheet extends StatelessWidget {
 
 /// Small pill for the login / onboarding screens: shows the OTHER language's name and opens the chooser.
 class LanguageButton extends StatelessWidget {
-  const LanguageButton({super.key, this.onDark = false});
+  const LanguageButton({super.key, this.onDark = false, this.countryIso});
   final bool onDark;
+
+  /// The selected country, when the screen has one (the login screen does); it narrows the languages the chooser offers.
+  final String? countryIso;
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilds if the published country mapping arrives while the screen is open; hidden only when there is nothing to choose.
+    return AnimatedBuilder(
+      animation: RemoteTranslationService.instance,
+      builder: (context, _) =>
+          languageCodesForCountry(countryIso).length < 2 ? const SizedBox.shrink() : _build(context),
+    );
+  }
+
+  Widget _build(BuildContext context) {
     final l = context.l10n;
     final isAr = LocaleController.instance.locale.languageCode == 'ar';
     final label = isAr ? l.languageNameEn : l.languageNameAr;
@@ -67,7 +121,7 @@ class LanguageButton extends StatelessWidget {
       label: l.languageButtonSemantics,
       child: GestureDetector(
         key: const ValueKey('language_button'),
-        onTap: () => showLanguageSheet(context),
+        onTap: () => showLanguageSheet(context, countryIso: countryIso),
         behavior: HitTestBehavior.opaque,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
