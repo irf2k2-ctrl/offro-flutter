@@ -26,6 +26,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/design/design.dart' show OffroBottomNav, OffroNavVariant, OffroColors, OffroText, OffroRadii, OffroShadows, OffroSpacing, OffroButton, OffroCard, OffroIcons, OffroIcon, OffroIconData, OffroTones;
 import '../../core/constants/india_locations.dart';
 import '../../core/services/api_service.dart';
+import '../../core/pricing/country_money.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/models/offro_location.dart';
 import '../../core/services/location_service.dart';
@@ -783,7 +784,7 @@ class _MerchantBannersState extends State<MerchantBannersPage> {
                                   const SizedBox(width:10),
                                   const Icon(Icons.payments_outlined,size:13,color:kMerchantMuted),
                                   const SizedBox(width:4),
-                                  Text("₹${b['amount']??0}",style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
+                                  Text(CountryMoney.from(b).raw(b['amount']),style:const TextStyle(color:kMerchantMuted,fontSize:11,fontWeight:FontWeight.w600)),
                                 ]),
                                 if (fromDate.isNotEmpty || endDate.isNotEmpty) ...[
                                   const SizedBox(height:4),
@@ -905,9 +906,13 @@ class _AddBannerState extends State<AddBannerPage> {
   Future<void> _loadPricing() async {
     try {
       final p = await Api.getBannerPricing(widget.token);
-      if (mounted) setState(()=>_pricing=Map<String,dynamic>.from(p));
-    } catch(_){}
+      if (mounted) setState((){ _pricing=Map<String,dynamic>.from(p); _msg=""; });
+    } catch(_){
+      // Pricing not set up for this country: say so instead of showing nothing (never fall back to another country's price).
+      if (mounted && Api.pricingError != null) setState(()=>_msg=Api.pricingError!);
+    }
   }
+  CountryMoney get _cm => CountryMoney.from(_pricing);
 
   int get _days => int.tryParse(_daysC.text.trim()) ?? 0;
   double get _pricePerDay => (_pricing?["price_per_day"] as num?)?.toDouble() ?? 15;
@@ -1420,13 +1425,15 @@ class _AddBannerState extends State<AddBannerPage> {
         _dRow(context.l10n.bizTitle,    _titleC.text.trim()),
         _dRow(context.l10n.bizDuration, context.l10n.bizNDays('${order['days']}')),
         _dRow(context.l10n.bizPeriod,   "${order['from_date']} → ${order['end_date']}"),
-        _dRow(context.l10n.bizRate,     context.l10n.bizPerDayPrice('${order['price_per_day']}')),
+        _dRow(context.l10n.bizRate,     CountryMoney.from(order).isIndia ? context.l10n.bizPerDayPrice('${order['price_per_day']}') : CountryMoney.from(order).perDay(order['price_per_day'])),
         const Divider(),
-        _dRow(context.l10n.bizBasePrice,"₹${order['base_price']}"),
-        if((order['discount_amount']??0)>0) _dRow(context.l10n.bizDiscount,"−₹${order['discount_amount']}",
+        _dRow(context.l10n.bizBasePrice,CountryMoney.from(order).raw(order['base_price'])),
+        if((order['discount_amount']??0)>0) _dRow(context.l10n.bizDiscount,"−${CountryMoney.from(order).raw(order['discount_amount'])}",
           color:OffroColors.statusLive),
-        _dRow(context.l10n.bizGstPct('${order['gst_percent']}'),"₹${order['gst_amount']}"),
-        _dRow(context.l10n.bizTotal,"₹${order['amount_display']}",bold:true),
+        _dRow(CountryMoney.from(order).taxRowText(order['gst_percent']) ?? context.l10n.bizGstPct('${order['gst_percent']}'),CountryMoney.from(order).raw(order['gst_amount'])),
+        _dRow(context.l10n.bizTotal,CountryMoney.from(order).raw(order['amount_display']),bold:true),
+        if (manualPaymentNotice(order).isNotEmpty) Padding(padding:const EdgeInsets.only(top:6),
+          child:Text(manualPaymentNotice(order),style:const TextStyle(fontSize:12,color:kMerchantMuted,height:1.4))),
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
           decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.4),borderRadius:BorderRadius.circular(8)),
@@ -1440,7 +1447,7 @@ class _AddBannerState extends State<AddBannerPage> {
         ElevatedButton(
           style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
-          child:Text(manual?context.l10n.bizConfirmSubmit:context.l10n.bizPayAmount('${order['amount_display']}'),style:const TextStyle(color:Colors.white))),
+          child:Text(manual?context.l10n.bizConfirmSubmit:(CountryMoney.from(order).isIndia ? context.l10n.bizPayAmount('${order['amount_display']}') : CountryMoney.from(order).payAmount(order['amount_display'])),style:const TextStyle(color:Colors.white))),
       ],
     ));
 
@@ -1608,7 +1615,7 @@ class _AddBannerState extends State<AddBannerPage> {
               ]),
             )),
           if(_pricing!=null && _days>0) Padding(padding:const EdgeInsets.only(top:6),
-            child:Text(context.l10n.bizPricePerDayTimesDays(_pricePerDay.toStringAsFixed(0),'$_days'),
+            child:Text(_cm.isIndia ? context.l10n.bizPricePerDayTimesDays(_pricePerDay.toStringAsFixed(0),'$_days') : _cm.pricePerDayTimesDays(_pricePerDay.toStringAsFixed(0),'$_days'),
               style:const TextStyle(fontSize:12,color:kMerchantMuted))),
         ])),
       const SizedBox(height:12),
@@ -1617,10 +1624,10 @@ class _AddBannerState extends State<AddBannerPage> {
       if (_pricing!=null && _days>0)
         Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha:.5),borderRadius:BorderRadius.circular(12)),
           child:Column(children:[
-            _dRow(context.l10n.bizBasePrice,"₹${_basePrice.toStringAsFixed(2)}"),
-            _dRow(context.l10n.bizGstPct('${_gstPct.toInt()}'),"₹${_gst.toStringAsFixed(2)}"),
+            _dRow(context.l10n.bizBasePrice,_cm.fmt(_basePrice)),
+            _dRow(_cm.taxRowText(_gstPct) ?? context.l10n.bizGstPct('${_gstPct.toInt()}'),_cm.fmt(_gst)),
             const Divider(height:16),
-            _dRow(context.l10n.bizTotal,"₹${_total.toStringAsFixed(2)}",bold:true),
+            _dRow(context.l10n.bizTotal,_cm.fmt(_total),bold:true),
           ])),
 
       const SizedBox(height:4),
@@ -1673,9 +1680,13 @@ class _AddBannerState extends State<AddBannerPage> {
               child:Row(children:[
                 const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
-                Text(_appliedDiscountType == "PERCENTAGE"
+                Text(_cm.isIndia
+                    ? (_appliedDiscountType == "PERCENTAGE"
                       ? context.l10n.bizDiscountTotalPct(_discountAmt.toStringAsFixed(2),_appliedDiscount.toStringAsFixed(0),_total.toStringAsFixed(2))
-                      : context.l10n.bizDiscountTotalAmt(_appliedDiscount.toStringAsFixed(0),_total.toStringAsFixed(2)),
+                      : context.l10n.bizDiscountTotalAmt(_appliedDiscount.toStringAsFixed(0),_total.toStringAsFixed(2)))
+                    : (_appliedDiscountType == "PERCENTAGE"
+                      ? _cm.discountTotalPct(_discountAmt,_appliedDiscount,_total)
+                      : _cm.discountTotalAmt(_appliedDiscount,_total)),
                   style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
@@ -2127,7 +2138,7 @@ class _MerchantProductsState extends State<MerchantProductsPage> {
     if (limit == null) return const SizedBox.shrink();   // limit unknown → show nothing, never a made-up number
     final ppd = (s["price_per_day"] as num?)?.toDouble() ?? 0;
     final allUsed = used >= limit;
-    final priceTxt = ppd == ppd.truncate() ? "₹${ppd.toInt()}" : "₹${ppd.toStringAsFixed(2)}";
+    final priceTxt = ppd == ppd.truncate() ? CountryMoney.from(s).fmt(ppd, trimWhole: true) : CountryMoney.from(s).fmt(ppd);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
@@ -2542,8 +2553,9 @@ class _AddProductState extends State<AddProductPage> {
     final sid = _selectedStoreId;
     if (sid.isEmpty) { if (mounted) setState(() { _slots = null; _slotsForStore = ""; }); return; }
     final sl = await Api.getProductSlots(widget.token, storeId: sid);
-    if (mounted && sid == _selectedStoreId) setState(() { _slots = sl; _slotsForStore = sid; });
+    if (mounted && sid == _selectedStoreId) setState(() { _slots = sl; _slotsForStore = sid; if (sl == null && Api.pricingError != null) _msg = Api.pricingError!; });
   }
+  CountryMoney get _cm => CountryMoney.from(_slots);
 
   DateTime get _fromDay => DateTime(_fromDate.year, _fromDate.month, _fromDate.day);
   // Inclusive: a product is live THROUGH its end date (start == end is 1 day).
@@ -2554,7 +2566,7 @@ class _AddProductState extends State<AddProductPage> {
   int get _freeRemaining => (_slots?["free_remaining"] as num?)?.toInt() ?? 0;
   int get _maxDays => (_slots?["max_validity_days"] as num?)?.toInt() ?? 365;
   double get _pricePerDay => (_slots?["price_per_day"] as num?)?.toDouble() ?? 0;
-  String _money(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
+  String _money(double v) => _cm.fmt(v, trimWhole: true);
   // Preview only: price = configured per-day price × days. The order response is authoritative.
   double get _basePrice => _nextIsFree || _days < 1 ? 0 : double.parse((_pricePerDay * _days).toStringAsFixed(2));
   double get _gstPct=>(_slots?["gst_pct"] as num?)?.toDouble()??18;
@@ -2621,7 +2633,7 @@ class _AddProductState extends State<AddProductPage> {
         _discountVMsg     = res["message"]?.toString() ??
             (type == "PERCENTAGE"
                 ? context.l10n.bizCodeAppliedPct(val.toStringAsFixed(0))
-                : context.l10n.bizCodeAppliedAmt(val.toStringAsFixed(0)));
+                : (_cm.isIndia ? context.l10n.bizCodeAppliedAmt(val.toStringAsFixed(0)) : _cm.codeAppliedAmount(val)));
         _discountVOk      = true;
         _applyingVCode    = false;
       });
@@ -2765,11 +2777,13 @@ class _AddProductState extends State<AddProductPage> {
         _dRow(context.l10n.bizPeriod,"${order['from_date']} → ${order['end_date']}"),
         if(order['pricing_tier']!="free") ...[
           const Divider(),
-          _dRow(context.l10n.bizPrice,"₹${order['base_price']}"),
-          if((order['discount_amount']??0)>0) _dRow(context.l10n.bizDiscount,"−₹${order['discount_amount']}",
+          _dRow(context.l10n.bizPrice,CountryMoney.from(order).raw(order['base_price'])),
+          if((order['discount_amount']??0)>0) _dRow(context.l10n.bizDiscount,"−${CountryMoney.from(order).raw(order['discount_amount'])}",
             color:OffroColors.statusLive),
-          _dRow(context.l10n.bizGstPct('${order['gst_percent']}'),"₹${order['gst_amount']}"),
-          _dRow(context.l10n.bizTotal,"₹${order['amount_display']}",bold:true),
+          _dRow(CountryMoney.from(order).taxRowText(order['gst_percent']) ?? context.l10n.bizGstPct('${order['gst_percent']}'),CountryMoney.from(order).raw(order['gst_amount'])),
+          _dRow(context.l10n.bizTotal,CountryMoney.from(order).raw(order['amount_display']),bold:true),
+          if (manualPaymentNotice(order).isNotEmpty) Padding(padding:const EdgeInsets.only(top:6),
+            child:Text(manualPaymentNotice(order),style:const TextStyle(fontSize:12,color:kMerchantMuted,height:1.4))),
         ],
         const SizedBox(height:10),
         Container(padding:const EdgeInsets.all(10),
@@ -2782,7 +2796,7 @@ class _AddProductState extends State<AddProductPage> {
         ElevatedButton(
           style:ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor:kMerchantPrimary),
           onPressed:()=>Navigator.pop(context,true),
-          child:Text(manual?context.l10n.bizSaveProduct:context.l10n.bizPayAmount('${order['amount_display']}'),style:const TextStyle(color:Colors.white))),
+          child:Text(manual?context.l10n.bizSaveProduct:(CountryMoney.from(order).isIndia ? context.l10n.bizPayAmount('${order['amount_display']}') : CountryMoney.from(order).payAmount(order['amount_display'])),style:const TextStyle(color:Colors.white))),
       ],
     ));
 
@@ -2931,9 +2945,9 @@ class _AddProductState extends State<AddProductPage> {
           child:Column(children:[
             _dRow((_days==1 ? context.l10n.bizDayTimesPriceOne('$_days',_money(_pricePerDay)) : context.l10n.bizDayTimesPriceMany('$_days',_money(_pricePerDay))),_money(_basePrice)),
             if(_discountVAmt>0) _dRow(context.l10n.bizDiscount,"−${_money(_discountVAmt)}",color:OffroColors.statusLive),
-            _dRow(context.l10n.bizGstPct('${_gstPct.toInt()}'),"₹${_gst.toStringAsFixed(2)}"),
+            _dRow(_cm.taxRowText(_gstPct) ?? context.l10n.bizGstPct('${_gstPct.toInt()}'),_cm.fmt(_gst)),
             const Divider(height:16),
-            _dRow(context.l10n.bizTotal,"₹${_total.toStringAsFixed(2)}",bold:true),
+            _dRow(context.l10n.bizTotal,_cm.fmt(_total),bold:true),
           ])),
 
       const SizedBox(height:4),
@@ -2985,9 +2999,13 @@ class _AddProductState extends State<AddProductPage> {
               child:Row(children:[
                 const Icon(Icons.check_circle,color:OffroColors.statusLive,size:14),
                 const SizedBox(width:6),
-                Text(_appliedVDiscountType == "PERCENTAGE"
+                Text(_cm.isIndia
+                    ? (_appliedVDiscountType == "PERCENTAGE"
                       ? context.l10n.bizDiscountTotalPct(_discountVAmt.toStringAsFixed(2),_appliedVDiscount.toStringAsFixed(0),_total.toStringAsFixed(2))
-                      : context.l10n.bizDiscountTotalAmt(_appliedVDiscount.toStringAsFixed(0),_total.toStringAsFixed(2)),
+                      : context.l10n.bizDiscountTotalAmt(_appliedVDiscount.toStringAsFixed(0),_total.toStringAsFixed(2)))
+                    : (_appliedVDiscountType == "PERCENTAGE"
+                      ? _cm.discountTotalPct(_discountVAmt,_appliedVDiscount,_total)
+                      : _cm.discountTotalAmt(_appliedVDiscount,_total)),
                   style:const TextStyle(color:OffroColors.statusLive,fontWeight:FontWeight.w700,fontSize:12)),
               ]),
             ),
@@ -4251,7 +4269,7 @@ class _SubscribeState extends State<SubscribePage> {
       final opts = {
         'key': rzpKey,
         'amount': amountPaise,
-        'currency': 'INR',
+        'currency': CountryMoney.from(order).code,   // the order's own currency (INR for India) - never forced to INR
         'order_id': order["razorpay_order_id"] ?? order["order_id"] ?? "",
         'name': 'Offro',
         'description': order["plan_label"] ?? 'Store Subscription',
@@ -4346,7 +4364,7 @@ class _SubscribeState extends State<SubscribePage> {
         _discountValue = val;
         _discMsg = type == "PERCENTAGE"
             ? context.l10n.bizDiscountAppliedPct(val.toStringAsFixed(0))
-            : context.l10n.bizDiscountAppliedAmt(val.toStringAsFixed(0));
+            : (_cm.isIndia ? context.l10n.bizDiscountAppliedAmt(val.toStringAsFixed(0)) : _cm.appliedAmount(val));
       });
     } catch(e) {
       setState((){
@@ -4360,8 +4378,11 @@ class _SubscribeState extends State<SubscribePage> {
   Future<void> _loadPlans() async {
     _plans = await Api.getPlans(widget.token);
     if (_plans.isNotEmpty) { _selectedPlan = _plans[0]["id"]; _selectedPlanData = Map.from(_plans[0]); }
+    // No plans because the country's pricing is not set up: say so (never show another country's plans).
+    if (_plans.isEmpty && Api.pricingError != null) _msg = Api.pricingError!;
     if (mounted) setState(()=>_loading=false);
   }
+  CountryMoney get _cm => CountryMoney.from(_selectedPlanData);
 
   Future<void> _subscribe() async {
     if (_selectedPlan.isEmpty) return;
@@ -4391,13 +4412,15 @@ class _SubscribeState extends State<SubscribePage> {
             _row(ctx.l10n.bizFrom,  order["from_date"]??''),
             _row(ctx.l10n.bizTo,    order["end_date"]??''),
             const Divider(),
-            _row(ctx.l10n.bizBasePrice,"₹${order['base_price']}"),
+            _row(ctx.l10n.bizBasePrice,CountryMoney.from(order).raw(order['base_price'])),
             if (discAmt>0)
               _row(ctx.l10n.bizDiscount, discType=="PERCENTAGE"
-                  ? "-₹${discAmt.toStringAsFixed(2)} (${(order['discount_value'] as num?)?.toStringAsFixed(0) ?? ''}%)"
-                  : "-₹${discAmt.toStringAsFixed(2)}"),
-            _row(ctx.l10n.bizGstPct('${order['gst_percent']}'),"₹${order['gst_amount']}"),
-            _row(ctx.l10n.bizTotalPayable,"₹${order['amount_display']}",bold:true),
+                  ? "${CountryMoney.from(order).minus(discAmt)} (${(order['discount_value'] as num?)?.toStringAsFixed(0) ?? ''}%)"
+                  : CountryMoney.from(order).minus(discAmt)),
+            _row(CountryMoney.from(order).taxRowText(order['gst_percent']) ?? ctx.l10n.bizGstPct('${order['gst_percent']}'),CountryMoney.from(order).raw(order['gst_amount'])),
+            _row(ctx.l10n.bizTotalPayable,CountryMoney.from(order).raw(order['amount_display']),bold:true),
+            if (manualPaymentNotice(order).isNotEmpty) Padding(padding:const EdgeInsets.only(top:6),
+              child:Text(manualPaymentNotice(order),style:const TextStyle(fontSize:12,color:kMerchantMuted,height:1.4))),
             const SizedBox(height:12),
             Container(
               padding:const EdgeInsets.all(10),
@@ -4451,9 +4474,9 @@ class _SubscribeState extends State<SubscribePage> {
           _row(context.l10n.bizFrom,  fromD),
           _row(context.l10n.bizTo,    toD),
           const Divider(),
-          _row(context.l10n.bizBasePrice,"₹$baseP"),
-          _row(context.l10n.bizGstPct('$gstPct'),"₹$gstAmt"),
-          _row(context.l10n.bizTotal,"₹$totalD",bold:true),
+          _row(context.l10n.bizBasePrice,CountryMoney.from(order).raw(baseP)),
+          _row(CountryMoney.from(order).taxRowText(gstPct) ?? context.l10n.bizGstPct('$gstPct'),CountryMoney.from(order).raw(gstAmt)),
+          _row(context.l10n.bizTotal,CountryMoney.from(order).raw(totalD),bold:true),
           const SizedBox(height:12),
           Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .4),borderRadius:BorderRadius.circular(8)),
             child:Text(context.l10n.bizRazorpayCheckoutWillOpenAfter,style:TextStyle(fontSize:12,color:kMerchantPrimary))),
@@ -4501,9 +4524,9 @@ class _SubscribeState extends State<SubscribePage> {
               const SizedBox(width:12),
               Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
                 Text(p["label"],style:TextStyle(fontWeight:FontWeight.bold,color:sel?Colors.white:kMerchantText)),
-                Text(context.l10n.bizPricePlusGst('${p['price']}','${p['gst_percent']}'),style:TextStyle(fontSize:12,color:sel?kMerchantLight:kMerchantMuted)),
+                Text(CountryMoney.from(p).isIndia ? context.l10n.bizPricePlusGst('${p['price']}','${p['gst_percent']}') : CountryMoney.from(p).pricePlusTax(p['price'],p['gst_percent']),style:TextStyle(fontSize:12,color:sel?kMerchantLight:kMerchantMuted)),
               ])),
-              Text("₹${p['total']}",style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:sel?Colors.white:kMerchantPrimary)),
+              Text(CountryMoney.from(p).raw(p['total']),style:TextStyle(fontWeight:FontWeight.bold,fontSize:16,color:sel?Colors.white:kMerchantPrimary)),
             ])));
       }).toList(),
       const SizedBox(height:16),
@@ -4528,11 +4551,11 @@ class _SubscribeState extends State<SubscribePage> {
           final total     = taxable + gstAmt;
           return Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:kMerchantLight.withValues(alpha: .5),borderRadius:BorderRadius.circular(12)),
             child:Column(children:[
-              _row(context.l10n.bizBasePrice,"₹${basePrice.toStringAsFixed(2)}"),
-              if (discAmt>0) _row(context.l10n.bizDiscount,"-₹${discAmt.toStringAsFixed(2)}"),
-              _row(context.l10n.bizGstPct(gstPct.toStringAsFixed(0)),"₹${gstAmt.toStringAsFixed(2)}"),
+              _row(context.l10n.bizBasePrice,_cm.fmt(basePrice)),
+              if (discAmt>0) _row(context.l10n.bizDiscount,_cm.minus(discAmt)),
+              _row(_cm.taxRowText(gstPct) ?? context.l10n.bizGstPct(gstPct.toStringAsFixed(0)),_cm.fmt(gstAmt)),
               const Divider(height:16),
-              _row(context.l10n.bizTotalPayable,"₹${total.toStringAsFixed(2)}",bold:true),
+              _row(context.l10n.bizTotalPayable,_cm.fmt(total),bold:true),
             ]));
         }),
       ],
@@ -4560,7 +4583,7 @@ class _SubscribeState extends State<SubscribePage> {
             const SizedBox(height:6),
             Row(children:[
               Text('${context.l10n.bizDiscount2} ',style:TextStyle(fontSize:12,color:kMerchantMuted)),
-              Text(_discountType=="PERCENTAGE" ? "- ${_discountValue.toStringAsFixed(0)}%" : "- ₹${_discountValue.toStringAsFixed(0)}",
+              Text(_discountType=="PERCENTAGE" ? "- ${_discountValue.toStringAsFixed(0)}%" : _cm.fixedDiscount(_discountValue),
                 style:const TextStyle(fontSize:12,color:OffroColors.statusLive,fontWeight:FontWeight.bold)),
               const Spacer(),
               GestureDetector(onTap:(){setState((){_appliedCode=null;_discountValue=0;_discountType=null;_discMsg="";_discC.clear();});},child:Text(context.l10n.bizRemove,style:TextStyle(fontSize:11,color:Colors.red,decoration:TextDecoration.underline)))]),
@@ -4600,8 +4623,8 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
       "Store: ${inv['store_name']??''}",
       "Plan: ${inv['plan']??''}",
       "Period: ${inv['from_date']??''} – ${inv['end_date']??''}",
-      "Base: ₹${inv['base_price']??0}  GST: ₹${inv['gst']??0}",
-      "Total Paid: ₹${inv['total']??0}",
+      "Base: ${CountryMoney.from(inv).raw(inv['base_price'])}  ${CountryMoney.from(inv).taxLabel}: ${CountryMoney.from(inv).raw(inv['gst'])}",
+      "Total Paid: ${CountryMoney.from(inv).raw(inv['total'])}",
       "Date: ${inv['created_at']?.toString().substring(0,10)??''}",
     ].join("\n");
     Share.share(text, subject: "OFFRO Invoice ${inv['invoice_no']??''}");
@@ -4791,15 +4814,15 @@ class _InvoicesState extends State<MerchantInvoicesPage> {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(context.l10n.bizBaseGstLine(origAmt.toStringAsFixed(2),gstAmt.toStringAsFixed(2)),
+                          Text(CountryMoney.from(inv).isIndia ? context.l10n.bizBaseGstLine(origAmt.toStringAsFixed(2),gstAmt.toStringAsFixed(2)) : CountryMoney.from(inv).baseTaxLine(origAmt.toStringAsFixed(2),gstAmt.toStringAsFixed(2)),
                             style:const TextStyle(color:kMerchantMuted,fontSize:12)),
                           if(discCode.isNotEmpty && discAmt > 0)
-                            Text(context.l10n.bizDiscountCodeLine('$discCode',discAmt.toStringAsFixed(2)),
+                            Text(CountryMoney.from(inv).isIndia ? context.l10n.bizDiscountCodeLine('$discCode',discAmt.toStringAsFixed(2)) : CountryMoney.from(inv).discountCodeLine('$discCode',discAmt.toDouble()),
                               style:const TextStyle(color:OffroColors.statusLive,fontSize:11,fontWeight:FontWeight.w600)),
                         ],
                       );
                     }),
-                    Text("₹${((inv["total"]??0) as num).toStringAsFixed(2)}",
+                    Text(CountryMoney.from(inv).fmt(inv["total"]),
                       style:const TextStyle(fontWeight:FontWeight.bold,color:kMerchantPrimary,fontSize:15)),
                   ]),
                   const SizedBox(height:12),
@@ -4898,7 +4921,7 @@ class _TxnState extends State<MerchantTxnPage> {
       events.add({
         "type":"payment","icon":Icons.payment,"color":kMerchantPrimary,
         "title":_humanizeActivity(t["description"]?.toString()??t["plan"]?.toString()??context.l10n.bizPayment),
-        "subtitle":"₹${t['amount']??0}",
+        "subtitle":CountryMoney.from(t).raw(t['amount']),
         "date":t["date"]??t["created_at"]??"",
         "amount":_amt(t["amount"]),
       });
@@ -5018,7 +5041,7 @@ class _TxnState extends State<MerchantTxnPage> {
                           Text(_fmtDateTime(t["date"]?.toString()),style:const TextStyle(color:kMerchantMuted,fontSize:10)),
                         ])),
                         if((t["amount"]??0)>0)
-                          Text("₹${t['amount']}",style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold,fontSize:13)),
+                          Text(CountryMoney.from(t).raw(t['amount']),style:const TextStyle(color:kMerchantPrimary,fontWeight:FontWeight.bold,fontSize:13)),
                       ]),
                     );
                   }),

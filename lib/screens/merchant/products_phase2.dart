@@ -8,6 +8,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/design/offro_tokens.dart' show OffroColors;
 import '../../core/services/api_service.dart';
+import '../../core/pricing/country_money.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/l10n/l10n.dart';
 
@@ -52,7 +53,8 @@ class _RenewProductPageState extends State<RenewProductPage> {
     return "${dt.day} ${m[dt.month-1]} ${dt.year}";
   }
   String _ymd(DateTime d) => "${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}";
-  String _fmtAmt(double v) => v == v.truncate() ? "₹${v.toInt()}" : "₹${v.toStringAsFixed(2)}";
+  CountryMoney get _cm => CountryMoney.from(_slots);
+  String _fmtAmt(double v) => _cm.fmt(v, trimWhole: true);
 
   DateTime? _parseAnyDate(String raw) {
     if (raw.isEmpty) return null;
@@ -101,7 +103,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
 
   Future<void> _loadSlots() async {
     final s = await Api.getProductSlots(widget.token, excludeId: _pid);
-    if (mounted) setState(() => _slots = s);
+    if (mounted) setState(() { _slots = s; if (s == null && Api.pricingError != null) _msg = Api.pricingError!; });
   }
 
   Future<void> _pickEnd() async {
@@ -191,11 +193,13 @@ class _RenewProductPageState extends State<RenewProductPage> {
           _dRow(context.l10n.bizPlan, isFree ? context.l10n.bizFreeRenewal : context.l10n.bizAdditionalProduct),
           if (!isFree) ...[
             const Divider(),
-            _dRow(context.l10n.bizPrice, "₹${order['base_price']}"),
+            _dRow(context.l10n.bizPrice, CountryMoney.from(order).raw(order['base_price'])),
             if (((order['discount_amount'] as num?) ?? 0) > 0)
-              _dRow(context.l10n.bizDiscount, "−₹${order['discount_amount']}", color: OffroColors.statusLive),
-            _dRow(context.l10n.bizGstPct('${order['gst_percent']}'), "₹${order['gst_amount']}"),
-            _dRow(context.l10n.bizTotal, "₹${order['amount_display']}", bold: true),
+              _dRow(context.l10n.bizDiscount, "−${CountryMoney.from(order).raw(order['discount_amount'])}", color: OffroColors.statusLive),
+            _dRow(CountryMoney.from(order).taxRowText(order['gst_percent']) ?? context.l10n.bizGstPct('${order['gst_percent']}'), CountryMoney.from(order).raw(order['gst_amount'])),
+            _dRow(context.l10n.bizTotal, CountryMoney.from(order).raw(order['amount_display']), bold: true),
+            if (manualPaymentNotice(order).isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6),
+              child: Text(manualPaymentNotice(order), style: const TextStyle(fontSize: 12, color: kMerchantMuted, height: 1.4))),
           ],
         ]),
         actions: [
@@ -205,7 +209,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(isFree ? context.l10n.bizRenewFree : context.l10n.bizPayAmount('${order['amount_display']}'),
+            child: Text(isFree ? context.l10n.bizRenewFree : (CountryMoney.from(order).isIndia ? context.l10n.bizPayAmount('${order['amount_display']}') : CountryMoney.from(order).payAmount(order['amount_display'])),
               style: const TextStyle(color: Colors.white))),
         ],
       ),
@@ -341,7 +345,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
               decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(14)),
               child: Column(children: [
                 _PriceRow((_addedDays == 1 ? context.l10n.bizDayTimesPriceOne('$_addedDays',_fmtAmt(_pricePerDay)) : context.l10n.bizDayTimesPriceMany('$_addedDays',_fmtAmt(_pricePerDay))), _fmtAmt(_price)),
-                _PriceRow(context.l10n.bizGstPct('${_gstPct.toInt()}'), _fmtAmt(_gstAmt)),
+                _PriceRow(_cm.taxRowText(_gstPct) ?? context.l10n.bizGstPct('${_gstPct.toInt()}'), _cm.fmt(_gstAmt, trimWhole: true)),
                 const Divider(height: 20),
                 _PriceRow(context.l10n.bizTotal, _fmtAmt(_total), bold: true),
               ]),

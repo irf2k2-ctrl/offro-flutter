@@ -8,6 +8,7 @@ import '../constants/app_constants.dart';
 import '../l10n/language_policy.dart';
 import '../l10n/locale_controller.dart';
 import '../l10n/phone/phone_country.dart';
+import '../pricing/country_money.dart';
 
 class Api {
   /// Legal / information documents (Terms, Privacy, Refund, KYC, About Us, Merchant Terms): the app asks for the document in the
@@ -50,7 +51,12 @@ class Api {
     } catch (_) {
       throw Exception("Invalid server response (HTTP ${r.statusCode})");
     }
-    if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error ${r.statusCode}");
+    if (r.statusCode >= 400) {
+      final code = apiDetailCode(d["detail"]);
+      final msg = apiDetailText(d["detail"], fallback: "Error ${r.statusCode}");
+      if (code != null) throw ApiException(msg, code: code, status: r.statusCode);
+      throw Exception(msg);
+    }
     return d;
   }
 
@@ -75,13 +81,18 @@ class Api {
       // outside of a catch that could swallow our own throw, so a clean
       // `detail` always reaches the caller.
       String? detail;
+      String? detailCode;
       try {
         final d = json.decode(r.body);
-        if (d is Map && d["detail"] != null) detail = d["detail"].toString();
+        if (d is Map && d["detail"] != null) {
+          detail = apiDetailText(d["detail"], fallback: "");   // {"code","message"} -> the message, never a raw Map
+          detailCode = apiDetailCode(d["detail"]);
+        }
       } catch (_) {
         detail = null; // non-JSON error body — fall through to a safe message below
       }
       if (detail != null && detail.isNotEmpty) {
+        if (detailCode != null) throw ApiException(detail, code: detailCode, status: r.statusCode);
         throw Exception(detail);
       }
       throw Exception("HTTP ${r.statusCode}");
@@ -149,7 +160,7 @@ class Api {
     } catch (_) {
       throw Exception("Invalid server response (HTTP ${r.statusCode})");
     }
-    if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error (${r.statusCode})");
+    if (r.statusCode >= 400) throw Exception(apiDetailText(d["detail"], fallback: "Error (${r.statusCode})"));
     return d;
   }
 
@@ -167,7 +178,7 @@ class Api {
     } catch (_) {
       throw Exception("Invalid server response (HTTP ${r.statusCode})");
     }
-    if (r.statusCode >= 400) throw Exception(d["detail"] ?? "Error (${r.statusCode})");
+    if (r.statusCode >= 400) throw Exception(apiDetailText(d["detail"], fallback: "Error (${r.statusCode})"));
     return d;
   }
 
@@ -336,12 +347,20 @@ class Api {
       throw Exception("Invalid server response (HTTP ${r.statusCode})");
     }
     if (r.statusCode >= 400) {
-      throw Exception(d is Map ? (d["detail"] ?? "Error") : "Error");
+      throw Exception(d is Map ? apiDetailText(d["detail"], fallback: "Error") : "Error");
     }
     return Map<String,dynamic>.from(d as Map);
   }
+  /// The last country-pricing error the server returned (pricing / tax / price not configured, country inactive), or null. The pricing
+  /// screens show it instead of any price, so a country without configured pricing never sees India's numbers.
+  static String? pricingError;
+  static void _notePricing(Object e) {
+    pricingError = (e is ApiException && e.code != null) ? pricingErrorText(e.code, e.message) : null;
+  }
+
   static Future<List> getPlans(String token) async {
-    try { return await _get("/merchant/plans", token: token); } catch (_) { return []; }
+    pricingError = null;
+    try { return await _get("/merchant/plans", token: token); } catch (e) { _notePricing(e); return []; }
   }
   static Future<Map<String,dynamic>> initiateSubscription(String token, Map body) =>
       _post("/merchant/subscribe", body, token: token);
@@ -928,8 +947,12 @@ class Api {
     } catch(_) { return []; }
   }
 
-  static Future<Map<String,dynamic>> getBannerPricing(String token) async =>
-    Map<String,dynamic>.from(await _get("/merchant/banners/pricing", token: token));
+  static Future<Map<String,dynamic>> getBannerPricing(String token) async {
+    pricingError = null;
+    try {
+      return Map<String,dynamic>.from(await _get("/merchant/banners/pricing", token: token));
+    } catch (e) { _notePricing(e); rethrow; }
+  }
 
   /// Uploads a banner video (data:video/mp4;base64,…) to the CDN before payment;
   /// returns {url, media_type, thumb}. Longer timeout than other calls (up to 10 MB).
@@ -995,8 +1018,9 @@ class Api {
         if (storeId != null && storeId.isNotEmpty) "store_id=${Uri.encodeComponent(storeId)}",
       ];
       final q = qp.isEmpty ? "" : "?${qp.join('&')}";
+      pricingError = null;
       return Map<String,dynamic>.from(await _get("/merchant/products/slots$q", token: token));
-    } catch (_) { return null; }
+    } catch (e) { _notePricing(e); return null; }
   }
 
   // ── Creator Collaborations ──────────────────────────────────────────────

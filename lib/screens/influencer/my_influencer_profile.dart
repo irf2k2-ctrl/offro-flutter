@@ -8,6 +8,7 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/india_locations.dart' show kIndiaStates, kIndiaCities;
 import '../../core/services/api_service.dart';
+import '../../core/pricing/country_money.dart';
 import '../../core/services/error_mapper.dart';
 import '../auth/login_screen.dart' show SwitchModeSheet;
 import '../../main.dart' show MyApp;
@@ -1223,10 +1224,16 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     try {
       final p = await Api.getInfluencerSubscriptionPricing(widget.token);
       if (mounted) setState(() { _pricing = p; _loadingPricing = false; });
-    } catch (_) {
-      if (mounted) setState(() => _loadingPricing = false);
+    } catch (e) {
+      // Pricing not set up for this country (409): show the clear message - never fall back to India's fee.
+      if (mounted) setState(() {
+        _loadingPricing = false;
+        if (e is ApiException && e.code != null) _errorMsg = pricingErrorText(e.code, e.message);
+      });
     }
   }
+
+  CountryMoney get _cm => CountryMoney.from(_pricing);
 
   Future<void> _loadCategories() async {
     try {
@@ -1389,7 +1396,9 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       final fresh = await Api.getMyInfluencerProfile(widget.token);
       if (mounted) Navigator.pop(context, fresh);
     } catch (e) {
-      if (mounted) setState(() => _errorMsg = friendlyError(e, l10n: mounted ? context.l10n : null));
+      if (mounted) setState(() => _errorMsg = (e is ApiException && e.code != null)
+          ? pricingErrorText(e.code, e.message)
+          : friendlyError(e, l10n: mounted ? context.l10n : null));
     } finally {
       if (mounted && _publishing) setState(() => _publishing = false);
     }
@@ -1416,7 +1425,9 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   void _openRazorpayCheckout(Map<String, dynamic> order) {
     final rzpKey = order["razorpay_key"]?.toString() ?? '';
     if (rzpKey.isEmpty) {
-      setState(() => _errorMsg = context.l10n.bizPaymentGatewayNotConfiguredContact);
+      // International order whose currency is not enabled for online payment: manual activation path (admin confirms), not an error.
+      final notice = manualPaymentNotice(order);
+      setState(() => _errorMsg = notice.isNotEmpty ? notice : context.l10n.bizPaymentGatewayNotConfiguredContact);
       return;
     }
     try {
@@ -1425,7 +1436,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       final opts = {
         'key': rzpKey,
         'amount': amountPaise,
-        'currency': 'INR',
+        'currency': CountryMoney.from(order).code,   // the order's own currency (INR for India) - never forced to INR
         'order_id': order["razorpay_order_id"] ?? "",
         'name': 'Offro',
         'description': 'Influencer Subscription',
@@ -1716,7 +1727,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(context.l10n.bizInfluencerSubscription, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFa1275a))),
         const SizedBox(height: 8),
-        row(context.l10n.bizSubscriptionFee, "₹${fee.toStringAsFixed(2)}"),
+        row(context.l10n.bizSubscriptionFee, _cm.fmt(fee)),
         const SizedBox(height: 6),
         Row(children: [
           Expanded(
@@ -1773,10 +1784,10 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           ]),
         ),
         const SizedBox(height: 8),
-        if (discountAmt > 0) row(context.l10n.bizDiscount, "-₹${discountAmt.toStringAsFixed(2)}"),
-        row(context.l10n.bizGstPct(gstPct.toStringAsFixed(gstPct == gstPct.roundToDouble() ? 0 : 1)), "₹${gstAmt.toStringAsFixed(2)}"),
+        if (discountAmt > 0) row(context.l10n.bizDiscount, _cm.minus(discountAmt)),
+        row(_cm.taxRowText(gstPct) ?? context.l10n.bizGstPct(gstPct.toStringAsFixed(gstPct == gstPct.roundToDouble() ? 0 : 1)), _cm.fmt(gstAmt)),
         const Divider(height: 16),
-        row(context.l10n.bizTotalPayable, "₹${total.toStringAsFixed(2)}", bold: true),
+        row(context.l10n.bizTotalPayable, _cm.fmt(total), bold: true),
         const SizedBox(height: 8),
         Text(context.l10n.bizAOneTimePaymentYou,
           style: TextStyle(fontSize: 11, color: Color(0xFFa1275a))),
