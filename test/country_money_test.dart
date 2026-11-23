@@ -26,10 +26,9 @@ void main() {
       expect(m.fmt(115, trimWhole: true), 'SAR 115');
       expect(m.taxRowText(15), 'VAT (15%)');
       expect(m.minus(10), '-SAR 10.00');
-      expect(m.perDay(1), 'SAR 1/day');
-      expect(m.payAmount(115), 'Pay SAR 115');
-      expect(m.baseTaxLine(100, 15), 'Base: SAR 100  VAT: SAR 15');
-      expect(m.pricePlusTax(100, 15), 'SAR 100 + 15% VAT');
+      expect(m.prefixed('10.00'), 'SAR 10.00');
+      expect(m.raw(0), 'SAR 0');
+      expect(CountryMoney.india.prefixed('10.00'), '₹10.00');
     });
     test('symbol-only and code-only responses', () {
       expect(CountryMoney.from({'currency_symbol': '£'}).code, '£');
@@ -38,6 +37,13 @@ void main() {
     test('fractional tax percent', () {
       final m = CountryMoney.from({'currency_code': 'GBP', 'currency_symbol': '£', 'tax_label': 'VAT'});
       expect(m.taxRowText(7.5), 'VAT (7.5%)');
+    });
+  });
+
+  group('fixed-amount discount display', () {
+    test('India shows the rupee amount; another currency its own (the server refuses fixed codes outside INR)', () {
+      expect('- ${CountryMoney.india.prefixed('50')}', '- ₹50');
+      expect('- ${CountryMoney.from({'currency_code': 'SAR', 'currency_symbol': 'SAR'}).prefixed('50')}', '- SAR 50');
     });
   });
 

@@ -3519,10 +3519,15 @@
     "description": "Merchant/Influencer text",
     "x-screen": "merchant"
   },
-  "bizFree0": "Free (₹0)",
+  "bizFree0": "Free ({amount})",
   "@bizFree0": {
     "description": "Merchant/Influencer text",
-    "x-screen": "merchant"
+    "x-screen": "merchant",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "bizFreeProduct": "Free product",
   "@bizFreeProduct": {
@@ -5300,7 +5305,7 @@
       }
     }
   },
-  "bizCodeAppliedAmt": "✅ Code applied — ₹{value} off!",
+  "bizCodeAppliedAmt": "✅ Code applied — {value} off!",
   "@bizCodeAppliedAmt": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5446,7 +5451,7 @@
       }
     }
   },
-  "bizDiscountAppliedAmt": "✅ ₹{value} discount applied!",
+  "bizDiscountAppliedAmt": "✅ {value} discount applied!",
   "@bizDiscountAppliedAmt": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5751,7 +5756,7 @@
       }
     }
   },
-  "bizPerDayPrice": "₹{amount}/day",
+  "bizPerDayPrice": "{amount}/day",
   "@bizPerDayPrice": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5771,7 +5776,7 @@
       }
     }
   },
-  "bizPayAmount": "Pay ₹{amount}",
+  "bizPayAmount": "Pay {amount}",
   "@bizPayAmount": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5781,7 +5786,7 @@
       }
     }
   },
-  "bizPricePerDayTimesDays": "₹{price}/day × {days} days",
+  "bizPricePerDayTimesDays": "{price}/day × {days} days",
   "@bizPricePerDayTimesDays": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5794,7 +5799,7 @@
       }
     }
   },
-  "bizDiscountTotalPct": "−₹{amount} ({pct}%) off  →  Total: ₹{total}",
+  "bizDiscountTotalPct": "−{amount} ({pct}%) off  →  Total: {total}",
   "@bizDiscountTotalPct": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5810,7 +5815,7 @@
       }
     }
   },
-  "bizDiscountTotalAmt": "−₹{amount} off  →  Total: ₹{total}",
+  "bizDiscountTotalAmt": "−{amount} off  →  Total: {total}",
   "@bizDiscountTotalAmt": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5919,7 +5924,7 @@
       }
     }
   },
-  "bizPricePlusGst": "₹{price} + {pct}% GST",
+  "bizPricePlusGst": "{price} + {pct}% {tax}",
   "@bizPricePlusGst": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5928,6 +5933,9 @@
         "type": "String"
       },
       "pct": {
+        "type": "String"
+      },
+      "tax": {
         "type": "String"
       }
     }
@@ -5948,7 +5956,7 @@
       }
     }
   },
-  "bizBaseGstLine": "Base: ₹{base}  GST: ₹{gst}",
+  "bizBaseGstLine": "Base: {base}  {tax}: {gst}",
   "@bizBaseGstLine": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",
@@ -5958,10 +5966,13 @@
       },
       "gst": {
         "type": "String"
+      },
+      "tax": {
+        "type": "String"
       }
     }
   },
-  "bizDiscountCodeLine": "Discount ({code}): −₹{amount}",
+  "bizDiscountCodeLine": "Discount ({code}): −{amount}",
   "@bizDiscountCodeLine": {
     "description": "Merchant/Influencer text",
     "x-screen": "merchant",

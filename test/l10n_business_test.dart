@@ -109,7 +109,15 @@ void main() {
       expect(en.bizFreeSlotsUsedOf('1', '3'), '1/3 free slots used');
       expect(en.bizPaymentFailedMsg('x'), 'Payment failed: x');
       expect(en.bizGstPct('18'), 'GST (18%)');
-      expect(en.bizPayAmount('99'), 'Pay ₹99');
+      // The money text (symbol included) is passed in, so one translation serves every currency.
+      expect(en.bizPayAmount('₹99'), 'Pay ₹99');
+      expect(en.bizPayAmount('SAR 99'), 'Pay SAR 99');
+      expect(en.bizPricePlusGst('SAR 100', '15', 'VAT'), 'SAR 100 + 15% VAT');
+      expect(en.bizPricePlusGst('₹499', '18', 'GST'), '₹499 + 18% GST');
+      expect(en.bizBaseGstLine('SAR 100.00', 'SAR 15.00', 'VAT'), 'Base: SAR 100.00  VAT: SAR 15.00');
+      expect(en.bizFree0('₹0'), 'Free (₹0)');
+      expect(en.bizFree0('SAR 0'), 'Free (SAR 0)');
+      expect(en.bizPerDayPrice('SAR 2'), 'SAR 2/day');
       expect(en.bizNDays('30'), '30 Days');
       expect(en.bizPublishByDate('5 Mar 2026'), 'Publish by 5 Mar 2026');
       expect(en.bizSeeAllRequests('4'), 'See all 4 requests');
@@ -117,7 +125,8 @@ void main() {
       expect(en.bizProductsExpiringMany('3'), '3 products expiring soon — tap to renew');
       expect(en.bizStoresActiveOne('1'), '1 Store • 1 Active');
       expect(en.bizStoresActiveMany('2', '1'), '2 Stores • 1 Active');
-      expect(en.bizDiscountTotalPct('10.00', '10', '90.00'), '−₹10.00 (10%) off  →  Total: ₹90.00');
+      expect(en.bizDiscountTotalPct('₹10.00', '10', '₹90.00'), '−₹10.00 (10%) off  →  Total: ₹90.00');
+      expect(en.bizDiscountTotalAmt('SAR 5', 'SAR 95.00'), '−SAR 5 off  →  Total: SAR 95.00');
       expect(en.bizDeleteDealNamed('Sale'), 'Delete "Sale"?');
     });
   });
@@ -127,7 +136,9 @@ void main() {
       expect(arL.bizWelcomeBackName('سام'), 'مرحبًا بعودتك، سام');
       expect(arL.bizFreeSlotsUsedOf('1', '3'), 'تم استخدام 1/3 من الفتحات المجانية');
       expect(arL.bizSeeAllRequests('4'), contains('4'));
-      expect(arL.bizPayAmount('99'), 'ادفع ₹99');
+      expect(arL.bizPayAmount('₹99'), 'ادفع ₹99');
+      expect(arL.bizPayAmount('SAR 99'), 'ادفع SAR 99');
+      expect(arL.bizPricePlusGst('₹499', '18', 'GST'), '₹499 + 18% ضريبة GST');
       expect(arL.bizProductsExpiringMany('3'), contains('3'));
     });
 
@@ -365,7 +376,7 @@ void main() {
       en.bizEndDate,
       en.bizNumberOfDays2,
       en.bizLivePeriod,
-      en.bizFree0,
+      en.bizFree0('₹0'),
       en.bizFreeProduct,
       en.bizYourBusiness,
       en.bizMyStores,

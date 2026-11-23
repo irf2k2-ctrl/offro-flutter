@@ -3923,8 +3923,8 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Free (₹0)'**
-  String get bizFree0;
+  /// **'Free ({amount})'**
+  String bizFree0(String amount);
 
   /// Merchant/Influencer text
   ///
@@ -5993,7 +5993,7 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'✅ Code applied — ₹{value} off!'**
+  /// **'✅ Code applied — {value} off!'**
   String bizCodeAppliedAmt(String value);
 
   /// Merchant/Influencer text
@@ -6089,7 +6089,7 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'✅ ₹{value} discount applied!'**
+  /// **'✅ {value} discount applied!'**
   String bizDiscountAppliedAmt(String value);
 
   /// Merchant/Influencer text
@@ -6287,7 +6287,7 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'₹{amount}/day'**
+  /// **'{amount}/day'**
   String bizPerDayPrice(String amount);
 
   /// Merchant/Influencer text
@@ -6299,25 +6299,25 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Pay ₹{amount}'**
+  /// **'Pay {amount}'**
   String bizPayAmount(String amount);
 
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'₹{price}/day × {days} days'**
+  /// **'{price}/day × {days} days'**
   String bizPricePerDayTimesDays(String price, String days);
 
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'−₹{amount} ({pct}%) off  →  Total: ₹{total}'**
+  /// **'−{amount} ({pct}%) off  →  Total: {total}'**
   String bizDiscountTotalPct(String amount, String pct, String total);
 
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'−₹{amount} off  →  Total: ₹{total}'**
+  /// **'−{amount} off  →  Total: {total}'**
   String bizDiscountTotalAmt(String amount, String total);
 
   /// Merchant/Influencer text
@@ -6383,8 +6383,8 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'₹{price} + {pct}% GST'**
-  String bizPricePlusGst(String price, String pct);
+  /// **'{price} + {pct}% {tax}'**
+  String bizPricePlusGst(String price, String pct, String tax);
 
   /// Merchant/Influencer text
   ///
@@ -6395,13 +6395,13 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Base: ₹{base}  GST: ₹{gst}'**
-  String bizBaseGstLine(String base, String gst);
+  /// **'Base: {base}  {tax}: {gst}'**
+  String bizBaseGstLine(String base, String gst, String tax);
 
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
-  /// **'Discount ({code}): −₹{amount}'**
+  /// **'Discount ({code}): −{amount}'**
   String bizDiscountCodeLine(String code, String amount);
 
   /// Merchant/Influencer text

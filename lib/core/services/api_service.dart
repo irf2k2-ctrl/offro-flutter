@@ -640,6 +640,17 @@ class Api {
     final iso = (country ?? customerCountry ?? '').trim().toUpperCase();
     return iso.isEmpty ? "/default-images" : "/default-images?country=${Uri.encodeQueryComponent(iso)}";
   }
+  /// Is [city] inside OffrO's service area (an active city of the account's country)? true / false from the server, null when it could not
+  /// be determined (network, old server) - the caller then treats it as "not known", never as "supported".
+  static Future<bool?> cityInServiceArea(String city, {String? country}) async {
+    final iso = (country ?? customerCountry ?? '').trim().toUpperCase();
+    final path = "/city-status?city=${Uri.encodeQueryComponent(city.trim())}${iso.isEmpty ? '' : '&country=${Uri.encodeQueryComponent(iso)}'}";
+    try {
+      final raw = await _get(path).timeout(const Duration(seconds: 6));
+      if (raw is Map && raw['supported'] is bool) return raw['supported'] as bool;
+    } catch (_) {}
+    return null;
+  }
   static String _prefetchedCountry = '';
   static void prefetchDefaultImages() {
     _prefetchedAt = DateTime.now();

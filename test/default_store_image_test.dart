@@ -2,6 +2,7 @@
 // (images mapped to the country first, else the "All countries" ones, never another country's); these tests cover what the app does with
 // the answer. No network, no real storage.
 import 'dart:io';
+import 'dart:math' show Random;
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -53,19 +54,53 @@ void main() {
     });
   });
 
-  group('emptyCityImage (which picture a city without stores gets)', () {
-    test('Default Store Image configured -> it replaces the No-Service image', () {
-      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService), countrySpecific);
-      expect(emptyCityImage(storeImage: allCountries, noServiceImage: noService), allCountries);
+  group('emptyCityImage: a city WITH NO STORES (in the service area) vs a place OUTSIDE the service area', () {
+    test('city in the service area, no stores, Default Store Image configured -> the Default Store Image', () {
+      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService, cityInServiceArea: true), countrySpecific);
+      expect(emptyCityImage(storeImage: allCountries, noServiceImage: noService, cityInServiceArea: true), allCountries);
     });
 
-    test('no / invalid Default Store Image -> the existing No-Service image', () {
-      expect(emptyCityImage(storeImage: '', noServiceImage: noService), noService);
-      expect(emptyCityImage(storeImage: 'junk', noServiceImage: noService), noService);
+    test('city outside the service area -> ALWAYS the No Service Area image, even when a Default Store Image exists', () {
+      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService, cityInServiceArea: false), noService);
+      expect(emptyCityImage(storeImage: allCountries, noServiceImage: '', cityInServiceArea: false), '');
     });
 
-    test('neither -> empty, so the existing plain No-Service screen shows', () {
-      expect(emptyCityImage(storeImage: '', noServiceImage: ''), '');
+    test('service area not known (check failed) -> the No Service Area image, as before', () {
+      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService, cityInServiceArea: null), noService);
+    });
+
+    test('in the service area but no / invalid Default Store Image -> the No Service image', () {
+      expect(emptyCityImage(storeImage: '', noServiceImage: noService, cityInServiceArea: true), noService);
+      expect(emptyCityImage(storeImage: 'junk', noServiceImage: noService, cityInServiceArea: true), noService);
+    });
+
+    test('nothing configured -> empty, so the existing plain no-service screen shows', () {
+      expect(emptyCityImage(storeImage: '', noServiceImage: '', cityInServiceArea: true), '');
+    });
+  });
+
+  group('several Default Store Images (rotation)', () {
+    const a = 'https://cdn.example.com/default/store_a.jpg';
+    const b = 'https://cdn.example.com/default/store_b.jpg';
+    test('store_images is read in configured order; unusable entries are dropped', () {
+      expect(defaultStoreImagesFrom({'store_images': ['', 'junk', a, b], 'store': a, 'country': 'SA'}, expectedCountry: 'SA'), [a, b]);
+    });
+    test('an older server (only `store`) still works', () {
+      expect(defaultStoreImagesFrom({'store': a}), [a]);
+      expect(defaultStoreImagesFrom({'store': ['junk', a, b]}), [a, b]);
+    });
+    test('an answer chosen for another country is not used', () {
+      expect(defaultStoreImagesFrom({'store_images': [a], 'country': 'SA'}, expectedCountry: 'IN'), isEmpty);
+    });
+    test('one image is used as it is; several are picked at random (every one is reachable, never an unknown one)', () {
+      expect(pickDefaultStoreImage([]), '');
+      expect(pickDefaultStoreImage([a]), a);
+      final seen = <String>{};
+      final rnd = Random(7);
+      for (var i = 0; i < 60; i++) {
+        seen.add(pickDefaultStoreImage([a, b], rnd));
+      }
+      expect(seen, {a, b});
     });
   });
 
@@ -104,15 +139,21 @@ void main() {
     });
 
     test('Home reads the store image next to the no-service fields, and replaces it per country', () {
-      expect(RegExp(r'defaultStoreImageFrom\(defaults, expectedCountry: Api\.customerCountry\)').allMatches(main).length, 2,
+      expect(RegExp(r'defaultStoreImagesFrom\(defaults, expectedCountry: Api\.customerCountry\)').allMatches(main).length, 2,
           reason: '_applyDefaults and _loadNoStoreContent');
-      expect(main.contains('_defaultStoreImg = storeImg;'), isTrue);
+      expect(RegExp(r'_defaultStoreImg = pickDefaultStoreImage\(storeImgs\);').allMatches(main).length, 2);
       expect(main.contains('if (_defaultsFuture != null && iso != _defaultsIso) _defaultsFuture = null;'), isTrue);
       expect(main.contains('Api.getDefaultImages(country: iso)'), isTrue);
     });
 
     test('a Default Store Image that cannot be loaded falls back to the No-Service image', () {
       expect(main.contains('() => _noServiceImg.isNotEmpty ? noServiceImage() : nsFallback()'), isTrue);
+    });
+
+    test('Home asks the server whether the city is in the service area and passes it to the empty state', () {
+      expect(main.contains('Api.cityInServiceArea(c, country: Api.customerCountry)'), isTrue);
+      expect(main.contains('cityInServiceArea: _cityInServiceArea'), isTrue);
+      expect(main.contains('_cityInServiceArea = inArea;'), isTrue);
     });
 
     test('the store listing logic was not changed: stores are still fetched with Api.fetchStores(city: c)', () {

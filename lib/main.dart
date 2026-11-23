@@ -1014,6 +1014,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // Default Store Image (/default-images `store`, already country-filtered by the backend). Shown instead of the No-Service image when
   // the city has no stores; "" = none configured for this country -> the No-Service image, exactly as before.
   String _defaultStoreImg = "";
+  // ALL Default Store Images for this country (the one shown is picked at random from them each time an empty city is shown).
+  List<String> _defaultStoreImgs = [];
+  // Is the selected city inside OffrO's service area? true = a city we serve that has no stores -> Default Store Image;
+  // false = outside the service area -> No Service Area image; null = not known (-> No Service Area image, as before).
+  bool? _cityInServiceArea;
   // The country the memoized /default-images answer was requested for: a different country must not reuse it.
   String _defaultsIso = "";
   bool _netError = false;
@@ -1393,8 +1398,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
     final nsMsg = (defaults["no_service_message"] ?? "").toString().trim();
-    final storeImg =
-        defaultStoreImageFrom(defaults, expectedCountry: Api.customerCountry);
+    final storeImgs =
+        defaultStoreImagesFrom(defaults, expectedCountry: Api.customerCountry);
     // Default product images: full configured list (tolerates a legacy
     // single-string response).
     final defProdVal = defaults["product"];
@@ -1476,7 +1481,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         _noServiceImg = nsUrl;
       if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
       if (nsMsg.isNotEmpty) _noServiceMsg = nsMsg;
-      _defaultStoreImg = storeImg;
+      _defaultStoreImgs = storeImgs;
+      _defaultStoreImg = pickDefaultStoreImage(storeImgs);
       if (defProd.isNotEmpty) _defaultProductImageUrls = defProd;
       _mbFallbackSliders = mb;
     }
@@ -1552,13 +1558,14 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
     final nsMsg = (defaults["no_service_message"] ?? "").toString().trim();
-    final storeImg =
-        defaultStoreImageFrom(defaults, expectedCountry: Api.customerCountry);
+    final storeImgs =
+        defaultStoreImagesFrom(defaults, expectedCountry: Api.customerCountry);
     setState(() {
       _noStoreReady = true;
       _noStoreFailed = false;
       // Always replaced (even by ""): a country without a store image must not keep another country's.
-      _defaultStoreImg = storeImg;
+      _defaultStoreImgs = storeImgs;
+      _defaultStoreImg = pickDefaultStoreImage(storeImgs);
       if (nsUrl.startsWith("http") || nsUrl.startsWith("data:image"))
         _noServiceImg = nsUrl;
       if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
@@ -1907,7 +1914,18 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // SUCCESSFUL response with zero stores → show the Admin No-Store state NOW.
     // (Do not wait for categories / sliders / products / retries below.)
     if (storeList.isEmpty && mounted) {
+      // Two different empty states: a city we SERVE that has no stores (Default Store Image) vs a place OUTSIDE the service area
+      // (No Service Area image). The server decides which; if it cannot be determined the No Service Area image is used (as before).
+      final bool? inArea =
+          await Api.cityInServiceArea(c, country: Api.customerCountry);
+      if (!mounted) {
+        _loadAllRunning = false;
+        return;
+      }
+      if (myLoad != _loadAllGen) return; // a newer city selection won
       setState(() {
+        _cityInServiceArea = inArea;
+        _defaultStoreImg = pickDefaultStoreImage(_defaultStoreImgs);
         _stores = [];
         _loading = false;
         _netError = false;
@@ -2756,7 +2774,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // A city with no stores shows the country's Default Store Image when there is one, otherwise the No-Service image (unchanged).
     // Network errors, timeouts and failed loads never get here (the same three flags as before).
     final String emptyImg =
-        emptyCityImage(storeImage: _defaultStoreImg, noServiceImage: _noServiceImg);
+        emptyCityImage(
+            storeImage: _defaultStoreImg,
+            noServiceImage: _noServiceImg,
+            cityInServiceArea: _cityInServiceArea);
     if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {
       // Shown if the image itself can't be loaded: the Admin message (if any)
       // on the brand colour — never a blank box without explanation.

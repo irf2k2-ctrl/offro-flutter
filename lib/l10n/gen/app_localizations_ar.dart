@@ -2101,7 +2101,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get bizLivePeriod => 'فترة النشاط:';
 
   @override
-  String get bizFree0 => 'مجاني (₹0)';
+  String bizFree0(String amount) {
+    return 'مجاني ($amount)';
+  }
 
   @override
   String get bizFreeProduct => 'منتج مجاني';
@@ -3214,7 +3216,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizCodeAppliedAmt(String value) {
-    return '✅ تم تطبيق الرمز — خصم ₹$value!';
+    return '✅ تم تطبيق الرمز — خصم $value!';
   }
 
   @override
@@ -3290,7 +3292,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizDiscountAppliedAmt(String value) {
-    return '✅ تم تطبيق خصم ₹$value!';
+    return '✅ تم تطبيق خصم $value!';
   }
 
   @override
@@ -3443,7 +3445,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizPerDayPrice(String amount) {
-    return '₹$amount/يوم';
+    return '$amount/يوم';
   }
 
   @override
@@ -3453,22 +3455,22 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String bizPayAmount(String amount) {
-    return 'ادفع ₹$amount';
+    return 'ادفع $amount';
   }
 
   @override
   String bizPricePerDayTimesDays(String price, String days) {
-    return '₹$price/يوم × $days يوم';
+    return '$price/يوم × $days يوم';
   }
 
   @override
   String bizDiscountTotalPct(String amount, String pct, String total) {
-    return 'خصم −₹$amount ($pct%)  ←  الإجمالي: ₹$total';
+    return 'خصم −$amount ($pct%)  ←  الإجمالي: $total';
   }
 
   @override
   String bizDiscountTotalAmt(String amount, String total) {
-    return 'خصم −₹$amount  ←  الإجمالي: ₹$total';
+    return 'خصم −$amount  ←  الإجمالي: $total';
   }
 
   @override
@@ -3518,8 +3520,8 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String bizPricePlusGst(String price, String pct) {
-    return '₹$price + $pct% ضريبة GST';
+  String bizPricePlusGst(String price, String pct, String tax) {
+    return '$price + $pct% ضريبة $tax';
   }
 
   @override
@@ -3528,13 +3530,13 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String bizBaseGstLine(String base, String gst) {
-    return 'الأساس: ₹$base  GST: ₹$gst';
+  String bizBaseGstLine(String base, String gst, String tax) {
+    return 'الأساس: $base  $tax: $gst';
   }
 
   @override
   String bizDiscountCodeLine(String code, String amount) {
-    return 'الخصم ($code): −₹$amount';
+    return 'الخصم ($code): −$amount';
   }
 
   @override

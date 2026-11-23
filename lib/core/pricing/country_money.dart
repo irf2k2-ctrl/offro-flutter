@@ -91,20 +91,9 @@ class CountryMoney {
 
   String get taxName => taxLabel;
 
-  // Sentences that the localized strings build with a hard-coded rupee sign. India keeps its localized text; other countries use these.
-  String perDay(dynamic v) => '${raw(v)}/day';
-  String payAmount(dynamic v) => 'Pay ${raw(v)}';
-  String pricePerDayTimesDays(dynamic price, dynamic days) => '${fmt(price, trimWhole: true)}/day × $days days';
-  String discountTotalPct(double amount, double pct, double total) =>
-      '−${_prefix()}${amount.toStringAsFixed(2)} (${pct.toStringAsFixed(0)}%) off  →  Total: ${_prefix()}${total.toStringAsFixed(2)}';
-  String discountTotalAmt(double amount, double total) =>
-      '−${_prefix()}${amount.toStringAsFixed(0)} off  →  Total: ${_prefix()}${total.toStringAsFixed(2)}';
-  String appliedAmount(double v) => '✅ ${_prefix()}${v.toStringAsFixed(0)} discount applied!';
-  String codeAppliedAmount(double v) => '✅ Code applied — ${_prefix()}${v.toStringAsFixed(0)} off!';
-  String pricePlusTax(dynamic price, dynamic percent) => '${raw(price)} + $percent% $taxLabel';
-  String baseTaxLine(dynamic base, dynamic tax) => 'Base: ${raw(base)}  $taxLabel: ${raw(tax)}';
-  String discountCodeLine(String code, double amount) => 'Discount ($code): −${_prefix()}${amount.toStringAsFixed(2)}';
-  String fixedDiscount(double v) => '- ${_prefix()}${v.toStringAsFixed(0)}';
+  /// Currency prefix + an already formatted number ("₹" + "10.00", "SAR " + "10.00"). The localized strings take the whole money text as one
+  /// placeholder, so the same translation works for every currency.
+  String prefixed(String body) => '${_prefix()}$body';
 }
 
 /// Why a paid order went to the manual (admin-confirmed) path instead of online checkout. Empty for India and for online orders.

@@ -2657,7 +2657,12 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
       _overrides['bizLivePeriod'] ?? super.bizLivePeriod;
 
   @override
-  String get bizFree0 => _overrides['bizFree0'] ?? super.bizFree0;
+  String bizFree0(String amount) {
+    final t = _overrides['bizFree0'];
+    return t == null
+        ? super.bizFree0(amount)
+        : fillRemoteTemplate(t, <String, String>{'amount': amount});
+  }
 
   @override
   String get bizFreeProduct =>
@@ -4548,11 +4553,15 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   }
 
   @override
-  String bizPricePlusGst(String price, String pct) {
+  String bizPricePlusGst(String price, String pct, String tax) {
     final t = _overrides['bizPricePlusGst'];
     return t == null
-        ? super.bizPricePlusGst(price, pct)
-        : fillRemoteTemplate(t, <String, String>{'price': price, 'pct': pct});
+        ? super.bizPricePlusGst(price, pct, tax)
+        : fillRemoteTemplate(t, <String, String>{
+            'price': price,
+            'pct': pct,
+            'tax': tax,
+          });
   }
 
   @override
@@ -4565,11 +4574,15 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   }
 
   @override
-  String bizBaseGstLine(String base, String gst) {
+  String bizBaseGstLine(String base, String gst, String tax) {
     final t = _overrides['bizBaseGstLine'];
     return t == null
-        ? super.bizBaseGstLine(base, gst)
-        : fillRemoteTemplate(t, <String, String>{'base': base, 'gst': gst});
+        ? super.bizBaseGstLine(base, gst, tax)
+        : fillRemoteTemplate(t, <String, String>{
+            'base': base,
+            'gst': gst,
+            'tax': tax,
+          });
   }
 
   @override

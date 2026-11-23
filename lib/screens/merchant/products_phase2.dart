@@ -209,7 +209,7 @@ class _RenewProductPageState extends State<RenewProductPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(elevation: 0, shape: const StadiumBorder(), backgroundColor: kMerchantPrimary),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(isFree ? context.l10n.bizRenewFree : (CountryMoney.from(order).isIndia ? context.l10n.bizPayAmount('${order['amount_display']}') : CountryMoney.from(order).payAmount(order['amount_display'])),
+            child: Text(isFree ? context.l10n.bizRenewFree : context.l10n.bizPayAmount(CountryMoney.from(order).raw(order['amount_display'])),
               style: const TextStyle(color: Colors.white))),
         ],
       ),
