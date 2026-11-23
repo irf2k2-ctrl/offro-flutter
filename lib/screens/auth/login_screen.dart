@@ -19,6 +19,7 @@ import '../onboarding/onboarding_screen.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/utils/navigation.dart';
 import '../../core/l10n/l10n.dart';
+import '../../core/l10n/language_policy.dart';
 import '../../core/l10n/language_sheet.dart';
 import '../../core/design/design.dart' show OffroColors, OffroShadows, OffroText, OffroRadii, OffroIcon, OffroIcons, OffroIconData;
 // STAGING-ONLY MSG91 probe (inactive unless OTP_TOKEN_PROBE=true + debug + exact Staging host)
@@ -1291,9 +1292,15 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   /// Pre-selects a country from the SIM / network / device locale (no permission, nothing sent anywhere).
   /// A country the user already picked is never overridden.
   Future<void> _suggestCountry() async {
+    await Future<void>.value(); // resumes after the current build, so listeners are never notified while the frame is being built
+    if (!mounted) return;
+    // The login screen means nobody is signed in: the country shown here (not a previous account's) drives the language policy.
+    ActiveCountry.instance.setAccount(null);
+    ActiveCountry.instance.setSelected(_country.iso);
     final s = await detectInitialCountry();
     if (!mounted || _countryChosenByUser) return;
     if (s.country != _country) setState(() => _country = s.country);
+    ActiveCountry.instance.setSelected(_country.iso);
   }
 
   void _onCountryChanged(PhoneCountry c) {
@@ -1305,6 +1312,8 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
       _msg = '';
       if (t.length > max) _phoneC.text = t.substring(0, max);
     });
+    // A language the new country may not use (e.g. Arabic after switching to India) is replaced by English straight away.
+    ActiveCountry.instance.setSelected(c.iso);
   }
 
   @override void dispose() {

@@ -1,30 +1,46 @@
 // lib/core/l10n/language_availability.dart
 //
-// Which of the app's bundled languages the language chooser lists for a country. Pure Dart (no Flutter, no network, no storage).
+// Which of the app's bundled languages a country may use. Pure Dart (no Flutter, no network, no storage).
 //
-// The admin dashboard maps each language to countries (many to many) and the backend manifest carries that mapping. The rules here
-// are deliberately forgiving, so this can only ever NARROW the list when there is clear data, and never leave a user stuck:
-//   * no country known, or no mapping known (older backend, kill switch on, offline and nothing cached) -> every bundled language;
-//   * a language with no countries, or one the mapping does not list, is not restricted -> offered everywhere;
-//   * the language currently in use is always listed, so the chooser never loses the user's own selection;
-//   * if the rules would leave nothing -> every bundled language.
+// The admin dashboard maps each language to countries (many to many) and the backend manifest carries that mapping. The policy is
+// STRICT: a language other than English is offered only when the mapping explicitly lists the country for it.
+//   * English is the default language and is always allowed, so nobody is ever left without a language;
+//   * no country known, or no mapping known (older backend, kill switch on, offline and nothing cached) -> English only;
+//   * a language the mapping does not list for this country (or lists for no country) is NOT allowed there, for example Arabic
+//     mapped to Saudi Arabia only is never offered to a user in India;
+//   * the language currently in use gets NO exception: if it is not allowed it must be replaced (see language_policy.dart).
 // Only languages the app already bundles can be listed: a mapped language the app does not contain cannot be shown here.
+
+const String kDefaultLanguageCode = 'en';
 
 List<String> availableLanguageCodes({
   required List<String> bundled,
   required String? countryIso,
   required Map<String, Set<String>> mapping,
-  String? currentCode,
+  String defaultCode = kDefaultLanguageCode,
 }) {
   final iso = (countryIso ?? '').trim().toUpperCase();
-  if (iso.isEmpty || mapping.isEmpty) return List<String>.of(bundled);
   final out = <String>[];
   for (final code in bundled) {
-    final countries = mapping[code];
-    final unrestricted = countries == null || countries.isEmpty;
-    if (unrestricted || countries.contains(iso) || code == currentCode) {
+    if (code == defaultCode) {
       out.add(code);
+      continue;
     }
+    if (iso.isEmpty || mapping.isEmpty) continue;
+    final countries = mapping[code];
+    if (countries != null && countries.contains(iso)) out.add(code);
   }
-  return out.isEmpty ? List<String>.of(bundled) : out;
+  return out.isEmpty ? <String>[defaultCode] : out;
 }
+
+/// Whether [code] may be used for [countryIso] under the policy above.
+bool isLanguageAllowed({
+  required String code,
+  required List<String> bundled,
+  required String? countryIso,
+  required Map<String, Set<String>> mapping,
+  String defaultCode = kDefaultLanguageCode,
+}) =>
+    availableLanguageCodes(
+            bundled: bundled, countryIso: countryIso, mapping: mapping, defaultCode: defaultCode)
+        .contains(code);

@@ -43,3 +43,6 @@ After `flutter gen-l10n` (any ARB key/placeholder change): `python tools/gen_rem
 flutter pub get
 flutter build apk --release --dart-define=API_BASE_URL=https://offro-backend-staging-d375.up.railway.app --dart-define=ENABLE_REMOTE_TRANSLATIONS=true
 ```
+
+iOS staging (Codemagic, `codemagic.yaml` workflow `ios-app-store`) uses the same two `--dart-define` values in its `flutter build ipa` step, so TestFlight builds receive published translations too.
+After a publish the app picks up the new version on start-up, when Arabic is selected, and when it returns to the foreground (at most every 5 minutes). The language file is served with `Cache-Control: no-cache` + ETag, so a new version is never hidden by a cached copy.

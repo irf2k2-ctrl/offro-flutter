@@ -33,6 +33,7 @@ workflows:
           flutter build ipa \
             --release \
             --dart-define=API_BASE_URL=https://offro-backend-staging-d375.up.railway.app \
+            --dart-define=ENABLE_REMOTE_TRANSLATIONS=true \
             --export-options-plist /Users/builder/export_options.plist
 
     artifacts:

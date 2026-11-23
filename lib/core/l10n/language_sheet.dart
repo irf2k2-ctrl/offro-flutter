@@ -8,21 +8,16 @@ import 'package:flutter/material.dart';
 
 import '../design/design.dart';
 import 'l10n.dart';
-import 'language_availability.dart';
+import 'language_policy.dart';
 import 'locale_controller.dart';
 import 'remote/remote_translation_service.dart';
 
-/// The languages to list for [countryIso] (null = country unknown = all). Uses the mapping the admin dashboard published, when
-/// the app has one; otherwise every bundled language, exactly as before.
-List<String> languageCodesForCountry(String? countryIso) => availableLanguageCodes(
-      bundled: LocaleController.supportedCodes,
-      countryIso: countryIso,
-      mapping: RemoteTranslationService.instance.languageCountries,
-      currentCode: LocaleController.instance.locale.languageCode,
-    );
+/// The languages to list for [countryIso] (null = the active country: account, else device / login selection, else India). Strict
+/// policy, see language_availability.dart: only languages the published mapping lists for the country, English always; English only
+/// when the country or the mapping is unknown.
+List<String> languageCodesForCountry(String? countryIso) => allowedLanguageCodes(countryIso: countryIso);
 
-/// [countryIso] is the country the user is in or has selected (null when unknown); it only narrows the list, see
-/// language_availability.dart.
+/// [countryIso] is the country the user is in or has selected; null uses the active country (see language_policy.dart).
 Future<void> showLanguageSheet(BuildContext context, {String? countryIso}) {
   return showModalBottomSheet<void>(
     context: context,
@@ -109,7 +104,7 @@ class LanguageButton extends StatelessWidget {
   Widget build(BuildContext context) {
     // Rebuilds if the published country mapping arrives while the screen is open; hidden only when there is nothing to choose.
     return AnimatedBuilder(
-      animation: RemoteTranslationService.instance,
+      animation: Listenable.merge([RemoteTranslationService.instance, ActiveCountry.instance]),
       builder: (context, _) =>
           languageCodesForCountry(countryIso).length < 2 ? const SizedBox.shrink() : _build(context),
     );

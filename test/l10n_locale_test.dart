@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:offro_user/core/design/design.dart' show OffroIcons, OffroColors;
 import 'package:offro_user/core/l10n/l10n.dart';
+import 'package:offro_user/core/l10n/language_policy.dart';
 import 'package:offro_user/core/l10n/language_sheet.dart';
 import 'package:offro_user/core/l10n/locale_controller.dart';
 import 'package:offro_user/core/phone/country_picker_sheet.dart';
@@ -150,6 +151,17 @@ void main() {
   });
 
   group('country picker, language switch, profile', () {
+    // A Saudi user, with Arabic published for Saudi Arabia: the strict language policy then lists Arabic (it is never offered without
+    // an explicit mapping; see language_country_mapping_test.dart and language_policy_test.dart for the restricted cases).
+    setUp(() {
+      languageMappingForTest = {'en': {'SA', 'IN'}, 'ar': {'SA'}};
+      ActiveCountry.instance.resetForTest();
+      ActiveCountry.instance.setSelected('SA');
+    });
+    tearDown(() {
+      languageMappingForTest = null;
+      ActiveCountry.instance.resetForTest();
+    });
     testWidgets('picker title is localized, country names and dial codes are untouched', (t) async {
       Widget open() => Builder(builder: (c) => TextButton(
             onPressed: () => showCountryPickerSheet(c, selected: kDefaultPhoneCountry), child: const Text('open')));

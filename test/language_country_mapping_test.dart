@@ -84,60 +84,69 @@ void main() {
           ['en', 'ar']);
     });
 
-    test('unknown country or no mapping lists every bundled language', () {
+    test('unknown country or no mapping lists English only (strict policy)', () {
       expect(
           availableLanguageCodes(
               bundled: bundled, countryIso: null, mapping: mapping),
-          bundled);
+          ['en']);
       expect(
           availableLanguageCodes(
               bundled: bundled, countryIso: '', mapping: mapping),
-          bundled);
+          ['en']);
       expect(
           availableLanguageCodes(
               bundled: bundled, countryIso: 'SA', mapping: const {}),
-          bundled);
+          ['en']);
     });
 
-    test('a language with no countries, or not listed, is not restricted', () {
+    test('a language with no countries, or not listed for the country, is NOT offered', () {
       expect(
           availableLanguageCodes(
               bundled: bundled,
               countryIso: 'JO',
               mapping: map({'en': ['SA'], 'ar': []})),
-          ['ar']);
+          ['en']);
       expect(
           availableLanguageCodes(
               bundled: bundled,
               countryIso: 'JO',
               mapping: map({'en': ['SA']})),
-          ['ar']);
+          ['en']);
     });
 
-    test('the language in use is always kept', () {
+    test('English is always allowed, even when the mapping does not list the country for it', () {
+      expect(
+          availableLanguageCodes(
+              bundled: bundled, countryIso: 'JO', mapping: mapping),
+          ['en']);
+    });
+
+    test('Arabic mapped to Saudi Arabia only is never offered to India, unless the admin maps it', () {
+      expect(
+          availableLanguageCodes(
+              bundled: bundled, countryIso: 'IN', mapping: mapping),
+          ['en']);
       expect(
           availableLanguageCodes(
               bundled: bundled,
               countryIso: 'IN',
-              mapping: mapping,
-              currentCode: 'ar'),
+              mapping: map({'en': ['SA', 'IN'], 'ar': ['SA', 'IN']})),
           ['en', 'ar']);
     });
 
-    test('never ends up empty: falls back to every bundled language', () {
-      // JO is mapped to neither language and nothing is unrestricted.
+    test('the language in use gets no exception: isLanguageAllowed says no for Arabic in India', () {
       expect(
-          availableLanguageCodes(
-              bundled: bundled, countryIso: 'JO', mapping: mapping),
-          bundled);
-      // ... but the user's own language is still what is kept when it is known.
+          isLanguageAllowed(
+              code: 'ar', bundled: bundled, countryIso: 'IN', mapping: mapping),
+          isFalse);
       expect(
-          availableLanguageCodes(
-              bundled: bundled,
-              countryIso: 'JO',
-              mapping: mapping,
-              currentCode: 'ar'),
-          ['ar']);
+          isLanguageAllowed(
+              code: 'ar', bundled: bundled, countryIso: 'SA', mapping: mapping),
+          isTrue);
+      expect(
+          isLanguageAllowed(
+              code: 'en', bundled: bundled, countryIso: null, mapping: const {}),
+          isTrue);
     });
 
     test('returns a copy and keeps the bundled order', () {
@@ -152,12 +161,11 @@ void main() {
           ['ar', 'en']);
     });
 
-    test('without published mapping the chooser still lists both languages',
-        () {
-      // The app-wide service is disabled in tests, so it has no mapping: nothing is hidden.
-      expect(languageCodesForCountry('SA'), LocaleController.supportedCodes);
-      expect(languageCodesForCountry('IN'), LocaleController.supportedCodes);
-      expect(languageCodesForCountry(null), LocaleController.supportedCodes);
+    test('without a published mapping the chooser lists English only', () {
+      // The app-wide service is disabled in tests, so it has no mapping: nothing but English is offered, for any country.
+      expect(languageCodesForCountry('SA'), ['en']);
+      expect(languageCodesForCountry('IN'), ['en']);
+      expect(languageCodesForCountry(null), ['en']);
     });
   });
 
@@ -201,7 +209,7 @@ void main() {
       expect(m.active, isTrue);
     });
 
-    test('an older backend (no mapping) still parses, with no restriction', () {
+    test('an older backend (no mapping) still parses, with an empty mapping (English only)', () {
       final m = RemoteTranslationValidator.parseManifest(base())!;
       expect(m.languageCountries, isEmpty);
       expect(m.appTracks, isEmpty);
@@ -329,7 +337,7 @@ void main() {
       expect(s.languageCountries['en'], {'SA', 'IN'});
     });
 
-    test('kill switch clears the mapping, so every language is listed', () async {
+    test('kill switch clears the mapping, so English only is listed', () async {
       final s = make();
       await s.refreshCountries();
       expect(s.languageCountries, isNotEmpty);
@@ -343,7 +351,7 @@ void main() {
               bundled: bundled,
               countryIso: 'IN',
               mapping: s.languageCountries),
-          bundled);
+          ['en']);
     });
 
     test('offline: the failure keeps what the app already has', () async {
@@ -381,7 +389,7 @@ void main() {
       expect(s.languageCountries, isEmpty);
     });
 
-    test('a malformed mapping on the server only means no restriction', () async {
+    test('a malformed mapping on the server only means an empty mapping (English only)', () async {
       be.mapping = 'garbage';
       final s = make();
       await s.refreshCountries();

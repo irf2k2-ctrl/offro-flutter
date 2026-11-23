@@ -49,6 +49,8 @@ import 'screens/favorites/favorites_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
 import 'core/l10n/l10n.dart';
+import 'core/services/default_store_image.dart';
+import 'core/l10n/language_policy.dart';
 import 'core/l10n/locale_controller.dart';
 import 'core/l10n/remote/remote_localizations.dart';
 import 'core/l10n/remote/remote_translation_service.dart';
@@ -372,6 +374,13 @@ Future<void> main() async {
   // staging or production host. Loads the cached set first so Arabic shows the last published text at once, then refreshes in the background.
   await RemoteTranslationService.instance.init();
   RemoteTranslationService.instance.attach();
+  // Country-specific languages: the account country was set above (stored phone); a first-time user has none, so the device country is
+  // detected now (SIM / network / locale region, India as the last resort). A saved language that this country may not use (for example
+  // Arabic for India) is replaced by English and the saved preference is overwritten BEFORE the first frame. From here on the same check
+  // re-runs whenever the country or the published language mapping changes.
+  if (Api.customerCountry == null) await ActiveCountry.instance.detectDevice(); // a signed-in account's country wins, nothing to detect
+  await enforceLanguagePolicy();
+  LanguagePolicyWatcher.attach();
   runApp(const MyApp());
   unawaited(RemoteTranslationService.instance
       .refresh(reason: RemoteRefreshReason.startup));
@@ -1002,6 +1011,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   String _noServiceImg = "";
   String _noServiceTitle = "";
   String _noServiceMsg = "";
+  // Default Store Image (/default-images `store`, already country-filtered by the backend). Shown instead of the No-Service image when
+  // the city has no stores; "" = none configured for this country -> the No-Service image, exactly as before.
+  String _defaultStoreImg = "";
+  // The country the memoized /default-images answer was requested for: a different country must not reuse it.
+  String _defaultsIso = "";
   bool _netError = false;
   bool _fetchFailed = false;
   bool _loadAllRunning = false; // FIX 4: prevent parallel _loadAll calls
@@ -1379,6 +1393,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
     final nsMsg = (defaults["no_service_message"] ?? "").toString().trim();
+    final storeImg =
+        defaultStoreImageFrom(defaults, expectedCountry: Api.customerCountry);
     // Default product images: full configured list (tolerates a legacy
     // single-string response).
     final defProdVal = defaults["product"];
@@ -1460,6 +1476,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
         _noServiceImg = nsUrl;
       if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
       if (nsMsg.isNotEmpty) _noServiceMsg = nsMsg;
+      _defaultStoreImg = storeImg;
       if (defProd.isNotEmpty) _defaultProductImageUrls = defProd;
       _mbFallbackSliders = mb;
     }
@@ -1480,11 +1497,16 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   /// session; a double failure is not cached, so a later user-triggered load
   /// can try again (never an endless loop).
   Future<Map<String, dynamic>> _defaults() {
+    // The answer depends on the account country (the server filters the images by it). When the country changed since the memoized
+    // request, drop it so the new country gets its own images and never the previous country's.
+    final iso = (Api.customerCountry ?? "").trim().toUpperCase();
+    if (_defaultsFuture != null && iso != _defaultsIso) _defaultsFuture = null;
+    _defaultsIso = iso;
     return _defaultsFuture ??= (() async {
       Map<String, dynamic> d = {};
-      // Reuse the request main() fired at process start (one-shot, <2 min old) —
+      // Reuse the request main() fired at process start (one-shot, <2 min old, same country) —
       // so Home does not start /default-images only after splash + location + stores.
-      final early = Api.takePrefetchedDefaults();
+      final early = Api.takePrefetchedDefaults(country: iso);
       if (early != null) {
         try {
           d = await early.timeout(const Duration(seconds: 10));
@@ -1495,7 +1517,8 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       for (int attempt = 1; attempt <= 2; attempt++) {
         try {
-          d = await Api.getDefaultImages().timeout(const Duration(seconds: 10));
+          d = await Api.getDefaultImages(country: iso)
+              .timeout(const Duration(seconds: 10));
         } catch (_) {
           d = {};
         }
@@ -1529,9 +1552,13 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     final nsTitle = (defaults["no_service_title"] ?? "").toString().trim();
     final nsMsg = (defaults["no_service_message"] ?? "").toString().trim();
+    final storeImg =
+        defaultStoreImageFrom(defaults, expectedCountry: Api.customerCountry);
     setState(() {
       _noStoreReady = true;
       _noStoreFailed = false;
+      // Always replaced (even by ""): a country without a store image must not keep another country's.
+      _defaultStoreImg = storeImg;
       if (nsUrl.startsWith("http") || nsUrl.startsWith("data:image"))
         _noServiceImg = nsUrl;
       if (nsTitle.isNotEmpty) _noServiceTitle = nsTitle;
@@ -2726,10 +2753,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     );
 
     // ── No-service with image: image fills top, footer below ──
-    if (!_netError &&
-        !_isTimeout &&
-        !_fetchFailed &&
-        _noServiceImg.isNotEmpty) {
+    // A city with no stores shows the country's Default Store Image when there is one, otherwise the No-Service image (unchanged).
+    // Network errors, timeouts and failed loads never get here (the same three flags as before).
+    final String emptyImg =
+        emptyCityImage(storeImage: _defaultStoreImg, noServiceImage: _noServiceImg);
+    if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {
       // Shown if the image itself can't be loaded: the Admin message (if any)
       // on the brand colour — never a blank box without explanation.
       Widget nsFallback() => Container(
@@ -2742,25 +2770,26 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                     style: const TextStyle(color: kLight, fontSize: 15),
                     textAlign: TextAlign.center),
           );
-      Widget nsImgWidget;
-      if (_noServiceImg.startsWith("data:image")) {
-        // Shared base64 helper: same Uint8List per source → decoded once, and
-        // Flutter's image cache hits on every rebuild.
-        try {
-          nsImgWidget = Image.memory(decodeBase64ImageCached(_noServiceImg),
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              gaplessPlayback: true,
-              errorBuilder: (_, __, ___) => nsFallback());
-        } catch (_) {
-          nsImgWidget = nsFallback();
+      // One image (data: URI or URL) with the same loaders as before; [onFail] decides what shows if it cannot be drawn.
+      Widget imageFor(String src, Widget Function() onFail) {
+        if (src.startsWith("data:image")) {
+          // Shared base64 helper: same Uint8List per source → decoded once, and
+          // Flutter's image cache hits on every rebuild.
+          try {
+            return Image.memory(decodeBase64ImageCached(src),
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                gaplessPlayback: true,
+                errorBuilder: (_, __, ___) => onFail());
+          } catch (_) {
+            return onFail();
+          }
         }
-      } else {
         // Same cached loader as the Hero: disk + memory cache, no re-download
         // on rebuilds.
-        nsImgWidget = CachedNetworkImage(
-          imageUrl: _noServiceImg,
+        return CachedNetworkImage(
+          imageUrl: src,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
@@ -2775,9 +2804,18 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: CircularProgressIndicator(
                         strokeWidth: 2.5, color: Colors.white54))),
           ),
-          errorWidget: (_, __, ___) => nsFallback(),
+          errorWidget: (_, __, ___) => onFail(),
         );
       }
+
+      // No-Service image exactly as before (its own failure -> the message on the brand colour).
+      Widget noServiceImage() => imageFor(_noServiceImg, nsFallback);
+      // A Default Store Image that cannot be loaded counts as invalid: fall back to the No-Service image, never to a blank box.
+      final Widget nsImgWidget = emptyImg == _noServiceImg
+          ? noServiceImage()
+          : imageFor(
+              emptyImg,
+              () => _noServiceImg.isNotEmpty ? noServiceImage() : nsFallback());
       return Column(children: [Expanded(child: nsImgWidget), footer]);
     }
 

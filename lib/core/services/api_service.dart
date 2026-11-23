@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/app_constants.dart';
+import '../l10n/language_policy.dart';
 import '../l10n/locale_controller.dart';
 import '../l10n/phone/phone_country.dart';
 
@@ -612,21 +613,31 @@ class Api {
   static String? customerCountry;
   static void setCustomerCountryFromPhone(String? phone) {
     customerCountry = countryIsoForPhone(phone);
+    // The same country drives the language policy (Customer, Merchant and Influencer share this phone), see language_policy.dart.
+    ActiveCountry.instance.setAccount(customerCountry);
   }
   /// Path of the default-images request for [country]: plain "/default-images" when the country is unknown.
   static String defaultImagesPath([String? country]) {
     final iso = (country ?? customerCountry ?? '').trim().toUpperCase();
     return iso.isEmpty ? "/default-images" : "/default-images?country=${Uri.encodeQueryComponent(iso)}";
   }
+  static String _prefetchedCountry = '';
   static void prefetchDefaultImages() {
     _prefetchedAt = DateTime.now();
+    _prefetchedCountry = (customerCountry ?? '').trim().toUpperCase();
     _prefetchedDefaults = getDefaultImages();
   }
-  /// One-shot: returns the prefetched request if it is recent, else null.
-  static Future<Map<String,dynamic>>? takePrefetchedDefaults() {
+  @visibleForTesting
+  static void debugSetPrefetchedDefaults(Future<Map<String,dynamic>> f, {String country = ''}) {
+    _prefetchedDefaults = f; _prefetchedAt = DateTime.now(); _prefetchedCountry = country;
+  }
+  /// One-shot: returns the prefetched request if it is recent, else null. When [country] is given, a prefetch that was made for a
+  /// DIFFERENT country is not handed out (it would hold another country's images).
+  static Future<Map<String,dynamic>>? takePrefetchedDefaults({String? country}) {
     final f = _prefetchedDefaults, t = _prefetchedAt;
     _prefetchedDefaults = null; _prefetchedAt = null;
     if (f == null || t == null || DateTime.now().difference(t) > const Duration(minutes: 2)) return null;
+    if (country != null && country.trim().toUpperCase() != _prefetchedCountry) return null;
     return f;
   }
 

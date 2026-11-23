@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -9,10 +10,12 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:offro_user/core/l10n/locale_controller.dart';
+import 'package:offro_user/core/l10n/remote/generated/app_localizations_ar_remote.dart';
 import 'package:offro_user/core/l10n/remote/generated/remote_l10n_schema.dart';
 import 'package:offro_user/core/l10n/remote/remote_overrides.dart';
 import 'package:offro_user/core/l10n/remote/remote_translation_cache.dart';
 import 'package:offro_user/core/l10n/remote/remote_translation_service.dart';
+import 'package:offro_user/l10n/gen/app_localizations_ar.dart';
 
 const String stagingUrl = 'https://offro-backend-staging-d375.up.railway.app';
 
@@ -714,6 +717,127 @@ void main() {
       s.didChangeAppLifecycleState(AppLifecycleState.paused);
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(be.manifestCalls, 1);
+    });
+  });
+
+  group('publish -> app refresh (Rewards walletVoucherRate)', () {
+    const key = 'walletVoucherRate'; // "{points} pts = INR 20 voucher": the Rewards text the admin republished
+    const oldText = '{points} \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 \u20b920';
+    const newText = '{points} \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 5 \u0631\u064a\u0627\u0644';
+
+    test('the bundled Arabic text is what shows when nothing was ever published', () {
+      expect(AppLocalizationsAr().walletVoucherRate('1500'), contains('1500'));
+      expect(AppLocalizationsArRemote(const {}).walletVoucherRate('1500'),
+          AppLocalizationsAr().walletVoucherRate('1500'));
+    });
+
+    test('a newly published version replaces the old cached value, with {points} preserved', () async {
+      be
+        ..version = 1
+        ..strings = {key: oldText};
+      final s = make();
+      expect(await s.refresh(reason: RemoteRefreshReason.startup), RemoteRefreshOutcome.updated);
+      expect(AppLocalizationsArRemote(s.overrides.strings).walletVoucherRate('1500'),
+          '1500 \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 \u20b920');
+      // The admin edits the text and publishes again: new version AND new hash.
+      be
+        ..version = 2
+        ..strings = {key: newText};
+      expect(await s.refresh(reason: RemoteRefreshReason.manual), RemoteRefreshOutcome.updated);
+      expect(s.overrides.version, 2);
+      final shown = AppLocalizationsArRemote(s.overrides.strings).walletVoucherRate('1500');
+      expect(shown, '1500 \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 5 \u0631\u064a\u0627\u0644');
+      expect(shown.contains('{points}'), isFalse);
+      expect((await cached())!.strings[key], newText); // the cache holds the new value, not the old one
+    });
+
+    test('a changed version/hash in the manifest is detected; the same one is not downloaded again', () async {
+      be
+        ..version = 1
+        ..strings = {key: oldText};
+      final s = make();
+      await s.refresh();
+      expect(be.languageCalls, 1);
+      expect(await s.refresh(), RemoteRefreshOutcome.unchanged);
+      expect(be.languageCalls, 1, reason: 'same version + hash: only the small manifest is requested');
+      be
+        ..manifestHash = hashOf(99) // same version, a different hash (re-publish)
+        ..strings = {key: newText};
+      expect(await s.refresh(), RemoteRefreshOutcome.updated);
+      expect(be.languageCalls, 2);
+      expect(s.overrides.strings[key], newText);
+    });
+
+    test('offline: the last valid translation stays in use', () async {
+      be
+        ..version = 1
+        ..strings = {key: oldText};
+      final s = make();
+      await s.refresh();
+      be
+        ..offline = true
+        ..version = 2
+        ..strings = {key: newText};
+      expect(await s.refresh(), RemoteRefreshOutcome.failedKeptCurrent);
+      expect(s.overrides.strings[key], oldText);
+      expect((await cached())!.strings[key], oldText);
+    });
+
+    test('failed API requests (5xx, bad JSON) never remove what works and never break the bundled text', () async {
+      be
+        ..version = 1
+        ..strings = {key: oldText};
+      final s = make();
+      await s.refresh();
+      be.manifestStatus = 503;
+      expect(await s.refresh(), RemoteRefreshOutcome.failedKeptCurrent);
+      be
+        ..manifestStatus = 200
+        ..version = 2
+        ..languageStatus = 500;
+      expect(await s.refresh(), RemoteRefreshOutcome.failedKeptCurrent);
+      be
+        ..languageStatus = 200
+        ..rawLanguageBody = 'not json';
+      expect(await s.refresh(), RemoteRefreshOutcome.failedKeptCurrent);
+      expect(s.overrides.strings[key], oldText);
+      // A service that never got anything still shows the bundled Arabic text.
+      final fresh = make();
+      be
+        ..offline = true
+        ..rawLanguageBody = null;
+      expect(await fresh.refresh(), RemoteRefreshOutcome.failedKeptCurrent);
+      expect(AppLocalizationsArRemote(fresh.overrides.strings).walletVoucherRate('7'),
+          AppLocalizationsAr().walletVoucherRate('7'));
+    });
+
+    for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+      test('${platform.name}: the manifest and the language file load the same way', () async {
+        debugDefaultTargetPlatformOverride = platform;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+        be
+          ..version = 3
+          ..strings = {key: newText};
+        final s = make();
+        expect(await s.refresh(reason: RemoteRefreshReason.startup), RemoteRefreshOutcome.updated);
+        expect(be.requests.map((u) => u.path), ['/translations/manifest', '/translations/ar']);
+        expect(s.overrides.strings[key], newText);
+      });
+    }
+
+    test('app resume re-checks after 5 minutes by default (was 15), and only one small request when nothing changed', () async {
+      expect(RemoteTranslationService(enabled: false).minCheckInterval, const Duration(minutes: 5));
+      be.strings = {key: oldText};
+      final s = make(checkInterval: const Duration(minutes: 5));
+      await s.refresh(reason: RemoteRefreshReason.startup);
+      now = now.add(const Duration(minutes: 2));
+      expect(await s.refresh(reason: RemoteRefreshReason.resume), RemoteRefreshOutcome.skippedThrottled);
+      now = now.add(const Duration(minutes: 4));
+      be
+        ..version = 2
+        ..strings = {key: newText};
+      expect(await s.refresh(reason: RemoteRefreshReason.resume), RemoteRefreshOutcome.updated);
+      expect(s.overrides.strings[key], newText);
     });
   });
 

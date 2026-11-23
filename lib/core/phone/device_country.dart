@@ -5,9 +5,9 @@
 // then the device locale region, then India. IP-based detection is deliberately not part of this phase.
 // Nothing here is sent anywhere and nothing asks for READ_PHONE_STATE or any other permission.
 
-import 'dart:ui' show PlatformDispatcher;
+import 'dart:ui' show Locale, PlatformDispatcher;
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform, visibleForTesting;
 import 'package:flutter/services.dart';
 
 import 'phone_country.dart';
@@ -37,9 +37,21 @@ Future<DeviceCountryCodes> _readNative() async {
   }
 }
 
+/// The region of the device locale. The device can list several locales (for example English (United States) first and Hindi (India)
+/// second): the first one whose region is a supported country wins, otherwise the primary locale's region (which then simply is not
+/// a supported country, so the next source / India is used). This is the only source iOS has (no SIM / network channel there).
+@visibleForTesting
+String? regionFromLocales(List<Locale> locales, Locale primary) {
+  for (final l in locales) {
+    if (phoneCountryByIso(l.countryCode) != null) return l.countryCode;
+  }
+  return primary.countryCode;
+}
+
 String? _localeRegion() {
   try {
-    return PlatformDispatcher.instance.locale.countryCode;
+    final d = PlatformDispatcher.instance;
+    return regionFromLocales(d.locales, d.locale);
   } catch (_) {
     return null;
   }

@@ -91,7 +91,7 @@ class RemoteTranslationService extends ChangeNotifier
     this.requestTimeout = const Duration(seconds: 10),
     this.cacheMaxAge = const Duration(days: 14),
     this.minAttemptGap = const Duration(seconds: 20),
-    this.minCheckInterval = const Duration(minutes: 15),
+    this.minCheckInterval = const Duration(minutes: 5),
     this.retryDelays = const <Duration>[
       Duration(seconds: 30),
       Duration(minutes: 2),

@@ -443,4 +443,36 @@ void main() {
       expect(RegExp(r"track=legal|'legal'").hasMatch(text), isFalse);
     });
   });
+
+  group('build configuration (iOS and Android) carries the remote translation flag', () {
+    const flag = '--dart-define=ENABLE_REMOTE_TRANSLATIONS=true';
+    const stagingApi = '--dart-define=API_BASE_URL=https://offro-backend-staging-d375.up.railway.app';
+
+    test('Codemagic iOS workflow: flag present, still the staging API host only', () {
+      final y = File('codemagic.yaml').readAsStringSync();
+      final build = y.substring(y.indexOf('flutter build ipa'), y.indexOf('artifacts:'));
+      expect(build.contains(flag), isTrue);
+      expect(build.contains(stagingApi), isTrue);
+      expect(RegExp(r'API_BASE_URL=').allMatches(y).length, 1, reason: 'no other host was added');
+      expect(y.contains('production'), isFalse);
+    });
+
+    test('Android staging script: flag present with the staging API host', () {
+      final c = File('tools/build_staging_apk.cmd').readAsStringSync();
+      expect(c.contains(flag), isTrue);
+      expect(c.contains(stagingApi), isTrue);
+    });
+
+    test('Android production script keeps its flag and the staging host never appears there', () {
+      final c = File('tools/build_production_apk.cmd').readAsStringSync();
+      expect(c.contains(flag), isTrue);
+      expect(c.contains('offro-backend-staging'), isFalse);
+    });
+
+    test('the flag alone does nothing: an exact allowlisted host is still required', () {
+      expect(remoteTranslationsAllowed(flag: true, baseUrl: 'https://example.com'), isFalse);
+      expect(remoteTranslationsAllowed(flag: false, baseUrl: stagingUrl), isFalse);
+      expect(remoteTranslationsAllowed(flag: true, baseUrl: stagingUrl), isTrue);
+    });
+  });
 }
