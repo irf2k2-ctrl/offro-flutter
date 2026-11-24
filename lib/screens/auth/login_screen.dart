@@ -4,9 +4,10 @@
 // Single session, single token. Role is selected post-OTP.
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform, visibleForTesting;
 import 'package:smart_auth/smart_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
@@ -30,6 +31,7 @@ import '../../core/phone/phone_input.dart';
 import '../../core/phone/device_country.dart';
 import '../../core/services/staging_gate.dart';
 import 'otp_probe_results_screen.dart';
+import 'login_layout.dart';
 
 // ── MSG91 Widget credentials ─────────────────────────────────────────────────
 const _kWidgetId  = '36656f6a786e313430373338';
@@ -1240,6 +1242,11 @@ class LoginScreen extends StatefulWidget {
   final Future<void> Function(String token, String name, String phone, String userId, String role, String city)? onSuccess;
   final void Function()? onGuest;
   const LoginScreen({super.key, this.onSuccess, this.onGuest});
+
+  /// Tests only: supplies the admin-configured social links instead of calling the API.
+  @visibleForTesting
+  static Future<Map<String, dynamic>> Function()? debugSocialLoader;
+
   @override State<LoginScreen> createState() => _LoginState();
 }
 
@@ -1267,6 +1274,22 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   // Social links
   late Future<Map<String, dynamic>> _socialFuture;
 
+  // Login-tab fitting: the hero's spacing tightens step by step (see LoginHeroSpacing) only while the social row would otherwise sit below
+  // the fold. Re-measured whenever the screen size, text scale, language or tab changes.
+  final GlobalKey _heroKey = GlobalKey();
+  final GlobalKey _sheetKey = GlobalKey();
+  double _t = 0;                                  // compaction amount, see LoginSpacing
+  String _fitSig = '';
+
+  void _fitCheck(double viewportHeight) {
+    if (!mounted || _isReg || _t >= LoginSpacing.maxT) return;
+    if (MediaQuery.of(context).viewInsets.bottom > 0) return;        // keyboard open: the page scrolls, leave the design alone
+    final hero = _heroKey.currentContext?.size?.height, sheet = _sheetKey.currentContext?.size?.height;
+    if (hero == null || sheet == null) return;
+    final next = loginNextT(_t, loginDeficit(hero, sheet, viewportHeight));
+    if (next != _t) setState(() => _t = next);
+  }
+
   Future<void> _continueAsGuest() async {
     await Prefs.saveGuest(true);
     if (!mounted) return;
@@ -1285,7 +1308,9 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
     _slideCtrl.forward();
     _fadeCtrl.forward();
-    _socialFuture = Api.getSocialLinks();
+    _socialFuture = (LoginScreen.debugSocialLoader ?? Api.getSocialLinks)();
+    // the icons arrive after the first frame: re-check the fit once they are there
+    _socialFuture.then((_) { if (mounted) setState(() {}); }, onError: (_) {});
     _suggestCountry();
   }
 
@@ -1451,9 +1476,15 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     // Figma auth layout: mint hero with logo + headline, rounded form sheet
     // below it. Logic (controllers, _sendOtp, _continueAsGuest, tabs) is unchanged.
+    final mq = MediaQuery.of(context);
+    final sig = '${mq.size.width.round()}x${mq.size.height.round()}|${mq.textScaler.scale(10).toStringAsFixed(2)}|${Localizations.localeOf(context).languageCode}|$_isReg';
+    if (sig != _fitSig) { _fitSig = sig; _t = 0; }                  // a new size / text scale / language / tab: measure again from the original design
+    final sp = LoginSpacing(_isReg ? 0 : _t);
     return Scaffold(
       backgroundColor: OffroColors.background,
-      body: FadeTransition(
+      body: LayoutBuilder(builder: (context, box) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _fitCheck(box.maxHeight));
+        return FadeTransition(
         opacity: _fadeAnim,
         child: SingleChildScrollView(
           physics: const ClampingScrollPhysics(),
@@ -1462,8 +1493,9 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               // ── Hero ──
               Container(
+                key: _heroKey,
                 color: OffroColors.mint,
-                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + 28, 24, 64),
+                padding: EdgeInsets.fromLTRB(24, MediaQuery.of(context).padding.top + sp.heroTop, 24, sp.heroBottom),
                 child: Stack(clipBehavior: Clip.hardEdge, children: [
                   PositionedDirectional(end: -72, top: -90, child: Container(
                     width: 192, height: 192,
@@ -1480,19 +1512,19 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                       // Language chooser: moved here, to where the "LOCAL, MADE EASY" badge used to sit; same tan/brown as the Login | Register buttons.
                       LanguageButton(countryIso: _country.iso, filled: true),
                     ]),
-                    const SizedBox(height: 40),
+                    SizedBox(height: sp.afterLogo),
                     Text(context.l10n.loginWelcomeEyebrow,
                       style: OffroText.eyebrow.copyWith(fontSize: 11, letterSpacing: 2.0, color: OffroColors.primary.withValues(alpha: .6))),
-                    const SizedBox(height: 12),
+                    SizedBox(height: sp.afterEyebrow),
                     Text.rich(TextSpan(children: [
-                      TextSpan(text: '${context.l10n.loginHeroLead} ', style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
-                      TextSpan(text: context.l10n.loginHeroAccent, style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -1))),
-                      TextSpan(text: context.l10n.loginHeroTail, style: OffroText.display.copyWith(fontSize: 39, height: 1.04, letterSpacing: -2.3)),
+                      TextSpan(text: '${context.l10n.loginHeroLead} ', style: OffroText.display.copyWith(fontSize: 39 * sp.headlineScale, height: 1.04, letterSpacing: -2.3)),
+                      TextSpan(text: context.l10n.loginHeroAccent, style: OffroText.accentOf(OffroText.display.copyWith(fontSize: 39 * sp.headlineScale, height: 1.04, letterSpacing: -1))),
+                      TextSpan(text: context.l10n.loginHeroTail, style: OffroText.display.copyWith(fontSize: 39 * sp.headlineScale, height: 1.04, letterSpacing: -2.3)),
                     ])),
-                    const SizedBox(height: 16),
+                    SizedBox(height: sp.afterTitle),
                     Text(context.l10n.loginHeroBody,
                       style: OffroText.bodySmall.copyWith(fontSize: 13, height: 1.5, color: OffroColors.primary.withValues(alpha: .65))),
-                    const SizedBox(height: 16),
+                    SizedBox(height: sp.afterBody),
                     // "LOCAL, MADE EASY" badge: moved below the hero text; its look (white pill, primary text) is unchanged.
                     Container(
                       key: const ValueKey('login_badge'),
@@ -1509,13 +1541,14 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
 
               // ── Form sheet ──
               Transform.translate(
-                offset: const Offset(0, -28),
+                offset: const Offset(0, -kLoginSheetLift),
                 child: SlideTransition(
                   position: _slideAnim,
                   child: Container(
+                    key: _sheetKey,
                     // Bottom: the system navigation / gesture bar (edge-to-edge screens draw under it) + the 28px the sheet is lifted
                     // by Transform.translate above + breathing room, so the social heading and icons are never clipped or hidden.
-                    padding: EdgeInsets.fromLTRB(20, 24, 20, 28 + 28 + MediaQuery.of(context).viewPadding.bottom),
+                    padding: EdgeInsets.fromLTRB(20, sp.sheetTop, 20, kLoginSheetLift + 28 + math.max(mq.viewPadding.bottom, mq.padding.bottom)),
                     decoration: const BoxDecoration(
                       color: OffroColors.background,
                       borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -1539,7 +1572,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                           }),
                         ]),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: sp.afterTabs),
 
                       // Name field (register only)
                       if (_isReg) ...[
@@ -1558,7 +1591,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                       // Phone field
                       _label(context.l10n.loginMobile),
                       _phoneField(),
-                      const SizedBox(height: 16),
+                      SizedBox(height: sp.afterPhone),
 
                       // Terms (register only)
                       if (_isReg) ...[
@@ -1620,14 +1653,17 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                             ? const SizedBox(width: 22, height: 22,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
                             : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                Text(_isReg ? context.l10n.loginRegisterGetCode : context.l10n.loginGetCode,
-                                  style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)),
+                                // Flexible + scaleDown: identical when the label fits; on a narrow screen / wide font / long Arabic label it
+                                // shrinks to the button instead of overflowing.
+                                Flexible(child: FittedBox(fit: BoxFit.scaleDown,
+                                  child: Text(_isReg ? context.l10n.loginRegisterGetCode : context.l10n.loginGetCode, maxLines: 1,
+                                    style: OffroText.button.copyWith(color: Colors.white, fontSize: 13.5)))),
                                 const SizedBox(width: 8),
                                 const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
                               ]),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      SizedBox(height: sp.afterButton),
 
                       // "or" divider
                       Row(children: [
@@ -1638,7 +1674,7 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                         ),
                         Expanded(child: Container(height: 1, color: const Color(0x14000000))),
                       ]),
-                      const SizedBox(height: 20),
+                      SizedBox(height: sp.afterOr),
 
                       // Continue as Guest
                       SizedBox(
@@ -1654,12 +1690,12 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                             style: OffroText.button.copyWith(color: OffroColors.primary, fontSize: 12.5)),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: sp.afterGuest),
 
                       // Social bar (admin-configured links)
                       Center(child: Text(context.l10n.loginFollow,
                         style: OffroText.eyebrow.copyWith(fontSize: 10, letterSpacing: 1.6, color: OffroColors.secondarySolid))),
-                      const SizedBox(height: 10),
+                      SizedBox(height: sp.afterFollow),
                       _socialBar(),
                       if (otpProbeEnabled) const Center(child: OtpProbeLink()), // probe only
                     ]),
@@ -1669,7 +1705,8 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
             ]),
           ),
         ),
-      ),
+      );
+      }),
     );
   }
 
@@ -1794,7 +1831,8 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
         final fbUrl    = _normaliseSocialUrl(fb,    'https://facebook.com/');
         final ytUrl    = _normaliseSocialUrl(yt,    'https://youtube.com/@');
 
-        return Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+        // Wrap (centred, same 12dp icon gap) instead of a Row: identical on normal widths, never overflows on a narrow one.
+        return Center(child: Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center, runSpacing: 8, children: [
           _socialIcon(waUrl,     const Color(0xFF25D366), Icons.chat_rounded,         'WhatsApp',  active: waUrl.isNotEmpty),
           _socialIcon(instaUrl,   const Color(0xFFE1306C), Icons.camera_alt_rounded,  'Instagram', active: instaUrl.isNotEmpty),
           _socialIcon(fbUrl,      const Color(0xFF1877F2), Icons.facebook_rounded,    'Facebook',  active: fbUrl.isNotEmpty),

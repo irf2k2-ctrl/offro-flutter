@@ -41,6 +41,14 @@ class FakeNative implements SmsConsentNative {
   }
 }
 
+/// Stands in for the Android SMS User Consent plugin where a test does not exercise it.
+class _NoopNative implements SmsConsentNative {
+  @override
+  Future<void> removeListener() async {}
+  @override
+  Future<String?> waitForCode() async => null;
+}
+
 String boxes(WidgetTester t) =>
     List.generate(4, (i) => t.widget<TextField>(find.byType(TextField).at(i)).controller!.text).join();
 
@@ -221,6 +229,12 @@ void main() {
   });
 
   group('OtpScreen SMS autofill (each scenario has its own widget tree and State)', () {
+    // OtpScreen.dispose() calls SmsConsentOtp.cancel(); on the (test-default) Android platform that would reach the real smart_auth
+    // plugin, which has no native side in a test run (PlatformException channel-error). A no-op fake replaces the native layer here, exactly
+    // as the other OtpScreen tests do. Production keeps using the real plugin.
+    setUp(() => SmsConsentOtp.debugNative = _NoopNative());
+    tearDown(() => SmsConsentOtp.debugNative = null);
+
     testWidgets('a valid SMS code fills the four boxes', (t) async {
       final c = Completer<String?>();
       await t.pumpWidget(host(c.future, key: UniqueKey()));

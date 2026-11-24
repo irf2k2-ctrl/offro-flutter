@@ -1064,7 +1064,8 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get walletRewardsUnavailable => 'استبدال قسائم الهدايا غير متاح لبلدك بعد.';
+  String get walletRewardsUnavailable =>
+      'استبدال قسائم الهدايا غير متاح لبلدك بعد.';
 
   @override
   String walletEarnMore(String points) {

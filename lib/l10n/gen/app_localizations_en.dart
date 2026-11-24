@@ -1065,7 +1065,8 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get walletRewardsUnavailable => 'Gift voucher redemption isn\'t available for your country yet.';
+  String get walletRewardsUnavailable =>
+      'Gift voucher redemption isn\'t available for your country yet.';
 
   @override
   String walletEarnMore(String points) {

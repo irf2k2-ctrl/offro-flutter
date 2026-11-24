@@ -287,12 +287,11 @@ Future<void> showPopupCampaignIfNeeded({
 }) async {
   if (!context.mounted) return;
 
-  // Fetch full list from backend (already filtered by active + city on server)
+  // Fetch full list from backend (already filtered by active + country + city on server). The country (ISO code) is the signed-in
+  // account's; a guest sends none and the server works it out from the city, exactly as older app builds did.
   List raw;
   try {
-    raw = await Api.get(
-      '/public/popup-campaigns?city=${Uri.encodeComponent(city)}',
-    ) as List;
+    raw = await Api.get(popupCampaignsPath(city, Api.customerCountry)) as List;
   } catch (_) {
     return;
   }
@@ -333,4 +332,10 @@ Future<void> showPopupCampaignIfNeeded({
     // Small gap between consecutive popups
     await Future.delayed(const Duration(milliseconds: 300));
   }
+}
+
+/// GET path for the active popup campaigns of [city] (and [country], an ISO code, when known).
+String popupCampaignsPath(String city, String? country) {
+  final iso = (country ?? '').trim().toUpperCase();
+  return '/public/popup-campaigns?city=${Uri.encodeComponent(city)}${iso.isEmpty ? '' : '&country=${Uri.encodeComponent(iso)}'}';
 }

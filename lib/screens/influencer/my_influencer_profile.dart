@@ -8,6 +8,9 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/india_locations.dart' show kIndiaStates, kIndiaCities;
 import '../../core/services/api_service.dart';
+import '../../core/services/location_service.dart' show LocationService;
+import '../../core/models/offro_location.dart' show SupportedCity;
+import '../../core/services/influencer_city_logic.dart';
 import '../../core/pricing/country_money.dart';
 import '../../core/services/error_mapper.dart';
 import '../auth/login_screen.dart' show SwitchModeSheet;
@@ -1146,6 +1149,12 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   final _fbC = TextEditingController();
   String? _selState;
   String? _selCity;
+  // Cities for a NON-India profile country, from the country-aware Cities API (India keeps the bundled State -> City lists).
+  List<SupportedCity> _cityChoices = const [];
+  bool _citiesLoading = false;
+  bool _citiesFailed = false;
+  bool _citiesInit = false;
+  String get _profileCountry => _phoneCountry.iso;       // the profile's country: the account / phone country shown in the form
   final Set<String> _selCategories = {}; // Issue 3: multi-select
   String _photoB64 = ""; // empty = no change (edit) / no photo (create)
   String _existingPhotoUrl = "";
@@ -1191,6 +1200,8 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   void initState() {
     super.initState();
     final e = widget.existing;
+    // The profile's country is the signed-in account's country (one account = one country). A stored +E.164 phone below refines it.
+    _phoneCountry = phoneCountryByIso(Api.customerCountry) ?? kDefaultPhoneCountry;
     if (e != null) {
       _nameC.text = e["name"]?.toString() ?? "";
       final storedPhone = e["phone"]?.toString() ?? "";
@@ -1234,6 +1245,57 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   }
 
   CountryMoney get _cm => CountryMoney.from(_pricing);
+
+  /// City dropdown for a non-India country: that country's cities only, shown in the app language (English fallback), saved by English name.
+  Widget _otherCountryCityField() {
+    final lang = Localizations.localeOf(context).languageCode;
+    if (_citiesLoading) return const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: LinearProgressIndicator(color: kPrimary));
+    final choices = influencerCityChoices(_cityChoices, lang);
+    if (choices.isEmpty) {
+      return Row(children: [
+        Expanded(child: Text(_citiesFailed ? context.l10n.locCitiesLoadFailed : context.l10n.locNoCitiesYet, style: TextStyle(fontSize: 12, color: kMuted))),
+        if (_citiesFailed) TextButton(onPressed: _loadCities, child: Text(context.l10n.commonRetry)),
+      ]);
+    }
+    return DropdownButtonFormField<String>(
+      value: keepValidInfluencerCity(_selCity, choices),
+      isExpanded: true,
+      items: choices.map((c) => DropdownMenuItem(value: c.name, child: Text(c.labelFor(lang), overflow: TextOverflow.ellipsis))).toList(),
+      onChanged: (v) => setState(() => _selCity = v),
+      decoration: _dec(context.l10n.bizSelectCity),
+      hint: Text(context.l10n.bizSelectCity),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_citiesInit) { _citiesInit = true; _loadCities(); }
+  }
+
+  /// Cities of the profile's country from GET /cities?country=XX (not for India, which keeps its State -> City lists).
+  Future<void> _loadCities() async {
+    final iso = _profileCountry;
+    if (influencerUsesIndiaLists(iso)) {
+      if (mounted) setState(() { _cityChoices = const []; _citiesLoading = false; _citiesFailed = false; });
+      return;
+    }
+    if (mounted) setState(() { _citiesLoading = true; _citiesFailed = false; });
+    final lang = Localizations.localeOf(context).languageCode;
+    final res = await LocationService.fetchSupportedCitiesResult(country: iso, lang: lang);
+    if (!mounted || iso != _profileCountry) return;         // the country changed while loading: a newer load is already running
+    setState(() {
+      _cityChoices = res.cities;
+      _citiesLoading = false;
+      _citiesFailed = !res.ok;
+    });
+  }
+
+  /// The profile country changed (phone country picker): the other country's cities load, and a city that is not one of them is cleared.
+  void _onProfileCountryChanged() {
+    setState(() { _selState = null; _selCity = null; _cityChoices = const []; });
+    _loadCities();
+  }
 
   Future<void> _loadCategories() async {
     try {
@@ -1280,7 +1342,8 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
   Map<String, dynamic>? _validateAndBuildBody({bool requireImage = false}) {
     final name = _nameC.text.trim();
     if (name.isEmpty) { setState(() => _errorMsg = context.l10n.bizNameIsRequired); return null; }
-    if (_selState == null) { setState(() => _errorMsg = context.l10n.bizPleaseSelectAState); return null; }
+    final indiaLists = influencerUsesIndiaLists(_profileCountry);
+    if (indiaLists && _selState == null) { setState(() => _errorMsg = context.l10n.bizPleaseSelectAState); return null; }
     if (_selCity == null) { setState(() => _errorMsg = context.l10n.bizPleaseSelectACity); return null; }
     // Issue 2: validate exactly-10-digits on Save too, not just via the
     // input formatter (which only blocks typing past 10 — this also
@@ -1307,8 +1370,9 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     }
     final body = <String, dynamic>{
       "name": name,
-      "state": _selState,
-      "city": _selCity,
+      "state": indiaLists ? _selState : influencerStateFor(_selCity, _cityChoices),
+      "city": _selCity,                       // always the English (canonical) name, never the translated label
+      "country": _profileCountry,             // the server checks the city belongs to this country
       "categories": _selCategories.toList(), // Issue 3: multi-select list
       "phone": phone,
       "bio": _bioC.text.trim(),
@@ -1588,6 +1652,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
           TextField(controller: _bioC, maxLines: 3, maxLength: 280,
             decoration: _dec(context.l10n.bizSharingTheBestLocalFood)),
           const SizedBox(height: 4),
+          if (influencerUsesIndiaLists(_profileCountry)) ...[
           Text(context.l10n.bizState2, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
@@ -1608,6 +1673,11 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             decoration: _dec(_selState == null ? context.l10n.bizSelectStateFirst : context.l10n.bizSelectCity),
             hint: Text(_selState == null ? context.l10n.bizSelectStateFirst : context.l10n.bizSelectCity),
           ),
+          ] else ...[
+          Text(context.l10n.bizCity2, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
+          const SizedBox(height: 6),
+          _otherCountryCityField(),
+          ],
           const SizedBox(height: 16),
           Text(context.l10n.bizPrimarySpecialtySelectOneOr, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMuted)),
           const SizedBox(height: 8),
@@ -1628,11 +1698,15 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
             decoration: _dec(_phoneCountry.iso == 'IN' ? context.l10n.biz10DigitMobileNumber : phoneInputHint(_phoneCountry)).copyWith(
               prefixIcon: CountryCodeButton(
                 country: _phoneCountry,
-                onChanged: (c) => setState(() {
-                  _phoneCountry = c;
-                  final t = westernDigits(_phoneC.text), max = maxPhoneInputLength(c);
-                  if (t.length > max) _phoneC.text = t.substring(0, max);
-                }),
+                onChanged: (c) {
+                  final changed = c.iso != _phoneCountry.iso;
+                  setState(() {
+                    _phoneCountry = c;
+                    final t = westernDigits(_phoneC.text), max = maxPhoneInputLength(c);
+                    if (t.length > max) _phoneC.text = t.substring(0, max);
+                  });
+                  if (changed) _onProfileCountryChanged();   // refresh the city list; clear a city that is not in the new country
+                },
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
             ),
