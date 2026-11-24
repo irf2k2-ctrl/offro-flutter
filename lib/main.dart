@@ -1127,6 +1127,20 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   // Category filtering is client-side only.
   List<Map<String, dynamic>> get _cityFiltered => _stores;
 
+  /// The Default Store Image to show INSIDE the normal Home's "Stores Near You" section, or '' when that does not apply.
+  /// It applies only to a SUCCESSFUL, finished store request that returned no active stores (no stores yet, a new city, outside the
+  /// service area, only expired/inactive stores) and only when a usable Default Store Image is configured. Network errors, timeouts
+  /// and failed loads never qualify, so they keep their existing error screens.
+  String get _homeDefaultStoreImage =>
+      (!_loading &&
+              !_netError &&
+              !_isTimeout &&
+              !_fetchFailed &&
+              _cityFiltered.isEmpty &&
+              isUsableImageSource(_defaultStoreImg))
+          ? _defaultStoreImg.trim()
+          : '';
+
   void _recomputeDistances() {
     if (_userLat == null || _userLng == null) return;
     for (final s in _stores) {
@@ -2378,7 +2392,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                               child: _buildLoadingSkeleton(),
                             ),
                           ))
-                  : _cityFiltered.isEmpty
+                  : (_cityFiltered.isEmpty && _homeDefaultStoreImage.isEmpty)
                       ? _emptyState()
                       : Column(children: [
                           // Figma header: logo + bell, then "Exploring <location>"
@@ -2444,6 +2458,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                                   SliverToBoxAdapter(
                                       child: _NearbyStoresSection(
                                     stores: nearbyStores,
+                                    defaultStoreImage: _homeDefaultStoreImage,
                                     radiusKm: _radiusKm,
                                     token: widget.token,
                                     onRadiusChanged: (km) async {
@@ -2603,7 +2618,10 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
                 duration: const Duration(milliseconds: 280),
                 curve: Curves.easeInOut,
                 bottom: (visible &&
-                        (_navIdx != 0 || _cityFiltered.isNotEmpty || _loading))
+                        (_navIdx != 0 ||
+                            _cityFiltered.isNotEmpty ||
+                            _homeDefaultStoreImage.isNotEmpty ||
+                            _loading))
                     ? 0
                     : -140,
                 left: 0,
@@ -2824,87 +2842,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // No-Service image exactly as before (its own failure -> the message on the brand colour).
       Widget noServiceImage() => imageFor(_noServiceImg, nsFallback);
       // A Default Store Image that cannot be loaded counts as invalid: fall back to the No-Service image, never to a blank box.
-      // Default content for a city with no active stores: the normal Home header, the Default Store Image in the store section and
-      // the existing Default Products section. (Only when a Default Store Image is configured; otherwise the No-Service screen below.)
-      if (emptyImg != _noServiceImg) {
-        final Widget storeImg = imageFor(
-            emptyImg,
-            () => _noServiceImg.isNotEmpty
-                ? imageFor(_noServiceImg, nsFallback)
-                : nsFallback());
-        return Column(children: [
-          _HomeHeader(
-            locationTitle: _locTitle,
-            locationSubtitle: _locSubtitle,
-            unreadCount: _unreadCount,
-            onCityTap: _openLocationScreen,
-            onBellTap: () => _openNotifications(context),
-          ),
-          Expanded(
-              child: RefreshIndicator(
-            onRefresh: () => _fetchStores(city),
-            color: kPrimary,
-            child: ListView(
-                key: const ValueKey('home_default_content'),
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.only(bottom: 28 + bottomPad),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          OffroSectionTitle(
-                            eyebrow: context.l10n.homeNearbyEyebrow,
-                            eyebrowColor: OffroColors.sageStrong,
-                            title: context.l10n.homeNearbyStoresTitle,
-                            padding: const EdgeInsets.fromLTRB(
-                                OffroSpacing.gutter,
-                                0,
-                                OffroSpacing.gutter,
-                                12),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: SizedBox(
-                                  key: const ValueKey('home_default_store_image'),
-                                  height: 220,
-                                  width: double.infinity,
-                                  child: storeImg),
-                            ),
-                          ),
-                        ]),
-                  ),
-                  _DiscoverProductsSection(
-                    products: _products,
-                    onViewAll: () => _viewAllProducts(context),
-                    token: widget.token,
-                    defaultProductImageUrls: _defaultProductImageUrls,
-                    loading: _productsLoading,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _openLocationScreen,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimary,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: const StadiumBorder(),
-                        ),
-                        child: Text(context.l10n.homeBackToHome),
-                      ),
-                    ),
-                  ),
-                ]),
-          )),
-        ]);
-      }
       final Widget nsImgWidget = emptyImg == _noServiceImg
           ? noServiceImage()
           : imageFor(
@@ -7811,7 +7748,11 @@ class _NearbyStoresSection extends StatelessWidget {
   final ValueChanged<double> onRadiusChanged;
   final VoidCallback onViewAll;
   final ValueChanged<Map<String, dynamic>> onStoreTap;
+
+  /// Fallback content: shown in place of the store cards when [stores] is empty (see HomeScreen._homeDefaultStoreImage).
+  final String defaultStoreImage;
   const _NearbyStoresSection({
+    this.defaultStoreImage = '',
     required this.stores,
     required this.radiusKm,
     required this.token,
@@ -7854,6 +7795,22 @@ class _NearbyStoresSection extends StatelessWidget {
     }
     if (imgSrc.startsWith("data:image")) return base64Image(imgSrc, fallback());
     return fallback();
+  }
+
+  /// The Default Store Image itself (CDN URL or data URI); a mint block when it cannot be shown, never an error box.
+  Widget _defaultImage(String src) {
+    const placeholder = ColoredBox(color: OffroColors.mint);
+    if (src.startsWith("http")) {
+      return CachedNetworkImage(
+          imageUrl: src,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: (_, __) => placeholder,
+          errorWidget: (_, __, ___) => placeholder);
+    }
+    if (src.startsWith("data:image")) return base64Image(src, placeholder);
+    return placeholder;
   }
 
   Widget _storeHeart(BuildContext ctx, Map s, String sid) {
@@ -8180,6 +8137,34 @@ class _NearbyStoresSection extends StatelessWidget {
     }
     final cardW = MediaQuery.sizeOf(context).width * 0.78;
     final shown = filtered.length > 8 ? 8 : filtered.length;
+
+    // No stores in this city (successful empty response): the same section - same heading, position and spacing - shows the Default
+    // Store Image instead of the distance chips and store cards, the way Default Products fills the products section.
+    if (stores.isEmpty && defaultStoreImage.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 36),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          OffroSectionTitle(
+            eyebrow: context.l10n.homeNearbyEyebrow,
+            eyebrowColor: OffroColors.sageStrong,
+            title: context.l10n.homeStoresNearTitle,
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: OffroSpacing.gutterH,
+            child: ClipRRect(
+              key: const ValueKey('home_default_store_image'),
+              borderRadius: BorderRadius.circular(24),
+              child: SizedBox(
+                width: double.infinity,
+                height: 216,
+                child: _defaultImage(defaultStoreImage),
+              ),
+            ),
+          ),
+        ]),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 36),

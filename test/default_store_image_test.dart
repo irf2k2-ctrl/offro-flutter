@@ -135,7 +135,7 @@ void main() {
     final main = File('lib/main.dart').readAsStringSync();
 
     test('the image block is reached only without network error, timeout or failed load', () {
-      expect(main.contains('if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {'), isTrue);
+      expect(main.contains('if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {'), isTrue); // old screen: errors / no default image
     });
 
     test('Home reads the store image next to the no-service fields, and replaces it per country', () {
@@ -157,13 +157,39 @@ void main() {
       expect(main.contains('emptyCityImage(\n            storeImage: _defaultStoreImg,\n            noServiceImage: _noServiceImg);'), isTrue);
     });
 
-    test('the empty Home shows the Default Store Image in the store section and the existing Default Products section', () {
-      expect(main.contains("ValueKey('home_default_store_image')"), isTrue);
-      expect(main.contains("ValueKey('home_default_content')"), isTrue);
-      final i = main.indexOf("ValueKey('home_default_content')");
-      final seg = main.substring(i, i + 4500);
-      expect(seg.contains('_DiscoverProductsSection('), isTrue);
-      expect(seg.contains('defaultProductImageUrls: _defaultProductImageUrls'), isTrue);
+    test('NO replacement screen: the Home body is the normal Home whenever a default store image applies', () {
+      expect(main.contains("ValueKey('home_default_content')"), isFalse);          // the Phase-5 replacement layout is gone
+      expect(main.contains('(_cityFiltered.isEmpty && _homeDefaultStoreImage.isEmpty)\n                      ? _emptyState()'), isTrue);
+      // the bottom navigation stays visible on that Home
+      expect(main.contains('_homeDefaultStoreImage.isNotEmpty ||'), isTrue);
+    });
+
+    test('the default image goes INSIDE the existing Stores Near You section (same heading), only when its store list is empty', () {
+      expect(main.contains('defaultStoreImage: _homeDefaultStoreImage,'), isTrue);
+      final i = main.indexOf('if (stores.isEmpty && defaultStoreImage.isNotEmpty) {');
+      expect(i > 0, isTrue);
+      final seg = main.substring(i, i + 1400);
+      expect(seg.contains('title: context.l10n.homeStoresNearTitle'), isTrue);
+      expect(seg.contains("ValueKey('home_default_store_image')"), isTrue);
+      // the real store content below is untouched
+      expect(main.contains('_storeCard(context, filtered[i], cardW)'), isTrue);
+    });
+
+    test('every other Home section is still built when the store list is empty (they are not conditional on stores)', () {
+      final home = main.substring(main.indexOf('// ══════ 4. STORES NEAR YOU'));
+      for (final marker in ['5. PRODUCTS NEAR YOU', '_DiscoverProductsSection(', '6. EXCLUSIVE DEALS', '7. REWARDS', 'CityInfluencersSection(']) {
+        expect(home.contains(marker), isTrue, reason: marker);
+      }
+      final upTo = main.substring(0, main.indexOf('// ══════ 4. STORES NEAR YOU'));
+      expect(upTo.contains('2. HERO') && upTo.contains('3. CATEGORIES'), isTrue); // hero / categories blocks precede it, unchanged
+    });
+
+    test('a failed load never gets the default image: all three error flags are required to be false', () {
+      final i = main.indexOf('String get _homeDefaultStoreImage');
+      final seg = main.substring(i, i + 520);
+      for (final f in ['!_loading', '!_netError', '!_isTimeout', '!_fetchFailed', '_cityFiltered.isEmpty', 'isUsableImageSource(_defaultStoreImg)']) {
+        expect(seg.contains(f), isTrue, reason: f);
+      }
     });
 
     test('API failures keep their own error states: the empty-state branch is only reached after a successful, empty response', () {
@@ -171,7 +197,7 @@ void main() {
       final before = main.substring(0, i);
       expect(before.contains('_fetchFailed = true'), isTrue);
       expect(before.contains('storeFetchError'), isTrue);
-      expect(main.contains('if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {'), isTrue);
+      expect(main.contains('if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {'), isTrue); // old screen: errors / no default image
     });
 
     test('the store listing logic was not changed: stores are still fetched with Api.fetchStores(city: c)', () {
