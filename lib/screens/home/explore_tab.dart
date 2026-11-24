@@ -291,7 +291,7 @@ class _ExploreTabState extends State<ExploreTab> {
     final dist = _distance(context, s);
     final offer = _s(s['offer']);
     final rating = (s['rating'] as num?)?.toDouble() ?? 0.0;
-    final meta = [if (category.isNotEmpty) category, if (dist.isNotEmpty) dist].join(' · ');
+    final meta = [if (category.isNotEmpty) localizedCategoryName(context, category), if (dist.isNotEmpty) dist].join(' · ');
 
     return GestureDetector(
       key: sid.isEmpty ? null : ValueKey('explore_store_$sid'),

@@ -25,6 +25,9 @@
 // removes any existing debug logging.
 
 import '../../l10n/gen/app_localizations.dart';
+import 'payment_outcome.dart';
+
+export 'payment_outcome.dart';
 
 /// Maps any caught error/exception to a short, friendly, customer-safe
 /// message. Never returns raw technical text (exception class names,
@@ -186,7 +189,7 @@ bool _looksLikeCleanBusinessMessage(String cleaned) {
 /// string. Never exposes gateway codes, SDK internals, or raw bank/network
 /// technical output.
 String friendlyRazorpayError(String? message, {AppLocalizations? l10n}) {
-  final m = (message ?? '').trim();
+  final m = razorpayMessageText(message);
   if (m.isEmpty) {
     return l10n?.errPayNoMessage ?? "Payment could not be completed. Please try again.";
   }
@@ -194,4 +197,42 @@ String friendlyRazorpayError(String? message, {AppLocalizations? l10n}) {
     return m;
   }
   return l10n?.errPayGeneric ?? "We couldn't complete your payment. Please try again.";
+}
+
+
+// ── Payment outcome classifier (Phase 5) ─────────────────────────────────
+//
+// The Razorpay SDK reports a user pressing back/cancel as a *failure* event whose message is often the literal text "undefined" (or a
+// JSON blob whose description is "undefined"), which used to be shown as "Payment failed: undefined". These helpers turn any such
+// event into one of four outcomes with one friendly message each. Nothing here ever marks a payment as paid: success only comes from
+// the SDK success event followed by the server's signature verification.
+
+/// The one message shown for a Razorpay failure event. Never raw gateway/SDK text, never "undefined".
+String paymentFailureMessage({int? code, String? message, AppLocalizations? l10n}) {
+  switch (classifyPaymentFailure(code: code, message: message)) {
+    case PaymentOutcome.cancelled:
+      return l10n?.errPayCancelled ?? "Payment cancelled. You haven't been charged. You can try again whenever you're ready.";
+    case PaymentOutcome.pending:
+      return l10n?.errPayPending ?? "We haven't received confirmation of your payment yet. Please check again shortly before paying a second time.";
+    case PaymentOutcome.network:
+      return l10n?.errPayNetwork ?? "Payment couldn't be completed because of a connection problem. Please check your internet and try again.";
+    case PaymentOutcome.failed:
+      final clean = razorpayMessageText(message);
+      final friendly = friendlyRazorpayError(clean, l10n: l10n);
+      // A clean bank/gateway sentence is kept ("Card declined by your bank"); anything else is the generic text.
+      return clean.isEmpty ? (l10n?.errPayGeneric ?? "We couldn't complete your payment. Please try again.")
+          : (l10n != null ? l10n.bizPaymentFailedMsg(friendly) : "Payment failed: $friendly");
+  }
+}
+
+/// The message for an error raised while the app confirms a payment with the server AFTER the gateway accepted it
+/// (network / timeout / server trouble => "not confirmed yet"; anything else keeps the normal friendly mapping).
+String paymentVerifyErrorMessage(Object e, {AppLocalizations? l10n}) {
+  final friendly = friendlyError(e, l10n: l10n);
+  final transient = friendly == (l10n?.errConnect ?? "We couldn't connect to OffrO right now. Please check your internet connection and try again.") ||
+      friendly == (l10n?.errTimeout ?? "OffrO is taking too long to respond. Please try again in a moment.") ||
+      friendly == (l10n?.errUnavailable ?? "OffrO is temporarily unavailable. Please try again in a moment.");
+  return transient
+      ? (l10n?.errPayPending ?? "We haven't received confirmation of your payment yet. Please check again shortly before paying a second time.")
+      : friendly;
 }

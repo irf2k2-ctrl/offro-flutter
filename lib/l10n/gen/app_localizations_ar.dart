@@ -3386,6 +3386,18 @@ class AppLocalizationsAr extends AppLocalizations {
       'لم نتمكن من إكمال عملية الدفع. يرجى المحاولة مرة أخرى.';
 
   @override
+  String get errPayCancelled =>
+      'تم إلغاء عملية الدفع. لم يتم خصم أي مبلغ منك. يمكنك المحاولة مرة أخرى متى شئت.';
+
+  @override
+  String get errPayPending =>
+      'لم نتلقَّ تأكيد الدفع بعد. يرجى التحقق مرة أخرى بعد قليل قبل إعادة الدفع.';
+
+  @override
+  String get errPayNetwork =>
+      'تعذر إكمال الدفع بسبب مشكلة في الاتصال. يرجى التحقق من الإنترنت والمحاولة مرة أخرى.';
+
+  @override
   String bizStoresActiveOne(String active) {
     return 'متجر واحد • $active نشط';
   }

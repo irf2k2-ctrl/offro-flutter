@@ -434,7 +434,7 @@ class _GridStoreCardState extends State<GridStoreCard> {
                 margin:const EdgeInsetsDirectional.only(end:4),
                 padding:const EdgeInsets.symmetric(horizontal:5,vertical:2),
                 decoration:BoxDecoration(color:kPrimary.withValues(alpha: .80),borderRadius:BorderRadius.circular(6)),
-                child:Text(category,style:const TextStyle(color:Colors.white,fontSize:8,fontWeight:FontWeight.w700)),
+                child:Text(localizedCategoryName(context,category),style:const TextStyle(color:Colors.white,fontSize:8,fontWeight:FontWeight.w700)),
               ),
               if(distKm!=null) Container(
                 margin:const EdgeInsetsDirectional.only(end:4),
@@ -606,7 +606,7 @@ class TopStoreCard extends StatelessWidget {
               const SizedBox(height: 3),
               // Category · Area
               Text(
-                [if (category.isNotEmpty) category, if (locationStr.isNotEmpty) locationStr].join(" · "),
+                [if (category.isNotEmpty) localizedCategoryName(context, category), if (locationStr.isNotEmpty) locationStr].join(" · "),
                 style: const TextStyle(color: OffroColors.secondarySolid, fontSize: 11, fontWeight: FontWeight.w500),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),

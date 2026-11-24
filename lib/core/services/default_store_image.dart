@@ -48,10 +48,10 @@ String pickDefaultStoreImage(List<String> images, [Random? random]) {
   return images[(random ?? Random()).nextInt(images.length)];
 }
 
-/// The image for an empty Home. Two different situations:
-///  * [cityInServiceArea] == true  : a city OffrO serves that has no stores yet -> the Default Store Image (when there is one),
-///                                   otherwise the No Service image.
-///  * false (outside the service area) or null (not known, e.g. the check failed) -> always the No Service Area image, never the store image.
-/// The result may be "" (nothing configured): the existing plain no-service screen is then shown.
-String emptyCityImage({required String storeImage, required String noServiceImage, required bool? cityInServiceArea}) =>
-    (cityInServiceArea == true && isUsableImageSource(storeImage)) ? storeImage.trim() : noServiceImage;
+/// The image for an empty Home (a SUCCESSFUL store response with no active stores: no stores yet, a brand-new city, a city outside the
+/// service area, or only expired/inactive/deleted stores). Service-area registration is never a condition:
+///  * a usable Default Store Image is configured -> that image;
+///  * otherwise the No Service image (the unchanged fallback). The result may be "" (nothing configured): the plain screen is shown.
+/// API failures never reach this: they keep their own error states.
+String emptyCityImage({required String storeImage, required String noServiceImage}) =>
+    isUsableImageSource(storeImage) ? storeImage.trim() : noServiceImage;

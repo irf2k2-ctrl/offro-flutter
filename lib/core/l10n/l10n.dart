@@ -13,6 +13,7 @@ import '../../l10n/gen/app_localizations_en.dart';
 import '../utils/store_hours.dart';
 import '../phone/phone_country.dart';
 import '../phone/phone_input.dart';
+import 'category_names.dart';
 import 'locale_controller.dart';
 import 'remote/remote_localizations.dart';
 import 'remote/remote_translation_service.dart';
@@ -72,6 +73,13 @@ String localizedNavLabel(BuildContext context, String label) {
 /// shown exactly as the admin entered it. (Logic always keeps using the original name.)
 String localizedCategoryName(BuildContext context, String name) {
   final l = context.l10n;
+  // Names the server translated (admin-entered or its built-in glossary, any language, any NEW category) come first; English is
+  // never looked up, it keeps the name exactly as stored.
+  final lang = (Localizations.maybeLocaleOf(context) ?? const Locale('en')).languageCode;
+  if (lang != 'en') {
+    final remote = CategoryNames.lookup(name, lang);
+    if (remote != null) return remote;
+  }
   switch (name.trim().toLowerCase()) {
     case 'bakery':
       return l.catBakery;
@@ -100,9 +108,20 @@ String localizedCategoryName(BuildContext context, String name) {
     case 'jewelry':
       return l.catJewelry;
     default:
-      return name;
+      // Built-in glossary for the remaining well-known names (Salon, Other, ...); anything else is shown as the admin entered it.
+      return lang == 'en' ? name : (CategoryNames.builtin(name, lang) ?? name);
   }
 }
+
+/// A stored category TEXT that may hold several names ("Fashion, Beauty" - an influencer's specialties) shown in the app language.
+String localizedCategoryText(BuildContext context, String raw) {
+  if (!raw.contains(',')) return localizedCategoryName(context, raw);
+  return raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).map((e) => localizedCategoryName(context, e)).join(', ');
+}
+
+/// A list of category names for display ("Grocery, Restaurant" -> localized, each name on its own).
+String localizedCategoryNames(BuildContext context, Iterable<String> names) =>
+    names.map((n) => localizedCategoryName(context, n)).join(', ');
 
 /// A category card's small subtitle. Only the built-in fallback subtitles are translated; a subtitle from the server is shown as it is.
 String localizedCategorySubtitle(BuildContext context, String sub) {

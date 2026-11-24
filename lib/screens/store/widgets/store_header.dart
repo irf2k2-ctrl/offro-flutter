@@ -239,7 +239,7 @@ class StoreHeader extends StatelessWidget {
               // Wrap (not a plain Row) so a long category + badge never overflows
               // when the logo narrows the info column.
               Expanded(child: Wrap(spacing: 8, runSpacing: 6, children: [
-                if (category.isNotEmpty) pill(category, bg: OffroColors.mintSoft),
+                if (category.isNotEmpty) pill(localizedCategoryName(context, category), bg: OffroColors.mintSoft),
                 if (badge != null) pill(badge, bg: OffroColors.beige, fg: OffroColors.text),
               ])),
               if (rating > 0)

@@ -3405,6 +3405,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'We couldn\'t complete your payment. Please try again.';
 
   @override
+  String get errPayCancelled =>
+      'Payment cancelled. You haven\'t been charged. You can try again whenever you\'re ready.';
+
+  @override
+  String get errPayPending =>
+      'We haven\'t received confirmation of your payment yet. Please check again shortly before paying a second time.';
+
+  @override
+  String get errPayNetwork =>
+      'Payment couldn\'t be completed because of a connection problem. Please check your internet and try again.';
+
+  @override
   String bizStoresActiveOne(String active) {
     return '1 Store • $active Active';
   }

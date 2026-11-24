@@ -6215,6 +6215,24 @@ abstract class AppLocalizations {
   /// Merchant/Influencer text
   ///
   /// In en, this message translates to:
+  /// **'Payment cancelled. You haven\'t been charged. You can try again whenever you\'re ready.'**
+  String get errPayCancelled;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'We haven\'t received confirmation of your payment yet. Please check again shortly before paying a second time.'**
+  String get errPayPending;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
+  /// **'Payment couldn\'t be completed because of a connection problem. Please check your internet and try again.'**
+  String get errPayNetwork;
+
+  /// Merchant/Influencer text
+  ///
+  /// In en, this message translates to:
   /// **'1 Store • {active} Active'**
   String bizStoresActiveOne(String active);
 

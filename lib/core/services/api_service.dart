@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../constants/app_constants.dart';
+import '../l10n/category_names.dart';
 import '../l10n/language_policy.dart';
 import '../l10n/locale_controller.dart';
 import '../l10n/phone/phone_country.dart';
@@ -454,7 +455,7 @@ class Api {
     // Only use cache if it has actual data (not empty)
     if (_isCacheValid(cacheKey)) {
       final cached = List<dynamic>.from(_apiCache[cacheKey]);
-      if (cached.isNotEmpty) return cached;
+      if (cached.isNotEmpty) { CategoryNames.register(cached); return cached; }
     }
     // Try authenticated merchant endpoint first (if token provided), then public fallbacks
     final paths = token != null
@@ -471,6 +472,7 @@ class Api {
           }).toList();
         }
         if (result.isNotEmpty) {
+          CategoryNames.register(result);   // translations for the category names shown anywhere in the app
           _apiCache[cacheKey] = result;
           _apiCacheTime[cacheKey] = DateTime.now();
           return result;
@@ -645,10 +647,13 @@ class Api {
   static Future<bool?> cityInServiceArea(String city, {String? country}) async {
     final iso = (country ?? customerCountry ?? '').trim().toUpperCase();
     final path = "/city-status?city=${Uri.encodeQueryComponent(city.trim())}${iso.isEmpty ? '' : '&country=${Uri.encodeQueryComponent(iso)}'}";
-    try {
-      final raw = await _get(path).timeout(const Duration(seconds: 6));
-      if (raw is Map && raw['supported'] is bool) return raw['supported'] as bool;
-    } catch (_) {}
+    // One retry: a single slow/failed call must not turn a served city into "No Service Area".
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final raw = await _get(path).timeout(const Duration(seconds: 6));
+        if (raw is Map && raw['supported'] is bool) return raw['supported'] as bool;
+      } catch (_) {}
+    }
     return null;
   }
   static String _prefetchedCountry = '';

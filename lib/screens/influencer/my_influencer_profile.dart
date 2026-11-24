@@ -776,7 +776,7 @@ class _MyInfluencerProfileViewState extends State<_MyInfluencerProfileView> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(color: OffroColors.mintSoft, borderRadius: OffroRadii.pillRadius),
-          child: Text(c, style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
+          child: Text(localizedCategoryName(context, c), style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: OffroColors.primary)),
         ),
     ]);
   }
@@ -1533,7 +1533,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
     // silently — cancelling or a genuinely failed payment gave the customer
     // no feedback at all. Show a clean, classified message (never raw
     // Razorpay/gateway text) before handing control back to the parent.
-    final failMsg = friendlyRazorpayError(resp.message, l10n: mounted ? context.l10n : null);
+    final failMsg = paymentFailureMessage(code: resp.code, message: resp.message, l10n: mounted ? context.l10n : null);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(failMsg), backgroundColor: Colors.red));
     try {
@@ -1896,7 +1896,7 @@ class _InfluencerProfileFormScreenState extends State<InfluencerProfileFormScree
                 CheckboxListTile(
                   value: _selCategories.contains(c),
                   activeColor: kPrimary,
-                  title: Text(c, style: const TextStyle(fontSize: 14, color: kText)),
+                  title: Text(localizedCategoryName(ctx, c), style: const TextStyle(fontSize: 14, color: kText)),
                   onChanged: (v) {
                     setState(() { if (v == true) { _selCategories.add(c); } else { _selCategories.remove(c); } });
                     setSheet(() {});

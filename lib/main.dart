@@ -1018,7 +1018,6 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
   List<String> _defaultStoreImgs = [];
   // Is the selected city inside OffrO's service area? true = a city we serve that has no stores -> Default Store Image;
   // false = outside the service area -> No Service Area image; null = not known (-> No Service Area image, as before).
-  bool? _cityInServiceArea;
   // The country the memoized /default-images answer was requested for: a different country must not reuse it.
   String _defaultsIso = "";
   bool _netError = false;
@@ -1914,17 +1913,11 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     // SUCCESSFUL response with zero stores → show the Admin No-Store state NOW.
     // (Do not wait for categories / sliders / products / retries below.)
     if (storeList.isEmpty && mounted) {
-      // Two different empty states: a city we SERVE that has no stores (Default Store Image) vs a place OUTSIDE the service area
-      // (No Service Area image). The server decides which; if it cannot be determined the No Service Area image is used (as before).
-      final bool? inArea =
-          await Api.cityInServiceArea(c, country: Api.customerCountry);
-      if (!mounted) {
-        _loadAllRunning = false;
-        return;
-      }
+      // A SUCCESSFUL response with no active stores always gets the default content (Default Store Image + Default Products),
+      // whatever the reason: no stores yet, a brand-new city, a city outside the service area, or only expired/inactive/deleted
+      // stores. Service-area registration is NOT consulted. (Failures never get here: they return above.)
       if (myLoad != _loadAllGen) return; // a newer city selection won
       setState(() {
-        _cityInServiceArea = inArea;
         _defaultStoreImg = pickDefaultStoreImage(_defaultStoreImgs);
         _stores = [];
         _loading = false;
@@ -2776,8 +2769,7 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
     final String emptyImg =
         emptyCityImage(
             storeImage: _defaultStoreImg,
-            noServiceImage: _noServiceImg,
-            cityInServiceArea: _cityInServiceArea);
+            noServiceImage: _noServiceImg);
     if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {
       // Shown if the image itself can't be loaded: the Admin message (if any)
       // on the brand colour — never a blank box without explanation.
@@ -2832,6 +2824,87 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
       // No-Service image exactly as before (its own failure -> the message on the brand colour).
       Widget noServiceImage() => imageFor(_noServiceImg, nsFallback);
       // A Default Store Image that cannot be loaded counts as invalid: fall back to the No-Service image, never to a blank box.
+      // Default content for a city with no active stores: the normal Home header, the Default Store Image in the store section and
+      // the existing Default Products section. (Only when a Default Store Image is configured; otherwise the No-Service screen below.)
+      if (emptyImg != _noServiceImg) {
+        final Widget storeImg = imageFor(
+            emptyImg,
+            () => _noServiceImg.isNotEmpty
+                ? imageFor(_noServiceImg, nsFallback)
+                : nsFallback());
+        return Column(children: [
+          _HomeHeader(
+            locationTitle: _locTitle,
+            locationSubtitle: _locSubtitle,
+            unreadCount: _unreadCount,
+            onCityTap: _openLocationScreen,
+            onBellTap: () => _openNotifications(context),
+          ),
+          Expanded(
+              child: RefreshIndicator(
+            onRefresh: () => _fetchStores(city),
+            color: kPrimary,
+            child: ListView(
+                key: const ValueKey('home_default_content'),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.only(bottom: 28 + bottomPad),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 18, 0, 8),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          OffroSectionTitle(
+                            eyebrow: context.l10n.homeNearbyEyebrow,
+                            eyebrowColor: OffroColors.sageStrong,
+                            title: context.l10n.homeNearbyStoresTitle,
+                            padding: const EdgeInsets.fromLTRB(
+                                OffroSpacing.gutter,
+                                0,
+                                OffroSpacing.gutter,
+                                12),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: SizedBox(
+                                  key: const ValueKey('home_default_store_image'),
+                                  height: 220,
+                                  width: double.infinity,
+                                  child: storeImg),
+                            ),
+                          ),
+                        ]),
+                  ),
+                  _DiscoverProductsSection(
+                    products: _products,
+                    onViewAll: () => _viewAllProducts(context),
+                    token: widget.token,
+                    defaultProductImageUrls: _defaultProductImageUrls,
+                    loading: _productsLoading,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _openLocationScreen,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: const StadiumBorder(),
+                        ),
+                        child: Text(context.l10n.homeBackToHome),
+                      ),
+                    ),
+                  ),
+                ]),
+          )),
+        ]);
+      }
       final Widget nsImgWidget = emptyImg == _noServiceImg
           ? noServiceImage()
           : imageFor(
@@ -4519,7 +4592,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
       appBar: AppBar(
         backgroundColor: OffroColors.background,
         foregroundColor: OffroColors.text,
-        title: Text(widget.categoryName,
+        title: Text(localizedCategoryName(context, widget.categoryName),
             style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -4532,7 +4605,7 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
           child: TextField(
             onChanged: (v) => setState(() => _q = v),
             decoration: InputDecoration(
-              hintText: context.l10n.catSearchStores(widget.categoryName),
+              hintText: context.l10n.catSearchStores(localizedCategoryName(context, widget.categoryName)),
               hintStyle:
                   const TextStyle(color: OffroColors.textMuted, fontSize: 13),
               prefixIcon:
@@ -4596,8 +4669,9 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                           child:
                               Column(mainAxisSize: MainAxisSize.min, children: [
                             Text(
-                                context.l10n
-                                    .catNoStoresFound(widget.categoryName),
+                                context.l10n.catNoStoresFound(
+                                    localizedCategoryName(
+                                        context, widget.categoryName)),
                                 style: const TextStyle(
                                     color: OffroColors.textMuted,
                                     fontSize: 14)),
@@ -4610,7 +4684,8 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                               Text(
                                   context.l10n.catFoundButNone(
                                       "$_totalFetchedInCity",
-                                      widget.categoryName),
+                                      localizedCategoryName(
+                                          context, widget.categoryName)),
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                       color: OffroColors.textMuted,
@@ -4619,7 +4694,8 @@ class _CategoryStoresScreenState extends State<_CategoryStoresScreen> {
                                 const SizedBox(height: 4),
                                 Text(
                                     context.l10n.catCategoriesFound(
-                                        _categoriesSeen.join(", ")),
+                                        localizedCategoryNames(
+                                            context, _categoriesSeen)),
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                         color: OffroColors.textMuted,

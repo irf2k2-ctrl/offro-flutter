@@ -54,28 +54,28 @@ void main() {
     });
   });
 
-  group('emptyCityImage: a city WITH NO STORES (in the service area) vs a place OUTSIDE the service area', () {
-    test('city in the service area, no stores, Default Store Image configured -> the Default Store Image', () {
-      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService, cityInServiceArea: true), countrySpecific);
-      expect(emptyCityImage(storeImage: allCountries, noServiceImage: noService, cityInServiceArea: true), allCountries);
+  group('emptyCityImage: every empty city gets the Default Store Image; service-area registration is not a condition', () {
+    test('a successful empty store list with a Default Store Image configured -> the Default Store Image', () {
+      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService), countrySpecific);
+      expect(emptyCityImage(storeImage: allCountries, noServiceImage: noService), allCountries);
     });
 
-    test('city outside the service area -> ALWAYS the No Service Area image, even when a Default Store Image exists', () {
-      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService, cityInServiceArea: false), noService);
-      expect(emptyCityImage(storeImage: allCountries, noServiceImage: '', cityInServiceArea: false), '');
+    test('a brand-new city and a city outside the service area get the SAME result: never the No Service Area image', () {
+      // The function has no service-area input at all, so a city with no database record and an unregistered city are identical.
+      final newCity = emptyCityImage(storeImage: countrySpecific, noServiceImage: noService);
+      final outside = emptyCityImage(storeImage: countrySpecific, noServiceImage: noService);
+      expect(newCity, countrySpecific);
+      expect(outside, newCity);
+      expect(newCity, isNot(noService));
     });
 
-    test('service area not known (check failed) -> the No Service Area image, as before', () {
-      expect(emptyCityImage(storeImage: countrySpecific, noServiceImage: noService, cityInServiceArea: null), noService);
-    });
-
-    test('in the service area but no / invalid Default Store Image -> the No Service image', () {
-      expect(emptyCityImage(storeImage: '', noServiceImage: noService, cityInServiceArea: true), noService);
-      expect(emptyCityImage(storeImage: 'junk', noServiceImage: noService, cityInServiceArea: true), noService);
+    test('no / invalid Default Store Image configured -> the unchanged No Service image fallback', () {
+      expect(emptyCityImage(storeImage: '', noServiceImage: noService), noService);
+      expect(emptyCityImage(storeImage: 'junk', noServiceImage: noService), noService);
     });
 
     test('nothing configured -> empty, so the existing plain no-service screen shows', () {
-      expect(emptyCityImage(storeImage: '', noServiceImage: '', cityInServiceArea: true), '');
+      expect(emptyCityImage(storeImage: '', noServiceImage: ''), '');
     });
   });
 
@@ -150,10 +150,28 @@ void main() {
       expect(main.contains('() => _noServiceImg.isNotEmpty ? noServiceImage() : nsFallback()'), isTrue);
     });
 
-    test('Home asks the server whether the city is in the service area and passes it to the empty state', () {
-      expect(main.contains('Api.cityInServiceArea(c, country: Api.customerCountry)'), isTrue);
-      expect(main.contains('cityInServiceArea: _cityInServiceArea'), isTrue);
-      expect(main.contains('_cityInServiceArea = inArea;'), isTrue);
+    test('Home no longer consults the service area for the empty state (default content for EVERY empty city)', () {
+      expect(main.contains('Api.cityInServiceArea'), isFalse);
+      expect(main.contains('_cityInServiceArea'), isFalse);
+      expect(main.contains('cityInServiceArea:'), isFalse);
+      expect(main.contains('emptyCityImage(\n            storeImage: _defaultStoreImg,\n            noServiceImage: _noServiceImg);'), isTrue);
+    });
+
+    test('the empty Home shows the Default Store Image in the store section and the existing Default Products section', () {
+      expect(main.contains("ValueKey('home_default_store_image')"), isTrue);
+      expect(main.contains("ValueKey('home_default_content')"), isTrue);
+      final i = main.indexOf("ValueKey('home_default_content')");
+      final seg = main.substring(i, i + 4500);
+      expect(seg.contains('_DiscoverProductsSection('), isTrue);
+      expect(seg.contains('defaultProductImageUrls: _defaultProductImageUrls'), isTrue);
+    });
+
+    test('API failures keep their own error states: the empty-state branch is only reached after a successful, empty response', () {
+      final i = main.indexOf('if (storeList.isEmpty && mounted) {');
+      final before = main.substring(0, i);
+      expect(before.contains('_fetchFailed = true'), isTrue);
+      expect(before.contains('storeFetchError'), isTrue);
+      expect(main.contains('if (!_netError && !_isTimeout && !_fetchFailed && emptyImg.isNotEmpty) {'), isTrue);
     });
 
     test('the store listing logic was not changed: stores are still fetched with Api.fetchStores(city: c)', () {

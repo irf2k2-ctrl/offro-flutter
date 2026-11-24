@@ -4338,6 +4338,18 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
       _overrides['errPayGeneric'] ?? super.errPayGeneric;
 
   @override
+  String get errPayCancelled =>
+      _overrides['errPayCancelled'] ?? super.errPayCancelled;
+
+  @override
+  String get errPayPending =>
+      _overrides['errPayPending'] ?? super.errPayPending;
+
+  @override
+  String get errPayNetwork =>
+      _overrides['errPayNetwork'] ?? super.errPayNetwork;
+
+  @override
   String bizStoresActiveOne(String active) {
     final t = _overrides['bizStoresActiveOne'];
     return t == null

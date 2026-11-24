@@ -80,7 +80,31 @@ def check():
             for k in sorted(set(en) & set(s)):
                 if not ARABIC.search(s[k]) and s[k] != en[k]:
                     problems.append(f"ar.{k}: no Arabic text (and it differs from English)")
+    if os.path.abspath(L10N) == os.path.abspath(os.path.join(ROOT, "lib", "l10n")):   # not for the throw-away ARB dirs of the unit tests
+        problems += generated_consistency(set(en))
     return problems
+
+
+def generated_consistency(keys):
+    """Every ARB key must exist in the generated base class, both language classes and the remote Arabic class. A mismatch means
+    `flutter gen-l10n` was not run (or ran on different .arb files) after the .arb files changed."""
+    out = []
+    rx = re.compile(r"^\s+String(?: get)?\s+(\w+)\b", re.M)
+    files = {
+        "lib/l10n/gen/app_localizations.dart": os.path.join(ROOT, "lib", "l10n", "gen", "app_localizations.dart"),
+        "lib/l10n/gen/app_localizations_en.dart": os.path.join(ROOT, "lib", "l10n", "gen", "app_localizations_en.dart"),
+        "lib/l10n/gen/app_localizations_ar.dart": os.path.join(ROOT, "lib", "l10n", "gen", "app_localizations_ar.dart"),
+        "lib/core/l10n/remote/generated/app_localizations_ar_remote.dart": os.path.join(ROOT, "lib", "core", "l10n", "remote", "generated", "app_localizations_ar_remote.dart"),
+    }
+    for name, path in files.items():
+        if not os.path.exists(path):
+            out.append(f"{name} is missing (run `flutter gen-l10n`)")
+            continue
+        have = set(rx.findall(open(path, encoding="utf-8").read()))
+        missing = sorted(keys - have)
+        if missing:
+            out.append(f"{name} lacks {len(missing)} ARB key(s), e.g. {', '.join(missing[:5])} (run `flutter gen-l10n`)")
+    return out
 
 
 def finder():

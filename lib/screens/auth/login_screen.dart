@@ -1513,7 +1513,9 @@ class _LoginState extends State<LoginScreen> with TickerProviderStateMixin {
                 child: SlideTransition(
                   position: _slideAnim,
                   child: Container(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                    // Bottom: the system navigation / gesture bar (edge-to-edge screens draw under it) + the 28px the sheet is lifted
+                    // by Transform.translate above + breathing room, so the social heading and icons are never clipped or hidden.
+                    padding: EdgeInsets.fromLTRB(20, 24, 20, 28 + 28 + MediaQuery.of(context).viewPadding.bottom),
                     decoration: const BoxDecoration(
                       color: OffroColors.background,
                       borderRadius: BorderRadius.vertical(top: Radius.circular(32)),

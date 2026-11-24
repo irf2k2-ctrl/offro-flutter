@@ -5632,6 +5632,21 @@
     "description": "Merchant/Influencer text",
     "x-screen": "merchant"
   },
+  "errPayCancelled": "Payment cancelled. You haven't been charged. You can try again whenever you're ready.",
+  "@errPayCancelled": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "errPayPending": "We haven't received confirmation of your payment yet. Please check again shortly before paying a second time.",
+  "@errPayPending": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "errPayNetwork": "Payment couldn't be completed because of a connection problem. Please check your internet and try again.",
+  "@errPayNetwork": {
+    "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
   "bizStoresActiveOne": "1 Store • {active} Active",
   "@bizStoresActiveOne": {
     "description": "Merchant/Influencer text",

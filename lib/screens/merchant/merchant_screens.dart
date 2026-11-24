@@ -1411,11 +1411,11 @@ class _AddBannerState extends State<AddBannerPage> {
           ),
         ));
       }
-    } catch(e) { if(mounted) setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null)); }
+    } catch(e) { if(mounted) setState(()=>_msg=paymentVerifyErrorMessage(e, l10n: mounted ? context.l10n : null)); }
   }
 
   void _onPayError(PaymentFailureResponse res) {
-    if(mounted) setState(()=>_msg=context.l10n.bizPaymentFailedMsg(friendlyRazorpayError(res.message, l10n: context.l10n)));
+    if(mounted) setState(()=>_msg=paymentFailureMessage(code: res.code, message: res.message, l10n: context.l10n));
   }
 
   Future<bool?> _showBannerSummaryDialog(Map order, {required bool manual}) async =>
@@ -2756,11 +2756,11 @@ class _AddProductState extends State<AddProductPage> {
           ),
         ));
       }
-    }catch(e){if(mounted)setState(()=>_msg=friendlyError(e, l10n: mounted ? context.l10n : null));}
+    }catch(e){if(mounted)setState(()=>_msg=paymentVerifyErrorMessage(e, l10n: mounted ? context.l10n : null));}
   }
 
   void _onPayError(PaymentFailureResponse res){
-    if(mounted)setState(()=>_msg=context.l10n.bizPaymentFailedMsg(friendlyRazorpayError(res.message, l10n: context.l10n)));
+    if(mounted)setState(()=>_msg=paymentFailureMessage(code: res.code, message: res.message, l10n: context.l10n));
   }
 
   Future<bool?> _showProductSummaryDialog(Map order,{required bool manual})=>
@@ -3968,7 +3968,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       _field(_name,context.l10n.bizStoreName,Icons.store),
       const SizedBox(height:12),
       DropdownButtonFormField<String>(value:_category.isEmpty?null:_category,
-        items:[..._categories.map((e){final c=(e is Map?e['name']:e).toString();return DropdownMenuItem<String>(value:c,child:Text(c));})],
+        items:[..._categories.map((e){final c=(e is Map?e['name']:e).toString();return DropdownMenuItem<String>(value:c,child:Text(localizedCategoryName(context,c)));})],
         onChanged:(v)=>setState(()=>_category=v??''),
         decoration:_dec(context.l10n.bizCategory,Icons.category),
         hint:Text(context.l10n.bizSelectCategory)),
@@ -4300,6 +4300,8 @@ class _SubscribeState extends State<SubscribePage> {
     );
     // Verify payment synchronously (with retries)
     String invoiceNo = payId;
+    bool verified = false;
+    Object? verifyError;
     try {
       for (int attempt = 0; attempt < 3; attempt++) {
         try {
@@ -4310,8 +4312,10 @@ class _SubscribeState extends State<SubscribePage> {
             "store_id": widget.store["_id"],
           });
           invoiceNo = result["invoice_no"]?.toString() ?? payId;
+          verified = true;
           break;
         } catch(e) {
+          verifyError = e;
           if (attempt < 2) await Future.delayed(Duration(seconds: attempt + 1));
         }
       }
@@ -4319,6 +4323,12 @@ class _SubscribeState extends State<SubscribePage> {
     if (!mounted) return;
     // Dismiss the confirming dialog
     Navigator.of(context).pop();
+    // Only a server-verified payment reaches the success screen. If the server could not confirm it, say so honestly
+    // ("not confirmed yet") instead of showing success - the payment is never reported as paid without verification.
+    if (!verified) {
+      setState(() => _msg = paymentVerifyErrorMessage(verifyError ?? "Unconfirmed", l10n: context.l10n));
+      return;
+    }
     // Navigate immediately to success screen
     // push (not pushReplacement) keeps MerchantHome in stack
     Navigator.push(context, MaterialPageRoute(builder: (ctx) => PaymentSuccessScreen(
@@ -4331,7 +4341,7 @@ class _SubscribeState extends State<SubscribePage> {
   }
 
   void _onPayError(PaymentFailureResponse resp) {
-    if (mounted) setState(() { final m = friendlyRazorpayError(resp.message, l10n: mounted ? context.l10n : null); _msg = context.l10n.bizPaymentCancelledOrFailed(m); });
+    if (mounted) setState(() { _msg = paymentFailureMessage(code: resp.code, message: resp.message, l10n: context.l10n); });
   }
 
   void _onExtWallet(ExternalWalletResponse resp) {
@@ -5750,7 +5760,7 @@ class _AddDealState extends State<AddDealPage> {
       DropdownButtonFormField<String>(
         isExpanded: true,
         value: _category.isEmpty ? null : _category,
-        items: _categories.map((e) { final c=(e is Map?e['name']:e).toString(); return DropdownMenuItem<String>(value:c,child:Text(c)); }).toList(),
+        items: _categories.map((e) { final c=(e is Map?e['name']:e).toString(); return DropdownMenuItem<String>(value:c,child:Text(localizedCategoryName(context,c))); }).toList(),
         onChanged: (v) => setState(() => _category = v ?? ""),
         decoration: InputDecoration(hintText: context.l10n.bizCategory, prefixIcon: const Icon(Icons.category, color: kMerchantMuted, size: 20),
           filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: kMerchantBorder)),

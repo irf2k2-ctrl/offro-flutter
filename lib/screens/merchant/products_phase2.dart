@@ -244,11 +244,11 @@ class _RenewProductPageState extends State<RenewProductPage> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) setState(() { _msg = friendlyError(e, l10n: mounted ? context.l10n : null); _loading = false; });
+      if (mounted) setState(() { _msg = paymentVerifyErrorMessage(e, l10n: mounted ? context.l10n : null); _loading = false; });
     }
   }
   void _onPayError(PaymentFailureResponse res) {
-    if (mounted) setState(() { _msg = context.l10n.bizPaymentFailedMsg(friendlyRazorpayError(res.message, l10n: context.l10n)); _loading = false; });
+    if (mounted) setState(() { _msg = paymentFailureMessage(code: res.code, message: res.message, l10n: context.l10n); _loading = false; });
   }
 
   @override Widget build(BuildContext context) {

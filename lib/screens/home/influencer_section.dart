@@ -567,7 +567,7 @@ class _InfluencerListingScreenState extends State<InfluencerListingScreen> {
                                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: OffroColors.text))),
                             ]),
                             const SizedBox(height: 2),
-                            Text("${inf["city"] ?? ""} · ${inf["category"] ?? ""}",
+                            Text("${inf["city"] ?? ""} · ${localizedCategoryText(context, (inf["category"] ?? "").toString())}",
                               style: const TextStyle(fontSize: 11, color: OffroColors.textMuted)),
                             const SizedBox(height: 6),
                             _ratingRow(inf),
@@ -862,7 +862,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                     style: OffroText.display.copyWith(fontSize: 32, letterSpacing: -1.8, color: Colors.white)),
                   if (category.isNotEmpty || city.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text([category, city].where((e) => e.isNotEmpty).join(" · "),
+                    Text([localizedCategoryText(context, category), city].where((e) => e.isNotEmpty).join(" · "),
                       style: OffroText.bodySmall.copyWith(fontSize: 13, color: Colors.white.withValues(alpha: .75))),
                   ],
                 ]),
@@ -1038,7 +1038,7 @@ class _InfluencerProfileScreenState extends State<InfluencerProfileScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                         decoration: BoxDecoration(color: OffroColors.mint, borderRadius: BorderRadius.circular(20)),
-                        child: Text(inf["category"].toString(),
+                        child: Text(localizedCategoryText(context, inf["category"].toString()),
                           style: const TextStyle(color: OffroColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
                       ),
                     ),
