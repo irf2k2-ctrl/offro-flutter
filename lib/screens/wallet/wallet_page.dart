@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/pricing/reward_money.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
@@ -21,8 +22,12 @@ class WalletPage extends StatefulWidget {
 }
 
 class _WalletState extends State<WalletPage> {
-  // Redeem threshold used by the existing backend flow (200 points = ₹20 voucher).
-  static const int _redeemAt = 200;
+  // The redemption rule (points needed, voucher value, currency, partner names) comes from the server for the account's country
+  // (Pricing & Plans -> Reward Redemption Points). Nothing about it is hard-coded here: India's 200 points = ₹20 is simply what the
+  // server returns for India, and a country with no reward settings returns "not redeemable".
+  RewardConfig _reward = RewardConfig.unknown;
+  int get _redeemAt => _reward.voucherPoints ?? 0;
+  String get _lang => Localizations.localeOf(context).languageCode;
 
   int vp = 0, pp = 0;
   bool loading = true;
@@ -42,7 +47,7 @@ class _WalletState extends State<WalletPage> {
   Future<void> _load() async {
     try {
       final d = await Api.getWallet(widget.token);
-      if (mounted) setState(() { vp = d["visit_points"] ?? 0; pp = d["pool_points"] ?? 0; loading = false; });
+      if (mounted) setState(() { vp = d["visit_points"] ?? 0; pp = d["pool_points"] ?? 0; _reward = RewardConfig.fromWallet(d); loading = false; });
     } catch (_) {
       if (mounted) setState(() => loading = false);
     }
@@ -59,8 +64,9 @@ class _WalletState extends State<WalletPage> {
     // NOTE: function kept named _withdraw() internally and still calls Api.withdraw()
     // (same backend endpoint) — this is purely a UI/wording change for Google Play
     // policy compliance. No business logic, API, or DB fields were changed.
+    if (!_reward.redeemable) return;
     try {
-      final r = await Api.withdraw(widget.token, 200);
+      final r = await Api.withdraw(widget.token, _redeemAt);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(r["message"] ?? context.l10n.walletDone)));
       _load();
@@ -85,9 +91,10 @@ class _WalletState extends State<WalletPage> {
   }
 
   Widget _balanceCard(int total) {
-    final canRedeem = total >= _redeemAt;
-    final toGo = (_redeemAt - total).clamp(0, _redeemAt);
-    final progress = (total / _redeemAt).clamp(0.0, 1.0);
+    final redeemable = _reward.redeemable;
+    final canRedeem = redeemable && total >= _redeemAt;
+    final toGo = redeemable ? (_redeemAt - total).clamp(0, _redeemAt) : 0;
+    final progress = redeemable ? (total / _redeemAt).clamp(0.0, 1.0) : 0.0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(OffroSpacing.gutter, 24, OffroSpacing.gutter, 0),
       child: ClipRRect(
@@ -157,10 +164,12 @@ class _WalletState extends State<WalletPage> {
               ),
               const SizedBox(height: 8),
               Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Text(context.l10n.walletVoucherRate('$_redeemAt'),
-                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .45))),
-                Text(canRedeem ? context.l10n.walletReadyToRedeem : context.l10n.walletToGo('$toGo'),
-                  style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .45))),
+                if (redeemable) ...[
+                  Text(context.l10n.walletVoucherRate('$_redeemAt', _reward.amountLabel(_lang) ?? ''),
+                    style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .45))),
+                  Text(canRedeem ? context.l10n.walletReadyToRedeem : context.l10n.walletToGo('$toGo'),
+                    style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: Colors.white.withValues(alpha: .45))),
+                ],
               ]),
             ]),
           ]),
@@ -170,8 +179,10 @@ class _WalletState extends State<WalletPage> {
   }
 
   Widget _voucherCard(int total) {
-    final canRedeem = total >= _redeemAt;
-    final toGo = (_redeemAt - total).clamp(0, _redeemAt);
+    final redeemable = _reward.redeemable;
+    final canRedeem = redeemable && total >= _redeemAt;
+    final toGo = redeemable ? (_redeemAt - total).clamp(0, _redeemAt) : 0;
+    final partners = _reward.partnersLabel(_lang);
     return Padding(
       padding: OffroSpacing.gutterH,
       child: Container(
@@ -185,14 +196,20 @@ class _WalletState extends State<WalletPage> {
           Row(children: [
             const OffroIcon(OffroIcons.gift, size: 20, color: OffroColors.primary),
             const Spacer(),
-            Text(context.l10n.walletPtsOnly('$_redeemAt'),
-              style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
+            if (redeemable)
+              Text(context.l10n.walletPtsOnly('$_redeemAt'),
+                style: OffroText.caption.copyWith(fontSize: 10, fontWeight: FontWeight.w400, color: OffroColors.textSubtle)),
           ]),
           const SizedBox(height: 36),
-          Text("₹20", style: OffroText.headline.copyWith(fontSize: 30, letterSpacing: -1.8)),
-          const SizedBox(height: 4),
-          Text(context.l10n.walletVoucherDesc,
-            style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+          if (redeemable) ...[
+            Text(_reward.amountLabel(_lang) ?? '', style: OffroText.headline.copyWith(fontSize: 30, letterSpacing: -1.8)),
+            const SizedBox(height: 4),
+            Text(partners.isEmpty ? context.l10n.walletVoucherDesc : context.l10n.walletVoucherDescPartners(partners),
+              style: OffroText.caption.copyWith(fontSize: 12, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
+          ] else if (_reward.country.isNotEmpty)
+            // The server answered and this country has no (active) reward settings: say so, show no amount.
+            Text(context.l10n.walletRewardsUnavailable,
+              style: OffroText.caption.copyWith(fontSize: 13, fontWeight: FontWeight.w400, color: OffroColors.textMuted)),
           const SizedBox(height: 16),
           GestureDetector(
             onTap: canRedeem ? _withdraw : null,
@@ -204,7 +221,7 @@ class _WalletState extends State<WalletPage> {
                 color: canRedeem ? OffroColors.primary : OffroColors.primary.withValues(alpha: .35),
                 borderRadius: OffroRadii.pillRadius,
               ),
-              child: Text(canRedeem ? context.l10n.walletRedeem : context.l10n.walletEarnMore('$toGo'),
+              child: Text(canRedeem || !redeemable ? context.l10n.walletRedeem : context.l10n.walletEarnMore('$toGo'),
                 style: OffroText.caption.copyWith(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.white)),
             ),
           ),
@@ -239,7 +256,7 @@ class _WalletState extends State<WalletPage> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(context.l10n.walletHowTitle, style: OffroText.cardTitle.copyWith(fontSize: 13)),
           const SizedBox(height: 12),
-          line(context.l10n.walletHowLine1),
+          if (_reward.redeemable) line(context.l10n.walletHowLine1('$_redeemAt', _reward.amountLabel(_lang) ?? '')),
           line(context.l10n.walletHowLine2),
           line(context.l10n.walletHowLine3),
           Padding(

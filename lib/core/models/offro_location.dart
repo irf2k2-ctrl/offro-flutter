@@ -83,12 +83,15 @@ class OffroLocation {
 class SupportedCity {
   /// The canonical (English) name. It is what is stored on a chosen location and used for matching; it never changes with the app language.
   final String name;
-  final String state; // resolved client-side; may be empty
+  final String state; // the City Master state / province, else (India) the bundled table; may be empty
   /// The city's id from the City Master ('' for a bundled reference city). Selection and matching never depend on the translated label.
   final String id;
   /// {language code: translated name} from the City Master ({} when the city has no translations).
   final Map<String, String> names;
-  const SupportedCity({required this.name, this.state = '', this.id = '', this.names = const {}});
+  /// Admin flag from the City Master (Admin -> Cities -> Popular) and its position (1 = first; 0 = none).
+  final bool isPopular;
+  final int popularOrder;
+  const SupportedCity({required this.name, this.state = '', this.id = '', this.names = const {}, this.isPopular = false, this.popularOrder = 0});
 
   /// The name to SHOW for app language [lang]: its own translation (exact code, then its base language: 'ar-SA' -> 'ar'), else [name].
   String labelFor(String? lang) => cityDisplayName(name, names, lang);

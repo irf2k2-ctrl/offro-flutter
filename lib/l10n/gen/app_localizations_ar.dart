@@ -179,7 +179,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get onboardingSlide3Title => 'احصل على قسائم الهدايا';
 
   @override
-  String get onboardingSlide3Subtitle => 'استبدل نقاطك بقسائم Amazon وFlipkart';
+  String get onboardingSlide3Subtitle => 'استبدل نقاطك بقسائم هدايا';
 
   @override
   String get countryPickerTitle => 'اختر الدولة';
@@ -1038,8 +1038,8 @@ class AppLocalizationsAr extends AppLocalizations {
   String get walletRedeem => 'استبدال';
 
   @override
-  String walletVoucherRate(String points) {
-    return '$points نقطة = قسيمة ₹20';
+  String walletVoucherRate(String points, String amount) {
+    return '$points نقطة = قسيمة $amount';
   }
 
   @override
@@ -1056,7 +1056,15 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get walletVoucherDesc => 'قسيمة هدية ترويجية · أمازون أو فليبكارت';
+  String get walletVoucherDesc => 'قسيمة هدية ترويجية';
+
+  @override
+  String walletVoucherDescPartners(String partners) {
+    return 'قسيمة هدية ترويجية · $partners';
+  }
+
+  @override
+  String get walletRewardsUnavailable => 'استبدال قسائم الهدايا غير متاح لبلدك بعد.';
 
   @override
   String walletEarnMore(String points) {
@@ -1067,8 +1075,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get walletHowTitle => 'كيف تعمل المكافآت';
 
   @override
-  String get walletHowLine1 =>
-      'استبدل 200 نقطة مكافآت بقسيمة هدية ترويجية بقيمة ₹20.';
+  String walletHowLine1(String points, String amount) {
+    return 'استبدل $points نقطة مكافآت بقسيمة هدية ترويجية بقيمة $amount.';
+  }
 
   @override
   String get walletHowLine2 => 'تسليم قسيمة الهدية: من 3 إلى 5 أيام عمل.';
@@ -1395,6 +1404,9 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get locCitiesLoadFailed =>
       'تعذر تحميل المدن. تحقق من اتصالك وحاول مرة أخرى.';
+
+  @override
+  String get locNoCitiesYet => 'لا توجد مدن متاحة لبلدك بعد.';
 
   @override
   String get locTryAgain => 'حاول مرة أخرى';

@@ -103,10 +103,13 @@ void main() {
     test('wallet and scan history', () {
       expect(en.walletBadge, 'REWARD POINTS');
       expect(en.walletBalance, 'Available balance');
-      expect(en.walletVoucherRate('200'), '200 pts = ₹20 voucher');
+      expect(en.walletVoucherRate('200', '₹20'), '200 pts = ₹20 voucher');
+      expect(en.walletVoucherRate('100', 'SAR 5'), '100 pts = SAR 5 voucher');
       expect(en.walletToGo('50'), '50 pts to go');
       expect(en.walletEarnMore('50'), 'Earn 50 more points');
-      expect(en.walletHowLine1, 'Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher.');
+      expect(en.walletHowLine1('200', '₹20'), 'Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher.');
+      expect(en.walletVoucherDesc, 'Promotional Gift Voucher');
+      expect(en.walletVoucherDescPartners('Amazon, Flipkart'), 'Promotional Gift Voucher · Amazon, Flipkart');
       expect(en.walletEarnedOn('5 Mar 2026'), 'Earned · 5 Mar 2026');
       expect(en.scanHistoryTitle, 'Scan History');
       expect(en.scanHistoryEmpty, 'No scans yet');
@@ -142,7 +145,8 @@ void main() {
 
   group('Arabic text', () {
     test('placeholders are filled and digits stay Western', () {
-      expect(arL.walletVoucherRate('200'), '200 نقطة = قسيمة ₹20');
+      expect(arL.walletVoucherRate('200', '₹20'), '200 نقطة = قسيمة ₹20');
+      expect(arL.walletVoucherRate('100', '5 ر.س'), '100 نقطة = قسيمة 5 ر.س');
       expect(arL.walletToGo('50'), 'متبقٍ 50 نقطة');
       expect(arL.storeScanEarn('10'), 'امسح واكسب 10 نقطة');
       expect(arL.storeDiscOff('20'), 'خصم 20%');
@@ -157,7 +161,8 @@ void main() {
 
     test('brand name stays in Latin letters and the rupee sign is kept', () {
       expect(arL.locCityUnsupportedBody('X'), contains('OffrO'));
-      expect(arL.walletHowLine1, contains('₹20'));
+      expect(arL.walletHowLine1('200', '₹20'), contains('₹20'));
+      expect(arL.walletHowLine1('100', '5 ر.س'), allOf(contains('5 ر.س'), isNot(contains('₹'))));
       expect(arL.storeCostForTwo('500'), contains('₹500'));
     });
   });
@@ -581,7 +586,7 @@ void main() {
       en.walletReadyToRedeem,
       en.walletVoucherDesc,
       en.walletHowTitle,
-      en.walletHowLine1,
+      en.walletHowLine1('200', '₹20'),
       en.walletHowLine2,
       en.walletHowLine3,
       en.walletHowDisclaimer,

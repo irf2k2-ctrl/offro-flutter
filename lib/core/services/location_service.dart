@@ -15,6 +15,7 @@ import 'package:geolocator/geolocator.dart';
 import '../constants/india_locations.dart';
 import '../models/offro_location.dart';
 import 'api_service.dart';
+import 'city_list_logic.dart';
 import 'location_store.dart';
 
 enum LocationAccess {
@@ -128,40 +129,26 @@ class LocationService {
   ///
   /// [country] = the signed-in account's country (ISO): the server returns only that country's cities. null (guest / country unknown)
   /// keeps the long-standing unfiltered request.
-  static Future<List<SupportedCity>> fetchSupportedCities({String? country, String? lang}) async {
+  static Future<List<SupportedCity>> fetchSupportedCities({String? country, String? lang}) async =>
+      (await fetchSupportedCitiesResult(country: country, lang: lang)).cities;
+
+  /// Like [fetchSupportedCities] but says whether the request worked: `ok == false` is a failure (offline, server error), while
+  /// `ok == true` with no cities means the server really has none for that country.
+  static Future<SupportedCitiesResult> fetchSupportedCitiesResult({String? country, String? lang}) async {
     try {
-      final raw = await Api.getCities(country: country, lang: lang).timeout(const Duration(seconds: 10));
-      final out = <SupportedCity>[];
-      final seen = <String>{};
-      for (final c in raw) {
-        if (c is! Map) continue;
-        final name = (c['name'] ?? '').toString().trim();
-        if (name.isEmpty || !seen.add(name.toLowerCase())) continue;
-        out.add(SupportedCity(
-          name: name,
-          // The bundled state table is India's: use it only when the cities are India's (or the country is unknown, as before).
-          state: usesBundledIndiaReference(country) ? stateForCity(name) : '',
-          id: (c['id'] ?? '').toString(),
-          names: parseCityNames(c['names']),
-        ));
-      }
-      return out;
+      final raw = await Api.getCitiesStrict(country: country, lang: lang).timeout(const Duration(seconds: 10));
+      return SupportedCitiesResult(parseSupportedCities(raw, country: country), true);
     } catch (_) {
-      return const [];
+      return const SupportedCitiesResult([], false);
     }
   }
 
+  /// GET /cities payload -> cities (see [parseCityList]).
+  static List<SupportedCity> parseSupportedCities(List raw, {String? country}) => parseCityList(raw,
+      stateFor: usesBundledIndiaReference(country) ? stateForCity : (_) => '');
+
   /// {language: name} from the City Master payload; anything that is not a non-blank string is dropped.
-  static Map<String, String> parseCityNames(dynamic raw) {
-    if (raw is! Map) return const {};
-    final out = <String, String>{};
-    raw.forEach((k, v) {
-      final key = k.toString().trim().toLowerCase();
-      final val = v is String ? v.trim() : '';
-      if (key.isNotEmpty && val.isNotEmpty) out[key] = val;
-    });
-    return out;
-  }
+  static Map<String, String> parseCityNames(dynamic raw) => parseCityNameMap(raw);
 
   /// The bundled reference data ([kIndiaCities]) belongs to ONE country. It is shown to that country's accounts and, exactly as before,
   /// to guests / unresolved accounts (the long-standing behaviour); an account of any other country never sees it.
@@ -476,4 +463,11 @@ class LocationService {
       updatedAt: DateTime.now(),
     );
   }
+}
+
+/// Outcome of GET /cities: the cities, and whether the request itself worked.
+class SupportedCitiesResult {
+  final List<SupportedCity> cities;
+  final bool ok;
+  const SupportedCitiesResult(this.cities, this.ok);
 }

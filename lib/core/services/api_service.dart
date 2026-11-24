@@ -618,7 +618,15 @@ class Api {
   }
 
   static Future<List> getCities({String? country, String? lang}) async {
-    try { return await _get(citiesPath(country: country, lang: lang)); } catch(_) { return []; }
+    try { return await getCitiesStrict(country: country, lang: lang); } catch(_) { return []; }
+  }
+
+  /// Same request, but a failure is thrown instead of being turned into [] - so the Location screen can tell "the server has no cities
+  /// for this country" (an empty list) from "the request failed" (an error).
+  static Future<List> getCitiesStrict({String? country, String? lang}) async {
+    final r = await _get(citiesPath(country: country, lang: lang));
+    if (r is! List) throw Exception('Invalid server response');
+    return r;
   }
 
   /// Fetch default fallback images — tries /admin/default-images then /default-images

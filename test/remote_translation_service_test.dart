@@ -722,13 +722,13 @@ void main() {
 
   group('publish -> app refresh (Rewards walletVoucherRate)', () {
     const key = 'walletVoucherRate'; // "{points} pts = INR 20 voucher": the Rewards text the admin republished
-    const oldText = '{points} \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 \u20b920';
-    const newText = '{points} \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 5 \u0631\u064a\u0627\u0644';
+    const oldText = '{points} \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 {amount}';
+    const newText = '{points} \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 {amount} \u0631\u064a\u0627\u0644';
 
     test('the bundled Arabic text is what shows when nothing was ever published', () {
-      expect(AppLocalizationsAr().walletVoucherRate('1500'), contains('1500'));
-      expect(AppLocalizationsArRemote(const {}).walletVoucherRate('1500'),
-          AppLocalizationsAr().walletVoucherRate('1500'));
+      expect(AppLocalizationsAr().walletVoucherRate('1500', '\u20b920'), contains('1500'));
+      expect(AppLocalizationsArRemote(const {}).walletVoucherRate('1500', '\u20b920'),
+          AppLocalizationsAr().walletVoucherRate('1500', '\u20b920'));
     });
 
     test('a newly published version replaces the old cached value, with {points} preserved', () async {
@@ -737,15 +737,16 @@ void main() {
         ..strings = {key: oldText};
       final s = make();
       expect(await s.refresh(reason: RemoteRefreshReason.startup), RemoteRefreshOutcome.updated);
-      expect(AppLocalizationsArRemote(s.overrides.strings).walletVoucherRate('1500'),
-          '1500 \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 \u20b920');
+      expect(AppLocalizationsArRemote(s.overrides.strings).walletVoucherRate('1500', '\u20b920'),
+          // The money amount is wrapped in a left-to-right isolate (U+2066 ... U+2069) by fillRemoteTemplate so "\u20b920" keeps its symbol on the left in Arabic text.
+          '1500 \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 \u2066\u20b920\u2069');
       // The admin edits the text and publishes again: new version AND new hash.
       be
         ..version = 2
         ..strings = {key: newText};
       expect(await s.refresh(reason: RemoteRefreshReason.manual), RemoteRefreshOutcome.updated);
       expect(s.overrides.version, 2);
-      final shown = AppLocalizationsArRemote(s.overrides.strings).walletVoucherRate('1500');
+      final shown = AppLocalizationsArRemote(s.overrides.strings).walletVoucherRate('1500', '5');
       expect(shown, '1500 \u0646\u0642\u0637\u0629 = \u0642\u0633\u064a\u0645\u0629 5 \u0631\u064a\u0627\u0644');
       expect(shown.contains('{points}'), isFalse);
       expect((await cached())!.strings[key], newText); // the cache holds the new value, not the old one
@@ -807,8 +808,8 @@ void main() {
         ..offline = true
         ..rawLanguageBody = null;
       expect(await fresh.refresh(), RemoteRefreshOutcome.failedKeptCurrent);
-      expect(AppLocalizationsArRemote(fresh.overrides.strings).walletVoucherRate('7'),
-          AppLocalizationsAr().walletVoucherRate('7'));
+      expect(AppLocalizationsArRemote(fresh.overrides.strings).walletVoucherRate('7', '\u20b920'),
+          AppLocalizationsAr().walletVoucherRate('7', '\u20b920'));
     });
 
     for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {

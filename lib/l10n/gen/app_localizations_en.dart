@@ -180,8 +180,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingSlide3Title => 'Get Gift Vouchers';
 
   @override
-  String get onboardingSlide3Subtitle =>
-      'Redeem your points for Amazon & Flipkart vouchers';
+  String get onboardingSlide3Subtitle => 'Redeem your points for gift vouchers';
 
   @override
   String get countryPickerTitle => 'Select country';
@@ -1040,8 +1039,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletRedeem => 'Redeem';
 
   @override
-  String walletVoucherRate(String points) {
-    return '$points pts = ₹20 voucher';
+  String walletVoucherRate(String points, String amount) {
+    return '$points pts = $amount voucher';
   }
 
   @override
@@ -1058,8 +1057,15 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get walletVoucherDesc =>
-      'Promotional gift voucher · Amazon or Flipkart';
+  String get walletVoucherDesc => 'Promotional Gift Voucher';
+
+  @override
+  String walletVoucherDescPartners(String partners) {
+    return 'Promotional Gift Voucher · $partners';
+  }
+
+  @override
+  String get walletRewardsUnavailable => 'Gift voucher redemption isn\'t available for your country yet.';
 
   @override
   String walletEarnMore(String points) {
@@ -1070,8 +1076,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get walletHowTitle => 'How rewards work';
 
   @override
-  String get walletHowLine1 =>
-      'Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher.';
+  String walletHowLine1(String points, String amount) {
+    return 'Redeem $points Reward Points for a $amount Promotional Gift Voucher.';
+  }
 
   @override
   String get walletHowLine2 => 'Gift voucher delivery: 3-5 business days.';
@@ -1399,6 +1406,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get locCitiesLoadFailed =>
       'Couldn\'t load cities. Check your connection and try again.';
+
+  @override
+  String get locNoCitiesYet => 'No cities are available for your country yet.';
 
   @override
   String get locTryAgain => 'Try again';

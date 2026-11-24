@@ -19,51 +19,40 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get otpTitleLead => _overrides['otpTitleLead'] ?? super.otpTitleLead;
 
   @override
-  String get otpTitleAccent =>
-      _overrides['otpTitleAccent'] ?? super.otpTitleAccent;
+  String get otpTitleAccent => _overrides['otpTitleAccent'] ?? super.otpTitleAccent;
 
   @override
   String otpSentTo(String phone) {
     final t = _overrides['otpSentTo'];
-    return t == null
-        ? super.otpSentTo(phone)
-        : fillRemoteTemplate(t, <String, String>{'phone': phone});
+    return t == null ? super.otpSentTo(phone) : fillRemoteTemplate(t, <String, String>{'phone': phone});
   }
 
   @override
-  String get otpVerifyButton =>
-      _overrides['otpVerifyButton'] ?? super.otpVerifyButton;
+  String get otpVerifyButton => _overrides['otpVerifyButton'] ?? super.otpVerifyButton;
 
   @override
-  String get otpDidntReceive =>
-      _overrides['otpDidntReceive'] ?? super.otpDidntReceive;
+  String get otpDidntReceive => _overrides['otpDidntReceive'] ?? super.otpDidntReceive;
 
   @override
   String otpResendIn(String seconds) {
     final t = _overrides['otpResendIn'];
-    return t == null
-        ? super.otpResendIn(seconds)
-        : fillRemoteTemplate(t, <String, String>{'seconds': seconds});
+    return t == null ? super.otpResendIn(seconds) : fillRemoteTemplate(t, <String, String>{'seconds': seconds});
   }
 
   @override
-  String get otpResendAction =>
-      _overrides['otpResendAction'] ?? super.otpResendAction;
+  String get otpResendAction => _overrides['otpResendAction'] ?? super.otpResendAction;
 
   @override
-  String get otpSmsFallback =>
-      _overrides['otpSmsFallback'] ?? super.otpSmsFallback;
+  String get otpSmsFallback => _overrides['otpSmsFallback'] ?? super.otpSmsFallback;
 
   @override
   String get roleEyebrow => _overrides['roleEyebrow'] ?? super.roleEyebrow;
 
   @override
-  String get roleTitleLead =>
-      _overrides['roleTitleLead'] ?? super.roleTitleLead;
+  String get roleTitleLead => _overrides['roleTitleLead'] ?? super.roleTitleLead;
 
   @override
-  String get roleTitleBrand =>
-      _overrides['roleTitleBrand'] ?? super.roleTitleBrand;
+  String get roleTitleBrand => _overrides['roleTitleBrand'] ?? super.roleTitleBrand;
 
   @override
   String get roleSubtitle => _overrides['roleSubtitle'] ?? super.roleSubtitle;
@@ -72,113 +61,88 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get roleCustomer => _overrides['roleCustomer'] ?? super.roleCustomer;
 
   @override
-  String get roleCustomerDesc =>
-      _overrides['roleCustomerDesc'] ?? super.roleCustomerDesc;
+  String get roleCustomerDesc => _overrides['roleCustomerDesc'] ?? super.roleCustomerDesc;
 
   @override
   String get roleMerchant => _overrides['roleMerchant'] ?? super.roleMerchant;
 
   @override
-  String get roleMerchantDesc =>
-      _overrides['roleMerchantDesc'] ?? super.roleMerchantDesc;
+  String get roleMerchantDesc => _overrides['roleMerchantDesc'] ?? super.roleMerchantDesc;
 
   @override
-  String get roleInfluencer =>
-      _overrides['roleInfluencer'] ?? super.roleInfluencer;
+  String get roleInfluencer => _overrides['roleInfluencer'] ?? super.roleInfluencer;
 
   @override
-  String get roleInfluencerDesc =>
-      _overrides['roleInfluencerDesc'] ?? super.roleInfluencerDesc;
+  String get roleInfluencerDesc => _overrides['roleInfluencerDesc'] ?? super.roleInfluencerDesc;
 
   @override
   String get roleRemember => _overrides['roleRemember'] ?? super.roleRemember;
 
   @override
-  String get roleRememberHint =>
-      _overrides['roleRememberHint'] ?? super.roleRememberHint;
+  String get roleRememberHint => _overrides['roleRememberHint'] ?? super.roleRememberHint;
 
   @override
-  String get roleEnterCustomer =>
-      _overrides['roleEnterCustomer'] ?? super.roleEnterCustomer;
+  String get roleEnterCustomer => _overrides['roleEnterCustomer'] ?? super.roleEnterCustomer;
 
   @override
-  String get roleEnterMerchant =>
-      _overrides['roleEnterMerchant'] ?? super.roleEnterMerchant;
+  String get roleEnterMerchant => _overrides['roleEnterMerchant'] ?? super.roleEnterMerchant;
 
   @override
-  String get roleEnterInfluencer =>
-      _overrides['roleEnterInfluencer'] ?? super.roleEnterInfluencer;
+  String get roleEnterInfluencer => _overrides['roleEnterInfluencer'] ?? super.roleEnterInfluencer;
 
   @override
-  String get roleSelectPrompt =>
-      _overrides['roleSelectPrompt'] ?? super.roleSelectPrompt;
+  String get roleSelectPrompt => _overrides['roleSelectPrompt'] ?? super.roleSelectPrompt;
 
   @override
-  String get switchTitleLead =>
-      _overrides['switchTitleLead'] ?? super.switchTitleLead;
+  String get switchTitleLead => _overrides['switchTitleLead'] ?? super.switchTitleLead;
 
   @override
-  String get switchTitleAccent =>
-      _overrides['switchTitleAccent'] ?? super.switchTitleAccent;
+  String get switchTitleAccent => _overrides['switchTitleAccent'] ?? super.switchTitleAccent;
 
   @override
   String switchCurrently(String mode) {
     final t = _overrides['switchCurrently'];
-    return t == null
-        ? super.switchCurrently(mode)
-        : fillRemoteTemplate(t, <String, String>{'mode': mode});
+    return t == null ? super.switchCurrently(mode) : fillRemoteTemplate(t, <String, String>{'mode': mode});
   }
 
   @override
-  String get switchCustomerSubtitle =>
-      _overrides['switchCustomerSubtitle'] ?? super.switchCustomerSubtitle;
+  String get switchCustomerSubtitle => _overrides['switchCustomerSubtitle'] ?? super.switchCustomerSubtitle;
 
   @override
-  String get switchMerchantSubtitle =>
-      _overrides['switchMerchantSubtitle'] ?? super.switchMerchantSubtitle;
+  String get switchMerchantSubtitle => _overrides['switchMerchantSubtitle'] ?? super.switchMerchantSubtitle;
 
   @override
-  String get switchInfluencerSubtitle =>
-      _overrides['switchInfluencerSubtitle'] ?? super.switchInfluencerSubtitle;
+  String get switchInfluencerSubtitle => _overrides['switchInfluencerSubtitle'] ?? super.switchInfluencerSubtitle;
 
   @override
   String get loginBadge => _overrides['loginBadge'] ?? super.loginBadge;
 
   @override
-  String get loginWelcomeEyebrow =>
-      _overrides['loginWelcomeEyebrow'] ?? super.loginWelcomeEyebrow;
+  String get loginWelcomeEyebrow => _overrides['loginWelcomeEyebrow'] ?? super.loginWelcomeEyebrow;
 
   @override
-  String get loginHeroLead =>
-      _overrides['loginHeroLead'] ?? super.loginHeroLead;
+  String get loginHeroLead => _overrides['loginHeroLead'] ?? super.loginHeroLead;
 
   @override
-  String get loginHeroAccent =>
-      _overrides['loginHeroAccent'] ?? super.loginHeroAccent;
+  String get loginHeroAccent => _overrides['loginHeroAccent'] ?? super.loginHeroAccent;
 
   @override
-  String get loginHeroTail =>
-      _overrides['loginHeroTail'] ?? super.loginHeroTail;
+  String get loginHeroTail => _overrides['loginHeroTail'] ?? super.loginHeroTail;
 
   @override
-  String get loginHeroBody =>
-      _overrides['loginHeroBody'] ?? super.loginHeroBody;
+  String get loginHeroBody => _overrides['loginHeroBody'] ?? super.loginHeroBody;
 
   @override
-  String get loginTabLogin =>
-      _overrides['loginTabLogin'] ?? super.loginTabLogin;
+  String get loginTabLogin => _overrides['loginTabLogin'] ?? super.loginTabLogin;
 
   @override
-  String get loginTabRegister =>
-      _overrides['loginTabRegister'] ?? super.loginTabRegister;
+  String get loginTabRegister => _overrides['loginTabRegister'] ?? super.loginTabRegister;
 
   @override
-  String get loginYourName =>
-      _overrides['loginYourName'] ?? super.loginYourName;
+  String get loginYourName => _overrides['loginYourName'] ?? super.loginYourName;
 
   @override
-  String get loginNameHint =>
-      _overrides['loginNameHint'] ?? super.loginNameHint;
+  String get loginNameHint => _overrides['loginNameHint'] ?? super.loginNameHint;
 
   @override
   String get loginMobile => _overrides['loginMobile'] ?? super.loginMobile;
@@ -187,8 +151,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get loginGetCode => _overrides['loginGetCode'] ?? super.loginGetCode;
 
   @override
-  String get loginRegisterGetCode =>
-      _overrides['loginRegisterGetCode'] ?? super.loginRegisterGetCode;
+  String get loginRegisterGetCode => _overrides['loginRegisterGetCode'] ?? super.loginRegisterGetCode;
 
   @override
   String get loginOr => _overrides['loginOr'] ?? super.loginOr;
@@ -200,103 +163,79 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get loginFollow => _overrides['loginFollow'] ?? super.loginFollow;
 
   @override
-  String get onboardingSkip =>
-      _overrides['onboardingSkip'] ?? super.onboardingSkip;
+  String get onboardingSkip => _overrides['onboardingSkip'] ?? super.onboardingSkip;
 
   @override
-  String get onboardingSlide1Title =>
-      _overrides['onboardingSlide1Title'] ?? super.onboardingSlide1Title;
+  String get onboardingSlide1Title => _overrides['onboardingSlide1Title'] ?? super.onboardingSlide1Title;
 
   @override
-  String get onboardingSlide1Subtitle =>
-      _overrides['onboardingSlide1Subtitle'] ?? super.onboardingSlide1Subtitle;
+  String get onboardingSlide1Subtitle => _overrides['onboardingSlide1Subtitle'] ?? super.onboardingSlide1Subtitle;
 
   @override
-  String get onboardingSlide2Title =>
-      _overrides['onboardingSlide2Title'] ?? super.onboardingSlide2Title;
+  String get onboardingSlide2Title => _overrides['onboardingSlide2Title'] ?? super.onboardingSlide2Title;
 
   @override
-  String get onboardingSlide2Subtitle =>
-      _overrides['onboardingSlide2Subtitle'] ?? super.onboardingSlide2Subtitle;
+  String get onboardingSlide2Subtitle => _overrides['onboardingSlide2Subtitle'] ?? super.onboardingSlide2Subtitle;
 
   @override
-  String get onboardingSlide3Title =>
-      _overrides['onboardingSlide3Title'] ?? super.onboardingSlide3Title;
+  String get onboardingSlide3Title => _overrides['onboardingSlide3Title'] ?? super.onboardingSlide3Title;
 
   @override
-  String get onboardingSlide3Subtitle =>
-      _overrides['onboardingSlide3Subtitle'] ?? super.onboardingSlide3Subtitle;
+  String get onboardingSlide3Subtitle => _overrides['onboardingSlide3Subtitle'] ?? super.onboardingSlide3Subtitle;
 
   @override
-  String get countryPickerTitle =>
-      _overrides['countryPickerTitle'] ?? super.countryPickerTitle;
+  String get countryPickerTitle => _overrides['countryPickerTitle'] ?? super.countryPickerTitle;
 
   @override
-  String get profileGroupActivity =>
-      _overrides['profileGroupActivity'] ?? super.profileGroupActivity;
+  String get profileGroupActivity => _overrides['profileGroupActivity'] ?? super.profileGroupActivity;
 
   @override
-  String get profileGroupAccount =>
-      _overrides['profileGroupAccount'] ?? super.profileGroupAccount;
+  String get profileGroupAccount => _overrides['profileGroupAccount'] ?? super.profileGroupAccount;
 
   @override
-  String get profileGroupLanguage =>
-      _overrides['profileGroupLanguage'] ?? super.profileGroupLanguage;
+  String get profileGroupLanguage => _overrides['profileGroupLanguage'] ?? super.profileGroupLanguage;
 
   @override
-  String get profileGroupLegal =>
-      _overrides['profileGroupLegal'] ?? super.profileGroupLegal;
+  String get profileGroupLegal => _overrides['profileGroupLegal'] ?? super.profileGroupLegal;
 
   @override
-  String get profileGroupSession =>
-      _overrides['profileGroupSession'] ?? super.profileGroupSession;
+  String get profileGroupSession => _overrides['profileGroupSession'] ?? super.profileGroupSession;
 
   @override
-  String get profileGuestBadge =>
-      _overrides['profileGuestBadge'] ?? super.profileGuestBadge;
+  String get profileGuestBadge => _overrides['profileGuestBadge'] ?? super.profileGuestBadge;
 
   @override
-  String get profileMemberBadge =>
-      _overrides['profileMemberBadge'] ?? super.profileMemberBadge;
+  String get profileMemberBadge => _overrides['profileMemberBadge'] ?? super.profileMemberBadge;
 
   @override
-  String get languageRowLabel =>
-      _overrides['languageRowLabel'] ?? super.languageRowLabel;
+  String get languageRowLabel => _overrides['languageRowLabel'] ?? super.languageRowLabel;
 
   @override
-  String get languageSheetTitle =>
-      _overrides['languageSheetTitle'] ?? super.languageSheetTitle;
+  String get languageSheetTitle => _overrides['languageSheetTitle'] ?? super.languageSheetTitle;
 
   @override
-  String get languageSheetNote =>
-      _overrides['languageSheetNote'] ?? super.languageSheetNote;
+  String get languageSheetNote => _overrides['languageSheetNote'] ?? super.languageSheetNote;
 
   @override
-  String get languageNameEn =>
-      _overrides['languageNameEn'] ?? super.languageNameEn;
+  String get languageNameEn => _overrides['languageNameEn'] ?? super.languageNameEn;
 
   @override
-  String get languageNameAr =>
-      _overrides['languageNameAr'] ?? super.languageNameAr;
+  String get languageNameAr => _overrides['languageNameAr'] ?? super.languageNameAr;
 
   @override
-  String get languageButtonSemantics =>
-      _overrides['languageButtonSemantics'] ?? super.languageButtonSemantics;
+  String get languageButtonSemantics => _overrides['languageButtonSemantics'] ?? super.languageButtonSemantics;
 
   @override
-  String get profileEyebrow =>
-      _overrides['profileEyebrow'] ?? super.profileEyebrow;
+  String get profileEyebrow => _overrides['profileEyebrow'] ?? super.profileEyebrow;
 
   @override
   String get profileTitle => _overrides['profileTitle'] ?? super.profileTitle;
 
   @override
-  String get profileStatSaved =>
-      _overrides['profileStatSaved'] ?? super.profileStatSaved;
+  String get profileStatSaved => _overrides['profileStatSaved'] ?? super.profileStatSaved;
 
   @override
-  String get profileStatPoints =>
-      _overrides['profileStatPoints'] ?? super.profileStatPoints;
+  String get profileStatPoints => _overrides['profileStatPoints'] ?? super.profileStatPoints;
 
   @override
   String get navHome => _overrides['navHome'] ?? super.navHome;
@@ -320,159 +259,124 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get navActivity => _overrides['navActivity'] ?? super.navActivity;
 
   @override
-  String get navOpportunities =>
-      _overrides['navOpportunities'] ?? super.navOpportunities;
+  String get navOpportunities => _overrides['navOpportunities'] ?? super.navOpportunities;
 
   @override
-  String get homeExploring =>
-      _overrides['homeExploring'] ?? super.homeExploring;
+  String get homeExploring => _overrides['homeExploring'] ?? super.homeExploring;
 
   @override
-  String get homeSelectLocation =>
-      _overrides['homeSelectLocation'] ?? super.homeSelectLocation;
+  String get homeSelectLocation => _overrides['homeSelectLocation'] ?? super.homeSelectLocation;
 
   @override
-  String get homeSearchHint =>
-      _overrides['homeSearchHint'] ?? super.homeSearchHint;
+  String get homeSearchHint => _overrides['homeSearchHint'] ?? super.homeSearchHint;
 
   @override
-  String get homeViewArrow =>
-      _overrides['homeViewArrow'] ?? super.homeViewArrow;
+  String get homeViewArrow => _overrides['homeViewArrow'] ?? super.homeViewArrow;
 
   @override
-  String get homeHeroBadge =>
-      _overrides['homeHeroBadge'] ?? super.homeHeroBadge;
+  String get homeHeroBadge => _overrides['homeHeroBadge'] ?? super.homeHeroBadge;
 
   @override
-  String get homeExploreLead =>
-      _overrides['homeExploreLead'] ?? super.homeExploreLead;
+  String get homeExploreLead => _overrides['homeExploreLead'] ?? super.homeExploreLead;
 
   @override
-  String get homeHeroSubtitle =>
-      _overrides['homeHeroSubtitle'] ?? super.homeHeroSubtitle;
+  String get homeHeroSubtitle => _overrides['homeHeroSubtitle'] ?? super.homeHeroSubtitle;
 
   @override
-  String get homeDiscoverStores =>
-      _overrides['homeDiscoverStores'] ?? super.homeDiscoverStores;
+  String get homeDiscoverStores => _overrides['homeDiscoverStores'] ?? super.homeDiscoverStores;
 
   @override
   String get homeYourCity => _overrides['homeYourCity'] ?? super.homeYourCity;
 
   @override
-  String get homeDealEndsToday =>
-      _overrides['homeDealEndsToday'] ?? super.homeDealEndsToday;
+  String get homeDealEndsToday => _overrides['homeDealEndsToday'] ?? super.homeDealEndsToday;
 
   @override
-  String get homeDealOneDayLeft =>
-      _overrides['homeDealOneDayLeft'] ?? super.homeDealOneDayLeft;
+  String get homeDealOneDayLeft => _overrides['homeDealOneDayLeft'] ?? super.homeDealOneDayLeft;
 
   @override
   String homeDealDaysLeft(String days) {
     final t = _overrides['homeDealDaysLeft'];
-    return t == null
-        ? super.homeDealDaysLeft(days)
-        : fillRemoteTemplate(t, <String, String>{'days': days});
+    return t == null ? super.homeDealDaysLeft(days) : fillRemoteTemplate(t, <String, String>{'days': days});
   }
 
   @override
-  String get homeExclusiveEyebrow =>
-      _overrides['homeExclusiveEyebrow'] ?? super.homeExclusiveEyebrow;
+  String get homeExclusiveEyebrow => _overrides['homeExclusiveEyebrow'] ?? super.homeExclusiveEyebrow;
 
   @override
-  String get homeExclusiveTitle =>
-      _overrides['homeExclusiveTitle'] ?? super.homeExclusiveTitle;
+  String get homeExclusiveTitle => _overrides['homeExclusiveTitle'] ?? super.homeExclusiveTitle;
 
   @override
   String get homeViewAll => _overrides['homeViewAll'] ?? super.homeViewAll;
 
   @override
-  String get homeDealOffer =>
-      _overrides['homeDealOffer'] ?? super.homeDealOffer;
+  String get homeDealOffer => _overrides['homeDealOffer'] ?? super.homeDealOffer;
 
   @override
   String homePercentOff(String percent) {
     final t = _overrides['homePercentOff'];
-    return t == null
-        ? super.homePercentOff(percent)
-        : fillRemoteTemplate(t, <String, String>{'percent': percent});
+    return t == null ? super.homePercentOff(percent) : fillRemoteTemplate(t, <String, String>{'percent': percent});
   }
 
   @override
-  String get homeRewardsBadge =>
-      _overrides['homeRewardsBadge'] ?? super.homeRewardsBadge;
+  String get homeRewardsBadge => _overrides['homeRewardsBadge'] ?? super.homeRewardsBadge;
 
   @override
-  String get homePointsSuffix =>
-      _overrides['homePointsSuffix'] ?? super.homePointsSuffix;
+  String get homePointsSuffix => _overrides['homePointsSuffix'] ?? super.homePointsSuffix;
 
   @override
-  String get homeRewardsTapToView =>
-      _overrides['homeRewardsTapToView'] ?? super.homeRewardsTapToView;
+  String get homeRewardsTapToView => _overrides['homeRewardsTapToView'] ?? super.homeRewardsTapToView;
 
   @override
-  String get homeRewardsEarnHint =>
-      _overrides['homeRewardsEarnHint'] ?? super.homeRewardsEarnHint;
+  String get homeRewardsEarnHint => _overrides['homeRewardsEarnHint'] ?? super.homeRewardsEarnHint;
 
   @override
-  String get homeCategoriesEyebrow =>
-      _overrides['homeCategoriesEyebrow'] ?? super.homeCategoriesEyebrow;
+  String get homeCategoriesEyebrow => _overrides['homeCategoriesEyebrow'] ?? super.homeCategoriesEyebrow;
 
   @override
-  String get homeCategoriesTitle =>
-      _overrides['homeCategoriesTitle'] ?? super.homeCategoriesTitle;
+  String get homeCategoriesTitle => _overrides['homeCategoriesTitle'] ?? super.homeCategoriesTitle;
 
   @override
   String get homeSeeAll => _overrides['homeSeeAll'] ?? super.homeSeeAll;
 
   @override
-  String get homeSeeAllLower =>
-      _overrides['homeSeeAllLower'] ?? super.homeSeeAllLower;
+  String get homeSeeAllLower => _overrides['homeSeeAllLower'] ?? super.homeSeeAllLower;
 
   @override
   String get catBakery => _overrides['catBakery'] ?? super.catBakery;
 
   @override
-  String get catAutomobile =>
-      _overrides['catAutomobile'] ?? super.catAutomobile;
+  String get catAutomobile => _overrides['catAutomobile'] ?? super.catAutomobile;
 
   @override
-  String get catRestaurant =>
-      _overrides['catRestaurant'] ?? super.catRestaurant;
+  String get catRestaurant => _overrides['catRestaurant'] ?? super.catRestaurant;
 
   @override
   String get catGrocery => _overrides['catGrocery'] ?? super.catGrocery;
 
   @override
-  String get homeProductsEyebrow =>
-      _overrides['homeProductsEyebrow'] ?? super.homeProductsEyebrow;
+  String get homeProductsEyebrow => _overrides['homeProductsEyebrow'] ?? super.homeProductsEyebrow;
 
   @override
-  String get homeProductsTitle =>
-      _overrides['homeProductsTitle'] ?? super.homeProductsTitle;
+  String get homeProductsTitle => _overrides['homeProductsTitle'] ?? super.homeProductsTitle;
 
   @override
-  String get homeBrowseAll =>
-      _overrides['homeBrowseAll'] ?? super.homeBrowseAll;
+  String get homeBrowseAll => _overrides['homeBrowseAll'] ?? super.homeBrowseAll;
 
   @override
   String homeFavoriteSaveFailed(String error) {
     final t = _overrides['homeFavoriteSaveFailed'];
-    return t == null
-        ? super.homeFavoriteSaveFailed(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.homeFavoriteSaveFailed(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
-  String get homeNearbyEyebrow =>
-      _overrides['homeNearbyEyebrow'] ?? super.homeNearbyEyebrow;
+  String get homeNearbyEyebrow => _overrides['homeNearbyEyebrow'] ?? super.homeNearbyEyebrow;
 
   @override
-  String get homeStoresNearTitle =>
-      _overrides['homeStoresNearTitle'] ?? super.homeStoresNearTitle;
+  String get homeStoresNearTitle => _overrides['homeStoresNearTitle'] ?? super.homeStoresNearTitle;
 
   @override
-  String get homeNearbyStoresTitle =>
-      _overrides['homeNearbyStoresTitle'] ?? super.homeNearbyStoresTitle;
+  String get homeNearbyStoresTitle => _overrides['homeNearbyStoresTitle'] ?? super.homeNearbyStoresTitle;
 
   @override
   String get homeBadgeNew => _overrides['homeBadgeNew'] ?? super.homeBadgeNew;
@@ -480,9 +384,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String homeOfferInline(String offer) {
     final t = _overrides['homeOfferInline'];
-    return t == null
-        ? super.homeOfferInline(offer)
-        : fillRemoteTemplate(t, <String, String>{'offer': offer});
+    return t == null ? super.homeOfferInline(offer) : fillRemoteTemplate(t, <String, String>{'offer': offer});
   }
 
   @override
@@ -492,99 +394,76 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get homeClosed => _overrides['homeClosed'] ?? super.homeClosed;
 
   @override
-  String get homeDistanceAny =>
-      _overrides['homeDistanceAny'] ?? super.homeDistanceAny;
+  String get homeDistanceAny => _overrides['homeDistanceAny'] ?? super.homeDistanceAny;
 
   @override
   String homeDistanceUnder(String km) {
     final t = _overrides['homeDistanceUnder'];
-    return t == null
-        ? super.homeDistanceUnder(km)
-        : fillRemoteTemplate(t, <String, String>{'km': km});
+    return t == null ? super.homeDistanceUnder(km) : fillRemoteTemplate(t, <String, String>{'km': km});
   }
 
   @override
   String homeNoStoresWithin(String km) {
     final t = _overrides['homeNoStoresWithin'];
-    return t == null
-        ? super.homeNoStoresWithin(km)
-        : fillRemoteTemplate(t, <String, String>{'km': km});
+    return t == null ? super.homeNoStoresWithin(km) : fillRemoteTemplate(t, <String, String>{'km': km});
   }
 
   @override
-  String get homeTryLargerRadius =>
-      _overrides['homeTryLargerRadius'] ?? super.homeTryLargerRadius;
+  String get homeTryLargerRadius => _overrides['homeTryLargerRadius'] ?? super.homeTryLargerRadius;
 
   @override
-  String get homeExploreAreasTitle =>
-      _overrides['homeExploreAreasTitle'] ?? super.homeExploreAreasTitle;
+  String get homeExploreAreasTitle => _overrides['homeExploreAreasTitle'] ?? super.homeExploreAreasTitle;
 
   @override
-  String get homeExploreAreasSubtitle =>
-      _overrides['homeExploreAreasSubtitle'] ?? super.homeExploreAreasSubtitle;
+  String get homeExploreAreasSubtitle => _overrides['homeExploreAreasSubtitle'] ?? super.homeExploreAreasSubtitle;
 
   @override
-  String get homeViewAllArrow =>
-      _overrides['homeViewAllArrow'] ?? super.homeViewAllArrow;
+  String get homeViewAllArrow => _overrides['homeViewAllArrow'] ?? super.homeViewAllArrow;
 
   @override
-  String get homeStoreWord =>
-      _overrides['homeStoreWord'] ?? super.homeStoreWord;
+  String get homeStoreWord => _overrides['homeStoreWord'] ?? super.homeStoreWord;
 
   @override
-  String get homeFeatureRewards =>
-      _overrides['homeFeatureRewards'] ?? super.homeFeatureRewards;
+  String get homeFeatureRewards => _overrides['homeFeatureRewards'] ?? super.homeFeatureRewards;
 
   @override
-  String get homeBackToHome =>
-      _overrides['homeBackToHome'] ?? super.homeBackToHome;
+  String get homeBackToHome => _overrides['homeBackToHome'] ?? super.homeBackToHome;
 
   @override
-  String get homeContactSupport =>
-      _overrides['homeContactSupport'] ?? super.homeContactSupport;
+  String get homeContactSupport => _overrides['homeContactSupport'] ?? super.homeContactSupport;
 
   @override
-  String get homeNoInternet =>
-      _overrides['homeNoInternet'] ?? super.homeNoInternet;
+  String get homeNoInternet => _overrides['homeNoInternet'] ?? super.homeNoInternet;
 
   @override
-  String get homeCheckConnection =>
-      _overrides['homeCheckConnection'] ?? super.homeCheckConnection;
+  String get homeCheckConnection => _overrides['homeCheckConnection'] ?? super.homeCheckConnection;
 
   @override
-  String get homeServerSlow =>
-      _overrides['homeServerSlow'] ?? super.homeServerSlow;
+  String get homeServerSlow => _overrides['homeServerSlow'] ?? super.homeServerSlow;
 
   @override
-  String get homeColdStart =>
-      _overrides['homeColdStart'] ?? super.homeColdStart;
+  String get homeColdStart => _overrides['homeColdStart'] ?? super.homeColdStart;
 
   @override
-  String get homeCouldntLoadStores =>
-      _overrides['homeCouldntLoadStores'] ?? super.homeCouldntLoadStores;
+  String get homeCouldntLoadStores => _overrides['homeCouldntLoadStores'] ?? super.homeCouldntLoadStores;
 
   @override
-  String get homePleaseTryAgain =>
-      _overrides['homePleaseTryAgain'] ?? super.homePleaseTryAgain;
+  String get homePleaseTryAgain => _overrides['homePleaseTryAgain'] ?? super.homePleaseTryAgain;
 
   @override
-  String get homeCouldntLoadPage =>
-      _overrides['homeCouldntLoadPage'] ?? super.homeCouldntLoadPage;
+  String get homeCouldntLoadPage => _overrides['homeCouldntLoadPage'] ?? super.homeCouldntLoadPage;
 
   @override
   String get commonRetry => _overrides['commonRetry'] ?? super.commonRetry;
 
   @override
-  String get commonTryAgain =>
-      _overrides['commonTryAgain'] ?? super.commonTryAgain;
+  String get commonTryAgain => _overrides['commonTryAgain'] ?? super.commonTryAgain;
 
   @override
-  String get homePromoTitle =>
-      _overrides['homePromoTitle'] ?? super.homePromoTitle;
+  String get homePromoTitle => _overrides['homePromoTitle'] ?? super.homePromoTitle;
 
   @override
-  String get homePromoSubtitle =>
-      _overrides['homePromoSubtitle'] ?? super.homePromoSubtitle;
+  String get homePromoSubtitle => _overrides['homePromoSubtitle'] ?? super.homePromoSubtitle;
 
   @override
   String get timeAm => _overrides['timeAm'] ?? super.timeAm;
@@ -595,148 +474,113 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String storeClosesAt(String time) {
     final t = _overrides['storeClosesAt'];
-    return t == null
-        ? super.storeClosesAt(time)
-        : fillRemoteTemplate(t, <String, String>{'time': time});
+    return t == null ? super.storeClosesAt(time) : fillRemoteTemplate(t, <String, String>{'time': time});
   }
 
   @override
   String storeOpensAt(String time) {
     final t = _overrides['storeOpensAt'];
-    return t == null
-        ? super.storeOpensAt(time)
-        : fillRemoteTemplate(t, <String, String>{'time': time});
+    return t == null ? super.storeOpensAt(time) : fillRemoteTemplate(t, <String, String>{'time': time});
   }
 
   @override
-  String get badgeJustOpened =>
-      _overrides['badgeJustOpened'] ?? super.badgeJustOpened;
+  String get badgeJustOpened => _overrides['badgeJustOpened'] ?? super.badgeJustOpened;
 
   @override
-  String get badgeNewlyAdded =>
-      _overrides['badgeNewlyAdded'] ?? super.badgeNewlyAdded;
+  String get badgeNewlyAdded => _overrides['badgeNewlyAdded'] ?? super.badgeNewlyAdded;
 
   @override
-  String get badgeNewlyOpened =>
-      _overrides['badgeNewlyOpened'] ?? super.badgeNewlyOpened;
+  String get badgeNewlyOpened => _overrides['badgeNewlyOpened'] ?? super.badgeNewlyOpened;
 
   @override
-  String get badgeTrending =>
-      _overrides['badgeTrending'] ?? super.badgeTrending;
+  String get badgeTrending => _overrides['badgeTrending'] ?? super.badgeTrending;
 
   @override
   String get badgePopular => _overrides['badgePopular'] ?? super.badgePopular;
 
   @override
-  String get badgeTopRated =>
-      _overrides['badgeTopRated'] ?? super.badgeTopRated;
+  String get badgeTopRated => _overrides['badgeTopRated'] ?? super.badgeTopRated;
 
   @override
-  String get badgeMustVisit =>
-      _overrides['badgeMustVisit'] ?? super.badgeMustVisit;
+  String get badgeMustVisit => _overrides['badgeMustVisit'] ?? super.badgeMustVisit;
 
   @override
-  String get badgeLimitedOffer =>
-      _overrides['badgeLimitedOffer'] ?? super.badgeLimitedOffer;
+  String get badgeLimitedOffer => _overrides['badgeLimitedOffer'] ?? super.badgeLimitedOffer;
 
   @override
-  String get homeLoginRequiredTitle =>
-      _overrides['homeLoginRequiredTitle'] ?? super.homeLoginRequiredTitle;
+  String get homeLoginRequiredTitle => _overrides['homeLoginRequiredTitle'] ?? super.homeLoginRequiredTitle;
 
   @override
   String homeLoginRequiredBody(String feature) {
     final t = _overrides['homeLoginRequiredBody'];
-    return t == null
-        ? super.homeLoginRequiredBody(feature)
-        : fillRemoteTemplate(t, <String, String>{'feature': feature});
+    return t == null ? super.homeLoginRequiredBody(feature) : fillRemoteTemplate(t, <String, String>{'feature': feature});
   }
 
   @override
-  String get homeLoginRegister =>
-      _overrides['homeLoginRegister'] ?? super.homeLoginRegister;
+  String get homeLoginRegister => _overrides['homeLoginRegister'] ?? super.homeLoginRegister;
 
   @override
-  String get homeMaybeLater =>
-      _overrides['homeMaybeLater'] ?? super.homeMaybeLater;
+  String get homeMaybeLater => _overrides['homeMaybeLater'] ?? super.homeMaybeLater;
 
   @override
-  String get homeUnableToConnect =>
-      _overrides['homeUnableToConnect'] ?? super.homeUnableToConnect;
+  String get homeUnableToConnect => _overrides['homeUnableToConnect'] ?? super.homeUnableToConnect;
 
   @override
-  String get homeRefreshFailed =>
-      _overrides['homeRefreshFailed'] ?? super.homeRefreshFailed;
+  String get homeRefreshFailed => _overrides['homeRefreshFailed'] ?? super.homeRefreshFailed;
 
   @override
-  String get profileFavourites =>
-      _overrides['profileFavourites'] ?? super.profileFavourites;
+  String get profileFavourites => _overrides['profileFavourites'] ?? super.profileFavourites;
 
   @override
-  String get profileFavouritesNote =>
-      _overrides['profileFavouritesNote'] ?? super.profileFavouritesNote;
+  String get profileFavouritesNote => _overrides['profileFavouritesNote'] ?? super.profileFavouritesNote;
 
   @override
-  String get profileRewardsNote =>
-      _overrides['profileRewardsNote'] ?? super.profileRewardsNote;
+  String get profileRewardsNote => _overrides['profileRewardsNote'] ?? super.profileRewardsNote;
 
   @override
-  String get profileScanHistory =>
-      _overrides['profileScanHistory'] ?? super.profileScanHistory;
+  String get profileScanHistory => _overrides['profileScanHistory'] ?? super.profileScanHistory;
 
   @override
-  String get profileScanHistoryNote =>
-      _overrides['profileScanHistoryNote'] ?? super.profileScanHistoryNote;
+  String get profileScanHistoryNote => _overrides['profileScanHistoryNote'] ?? super.profileScanHistoryNote;
 
   @override
-  String get profileNotifications =>
-      _overrides['profileNotifications'] ?? super.profileNotifications;
+  String get profileNotifications => _overrides['profileNotifications'] ?? super.profileNotifications;
 
   @override
-  String get profileNotificationsNote =>
-      _overrides['profileNotificationsNote'] ?? super.profileNotificationsNote;
+  String get profileNotificationsNote => _overrides['profileNotificationsNote'] ?? super.profileNotificationsNote;
 
   @override
-  String get profileSwitchMode =>
-      _overrides['profileSwitchMode'] ?? super.profileSwitchMode;
+  String get profileSwitchMode => _overrides['profileSwitchMode'] ?? super.profileSwitchMode;
 
   @override
-  String get profileSwitchModeNote =>
-      _overrides['profileSwitchModeNote'] ?? super.profileSwitchModeNote;
+  String get profileSwitchModeNote => _overrides['profileSwitchModeNote'] ?? super.profileSwitchModeNote;
 
   @override
-  String get profileContact =>
-      _overrides['profileContact'] ?? super.profileContact;
+  String get profileContact => _overrides['profileContact'] ?? super.profileContact;
 
   @override
-  String get profileContactNote =>
-      _overrides['profileContactNote'] ?? super.profileContactNote;
+  String get profileContactNote => _overrides['profileContactNote'] ?? super.profileContactNote;
 
   @override
-  String get profileAboutUs =>
-      _overrides['profileAboutUs'] ?? super.profileAboutUs;
+  String get profileAboutUs => _overrides['profileAboutUs'] ?? super.profileAboutUs;
 
   @override
-  String get profileAboutFallback =>
-      _overrides['profileAboutFallback'] ?? super.profileAboutFallback;
+  String get profileAboutFallback => _overrides['profileAboutFallback'] ?? super.profileAboutFallback;
 
   @override
   String get profileTerms => _overrides['profileTerms'] ?? super.profileTerms;
 
   @override
-  String get profilePrivacy =>
-      _overrides['profilePrivacy'] ?? super.profilePrivacy;
+  String get profilePrivacy => _overrides['profilePrivacy'] ?? super.profilePrivacy;
 
   @override
-  String get profilePrivacyNote =>
-      _overrides['profilePrivacyNote'] ?? super.profilePrivacyNote;
+  String get profilePrivacyNote => _overrides['profilePrivacyNote'] ?? super.profilePrivacyNote;
 
   @override
-  String get profileRefund =>
-      _overrides['profileRefund'] ?? super.profileRefund;
+  String get profileRefund => _overrides['profileRefund'] ?? super.profileRefund;
 
   @override
-  String get profileLogout =>
-      _overrides['profileLogout'] ?? super.profileLogout;
+  String get profileLogout => _overrides['profileLogout'] ?? super.profileLogout;
 
   @override
   String get commonCancel => _overrides['commonCancel'] ?? super.commonCancel;
@@ -748,168 +592,127 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get commonAll => _overrides['commonAll'] ?? super.commonAll;
 
   @override
-  String get notifClearTitle =>
-      _overrides['notifClearTitle'] ?? super.notifClearTitle;
+  String get notifClearTitle => _overrides['notifClearTitle'] ?? super.notifClearTitle;
 
   @override
-  String get notifClearBody =>
-      _overrides['notifClearBody'] ?? super.notifClearBody;
+  String get notifClearBody => _overrides['notifClearBody'] ?? super.notifClearBody;
 
   @override
-  String get notifClearAll =>
-      _overrides['notifClearAll'] ?? super.notifClearAll;
+  String get notifClearAll => _overrides['notifClearAll'] ?? super.notifClearAll;
 
   @override
-  String get notifEmptyTitle =>
-      _overrides['notifEmptyTitle'] ?? super.notifEmptyTitle;
+  String get notifEmptyTitle => _overrides['notifEmptyTitle'] ?? super.notifEmptyTitle;
 
   @override
-  String get notifEmptyBody =>
-      _overrides['notifEmptyBody'] ?? super.notifEmptyBody;
+  String get notifEmptyBody => _overrides['notifEmptyBody'] ?? super.notifEmptyBody;
 
   @override
-  String get timeAgoJustNow =>
-      _overrides['timeAgoJustNow'] ?? super.timeAgoJustNow;
+  String get timeAgoJustNow => _overrides['timeAgoJustNow'] ?? super.timeAgoJustNow;
 
   @override
   String timeAgoMinutes(String n) {
     final t = _overrides['timeAgoMinutes'];
-    return t == null
-        ? super.timeAgoMinutes(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.timeAgoMinutes(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String timeAgoHours(String n) {
     final t = _overrides['timeAgoHours'];
-    return t == null
-        ? super.timeAgoHours(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.timeAgoHours(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String timeAgoDays(String n) {
     final t = _overrides['timeAgoDays'];
-    return t == null
-        ? super.timeAgoDays(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.timeAgoDays(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String timeAgoWeeks(String n) {
     final t = _overrides['timeAgoWeeks'];
-    return t == null
-        ? super.timeAgoWeeks(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.timeAgoWeeks(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String searchStoresIn(String city) {
     final t = _overrides['searchStoresIn'];
-    return t == null
-        ? super.searchStoresIn(city)
-        : fillRemoteTemplate(t, <String, String>{'city': city});
+    return t == null ? super.searchStoresIn(city) : fillRemoteTemplate(t, <String, String>{'city': city});
   }
 
   @override
   String searchNoResults(String q) {
     final t = _overrides['searchNoResults'];
-    return t == null
-        ? super.searchNoResults(q)
-        : fillRemoteTemplate(t, <String, String>{'q': q});
+    return t == null ? super.searchNoResults(q) : fillRemoteTemplate(t, <String, String>{'q': q});
   }
 
   @override
   String searchNoResultsDq(String q) {
     final t = _overrides['searchNoResultsDq'];
-    return t == null
-        ? super.searchNoResultsDq(q)
-        : fillRemoteTemplate(t, <String, String>{'q': q});
+    return t == null ? super.searchNoResultsDq(q) : fillRemoteTemplate(t, <String, String>{'q': q});
   }
 
   @override
-  String get searchNoStores =>
-      _overrides['searchNoStores'] ?? super.searchNoStores;
+  String get searchNoStores => _overrides['searchNoStores'] ?? super.searchNoStores;
 
   @override
-  String get searchStoreAreaOffer =>
-      _overrides['searchStoreAreaOffer'] ?? super.searchStoreAreaOffer;
+  String get searchStoreAreaOffer => _overrides['searchStoreAreaOffer'] ?? super.searchStoreAreaOffer;
 
   @override
   String catSearchStores(String category) {
     final t = _overrides['catSearchStores'];
-    return t == null
-        ? super.catSearchStores(category)
-        : fillRemoteTemplate(t, <String, String>{'category': category});
+    return t == null ? super.catSearchStores(category) : fillRemoteTemplate(t, <String, String>{'category': category});
   }
 
   @override
   String catNoStoresFound(String category) {
     final t = _overrides['catNoStoresFound'];
-    return t == null
-        ? super.catNoStoresFound(category)
-        : fillRemoteTemplate(t, <String, String>{'category': category});
+    return t == null ? super.catNoStoresFound(category) : fillRemoteTemplate(t, <String, String>{'category': category});
   }
 
   @override
   String catFoundButNone(String count, String category) {
     final t = _overrides['catFoundButNone'];
-    return t == null
-        ? super.catFoundButNone(count, category)
-        : fillRemoteTemplate(
-            t, <String, String>{'count': count, 'category': category});
+    return t == null ? super.catFoundButNone(count, category) : fillRemoteTemplate(t, <String, String>{'count': count, 'category': category});
   }
 
   @override
   String catCategoriesFound(String list) {
     final t = _overrides['catCategoriesFound'];
-    return t == null
-        ? super.catCategoriesFound(list)
-        : fillRemoteTemplate(t, <String, String>{'list': list});
+    return t == null ? super.catCategoriesFound(list) : fillRemoteTemplate(t, <String, String>{'list': list});
   }
 
   @override
-  String get catCategoriesTitle =>
-      _overrides['catCategoriesTitle'] ?? super.catCategoriesTitle;
+  String get catCategoriesTitle => _overrides['catCategoriesTitle'] ?? super.catCategoriesTitle;
 
   @override
-  String get catSearchCategories =>
-      _overrides['catSearchCategories'] ?? super.catSearchCategories;
+  String get catSearchCategories => _overrides['catSearchCategories'] ?? super.catSearchCategories;
 
   @override
-  String get catNoCategories =>
-      _overrides['catNoCategories'] ?? super.catNoCategories;
+  String get catNoCategories => _overrides['catNoCategories'] ?? super.catNoCategories;
 
   @override
-  String get catAllCategories =>
-      _overrides['catAllCategories'] ?? super.catAllCategories;
+  String get catAllCategories => _overrides['catAllCategories'] ?? super.catAllCategories;
 
   @override
-  String get dealsEndingSoon =>
-      _overrides['dealsEndingSoon'] ?? super.dealsEndingSoon;
+  String get dealsEndingSoon => _overrides['dealsEndingSoon'] ?? super.dealsEndingSoon;
 
   @override
   String get dealExpired => _overrides['dealExpired'] ?? super.dealExpired;
 
   @override
-  String get dealEndsInOneDay =>
-      _overrides['dealEndsInOneDay'] ?? super.dealEndsInOneDay;
+  String get dealEndsInOneDay => _overrides['dealEndsInOneDay'] ?? super.dealEndsInOneDay;
 
   @override
   String dealEndsInDays(String days) {
     final t = _overrides['dealEndsInDays'];
-    return t == null
-        ? super.dealEndsInDays(days)
-        : fillRemoteTemplate(t, <String, String>{'days': days});
+    return t == null ? super.dealEndsInDays(days) : fillRemoteTemplate(t, <String, String>{'days': days});
   }
 
   @override
-  String get dealLocalBadge =>
-      _overrides['dealLocalBadge'] ?? super.dealLocalBadge;
+  String get dealLocalBadge => _overrides['dealLocalBadge'] ?? super.dealLocalBadge;
 
   @override
-  String get dealAvailableInStore =>
-      _overrides['dealAvailableInStore'] ?? super.dealAvailableInStore;
+  String get dealAvailableInStore => _overrides['dealAvailableInStore'] ?? super.dealAvailableInStore;
 
   @override
   String get dealsEyebrow => _overrides['dealsEyebrow'] ?? super.dealsEyebrow;
@@ -920,25 +723,20 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String dealsSubtitleCity(String city) {
     final t = _overrides['dealsSubtitleCity'];
-    return t == null
-        ? super.dealsSubtitleCity(city)
-        : fillRemoteTemplate(t, <String, String>{'city': city});
+    return t == null ? super.dealsSubtitleCity(city) : fillRemoteTemplate(t, <String, String>{'city': city});
   }
 
   @override
-  String get dealsSubtitleNearby =>
-      _overrides['dealsSubtitleNearby'] ?? super.dealsSubtitleNearby;
+  String get dealsSubtitleNearby => _overrides['dealsSubtitleNearby'] ?? super.dealsSubtitleNearby;
 
   @override
   String get dealsSearch => _overrides['dealsSearch'] ?? super.dealsSearch;
 
   @override
-  String get dealsThisWeek =>
-      _overrides['dealsThisWeek'] ?? super.dealsThisWeek;
+  String get dealsThisWeek => _overrides['dealsThisWeek'] ?? super.dealsThisWeek;
 
   @override
-  String get dealsNoneActive =>
-      _overrides['dealsNoneActive'] ?? super.dealsNoneActive;
+  String get dealsNoneActive => _overrides['dealsNoneActive'] ?? super.dealsNoneActive;
 
   @override
   String get dealsNoMatch => _overrides['dealsNoMatch'] ?? super.dealsNoMatch;
@@ -955,33 +753,26 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String areaSearchIn(String area) {
     final t = _overrides['areaSearchIn'];
-    return t == null
-        ? super.areaSearchIn(area)
-        : fillRemoteTemplate(t, <String, String>{'area': area});
+    return t == null ? super.areaSearchIn(area) : fillRemoteTemplate(t, <String, String>{'area': area});
   }
 
   @override
   String areaStoresOne(String area) {
     final t = _overrides['areaStoresOne'];
-    return t == null
-        ? super.areaStoresOne(area)
-        : fillRemoteTemplate(t, <String, String>{'area': area});
+    return t == null ? super.areaStoresOne(area) : fillRemoteTemplate(t, <String, String>{'area': area});
   }
 
   @override
   String areaStoresMany(String count, String area) {
     final t = _overrides['areaStoresMany'];
-    return t == null
-        ? super.areaStoresMany(count, area)
-        : fillRemoteTemplate(t, <String, String>{'count': count, 'area': area});
+    return t == null ? super.areaStoresMany(count, area) : fillRemoteTemplate(t, <String, String>{'count': count, 'area': area});
   }
 
   @override
   String get areaNoStores => _overrides['areaNoStores'] ?? super.areaNoStores;
 
   @override
-  String get storeSeeAllStores =>
-      _overrides['storeSeeAllStores'] ?? super.storeSeeAllStores;
+  String get storeSeeAllStores => _overrides['storeSeeAllStores'] ?? super.storeSeeAllStores;
 
   @override
   String get unitMeter => _overrides['unitMeter'] ?? super.unitMeter;
@@ -992,52 +783,41 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String ptsOnVisit(String points) {
     final t = _overrides['ptsOnVisit'];
-    return t == null
-        ? super.ptsOnVisit(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.ptsOnVisit(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
-  String get storeOpenNowCaps =>
-      _overrides['storeOpenNowCaps'] ?? super.storeOpenNowCaps;
+  String get storeOpenNowCaps => _overrides['storeOpenNowCaps'] ?? super.storeOpenNowCaps;
 
   @override
-  String get badgeNewStore =>
-      _overrides['badgeNewStore'] ?? super.badgeNewStore;
+  String get badgeNewStore => _overrides['badgeNewStore'] ?? super.badgeNewStore;
 
   @override
   String offSuffix(String amount) {
     final t = _overrides['offSuffix'];
-    return t == null
-        ? super.offSuffix(amount)
-        : fillRemoteTemplate(t, <String, String>{'amount': amount});
+    return t == null ? super.offSuffix(amount) : fillRemoteTemplate(t, <String, String>{'amount': amount});
   }
 
   @override
-  String get prodTitleFallback =>
-      _overrides['prodTitleFallback'] ?? super.prodTitleFallback;
+  String get prodTitleFallback => _overrides['prodTitleFallback'] ?? super.prodTitleFallback;
 
   @override
   String get prodListedBy => _overrides['prodListedBy'] ?? super.prodListedBy;
 
   @override
-  String get prodViewStore =>
-      _overrides['prodViewStore'] ?? super.prodViewStore;
+  String get prodViewStore => _overrides['prodViewStore'] ?? super.prodViewStore;
 
   @override
-  String get prodStoreInactive =>
-      _overrides['prodStoreInactive'] ?? super.prodStoreInactive;
+  String get prodStoreInactive => _overrides['prodStoreInactive'] ?? super.prodStoreInactive;
 
   @override
   String get prodDetails => _overrides['prodDetails'] ?? super.prodDetails;
 
   @override
-  String get prodRateReview =>
-      _overrides['prodRateReview'] ?? super.prodRateReview;
+  String get prodRateReview => _overrides['prodRateReview'] ?? super.prodRateReview;
 
   @override
-  String get prodTapToRate =>
-      _overrides['prodTapToRate'] ?? super.prodTapToRate;
+  String get prodTapToRate => _overrides['prodTapToRate'] ?? super.prodTapToRate;
 
   @override
   String get ratingPoor => _overrides['ratingPoor'] ?? super.ratingPoor;
@@ -1052,40 +832,31 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get ratingGreat => _overrides['ratingGreat'] ?? super.ratingGreat;
 
   @override
-  String get ratingExcellent =>
-      _overrides['ratingExcellent'] ?? super.ratingExcellent;
+  String get ratingExcellent => _overrides['ratingExcellent'] ?? super.ratingExcellent;
 
   @override
-  String get prodShareExperience =>
-      _overrides['prodShareExperience'] ?? super.prodShareExperience;
+  String get prodShareExperience => _overrides['prodShareExperience'] ?? super.prodShareExperience;
 
   @override
-  String get prodSubmitReview =>
-      _overrides['prodSubmitReview'] ?? super.prodSubmitReview;
+  String get prodSubmitReview => _overrides['prodSubmitReview'] ?? super.prodSubmitReview;
 
   @override
-  String get prodThanksReview =>
-      _overrides['prodThanksReview'] ?? super.prodThanksReview;
+  String get prodThanksReview => _overrides['prodThanksReview'] ?? super.prodThanksReview;
 
   @override
-  String get reviewLoginRequired =>
-      _overrides['reviewLoginRequired'] ?? super.reviewLoginRequired;
+  String get reviewLoginRequired => _overrides['reviewLoginRequired'] ?? super.reviewLoginRequired;
 
   @override
-  String get reviewSubmitted =>
-      _overrides['reviewSubmitted'] ?? super.reviewSubmitted;
+  String get reviewSubmitted => _overrides['reviewSubmitted'] ?? super.reviewSubmitted;
 
   @override
-  String get reviewSessionExpired =>
-      _overrides['reviewSessionExpired'] ?? super.reviewSessionExpired;
+  String get reviewSessionExpired => _overrides['reviewSessionExpired'] ?? super.reviewSessionExpired;
 
   @override
-  String get prodAllProducts =>
-      _overrides['prodAllProducts'] ?? super.prodAllProducts;
+  String get prodAllProducts => _overrides['prodAllProducts'] ?? super.prodAllProducts;
 
   @override
-  String get prodNoProducts =>
-      _overrides['prodNoProducts'] ?? super.prodNoProducts;
+  String get prodNoProducts => _overrides['prodNoProducts'] ?? super.prodNoProducts;
 
   @override
   String get prodSearch => _overrides['prodSearch'] ?? super.prodSearch;
@@ -1093,14 +864,11 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String prodSeller(String name) {
     final t = _overrides['prodSeller'];
-    return t == null
-        ? super.prodSeller(name)
-        : fillRemoteTemplate(t, <String, String>{'name': name});
+    return t == null ? super.prodSeller(name) : fillRemoteTemplate(t, <String, String>{'name': name});
   }
 
   @override
-  String get prodBestSeller =>
-      _overrides['prodBestSeller'] ?? super.prodBestSeller;
+  String get prodBestSeller => _overrides['prodBestSeller'] ?? super.prodBestSeller;
 
   @override
   String get monthJan => _overrides['monthJan'] ?? super.monthJan;
@@ -1148,27 +916,22 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get errTimeout => _overrides['errTimeout'] ?? super.errTimeout;
 
   @override
-  String get errUnavailable =>
-      _overrides['errUnavailable'] ?? super.errUnavailable;
+  String get errUnavailable => _overrides['errUnavailable'] ?? super.errUnavailable;
 
   @override
   String get errSession => _overrides['errSession'] ?? super.errSession;
 
   @override
-  String get errApiNetwork =>
-      _overrides['errApiNetwork'] ?? super.errApiNetwork;
+  String get errApiNetwork => _overrides['errApiNetwork'] ?? super.errApiNetwork;
 
   @override
-  String get errApiUnexpected =>
-      _overrides['errApiUnexpected'] ?? super.errApiUnexpected;
+  String get errApiUnexpected => _overrides['errApiUnexpected'] ?? super.errApiUnexpected;
 
   @override
-  String get profileGuestName =>
-      _overrides['profileGuestName'] ?? super.profileGuestName;
+  String get profileGuestName => _overrides['profileGuestName'] ?? super.profileGuestName;
 
   @override
-  String get profileSupportNote =>
-      _overrides['profileSupportNote'] ?? super.profileSupportNote;
+  String get profileSupportNote => _overrides['profileSupportNote'] ?? super.profileSupportNote;
 
   @override
   String get favEyebrow => _overrides['favEyebrow'] ?? super.favEyebrow;
@@ -1179,14 +942,11 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String favPlacesMany(String count) {
     final t = _overrides['favPlacesMany'];
-    return t == null
-        ? super.favPlacesMany(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.favPlacesMany(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
-  String get favEmptyTitle =>
-      _overrides['favEmptyTitle'] ?? super.favEmptyTitle;
+  String get favEmptyTitle => _overrides['favEmptyTitle'] ?? super.favEmptyTitle;
 
   @override
   String get favEmptyBody => _overrides['favEmptyBody'] ?? super.favEmptyBody;
@@ -1198,15 +958,13 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get qrInvalid => _overrides['qrInvalid'] ?? super.qrInvalid;
 
   @override
-  String get qrPointsAdded =>
-      _overrides['qrPointsAdded'] ?? super.qrPointsAdded;
+  String get qrPointsAdded => _overrides['qrPointsAdded'] ?? super.qrPointsAdded;
 
   @override
   String get qrDone => _overrides['qrDone'] ?? super.qrDone;
 
   @override
-  String get qrRefreshedNote =>
-      _overrides['qrRefreshedNote'] ?? super.qrRefreshedNote;
+  String get qrRefreshedNote => _overrides['qrRefreshedNote'] ?? super.qrRefreshedNote;
 
   @override
   String get qrGreat => _overrides['qrGreat'] ?? super.qrGreat;
@@ -1215,15 +973,12 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get qrPointAt => _overrides['qrPointAt'] ?? super.qrPointAt;
 
   @override
-  String get exploreYourCity =>
-      _overrides['exploreYourCity'] ?? super.exploreYourCity;
+  String get exploreYourCity => _overrides['exploreYourCity'] ?? super.exploreYourCity;
 
   @override
   String exploreDiscover(String city) {
     final t = _overrides['exploreDiscover'];
-    return t == null
-        ? super.exploreDiscover(city)
-        : fillRemoteTemplate(t, <String, String>{'city': city});
+    return t == null ? super.exploreDiscover(city) : fillRemoteTemplate(t, <String, String>{'city': city});
   }
 
   @override
@@ -1233,79 +988,60 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get exploreDesc => _overrides['exploreDesc'] ?? super.exploreDesc;
 
   @override
-  String get exploreSearchHint =>
-      _overrides['exploreSearchHint'] ?? super.exploreSearchHint;
+  String get exploreSearchHint => _overrides['exploreSearchHint'] ?? super.exploreSearchHint;
 
   @override
-  String get exploreSearchNote =>
-      _overrides['exploreSearchNote'] ?? super.exploreSearchNote;
+  String get exploreSearchNote => _overrides['exploreSearchNote'] ?? super.exploreSearchNote;
 
   @override
-  String get exploreByArea =>
-      _overrides['exploreByArea'] ?? super.exploreByArea;
+  String get exploreByArea => _overrides['exploreByArea'] ?? super.exploreByArea;
 
   @override
   String exploreNeighbourhoodsIn(String city) {
     final t = _overrides['exploreNeighbourhoodsIn'];
-    return t == null
-        ? super.exploreNeighbourhoodsIn(city)
-        : fillRemoteTemplate(t, <String, String>{'city': city});
+    return t == null ? super.exploreNeighbourhoodsIn(city) : fillRemoteTemplate(t, <String, String>{'city': city});
   }
 
   @override
-  String get exploreAroundYou =>
-      _overrides['exploreAroundYou'] ?? super.exploreAroundYou;
+  String get exploreAroundYou => _overrides['exploreAroundYou'] ?? super.exploreAroundYou;
 
   @override
-  String get exploreNeighbourhood =>
-      _overrides['exploreNeighbourhood'] ?? super.exploreNeighbourhood;
+  String get exploreNeighbourhood => _overrides['exploreNeighbourhood'] ?? super.exploreNeighbourhood;
 
   @override
-  String get explorePlacesOne =>
-      _overrides['explorePlacesOne'] ?? super.explorePlacesOne;
+  String get explorePlacesOne => _overrides['explorePlacesOne'] ?? super.explorePlacesOne;
 
   @override
   String explorePlacesMany(String count) {
     final t = _overrides['explorePlacesMany'];
-    return t == null
-        ? super.explorePlacesMany(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.explorePlacesMany(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
   String exploreStoresInArea(String area) {
     final t = _overrides['exploreStoresInArea'];
-    return t == null
-        ? super.exploreStoresInArea(area)
-        : fillRemoteTemplate(t, <String, String>{'area': area});
+    return t == null ? super.exploreStoresInArea(area) : fillRemoteTemplate(t, <String, String>{'area': area});
   }
 
   @override
-  String get exploreNoMatchTitle =>
-      _overrides['exploreNoMatchTitle'] ?? super.exploreNoMatchTitle;
+  String get exploreNoMatchTitle => _overrides['exploreNoMatchTitle'] ?? super.exploreNoMatchTitle;
 
   @override
-  String get exploreNoMatchBody =>
-      _overrides['exploreNoMatchBody'] ?? super.exploreNoMatchBody;
+  String get exploreNoMatchBody => _overrides['exploreNoMatchBody'] ?? super.exploreNoMatchBody;
 
   @override
   String exploreOffer(String offer) {
     final t = _overrides['exploreOffer'];
-    return t == null
-        ? super.exploreOffer(offer)
-        : fillRemoteTemplate(t, <String, String>{'offer': offer});
+    return t == null ? super.exploreOffer(offer) : fillRemoteTemplate(t, <String, String>{'offer': offer});
   }
 
   @override
-  String get exploreStoreOne =>
-      _overrides['exploreStoreOne'] ?? super.exploreStoreOne;
+  String get exploreStoreOne => _overrides['exploreStoreOne'] ?? super.exploreStoreOne;
 
   @override
   String exploreStoreMany(String count) {
     final t = _overrides['exploreStoreMany'];
-    return t == null
-        ? super.exploreStoreMany(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.exploreStoreMany(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
@@ -1315,94 +1051,85 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get walletBadge => _overrides['walletBadge'] ?? super.walletBadge;
 
   @override
-  String get walletBalance =>
-      _overrides['walletBalance'] ?? super.walletBalance;
+  String get walletBalance => _overrides['walletBalance'] ?? super.walletBalance;
 
   @override
-  String get walletPointsWord =>
-      _overrides['walletPointsWord'] ?? super.walletPointsWord;
+  String get walletPointsWord => _overrides['walletPointsWord'] ?? super.walletPointsWord;
 
   @override
   String get walletRedeem => _overrides['walletRedeem'] ?? super.walletRedeem;
 
   @override
-  String walletVoucherRate(String points) {
+  String walletVoucherRate(String points, String amount) {
     final t = _overrides['walletVoucherRate'];
-    return t == null
-        ? super.walletVoucherRate(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.walletVoucherRate(points, amount) : fillRemoteTemplate(t, <String, String>{'points': points, 'amount': amount});
   }
 
   @override
-  String get walletReadyToRedeem =>
-      _overrides['walletReadyToRedeem'] ?? super.walletReadyToRedeem;
+  String get walletReadyToRedeem => _overrides['walletReadyToRedeem'] ?? super.walletReadyToRedeem;
 
   @override
   String walletToGo(String points) {
     final t = _overrides['walletToGo'];
-    return t == null
-        ? super.walletToGo(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.walletToGo(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
   String walletPtsOnly(String points) {
     final t = _overrides['walletPtsOnly'];
-    return t == null
-        ? super.walletPtsOnly(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.walletPtsOnly(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
-  String get walletVoucherDesc =>
-      _overrides['walletVoucherDesc'] ?? super.walletVoucherDesc;
+  String get walletVoucherDesc => _overrides['walletVoucherDesc'] ?? super.walletVoucherDesc;
+
+  @override
+  String walletVoucherDescPartners(String partners) {
+    final t = _overrides['walletVoucherDescPartners'];
+    return t == null ? super.walletVoucherDescPartners(partners) : fillRemoteTemplate(t, <String, String>{'partners': partners});
+  }
+
+  @override
+  String get walletRewardsUnavailable => _overrides['walletRewardsUnavailable'] ?? super.walletRewardsUnavailable;
 
   @override
   String walletEarnMore(String points) {
     final t = _overrides['walletEarnMore'];
-    return t == null
-        ? super.walletEarnMore(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.walletEarnMore(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
-  String get walletHowTitle =>
-      _overrides['walletHowTitle'] ?? super.walletHowTitle;
+  String get walletHowTitle => _overrides['walletHowTitle'] ?? super.walletHowTitle;
 
   @override
-  String get walletHowLine1 =>
-      _overrides['walletHowLine1'] ?? super.walletHowLine1;
+  String walletHowLine1(String points, String amount) {
+    final t = _overrides['walletHowLine1'];
+    return t == null ? super.walletHowLine1(points, amount) : fillRemoteTemplate(t, <String, String>{'points': points, 'amount': amount});
+  }
 
   @override
-  String get walletHowLine2 =>
-      _overrides['walletHowLine2'] ?? super.walletHowLine2;
+  String get walletHowLine2 => _overrides['walletHowLine2'] ?? super.walletHowLine2;
 
   @override
-  String get walletHowLine3 =>
-      _overrides['walletHowLine3'] ?? super.walletHowLine3;
+  String get walletHowLine3 => _overrides['walletHowLine3'] ?? super.walletHowLine3;
 
   @override
-  String get walletHowDisclaimer =>
-      _overrides['walletHowDisclaimer'] ?? super.walletHowDisclaimer;
+  String get walletHowDisclaimer => _overrides['walletHowDisclaimer'] ?? super.walletHowDisclaimer;
 
   @override
   String get walletRecent => _overrides['walletRecent'] ?? super.walletRecent;
 
   @override
-  String get walletNoScansHint =>
-      _overrides['walletNoScansHint'] ?? super.walletNoScansHint;
+  String get walletNoScansHint => _overrides['walletNoScansHint'] ?? super.walletNoScansHint;
 
   @override
   String walletEarnedOn(String date) {
     final t = _overrides['walletEarnedOn'];
-    return t == null
-        ? super.walletEarnedOn(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.walletEarnedOn(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
-  String get walletEyebrow =>
-      _overrides['walletEyebrow'] ?? super.walletEyebrow;
+  String get walletEyebrow => _overrides['walletEyebrow'] ?? super.walletEyebrow;
 
   @override
   String get walletTitle => _overrides['walletTitle'] ?? super.walletTitle;
@@ -1411,196 +1138,151 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get walletDesc => _overrides['walletDesc'] ?? super.walletDesc;
 
   @override
-  String get walletVouchersEyebrow =>
-      _overrides['walletVouchersEyebrow'] ?? super.walletVouchersEyebrow;
+  String get walletVouchersEyebrow => _overrides['walletVouchersEyebrow'] ?? super.walletVouchersEyebrow;
 
   @override
-  String get walletVouchersTitle =>
-      _overrides['walletVouchersTitle'] ?? super.walletVouchersTitle;
+  String get walletVouchersTitle => _overrides['walletVouchersTitle'] ?? super.walletVouchersTitle;
 
   @override
-  String get walletViewHistory =>
-      _overrides['walletViewHistory'] ?? super.walletViewHistory;
+  String get walletViewHistory => _overrides['walletViewHistory'] ?? super.walletViewHistory;
 
   @override
-  String get scanHistoryTitle =>
-      _overrides['scanHistoryTitle'] ?? super.scanHistoryTitle;
+  String get scanHistoryTitle => _overrides['scanHistoryTitle'] ?? super.scanHistoryTitle;
 
   @override
-  String get scanHistoryEmpty =>
-      _overrides['scanHistoryEmpty'] ?? super.scanHistoryEmpty;
+  String get scanHistoryEmpty => _overrides['scanHistoryEmpty'] ?? super.scanHistoryEmpty;
 
   @override
   String walletPtsPlus(String points) {
     final t = _overrides['walletPtsPlus'];
-    return t == null
-        ? super.walletPtsPlus(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.walletPtsPlus(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
-  String get storeTabAbout =>
-      _overrides['storeTabAbout'] ?? super.storeTabAbout;
+  String get storeTabAbout => _overrides['storeTabAbout'] ?? super.storeTabAbout;
 
   @override
-  String get storeTabProducts =>
-      _overrides['storeTabProducts'] ?? super.storeTabProducts;
+  String get storeTabProducts => _overrides['storeTabProducts'] ?? super.storeTabProducts;
 
   @override
-  String get storeTabReviews =>
-      _overrides['storeTabReviews'] ?? super.storeTabReviews;
+  String get storeTabReviews => _overrides['storeTabReviews'] ?? super.storeTabReviews;
 
   @override
-  String get storeTabRewards =>
-      _overrides['storeTabRewards'] ?? super.storeTabRewards;
+  String get storeTabRewards => _overrides['storeTabRewards'] ?? super.storeTabRewards;
 
   @override
   String storeScanEarn(String points) {
     final t = _overrides['storeScanEarn'];
-    return t == null
-        ? super.storeScanEarn(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.storeScanEarn(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
-  String get storeScanCardTitle =>
-      _overrides['storeScanCardTitle'] ?? super.storeScanCardTitle;
+  String get storeScanCardTitle => _overrides['storeScanCardTitle'] ?? super.storeScanCardTitle;
 
   @override
   String storeScanCardBody(String points) {
     final t = _overrides['storeScanCardBody'];
-    return t == null
-        ? super.storeScanCardBody(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.storeScanCardBody(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
   String get storeScanQr => _overrides['storeScanQr'] ?? super.storeScanQr;
 
   @override
-  String get storeRewardsSoon =>
-      _overrides['storeRewardsSoon'] ?? super.storeRewardsSoon;
+  String get storeRewardsSoon => _overrides['storeRewardsSoon'] ?? super.storeRewardsSoon;
 
   @override
-  String get storeEarnPointsTitle =>
-      _overrides['storeEarnPointsTitle'] ?? super.storeEarnPointsTitle;
+  String get storeEarnPointsTitle => _overrides['storeEarnPointsTitle'] ?? super.storeEarnPointsTitle;
 
   @override
   String storeEarnPointsBody(String points) {
     final t = _overrides['storeEarnPointsBody'];
-    return t == null
-        ? super.storeEarnPointsBody(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.storeEarnPointsBody(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
   String storeYourPoints(String points) {
     final t = _overrides['storeYourPoints'];
-    return t == null
-        ? super.storeYourPoints(points)
-        : fillRemoteTemplate(t, <String, String>{'points': points});
+    return t == null ? super.storeYourPoints(points) : fillRemoteTemplate(t, <String, String>{'points': points});
   }
 
   @override
-  String get storeShowLess =>
-      _overrides['storeShowLess'] ?? super.storeShowLess;
+  String get storeShowLess => _overrides['storeShowLess'] ?? super.storeShowLess;
 
   @override
-  String get storeReadMore =>
-      _overrides['storeReadMore'] ?? super.storeReadMore;
+  String get storeReadMore => _overrides['storeReadMore'] ?? super.storeReadMore;
 
   @override
-  String get storeOpenWord =>
-      _overrides['storeOpenWord'] ?? super.storeOpenWord;
+  String get storeOpenWord => _overrides['storeOpenWord'] ?? super.storeOpenWord;
 
   @override
-  String get storeClosedWord =>
-      _overrides['storeClosedWord'] ?? super.storeClosedWord;
+  String get storeClosedWord => _overrides['storeClosedWord'] ?? super.storeClosedWord;
 
   @override
   String storeCostForTwo(String amount) {
     final t = _overrides['storeCostForTwo'];
-    return t == null
-        ? super.storeCostForTwo(amount)
-        : fillRemoteTemplate(t, <String, String>{'amount': amount});
+    return t == null ? super.storeCostForTwo(amount) : fillRemoteTemplate(t, <String, String>{'amount': amount});
   }
 
   @override
   String get storeDineIn => _overrides['storeDineIn'] ?? super.storeDineIn;
 
   @override
-  String get storeChipTrending =>
-      _overrides['storeChipTrending'] ?? super.storeChipTrending;
+  String get storeChipTrending => _overrides['storeChipTrending'] ?? super.storeChipTrending;
 
   @override
-  String get storeChipJustOpened =>
-      _overrides['storeChipJustOpened'] ?? super.storeChipJustOpened;
+  String get storeChipJustOpened => _overrides['storeChipJustOpened'] ?? super.storeChipJustOpened;
 
   @override
-  String get storeChipPopular =>
-      _overrides['storeChipPopular'] ?? super.storeChipPopular;
+  String get storeChipPopular => _overrides['storeChipPopular'] ?? super.storeChipPopular;
 
   @override
   String storeOfferPct(String pct) {
     final t = _overrides['storeOfferPct'];
-    return t == null
-        ? super.storeOfferPct(pct)
-        : fillRemoteTemplate(t, <String, String>{'pct': pct});
+    return t == null ? super.storeOfferPct(pct) : fillRemoteTemplate(t, <String, String>{'pct': pct});
   }
 
   @override
   String get storeCall => _overrides['storeCall'] ?? super.storeCall;
 
   @override
-  String get storeWhatsApp =>
-      _overrides['storeWhatsApp'] ?? super.storeWhatsApp;
+  String get storeWhatsApp => _overrides['storeWhatsApp'] ?? super.storeWhatsApp;
 
   @override
-  String get storeDirections =>
-      _overrides['storeDirections'] ?? super.storeDirections;
+  String get storeDirections => _overrides['storeDirections'] ?? super.storeDirections;
 
   @override
-  String get storeExclusiveOne =>
-      _overrides['storeExclusiveOne'] ?? super.storeExclusiveOne;
+  String get storeExclusiveOne => _overrides['storeExclusiveOne'] ?? super.storeExclusiveOne;
 
   @override
   String storeExclusiveMany(String count) {
     final t = _overrides['storeExclusiveMany'];
-    return t == null
-        ? super.storeExclusiveMany(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.storeExclusiveMany(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
-  String get storeExclusive =>
-      _overrides['storeExclusive'] ?? super.storeExclusive;
+  String get storeExclusive => _overrides['storeExclusive'] ?? super.storeExclusive;
 
   @override
-  String get storeDealsFromStore =>
-      _overrides['storeDealsFromStore'] ?? super.storeDealsFromStore;
+  String get storeDealsFromStore => _overrides['storeDealsFromStore'] ?? super.storeDealsFromStore;
 
   @override
-  String get storeOffersSoon =>
-      _overrides['storeOffersSoon'] ?? super.storeOffersSoon;
+  String get storeOffersSoon => _overrides['storeOffersSoon'] ?? super.storeOffersSoon;
 
   @override
   String storeDiscOff(String pct) {
     final t = _overrides['storeDiscOff'];
-    return t == null
-        ? super.storeDiscOff(pct)
-        : fillRemoteTemplate(t, <String, String>{'pct': pct});
+    return t == null ? super.storeDiscOff(pct) : fillRemoteTemplate(t, <String, String>{'pct': pct});
   }
 
   @override
   String get storeOffWord => _overrides['storeOffWord'] ?? super.storeOffWord;
 
   @override
-  String get prodsAvailableEyebrow =>
-      _overrides['prodsAvailableEyebrow'] ?? super.prodsAvailableEyebrow;
+  String get prodsAvailableEyebrow => _overrides['prodsAvailableEyebrow'] ?? super.prodsAvailableEyebrow;
 
   @override
-  String get prodsFeatured =>
-      _overrides['prodsFeatured'] ?? super.prodsFeatured;
+  String get prodsFeatured => _overrides['prodsFeatured'] ?? super.prodsFeatured;
 
   @override
   String get prodsTip => _overrides['prodsTip'] ?? super.prodsTip;
@@ -1608,59 +1290,47 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String prodRatingSubmitFailed(String error) {
     final t = _overrides['prodRatingSubmitFailed'];
-    return t == null
-        ? super.prodRatingSubmitFailed(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.prodRatingSubmitFailed(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
   String prodValidTill(String date) {
     final t = _overrides['prodValidTill'];
-    return t == null
-        ? super.prodValidTill(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.prodValidTill(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
-  String get prodYourRating =>
-      _overrides['prodYourRating'] ?? super.prodYourRating;
+  String get prodYourRating => _overrides['prodYourRating'] ?? super.prodYourRating;
 
   @override
   String get prodRateThis => _overrides['prodRateThis'] ?? super.prodRateThis;
 
   @override
-  String get prodReviewHint =>
-      _overrides['prodReviewHint'] ?? super.prodReviewHint;
+  String get prodReviewHint => _overrides['prodReviewHint'] ?? super.prodReviewHint;
 
   @override
-  String get prodSubmitRating =>
-      _overrides['prodSubmitRating'] ?? super.prodSubmitRating;
+  String get prodSubmitRating => _overrides['prodSubmitRating'] ?? super.prodSubmitRating;
 
   @override
-  String get prodThanksRating =>
-      _overrides['prodThanksRating'] ?? super.prodThanksRating;
+  String get prodThanksRating => _overrides['prodThanksRating'] ?? super.prodThanksRating;
 
   @override
   String get prodGotIt => _overrides['prodGotIt'] ?? super.prodGotIt;
 
   @override
-  String get revStoreNotFound =>
-      _overrides['revStoreNotFound'] ?? super.revStoreNotFound;
+  String get revStoreNotFound => _overrides['revStoreNotFound'] ?? super.revStoreNotFound;
 
   @override
-  String get revSelectStar =>
-      _overrides['revSelectStar'] ?? super.revSelectStar;
+  String get revSelectStar => _overrides['revSelectStar'] ?? super.revSelectStar;
 
   @override
   String get revMin5 => _overrides['revMin5'] ?? super.revMin5;
 
   @override
-  String get revSubmittedStar =>
-      _overrides['revSubmittedStar'] ?? super.revSubmittedStar;
+  String get revSubmittedStar => _overrides['revSubmittedStar'] ?? super.revSubmittedStar;
 
   @override
-  String get revUnavailable =>
-      _overrides['revUnavailable'] ?? super.revUnavailable;
+  String get revUnavailable => _overrides['revUnavailable'] ?? super.revUnavailable;
 
   @override
   String get revEyebrow => _overrides['revEyebrow'] ?? super.revEyebrow;
@@ -1674,17 +1344,14 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String revCountMany(String count) {
     final t = _overrides['revCountMany'];
-    return t == null
-        ? super.revCountMany(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.revCountMany(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
   String get revNoneTitle => _overrides['revNoneTitle'] ?? super.revNoneTitle;
 
   @override
-  String get revYourReview =>
-      _overrides['revYourReview'] ?? super.revYourReview;
+  String get revYourReview => _overrides['revYourReview'] ?? super.revYourReview;
 
   @override
   String get revEdit => _overrides['revEdit'] ?? super.revEdit;
@@ -1714,66 +1381,51 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get revAnonymous => _overrides['revAnonymous'] ?? super.revAnonymous;
 
   @override
-  String get storeDealWord =>
-      _overrides['storeDealWord'] ?? super.storeDealWord;
+  String get storeDealWord => _overrides['storeDealWord'] ?? super.storeDealWord;
 
   @override
-  String get storeNewStoreTitle =>
-      _overrides['storeNewStoreTitle'] ?? super.storeNewStoreTitle;
+  String get storeNewStoreTitle => _overrides['storeNewStoreTitle'] ?? super.storeNewStoreTitle;
 
   @override
   String storeDistAwayM(String n) {
     final t = _overrides['storeDistAwayM'];
-    return t == null
-        ? super.storeDistAwayM(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.storeDistAwayM(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String storeDistAwayKm(String n) {
     final t = _overrides['storeDistAwayKm'];
-    return t == null
-        ? super.storeDistAwayKm(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.storeDistAwayKm(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String get locGpsFailed => _overrides['locGpsFailed'] ?? super.locGpsFailed;
 
   @override
-  String get locCityUnknown =>
-      _overrides['locCityUnknown'] ?? super.locCityUnknown;
+  String get locCityUnknown => _overrides['locCityUnknown'] ?? super.locCityUnknown;
 
   @override
-  String get locServicesOff =>
-      _overrides['locServicesOff'] ?? super.locServicesOff;
+  String get locServicesOff => _overrides['locServicesOff'] ?? super.locServicesOff;
 
   @override
-  String get locPermissionOff =>
-      _overrides['locPermissionOff'] ?? super.locPermissionOff;
+  String get locPermissionOff => _overrides['locPermissionOff'] ?? super.locPermissionOff;
 
   @override
-  String get locPermissionDenied =>
-      _overrides['locPermissionDenied'] ?? super.locPermissionDenied;
+  String get locPermissionDenied => _overrides['locPermissionDenied'] ?? super.locPermissionDenied;
 
   @override
-  String get locNotDetected =>
-      _overrides['locNotDetected'] ?? super.locNotDetected;
+  String get locNotDetected => _overrides['locNotDetected'] ?? super.locNotDetected;
 
   @override
-  String get locGoToSettings =>
-      _overrides['locGoToSettings'] ?? super.locGoToSettings;
+  String get locGoToSettings => _overrides['locGoToSettings'] ?? super.locGoToSettings;
 
   @override
-  String get locCityUnsupportedTitle =>
-      _overrides['locCityUnsupportedTitle'] ?? super.locCityUnsupportedTitle;
+  String get locCityUnsupportedTitle => _overrides['locCityUnsupportedTitle'] ?? super.locCityUnsupportedTitle;
 
   @override
   String locCityUnsupportedBody(String city) {
     final t = _overrides['locCityUnsupportedBody'];
-    return t == null
-        ? super.locCityUnsupportedBody(city)
-        : fillRemoteTemplate(t, <String, String>{'city': city});
+    return t == null ? super.locCityUnsupportedBody(city) : fillRemoteTemplate(t, <String, String>{'city': city});
   }
 
   @override
@@ -1783,19 +1435,19 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get locTitle => _overrides['locTitle'] ?? super.locTitle;
 
   @override
-  String get locSearchHint =>
-      _overrides['locSearchHint'] ?? super.locSearchHint;
+  String get locSearchHint => _overrides['locSearchHint'] ?? super.locSearchHint;
 
   @override
-  String get locCitiesLoadFailed =>
-      _overrides['locCitiesLoadFailed'] ?? super.locCitiesLoadFailed;
+  String get locCitiesLoadFailed => _overrides['locCitiesLoadFailed'] ?? super.locCitiesLoadFailed;
+
+  @override
+  String get locNoCitiesYet => _overrides['locNoCitiesYet'] ?? super.locNoCitiesYet;
 
   @override
   String get locTryAgain => _overrides['locTryAgain'] ?? super.locTryAgain;
 
   @override
-  String get locPopularCities =>
-      _overrides['locPopularCities'] ?? super.locPopularCities;
+  String get locPopularCities => _overrides['locPopularCities'] ?? super.locPopularCities;
 
   @override
   String get locAllCities => _overrides['locAllCities'] ?? super.locAllCities;
@@ -1813,52 +1465,40 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get legalEyebrow => _overrides['legalEyebrow'] ?? super.legalEyebrow;
 
   @override
-  String get legalPrivacyTitle =>
-      _overrides['legalPrivacyTitle'] ?? super.legalPrivacyTitle;
+  String get legalPrivacyTitle => _overrides['legalPrivacyTitle'] ?? super.legalPrivacyTitle;
 
   @override
-  String get legalPrivacyUpdating =>
-      _overrides['legalPrivacyUpdating'] ?? super.legalPrivacyUpdating;
+  String get legalPrivacyUpdating => _overrides['legalPrivacyUpdating'] ?? super.legalPrivacyUpdating;
 
   @override
-  String get legalReadLess =>
-      _overrides['legalReadLess'] ?? super.legalReadLess;
+  String get legalReadLess => _overrides['legalReadLess'] ?? super.legalReadLess;
 
   @override
-  String get legalReadMore =>
-      _overrides['legalReadMore'] ?? super.legalReadMore;
+  String get legalReadMore => _overrides['legalReadMore'] ?? super.legalReadMore;
 
   @override
-  String get legalAccountCaps =>
-      _overrides['legalAccountCaps'] ?? super.legalAccountCaps;
+  String get legalAccountCaps => _overrides['legalAccountCaps'] ?? super.legalAccountCaps;
 
   @override
-  String get legalDeleteRequest =>
-      _overrides['legalDeleteRequest'] ?? super.legalDeleteRequest;
+  String get legalDeleteRequest => _overrides['legalDeleteRequest'] ?? super.legalDeleteRequest;
 
   @override
-  String get legalDeleteRequestNote =>
-      _overrides['legalDeleteRequestNote'] ?? super.legalDeleteRequestNote;
+  String get legalDeleteRequestNote => _overrides['legalDeleteRequestNote'] ?? super.legalDeleteRequestNote;
 
   @override
-  String get delReasonUnused =>
-      _overrides['delReasonUnused'] ?? super.delReasonUnused;
+  String get delReasonUnused => _overrides['delReasonUnused'] ?? super.delReasonUnused;
 
   @override
-  String get delReasonPrivacy =>
-      _overrides['delReasonPrivacy'] ?? super.delReasonPrivacy;
+  String get delReasonPrivacy => _overrides['delReasonPrivacy'] ?? super.delReasonPrivacy;
 
   @override
-  String get delReasonDuplicate =>
-      _overrides['delReasonDuplicate'] ?? super.delReasonDuplicate;
+  String get delReasonDuplicate => _overrides['delReasonDuplicate'] ?? super.delReasonDuplicate;
 
   @override
-  String get delReasonNoisy =>
-      _overrides['delReasonNoisy'] ?? super.delReasonNoisy;
+  String get delReasonNoisy => _overrides['delReasonNoisy'] ?? super.delReasonNoisy;
 
   @override
-  String get delReasonOther =>
-      _overrides['delReasonOther'] ?? super.delReasonOther;
+  String get delReasonOther => _overrides['delReasonOther'] ?? super.delReasonOther;
 
   @override
   String get delEyebrow => _overrides['delEyebrow'] ?? super.delEyebrow;
@@ -1870,38 +1510,30 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get delWarning => _overrides['delWarning'] ?? super.delWarning;
 
   @override
-  String get delSelectReason =>
-      _overrides['delSelectReason'] ?? super.delSelectReason;
+  String get delSelectReason => _overrides['delSelectReason'] ?? super.delSelectReason;
 
   @override
   String get delSubmit => _overrides['delSubmit'] ?? super.delSubmit;
 
   @override
-  String get delConfirmTitle =>
-      _overrides['delConfirmTitle'] ?? super.delConfirmTitle;
+  String get delConfirmTitle => _overrides['delConfirmTitle'] ?? super.delConfirmTitle;
 
   @override
-  String get delConfirmBody =>
-      _overrides['delConfirmBody'] ?? super.delConfirmBody;
+  String get delConfirmBody => _overrides['delConfirmBody'] ?? super.delConfirmBody;
 
   @override
-  String get delConfirmYes =>
-      _overrides['delConfirmYes'] ?? super.delConfirmYes;
+  String get delConfirmYes => _overrides['delConfirmYes'] ?? super.delConfirmYes;
 
   @override
-  String get delRequestedTitle =>
-      _overrides['delRequestedTitle'] ?? super.delRequestedTitle;
+  String get delRequestedTitle => _overrides['delRequestedTitle'] ?? super.delRequestedTitle;
 
   @override
-  String get delRequestedBody =>
-      _overrides['delRequestedBody'] ?? super.delRequestedBody;
+  String get delRequestedBody => _overrides['delRequestedBody'] ?? super.delRequestedBody;
 
   @override
   String delSubmitFailed(String error) {
     final t = _overrides['delSubmitFailed'];
-    return t == null
-        ? super.delSubmitFailed(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.delSubmitFailed(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
@@ -1917,8 +1549,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get loadStep4 => _overrides['loadStep4'] ?? super.loadStep4;
 
   @override
-  String get catBrowseTitle =>
-      _overrides['catBrowseTitle'] ?? super.catBrowseTitle;
+  String get catBrowseTitle => _overrides['catBrowseTitle'] ?? super.catBrowseTitle;
 
   @override
   String get catView => _overrides['catView'] ?? super.catView;
@@ -1933,8 +1564,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get catBeauty => _overrides['catBeauty'] ?? super.catBeauty;
 
   @override
-  String get catElectronics =>
-      _overrides['catElectronics'] ?? super.catElectronics;
+  String get catElectronics => _overrides['catElectronics'] ?? super.catElectronics;
 
   @override
   String get catEducation => _overrides['catEducation'] ?? super.catEducation;
@@ -1952,93 +1582,73 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get catJewelry => _overrides['catJewelry'] ?? super.catJewelry;
 
   @override
-  String get catSubRestaurant =>
-      _overrides['catSubRestaurant'] ?? super.catSubRestaurant;
+  String get catSubRestaurant => _overrides['catSubRestaurant'] ?? super.catSubRestaurant;
 
   @override
-  String get catSubPharmacy =>
-      _overrides['catSubPharmacy'] ?? super.catSubPharmacy;
+  String get catSubPharmacy => _overrides['catSubPharmacy'] ?? super.catSubPharmacy;
 
   @override
-  String get catSubFashion =>
-      _overrides['catSubFashion'] ?? super.catSubFashion;
+  String get catSubFashion => _overrides['catSubFashion'] ?? super.catSubFashion;
 
   @override
   String get catSubBeauty => _overrides['catSubBeauty'] ?? super.catSubBeauty;
 
   @override
-  String get catSubElectronics =>
-      _overrides['catSubElectronics'] ?? super.catSubElectronics;
+  String get catSubElectronics => _overrides['catSubElectronics'] ?? super.catSubElectronics;
 
   @override
-  String get catSubEducation =>
-      _overrides['catSubEducation'] ?? super.catSubEducation;
+  String get catSubEducation => _overrides['catSubEducation'] ?? super.catSubEducation;
 
   @override
-  String get catSubHospital =>
-      _overrides['catSubHospital'] ?? super.catSubHospital;
+  String get catSubHospital => _overrides['catSubHospital'] ?? super.catSubHospital;
 
   @override
   String get catSubCafe => _overrides['catSubCafe'] ?? super.catSubCafe;
 
   @override
-  String get catSubGrocery =>
-      _overrides['catSubGrocery'] ?? super.catSubGrocery;
+  String get catSubGrocery => _overrides['catSubGrocery'] ?? super.catSubGrocery;
 
   @override
-  String get catSubFitness =>
-      _overrides['catSubFitness'] ?? super.catSubFitness;
+  String get catSubFitness => _overrides['catSubFitness'] ?? super.catSubFitness;
 
   @override
-  String get catSubJewelry =>
-      _overrides['catSubJewelry'] ?? super.catSubJewelry;
+  String get catSubJewelry => _overrides['catSubJewelry'] ?? super.catSubJewelry;
 
   @override
   String get catSubBakery => _overrides['catSubBakery'] ?? super.catSubBakery;
 
   @override
-  String get dealsActiveOne =>
-      _overrides['dealsActiveOne'] ?? super.dealsActiveOne;
+  String get dealsActiveOne => _overrides['dealsActiveOne'] ?? super.dealsActiveOne;
 
   @override
   String dealsActiveMany(String count) {
     final t = _overrides['dealsActiveMany'];
-    return t == null
-        ? super.dealsActiveMany(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.dealsActiveMany(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
-  String get areaCardStoreOne =>
-      _overrides['areaCardStoreOne'] ?? super.areaCardStoreOne;
+  String get areaCardStoreOne => _overrides['areaCardStoreOne'] ?? super.areaCardStoreOne;
 
   @override
   String areaCardStoreMany(String count) {
     final t = _overrides['areaCardStoreMany'];
-    return t == null
-        ? super.areaCardStoreMany(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.areaCardStoreMany(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
   String storeDistAwaySpM(String n) {
     final t = _overrides['storeDistAwaySpM'];
-    return t == null
-        ? super.storeDistAwaySpM(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.storeDistAwaySpM(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String storeDistAwaySpKm(String n) {
     final t = _overrides['storeDistAwaySpKm'];
-    return t == null
-        ? super.storeDistAwaySpKm(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.storeDistAwaySpKm(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
-  String get prodSpecialOffer =>
-      _overrides['prodSpecialOffer'] ?? super.prodSpecialOffer;
+  String get prodSpecialOffer => _overrides['prodSpecialOffer'] ?? super.prodSpecialOffer;
 
   @override
   String get prodDownload => _overrides['prodDownload'] ?? super.prodDownload;
@@ -2047,56 +1657,40 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizAdd => _overrides['bizAdd'] ?? super.bizAdd;
 
   @override
-  String get bizNoStoresYetTapTo =>
-      _overrides['bizNoStoresYetTapTo'] ?? super.bizNoStoresYetTapTo;
+  String get bizNoStoresYetTapTo => _overrides['bizNoStoresYetTapTo'] ?? super.bizNoStoresYetTapTo;
 
   @override
-  String get bizSubscribeYourStoreToCreate =>
-      _overrides['bizSubscribeYourStoreToCreate'] ??
-      super.bizSubscribeYourStoreToCreate;
+  String get bizSubscribeYourStoreToCreate => _overrides['bizSubscribeYourStoreToCreate'] ?? super.bizSubscribeYourStoreToCreate;
 
   @override
-  String get bizNoBannersYetPromoteYour =>
-      _overrides['bizNoBannersYetPromoteYour'] ??
-      super.bizNoBannersYetPromoteYour;
+  String get bizNoBannersYetPromoteYour => _overrides['bizNoBannersYetPromoteYour'] ?? super.bizNoBannersYetPromoteYour;
 
   @override
-  String get bizSubscribeYourStoreToAdd =>
-      _overrides['bizSubscribeYourStoreToAdd'] ??
-      super.bizSubscribeYourStoreToAdd;
+  String get bizSubscribeYourStoreToAdd => _overrides['bizSubscribeYourStoreToAdd'] ?? super.bizSubscribeYourStoreToAdd;
 
   @override
-  String get bizNoProductsYetAddYour =>
-      _overrides['bizNoProductsYetAddYour'] ?? super.bizNoProductsYetAddYour;
+  String get bizNoProductsYetAddYour => _overrides['bizNoProductsYetAddYour'] ?? super.bizNoProductsYetAddYour;
 
   @override
-  String get bizMERCHANTWORKSPACE =>
-      _overrides['bizMERCHANTWORKSPACE'] ?? super.bizMERCHANTWORKSPACE;
+  String get bizMERCHANTWORKSPACE => _overrides['bizMERCHANTWORKSPACE'] ?? super.bizMERCHANTWORKSPACE;
 
   @override
-  String get bizWelcomeBack =>
-      _overrides['bizWelcomeBack'] ?? super.bizWelcomeBack;
+  String get bizWelcomeBack => _overrides['bizWelcomeBack'] ?? super.bizWelcomeBack;
 
   @override
-  String get bizCouldnTLoadYourDashboard =>
-      _overrides['bizCouldnTLoadYourDashboard'] ??
-      super.bizCouldnTLoadYourDashboard;
+  String get bizCouldnTLoadYourDashboard => _overrides['bizCouldnTLoadYourDashboard'] ?? super.bizCouldnTLoadYourDashboard;
 
   @override
-  String get bizLiveStores =>
-      _overrides['bizLiveStores'] ?? super.bizLiveStores;
+  String get bizLiveStores => _overrides['bizLiveStores'] ?? super.bizLiveStores;
 
   @override
-  String get bizLiveBanners =>
-      _overrides['bizLiveBanners'] ?? super.bizLiveBanners;
+  String get bizLiveBanners => _overrides['bizLiveBanners'] ?? super.bizLiveBanners;
 
   @override
-  String get bizLiveProducts =>
-      _overrides['bizLiveProducts'] ?? super.bizLiveProducts;
+  String get bizLiveProducts => _overrides['bizLiveProducts'] ?? super.bizLiveProducts;
 
   @override
-  String get bizMANAGEYOURBUSINESS =>
-      _overrides['bizMANAGEYOURBUSINESS'] ?? super.bizMANAGEYOURBUSINESS;
+  String get bizMANAGEYOURBUSINESS => _overrides['bizMANAGEYOURBUSINESS'] ?? super.bizMANAGEYOURBUSINESS;
 
   @override
   String get bizMyStore => _overrides['bizMyStore'] ?? super.bizMyStore;
@@ -2105,22 +1699,16 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizMyBanner => _overrides['bizMyBanner'] ?? super.bizMyBanner;
 
   @override
-  String get bizMyProducts =>
-      _overrides['bizMyProducts'] ?? super.bizMyProducts;
+  String get bizMyProducts => _overrides['bizMyProducts'] ?? super.bizMyProducts;
 
   @override
-  String get bizCreatorCollaborations =>
-      _overrides['bizCreatorCollaborations'] ?? super.bizCreatorCollaborations;
+  String get bizCreatorCollaborations => _overrides['bizCreatorCollaborations'] ?? super.bizCreatorCollaborations;
 
   @override
-  String get bizBriefMatchAndManageLocal =>
-      _overrides['bizBriefMatchAndManageLocal'] ??
-      super.bizBriefMatchAndManageLocal;
+  String get bizBriefMatchAndManageLocal => _overrides['bizBriefMatchAndManageLocal'] ?? super.bizBriefMatchAndManageLocal;
 
   @override
-  String get bizSubscribeYourStoreToWork =>
-      _overrides['bizSubscribeYourStoreToWork'] ??
-      super.bizSubscribeYourStoreToWork;
+  String get bizSubscribeYourStoreToWork => _overrides['bizSubscribeYourStoreToWork'] ?? super.bizSubscribeYourStoreToWork;
 
   @override
   String get bizLocked => _overrides['bizLocked'] ?? super.bizLocked;
@@ -2129,8 +1717,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizManage => _overrides['bizManage'] ?? super.bizManage;
 
   @override
-  String get bizPromotions =>
-      _overrides['bizPromotions'] ?? super.bizPromotions;
+  String get bizPromotions => _overrides['bizPromotions'] ?? super.bizPromotions;
 
   @override
   String get bizMyBanners => _overrides['bizMyBanners'] ?? super.bizMyBanners;
@@ -2139,45 +1726,37 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizNewBanner => _overrides['bizNewBanner'] ?? super.bizNewBanner;
 
   @override
-  String get bizCouldnTLoadBanners =>
-      _overrides['bizCouldnTLoadBanners'] ?? super.bizCouldnTLoadBanners;
+  String get bizCouldnTLoadBanners => _overrides['bizCouldnTLoadBanners'] ?? super.bizCouldnTLoadBanners;
 
   @override
-  String get bizNoBannersYet =>
-      _overrides['bizNoBannersYet'] ?? super.bizNoBannersYet;
+  String get bizNoBannersYet => _overrides['bizNoBannersYet'] ?? super.bizNoBannersYet;
 
   @override
-  String get bizTapToCreateYourFirst =>
-      _overrides['bizTapToCreateYourFirst'] ?? super.bizTapToCreateYourFirst;
+  String get bizTapToCreateYourFirst => _overrides['bizTapToCreateYourFirst'] ?? super.bizTapToCreateYourFirst;
 
   @override
-  String get bizApprovedLive =>
-      _overrides['bizApprovedLive'] ?? super.bizApprovedLive;
+  String get bizApprovedLive => _overrides['bizApprovedLive'] ?? super.bizApprovedLive;
 
   @override
   String get bizRejected => _overrides['bizRejected'] ?? super.bizRejected;
 
   @override
-  String get bizRemovedByAdmin =>
-      _overrides['bizRemovedByAdmin'] ?? super.bizRemovedByAdmin;
+  String get bizRemovedByAdmin => _overrides['bizRemovedByAdmin'] ?? super.bizRemovedByAdmin;
 
   @override
   String get bizTurnedOff => _overrides['bizTurnedOff'] ?? super.bizTurnedOff;
 
   @override
-  String get bizPendingApproval =>
-      _overrides['bizPendingApproval'] ?? super.bizPendingApproval;
+  String get bizPendingApproval => _overrides['bizPendingApproval'] ?? super.bizPendingApproval;
 
   @override
   String get bizSubmitted => _overrides['bizSubmitted'] ?? super.bizSubmitted;
 
   @override
-  String get bizEditBannerTitle =>
-      _overrides['bizEditBannerTitle'] ?? super.bizEditBannerTitle;
+  String get bizEditBannerTitle => _overrides['bizEditBannerTitle'] ?? super.bizEditBannerTitle;
 
   @override
-  String get bizBannerTitle =>
-      _overrides['bizBannerTitle'] ?? super.bizBannerTitle;
+  String get bizBannerTitle => _overrides['bizBannerTitle'] ?? super.bizBannerTitle;
 
   @override
   String get bizSave => _overrides['bizSave'] ?? super.bizSave;
@@ -2186,21 +1765,16 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizEditTitle => _overrides['bizEditTitle'] ?? super.bizEditTitle;
 
   @override
-  String get bizTurnOffBanner =>
-      _overrides['bizTurnOffBanner'] ?? super.bizTurnOffBanner;
+  String get bizTurnOffBanner => _overrides['bizTurnOffBanner'] ?? super.bizTurnOffBanner;
 
   @override
-  String get bizTurnOnBanner =>
-      _overrides['bizTurnOnBanner'] ?? super.bizTurnOnBanner;
+  String get bizTurnOnBanner => _overrides['bizTurnOnBanner'] ?? super.bizTurnOnBanner;
 
   @override
-  String get bizThisBannerWillBeHidden =>
-      _overrides['bizThisBannerWillBeHidden'] ??
-      super.bizThisBannerWillBeHidden;
+  String get bizThisBannerWillBeHidden => _overrides['bizThisBannerWillBeHidden'] ?? super.bizThisBannerWillBeHidden;
 
   @override
-  String get bizThisBannerWillGoLive =>
-      _overrides['bizThisBannerWillGoLive'] ?? super.bizThisBannerWillGoLive;
+  String get bizThisBannerWillGoLive => _overrides['bizThisBannerWillGoLive'] ?? super.bizThisBannerWillGoLive;
 
   @override
   String get bizTurnOff => _overrides['bizTurnOff'] ?? super.bizTurnOff;
@@ -2209,151 +1783,106 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizTurnOn => _overrides['bizTurnOn'] ?? super.bizTurnOn;
 
   @override
-  String get bizExpiredChooseANewStart =>
-      _overrides['bizExpiredChooseANewStart'] ??
-      super.bizExpiredChooseANewStart;
+  String get bizExpiredChooseANewStart => _overrides['bizExpiredChooseANewStart'] ?? super.bizExpiredChooseANewStart;
 
   @override
   String get bizRenew => _overrides['bizRenew'] ?? super.bizRenew;
 
   @override
-  String get bizRejectedCreateANewBanner =>
-      _overrides['bizRejectedCreateANewBanner'] ??
-      super.bizRejectedCreateANewBanner;
+  String get bizRejectedCreateANewBanner => _overrides['bizRejectedCreateANewBanner'] ?? super.bizRejectedCreateANewBanner;
 
   @override
   String get bizCreateNew => _overrides['bizCreateNew'] ?? super.bizCreateNew;
 
   @override
-  String get bizRemovedByAdmin2 =>
-      _overrides['bizRemovedByAdmin2'] ?? super.bizRemovedByAdmin2;
+  String get bizRemovedByAdmin2 => _overrides['bizRemovedByAdmin2'] ?? super.bizRemovedByAdmin2;
 
   @override
-  String get bizAwaitingAdminApproval =>
-      _overrides['bizAwaitingAdminApproval'] ?? super.bizAwaitingAdminApproval;
+  String get bizAwaitingAdminApproval => _overrides['bizAwaitingAdminApproval'] ?? super.bizAwaitingAdminApproval;
 
   @override
-  String get bizImageTooLargeMax2MB =>
-      _overrides['bizImageTooLargeMax2MB'] ?? super.bizImageTooLargeMax2MB;
+  String get bizImageTooLargeMax2MB => _overrides['bizImageTooLargeMax2MB'] ?? super.bizImageTooLargeMax2MB;
 
   @override
-  String get bizVideoIsTooLargePlease =>
-      _overrides['bizVideoIsTooLargePlease'] ?? super.bizVideoIsTooLargePlease;
+  String get bizVideoIsTooLargePlease => _overrides['bizVideoIsTooLargePlease'] ?? super.bizVideoIsTooLargePlease;
 
   @override
-  String get bizVideoIsTooLongPlease =>
-      _overrides['bizVideoIsTooLongPlease'] ?? super.bizVideoIsTooLongPlease;
+  String get bizVideoIsTooLongPlease => _overrides['bizVideoIsTooLongPlease'] ?? super.bizVideoIsTooLongPlease;
 
   @override
-  String get bizCouldNotReadThisVideo =>
-      _overrides['bizCouldNotReadThisVideo'] ?? super.bizCouldNotReadThisVideo;
+  String get bizCouldNotReadThisVideo => _overrides['bizCouldNotReadThisVideo'] ?? super.bizCouldNotReadThisVideo;
 
   @override
-  String get bizCouldNotUploadTheVideo =>
-      _overrides['bizCouldNotUploadTheVideo'] ??
-      super.bizCouldNotUploadTheVideo;
+  String get bizCouldNotUploadTheVideo => _overrides['bizCouldNotUploadTheVideo'] ?? super.bizCouldNotUploadTheVideo;
 
   @override
-  String get bizExistingBannerVideoWillBe =>
-      _overrides['bizExistingBannerVideoWillBe'] ??
-      super.bizExistingBannerVideoWillBe;
+  String get bizExistingBannerVideoWillBe => _overrides['bizExistingBannerVideoWillBe'] ?? super.bizExistingBannerVideoWillBe;
 
   @override
-  String get bizTapToReplace =>
-      _overrides['bizTapToReplace'] ?? super.bizTapToReplace;
+  String get bizTapToReplace => _overrides['bizTapToReplace'] ?? super.bizTapToReplace;
 
   @override
-  String get bizTapToSelectBannerVideo =>
-      _overrides['bizTapToSelectBannerVideo'] ??
-      super.bizTapToSelectBannerVideo;
+  String get bizTapToSelectBannerVideo => _overrides['bizTapToSelectBannerVideo'] ?? super.bizTapToSelectBannerVideo;
 
   @override
-  String get biz10801080px11 =>
-      _overrides['biz10801080px11'] ?? super.biz10801080px11;
+  String get biz10801080px11 => _overrides['biz10801080px11'] ?? super.biz10801080px11;
 
   @override
-  String get bizMax15Sec10MB =>
-      _overrides['bizMax15Sec10MB'] ?? super.bizMax15Sec10MB;
+  String get bizMax15Sec10MB => _overrides['bizMax15Sec10MB'] ?? super.bizMax15Sec10MB;
 
   @override
-  String get bizBannerTitleRequired =>
-      _overrides['bizBannerTitleRequired'] ?? super.bizBannerTitleRequired;
+  String get bizBannerTitleRequired => _overrides['bizBannerTitleRequired'] ?? super.bizBannerTitleRequired;
 
   @override
-  String get bizPleaseSelectAStore =>
-      _overrides['bizPleaseSelectAStore'] ?? super.bizPleaseSelectAStore;
+  String get bizPleaseSelectAStore => _overrides['bizPleaseSelectAStore'] ?? super.bizPleaseSelectAStore;
 
   @override
-  String get bizPleaseSelectACity =>
-      _overrides['bizPleaseSelectACity'] ?? super.bizPleaseSelectACity;
+  String get bizPleaseSelectACity => _overrides['bizPleaseSelectACity'] ?? super.bizPleaseSelectACity;
 
   @override
-  String get bizPleaseSelectABannerVideo =>
-      _overrides['bizPleaseSelectABannerVideo'] ??
-      super.bizPleaseSelectABannerVideo;
+  String get bizPleaseSelectABannerVideo => _overrides['bizPleaseSelectABannerVideo'] ?? super.bizPleaseSelectABannerVideo;
 
   @override
-  String get bizPleaseUploadABannerImage =>
-      _overrides['bizPleaseUploadABannerImage'] ??
-      super.bizPleaseUploadABannerImage;
+  String get bizPleaseUploadABannerImage => _overrides['bizPleaseUploadABannerImage'] ?? super.bizPleaseUploadABannerImage;
 
   @override
-  String get bizEnterNumberOfDaysMinimum =>
-      _overrides['bizEnterNumberOfDaysMinimum'] ??
-      super.bizEnterNumberOfDaysMinimum;
+  String get bizEnterNumberOfDaysMinimum => _overrides['bizEnterNumberOfDaysMinimum'] ?? super.bizEnterNumberOfDaysMinimum;
 
   @override
-  String get bizUntitledDeal =>
-      _overrides['bizUntitledDeal'] ?? super.bizUntitledDeal;
+  String get bizUntitledDeal => _overrides['bizUntitledDeal'] ?? super.bizUntitledDeal;
 
   @override
-  String get bizUntitledProduct =>
-      _overrides['bizUntitledProduct'] ?? super.bizUntitledProduct;
+  String get bizUntitledProduct => _overrides['bizUntitledProduct'] ?? super.bizUntitledProduct;
 
   @override
-  String get bizCTADestination =>
-      _overrides['bizCTADestination'] ?? super.bizCTADestination;
+  String get bizCTADestination => _overrides['bizCTADestination'] ?? super.bizCTADestination;
 
   @override
-  String get bizChooseWhereThisBannerShould =>
-      _overrides['bizChooseWhereThisBannerShould'] ??
-      super.bizChooseWhereThisBannerShould;
+  String get bizChooseWhereThisBannerShould => _overrides['bizChooseWhereThisBannerShould'] ?? super.bizChooseWhereThisBannerShould;
 
   @override
-  String get bizSelectDeal =>
-      _overrides['bizSelectDeal'] ?? super.bizSelectDeal;
+  String get bizSelectDeal => _overrides['bizSelectDeal'] ?? super.bizSelectDeal;
 
   @override
-  String get bizSelectProduct =>
-      _overrides['bizSelectProduct'] ?? super.bizSelectProduct;
+  String get bizSelectProduct => _overrides['bizSelectProduct'] ?? super.bizSelectProduct;
 
   @override
-  String get bizCustomersWillOpenTheSelected =>
-      _overrides['bizCustomersWillOpenTheSelected'] ??
-      super.bizCustomersWillOpenTheSelected;
+  String get bizCustomersWillOpenTheSelected => _overrides['bizCustomersWillOpenTheSelected'] ?? super.bizCustomersWillOpenTheSelected;
 
   @override
-  String get bizNothingSelectedYetTheBanner =>
-      _overrides['bizNothingSelectedYetTheBanner'] ??
-      super.bizNothingSelectedYetTheBanner;
+  String get bizNothingSelectedYetTheBanner => _overrides['bizNothingSelectedYetTheBanner'] ?? super.bizNothingSelectedYetTheBanner;
 
   @override
-  String get bizDiscountApplied =>
-      _overrides['bizDiscountApplied'] ?? super.bizDiscountApplied;
+  String get bizDiscountApplied => _overrides['bizDiscountApplied'] ?? super.bizDiscountApplied;
 
   @override
-  String get bizPaymentGatewayNotConfiguredContact =>
-      _overrides['bizPaymentGatewayNotConfiguredContact'] ??
-      super.bizPaymentGatewayNotConfiguredContact;
+  String get bizPaymentGatewayNotConfiguredContact => _overrides['bizPaymentGatewayNotConfiguredContact'] ?? super.bizPaymentGatewayNotConfiguredContact;
 
   @override
-  String get bizCouldNotOpenPaymentPlease =>
-      _overrides['bizCouldNotOpenPaymentPlease'] ??
-      super.bizCouldNotOpenPaymentPlease;
+  String get bizCouldNotOpenPaymentPlease => _overrides['bizCouldNotOpenPaymentPlease'] ?? super.bizCouldNotOpenPaymentPlease;
 
   @override
-  String get bizBannerOrderSummary =>
-      _overrides['bizBannerOrderSummary'] ?? super.bizBannerOrderSummary;
+  String get bizBannerOrderSummary => _overrides['bizBannerOrderSummary'] ?? super.bizBannerOrderSummary;
 
   @override
   String get bizTitle => _overrides['bizTitle'] ?? super.bizTitle;
@@ -2377,46 +1906,34 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizTotal => _overrides['bizTotal'] ?? super.bizTotal;
 
   @override
-  String get bizYourBannerWillBeSubmitted =>
-      _overrides['bizYourBannerWillBeSubmitted'] ??
-      super.bizYourBannerWillBeSubmitted;
+  String get bizYourBannerWillBeSubmitted => _overrides['bizYourBannerWillBeSubmitted'] ?? super.bizYourBannerWillBeSubmitted;
 
   @override
-  String get bizRazorpayCheckoutWillOpenBanner =>
-      _overrides['bizRazorpayCheckoutWillOpenBanner'] ??
-      super.bizRazorpayCheckoutWillOpenBanner;
+  String get bizRazorpayCheckoutWillOpenBanner => _overrides['bizRazorpayCheckoutWillOpenBanner'] ?? super.bizRazorpayCheckoutWillOpenBanner;
 
   @override
-  String get bizConfirmSubmit =>
-      _overrides['bizConfirmSubmit'] ?? super.bizConfirmSubmit;
+  String get bizConfirmSubmit => _overrides['bizConfirmSubmit'] ?? super.bizConfirmSubmit;
 
   @override
-  String get bizRenewBanner =>
-      _overrides['bizRenewBanner'] ?? super.bizRenewBanner;
+  String get bizRenewBanner => _overrides['bizRenewBanner'] ?? super.bizRenewBanner;
 
   @override
-  String get bizCreateBanner =>
-      _overrides['bizCreateBanner'] ?? super.bizCreateBanner;
+  String get bizCreateBanner => _overrides['bizCreateBanner'] ?? super.bizCreateBanner;
 
   @override
-  String get bizBannerTitle2 =>
-      _overrides['bizBannerTitle2'] ?? super.bizBannerTitle2;
+  String get bizBannerTitle2 => _overrides['bizBannerTitle2'] ?? super.bizBannerTitle2;
 
   @override
   String get bizEG50OFFAt => _overrides['bizEG50OFFAt'] ?? super.bizEG50OFFAt;
 
   @override
-  String get bizSelectStore =>
-      _overrides['bizSelectStore'] ?? super.bizSelectStore;
+  String get bizSelectStore => _overrides['bizSelectStore'] ?? super.bizSelectStore;
 
   @override
-  String get bizUnnamedStore =>
-      _overrides['bizUnnamedStore'] ?? super.bizUnnamedStore;
+  String get bizUnnamedStore => _overrides['bizUnnamedStore'] ?? super.bizUnnamedStore;
 
   @override
-  String get bizCityAutoFilledFromStore =>
-      _overrides['bizCityAutoFilledFromStore'] ??
-      super.bizCityAutoFilledFromStore;
+  String get bizCityAutoFilledFromStore => _overrides['bizCityAutoFilledFromStore'] ?? super.bizCityAutoFilledFromStore;
 
   @override
   String get bizImage => _overrides['bizImage'] ?? super.bizImage;
@@ -2425,35 +1942,28 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizVideo => _overrides['bizVideo'] ?? super.bizVideo;
 
   @override
-  String get bizTapToUploadBannerImage =>
-      _overrides['bizTapToUploadBannerImage'] ??
-      super.bizTapToUploadBannerImage;
+  String get bizTapToUploadBannerImage => _overrides['bizTapToUploadBannerImage'] ?? super.bizTapToUploadBannerImage;
 
   @override
   String get bizMax2MB => _overrides['bizMax2MB'] ?? super.bizMax2MB;
 
   @override
-  String get bizDurationStartDate =>
-      _overrides['bizDurationStartDate'] ?? super.bizDurationStartDate;
+  String get bizDurationStartDate => _overrides['bizDurationStartDate'] ?? super.bizDurationStartDate;
 
   @override
-  String get bizNumberOfDays =>
-      _overrides['bizNumberOfDays'] ?? super.bizNumberOfDays;
+  String get bizNumberOfDays => _overrides['bizNumberOfDays'] ?? super.bizNumberOfDays;
 
   @override
   String get bizFromDate => _overrides['bizFromDate'] ?? super.bizFromDate;
 
   @override
-  String get bizActivePeriod =>
-      _overrides['bizActivePeriod'] ?? super.bizActivePeriod;
+  String get bizActivePeriod => _overrides['bizActivePeriod'] ?? super.bizActivePeriod;
 
   @override
-  String get bizDiscountCode =>
-      _overrides['bizDiscountCode'] ?? super.bizDiscountCode;
+  String get bizDiscountCode => _overrides['bizDiscountCode'] ?? super.bizDiscountCode;
 
   @override
-  String get bizHaveAPromoCodeEnter =>
-      _overrides['bizHaveAPromoCodeEnter'] ?? super.bizHaveAPromoCodeEnter;
+  String get bizHaveAPromoCodeEnter => _overrides['bizHaveAPromoCodeEnter'] ?? super.bizHaveAPromoCodeEnter;
 
   @override
   String get bizEGOFFRO20 => _overrides['bizEGOFFRO20'] ?? super.bizEGOFFRO20;
@@ -2462,26 +1972,22 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizApply => _overrides['bizApply'] ?? super.bizApply;
 
   @override
-  String get bizProceedToCheckout =>
-      _overrides['bizProceedToCheckout'] ?? super.bizProceedToCheckout;
+  String get bizProceedToCheckout => _overrides['bizProceedToCheckout'] ?? super.bizProceedToCheckout;
 
   @override
   String get bizLive => _overrides['bizLive'] ?? super.bizLive;
 
   @override
-  String get bizFilterProducts =>
-      _overrides['bizFilterProducts'] ?? super.bizFilterProducts;
+  String get bizFilterProducts => _overrides['bizFilterProducts'] ?? super.bizFilterProducts;
 
   @override
-  String get bizEditProduct =>
-      _overrides['bizEditProduct'] ?? super.bizEditProduct;
+  String get bizEditProduct => _overrides['bizEditProduct'] ?? super.bizEditProduct;
 
   @override
   String get bizAnalytics => _overrides['bizAnalytics'] ?? super.bizAnalytics;
 
   @override
-  String get bizDeleteProduct =>
-      _overrides['bizDeleteProduct'] ?? super.bizDeleteProduct;
+  String get bizDeleteProduct => _overrides['bizDeleteProduct'] ?? super.bizDeleteProduct;
 
   @override
   String get bizCatalogue => _overrides['bizCatalogue'] ?? super.bizCatalogue;
@@ -2490,31 +1996,25 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizFilter => _overrides['bizFilter'] ?? super.bizFilter;
 
   @override
-  String get bizNewProduct =>
-      _overrides['bizNewProduct'] ?? super.bizNewProduct;
+  String get bizNewProduct => _overrides['bizNewProduct'] ?? super.bizNewProduct;
 
   @override
-  String get bizSearchProducts =>
-      _overrides['bizSearchProducts'] ?? super.bizSearchProducts;
+  String get bizSearchProducts => _overrides['bizSearchProducts'] ?? super.bizSearchProducts;
 
   @override
   String get bizPending => _overrides['bizPending'] ?? super.bizPending;
 
   @override
-  String get bizCouldnTLoadProducts =>
-      _overrides['bizCouldnTLoadProducts'] ?? super.bizCouldnTLoadProducts;
+  String get bizCouldnTLoadProducts => _overrides['bizCouldnTLoadProducts'] ?? super.bizCouldnTLoadProducts;
 
   @override
-  String get bizNoProductsYet =>
-      _overrides['bizNoProductsYet'] ?? super.bizNoProductsYet;
+  String get bizNoProductsYet => _overrides['bizNoProductsYet'] ?? super.bizNoProductsYet;
 
   @override
-  String get bizNoMatchingProducts =>
-      _overrides['bizNoMatchingProducts'] ?? super.bizNoMatchingProducts;
+  String get bizNoMatchingProducts => _overrides['bizNoMatchingProducts'] ?? super.bizNoMatchingProducts;
 
   @override
-  String get bizTapNewProductToGet =>
-      _overrides['bizTapNewProductToGet'] ?? super.bizTapNewProductToGet;
+  String get bizTapNewProductToGet => _overrides['bizTapNewProductToGet'] ?? super.bizTapNewProductToGet;
 
   @override
   String get bizPaused => _overrides['bizPaused'] ?? super.bizPaused;
@@ -2526,8 +2026,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizPaid => _overrides['bizPaid'] ?? super.bizPaid;
 
   @override
-  String get bizDeactivated =>
-      _overrides['bizDeactivated'] ?? super.bizDeactivated;
+  String get bizDeactivated => _overrides['bizDeactivated'] ?? super.bizDeactivated;
 
   @override
   String get bizOn => _overrides['bizOn'] ?? super.bizOn;
@@ -2539,98 +2038,73 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizOfferText => _overrides['bizOfferText'] ?? super.bizOfferText;
 
   @override
-  String get bizOriginalPrice =>
-      _overrides['bizOriginalPrice'] ?? super.bizOriginalPrice;
+  String get bizOriginalPrice => _overrides['bizOriginalPrice'] ?? super.bizOriginalPrice;
 
   @override
-  String get bizOfferPrice =>
-      _overrides['bizOfferPrice'] ?? super.bizOfferPrice;
+  String get bizOfferPrice => _overrides['bizOfferPrice'] ?? super.bizOfferPrice;
 
   @override
-  String get bizProductUpdated =>
-      _overrides['bizProductUpdated'] ?? super.bizProductUpdated;
+  String get bizProductUpdated => _overrides['bizProductUpdated'] ?? super.bizProductUpdated;
 
   @override
-  String get bizDeleteThisProduct =>
-      _overrides['bizDeleteThisProduct'] ?? super.bizDeleteThisProduct;
+  String get bizDeleteThisProduct => _overrides['bizDeleteThisProduct'] ?? super.bizDeleteThisProduct;
 
   @override
-  String get bizProductDeleted =>
-      _overrides['bizProductDeleted'] ?? super.bizProductDeleted;
+  String get bizProductDeleted => _overrides['bizProductDeleted'] ?? super.bizProductDeleted;
 
   @override
-  String get bizLogoTooLargeMax1MB =>
-      _overrides['bizLogoTooLargeMax1MB'] ?? super.bizLogoTooLargeMax1MB;
+  String get bizLogoTooLargeMax1MB => _overrides['bizLogoTooLargeMax1MB'] ?? super.bizLogoTooLargeMax1MB;
 
   @override
-  String get bizEnterACode =>
-      _overrides['bizEnterACode'] ?? super.bizEnterACode;
+  String get bizEnterACode => _overrides['bizEnterACode'] ?? super.bizEnterACode;
 
   @override
-  String get bizProductTitleRequired =>
-      _overrides['bizProductTitleRequired'] ?? super.bizProductTitleRequired;
+  String get bizProductTitleRequired => _overrides['bizProductTitleRequired'] ?? super.bizProductTitleRequired;
 
   @override
-  String get bizPleaseSelectAStoreFor =>
-      _overrides['bizPleaseSelectAStoreFor'] ?? super.bizPleaseSelectAStoreFor;
+  String get bizPleaseSelectAStoreFor => _overrides['bizPleaseSelectAStoreFor'] ?? super.bizPleaseSelectAStoreFor;
 
   @override
-  String get bizPleaseSelectACityFor =>
-      _overrides['bizPleaseSelectACityFor'] ?? super.bizPleaseSelectACityFor;
+  String get bizPleaseSelectACityFor => _overrides['bizPleaseSelectACityFor'] ?? super.bizPleaseSelectACityFor;
 
   @override
-  String get bizPleaseUploadAProductImage =>
-      _overrides['bizPleaseUploadAProductImage'] ??
-      super.bizPleaseUploadAProductImage;
+  String get bizPleaseUploadAProductImage => _overrides['bizPleaseUploadAProductImage'] ?? super.bizPleaseUploadAProductImage;
 
   @override
-  String get bizEnterTheNumberOfDays =>
-      _overrides['bizEnterTheNumberOfDays'] ?? super.bizEnterTheNumberOfDays;
+  String get bizEnterTheNumberOfDays => _overrides['bizEnterTheNumberOfDays'] ?? super.bizEnterTheNumberOfDays;
 
   @override
-  String get bizProductOrderSummary =>
-      _overrides['bizProductOrderSummary'] ?? super.bizProductOrderSummary;
+  String get bizProductOrderSummary => _overrides['bizProductOrderSummary'] ?? super.bizProductOrderSummary;
 
   @override
   String get bizPrice => _overrides['bizPrice'] ?? super.bizPrice;
 
   @override
-  String get bizProductWillGoToAdmin =>
-      _overrides['bizProductWillGoToAdmin'] ?? super.bizProductWillGoToAdmin;
+  String get bizProductWillGoToAdmin => _overrides['bizProductWillGoToAdmin'] ?? super.bizProductWillGoToAdmin;
 
   @override
-  String get bizRazorpayOpensProductLiveAfter =>
-      _overrides['bizRazorpayOpensProductLiveAfter'] ??
-      super.bizRazorpayOpensProductLiveAfter;
+  String get bizRazorpayOpensProductLiveAfter => _overrides['bizRazorpayOpensProductLiveAfter'] ?? super.bizRazorpayOpensProductLiveAfter;
 
   @override
-  String get bizSaveProduct =>
-      _overrides['bizSaveProduct'] ?? super.bizSaveProduct;
+  String get bizSaveProduct => _overrides['bizSaveProduct'] ?? super.bizSaveProduct;
 
   @override
-  String get bizAddProduct =>
-      _overrides['bizAddProduct'] ?? super.bizAddProduct;
+  String get bizAddProduct => _overrides['bizAddProduct'] ?? super.bizAddProduct;
 
   @override
-  String get bizProductTitle =>
-      _overrides['bizProductTitle'] ?? super.bizProductTitle;
+  String get bizProductTitle => _overrides['bizProductTitle'] ?? super.bizProductTitle;
 
   @override
-  String get bizEGRajStore50 =>
-      _overrides['bizEGRajStore50'] ?? super.bizEGRajStore50;
+  String get bizEGRajStore50 => _overrides['bizEGRajStore50'] ?? super.bizEGRajStore50;
 
   @override
-  String get bizEGGet50Off =>
-      _overrides['bizEGGet50Off'] ?? super.bizEGGet50Off;
+  String get bizEGGet50Off => _overrides['bizEGGet50Off'] ?? super.bizEGGet50Off;
 
   @override
-  String get bizDiscountIsAutoCalculatedFrom =>
-      _overrides['bizDiscountIsAutoCalculatedFrom'] ??
-      super.bizDiscountIsAutoCalculatedFrom;
+  String get bizDiscountIsAutoCalculatedFrom => _overrides['bizDiscountIsAutoCalculatedFrom'] ?? super.bizDiscountIsAutoCalculatedFrom;
 
   @override
-  String get bizUploadImage =>
-      _overrides['bizUploadImage'] ?? super.bizUploadImage;
+  String get bizUploadImage => _overrides['bizUploadImage'] ?? super.bizUploadImage;
 
   @override
   String get biz400400px => _overrides['biz400400px'] ?? super.biz400400px;
@@ -2639,8 +2113,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizMax1MB => _overrides['bizMax1MB'] ?? super.bizMax1MB;
 
   @override
-  String get bizValidityDays =>
-      _overrides['bizValidityDays'] ?? super.bizValidityDays;
+  String get bizValidityDays => _overrides['bizValidityDays'] ?? super.bizValidityDays;
 
   @override
   String get bizStartDate => _overrides['bizStartDate'] ?? super.bizStartDate;
@@ -2649,35 +2122,28 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizEndDate => _overrides['bizEndDate'] ?? super.bizEndDate;
 
   @override
-  String get bizNumberOfDays2 =>
-      _overrides['bizNumberOfDays2'] ?? super.bizNumberOfDays2;
+  String get bizNumberOfDays2 => _overrides['bizNumberOfDays2'] ?? super.bizNumberOfDays2;
 
   @override
-  String get bizLivePeriod =>
-      _overrides['bizLivePeriod'] ?? super.bizLivePeriod;
+  String get bizLivePeriod => _overrides['bizLivePeriod'] ?? super.bizLivePeriod;
 
   @override
   String bizFree0(String amount) {
     final t = _overrides['bizFree0'];
-    return t == null
-        ? super.bizFree0(amount)
-        : fillRemoteTemplate(t, <String, String>{'amount': amount});
+    return t == null ? super.bizFree0(amount) : fillRemoteTemplate(t, <String, String>{'amount': amount});
   }
 
   @override
-  String get bizFreeProduct =>
-      _overrides['bizFreeProduct'] ?? super.bizFreeProduct;
+  String get bizFreeProduct => _overrides['bizFreeProduct'] ?? super.bizFreeProduct;
 
   @override
-  String get bizYourBusiness =>
-      _overrides['bizYourBusiness'] ?? super.bizYourBusiness;
+  String get bizYourBusiness => _overrides['bizYourBusiness'] ?? super.bizYourBusiness;
 
   @override
   String get bizMyStores => _overrides['bizMyStores'] ?? super.bizMyStores;
 
   @override
-  String get bizTapToAddYourFirst =>
-      _overrides['bizTapToAddYourFirst'] ?? super.bizTapToAddYourFirst;
+  String get bizTapToAddYourFirst => _overrides['bizTapToAddYourFirst'] ?? super.bizTapToAddYourFirst;
 
   @override
   String get bizActive => _overrides['bizActive'] ?? super.bizActive;
@@ -2698,9 +2164,7 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizSubscribe => _overrides['bizSubscribe'] ?? super.bizSubscribe;
 
   @override
-  String get bizAwaitingAdminApproval2 =>
-      _overrides['bizAwaitingAdminApproval2'] ??
-      super.bizAwaitingAdminApproval2;
+  String get bizAwaitingAdminApproval2 => _overrides['bizAwaitingAdminApproval2'] ?? super.bizAwaitingAdminApproval2;
 
   @override
   String get bizQR => _overrides['bizQR'] ?? super.bizQR;
@@ -2709,18 +2173,13 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizGenQR => _overrides['bizGenQR'] ?? super.bizGenQR;
 
   @override
-  String get bizShowThisToCustomersTo =>
-      _overrides['bizShowThisToCustomersTo'] ?? super.bizShowThisToCustomersTo;
+  String get bizShowThisToCustomersTo => _overrides['bizShowThisToCustomersTo'] ?? super.bizShowThisToCustomersTo;
 
   @override
-  String get bizDeviceLocationIsTurnedOff =>
-      _overrides['bizDeviceLocationIsTurnedOff'] ??
-      super.bizDeviceLocationIsTurnedOff;
+  String get bizDeviceLocationIsTurnedOff => _overrides['bizDeviceLocationIsTurnedOff'] ?? super.bizDeviceLocationIsTurnedOff;
 
   @override
-  String get bizUnableToIdentifyTheExact =>
-      _overrides['bizUnableToIdentifyTheExact'] ??
-      super.bizUnableToIdentifyTheExact;
+  String get bizUnableToIdentifyTheExact => _overrides['bizUnableToIdentifyTheExact'] ?? super.bizUnableToIdentifyTheExact;
 
   @override
   String get bizCity => _overrides['bizCity'] ?? super.bizCity;
@@ -2732,34 +2191,25 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizArea => _overrides['bizArea'] ?? super.bizArea;
 
   @override
-  String get bizPostalCode =>
-      _overrides['bizPostalCode'] ?? super.bizPostalCode;
+  String get bizPostalCode => _overrides['bizPostalCode'] ?? super.bizPostalCode;
 
   @override
-  String get bizLocationCaptured =>
-      _overrides['bizLocationCaptured'] ?? super.bizLocationCaptured;
+  String get bizLocationCaptured => _overrides['bizLocationCaptured'] ?? super.bizLocationCaptured;
 
   @override
-  String get bizImageTooLargeMax2MB2 =>
-      _overrides['bizImageTooLargeMax2MB2'] ?? super.bizImageTooLargeMax2MB2;
+  String get bizImageTooLargeMax2MB2 => _overrides['bizImageTooLargeMax2MB2'] ?? super.bizImageTooLargeMax2MB2;
 
   @override
-  String get bizStoreNameRequired =>
-      _overrides['bizStoreNameRequired'] ?? super.bizStoreNameRequired;
+  String get bizStoreNameRequired => _overrides['bizStoreNameRequired'] ?? super.bizStoreNameRequired;
 
   @override
-  String get bizPleaseSetTheStoreLocation =>
-      _overrides['bizPleaseSetTheStoreLocation'] ??
-      super.bizPleaseSetTheStoreLocation;
+  String get bizPleaseSetTheStoreLocation => _overrides['bizPleaseSetTheStoreLocation'] ?? super.bizPleaseSetTheStoreLocation;
 
   @override
-  String get bizMobileNumberIsRequired =>
-      _overrides['bizMobileNumberIsRequired'] ??
-      super.bizMobileNumberIsRequired;
+  String get bizMobileNumberIsRequired => _overrides['bizMobileNumberIsRequired'] ?? super.bizMobileNumberIsRequired;
 
   @override
-  String get bizEnterAValid10Digit =>
-      _overrides['bizEnterAValid10Digit'] ?? super.bizEnterAValid10Digit;
+  String get bizEnterAValid10Digit => _overrides['bizEnterAValid10Digit'] ?? super.bizEnterAValid10Digit;
 
   @override
   String get bizEditStore => _overrides['bizEditStore'] ?? super.bizEditStore;
@@ -2774,33 +2224,25 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizCategory => _overrides['bizCategory'] ?? super.bizCategory;
 
   @override
-  String get bizSelectCategory =>
-      _overrides['bizSelectCategory'] ?? super.bizSelectCategory;
+  String get bizSelectCategory => _overrides['bizSelectCategory'] ?? super.bizSelectCategory;
 
   @override
-  String get bizStoreLocation =>
-      _overrides['bizStoreLocation'] ?? super.bizStoreLocation;
+  String get bizStoreLocation => _overrides['bizStoreLocation'] ?? super.bizStoreLocation;
 
   @override
-  String get bizUseGPSOrPasteA =>
-      _overrides['bizUseGPSOrPasteA'] ?? super.bizUseGPSOrPasteA;
+  String get bizUseGPSOrPasteA => _overrides['bizUseGPSOrPasteA'] ?? super.bizUseGPSOrPasteA;
 
   @override
-  String get bizUseCurrentLocation =>
-      _overrides['bizUseCurrentLocation'] ?? super.bizUseCurrentLocation;
+  String get bizUseCurrentLocation => _overrides['bizUseCurrentLocation'] ?? super.bizUseCurrentLocation;
 
   @override
-  String get bizOrPasteGoogleMapsLink =>
-      _overrides['bizOrPasteGoogleMapsLink'] ?? super.bizOrPasteGoogleMapsLink;
+  String get bizOrPasteGoogleMapsLink => _overrides['bizOrPasteGoogleMapsLink'] ?? super.bizOrPasteGoogleMapsLink;
 
   @override
-  String get bizPasteGoogleMapsLinkHere =>
-      _overrides['bizPasteGoogleMapsLinkHere'] ??
-      super.bizPasteGoogleMapsLinkHere;
+  String get bizPasteGoogleMapsLinkHere => _overrides['bizPasteGoogleMapsLinkHere'] ?? super.bizPasteGoogleMapsLinkHere;
 
   @override
-  String get bizResolveLocation =>
-      _overrides['bizResolveLocation'] ?? super.bizResolveLocation;
+  String get bizResolveLocation => _overrides['bizResolveLocation'] ?? super.bizResolveLocation;
 
   @override
   String get bizLatitude => _overrides['bizLatitude'] ?? super.bizLatitude;
@@ -2809,83 +2251,64 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizLongitude => _overrides['bizLongitude'] ?? super.bizLongitude;
 
   @override
-  String get bizAutoFilledByGPSOr =>
-      _overrides['bizAutoFilledByGPSOr'] ?? super.bizAutoFilledByGPSOr;
+  String get bizAutoFilledByGPSOr => _overrides['bizAutoFilledByGPSOr'] ?? super.bizAutoFilledByGPSOr;
 
   @override
   String get bizPhone => _overrides['bizPhone'] ?? super.bizPhone;
 
   @override
-  String get bizTapToChangeImage =>
-      _overrides['bizTapToChangeImage'] ?? super.bizTapToChangeImage;
+  String get bizTapToChangeImage => _overrides['bizTapToChangeImage'] ?? super.bizTapToChangeImage;
 
   @override
-  String get bizMainStoreImage =>
-      _overrides['bizMainStoreImage'] ?? super.bizMainStoreImage;
+  String get bizMainStoreImage => _overrides['bizMainStoreImage'] ?? super.bizMainStoreImage;
 
   @override
-  String get biz800600px43 =>
-      _overrides['biz800600px43'] ?? super.biz800600px43;
+  String get biz800600px43 => _overrides['biz800600px43'] ?? super.biz800600px43;
 
   @override
-  String get bizUploadLogoOptional =>
-      _overrides['bizUploadLogoOptional'] ?? super.bizUploadLogoOptional;
+  String get bizUploadLogoOptional => _overrides['bizUploadLogoOptional'] ?? super.bizUploadLogoOptional;
 
   @override
-  String get bizTapToChangeLogo =>
-      _overrides['bizTapToChangeLogo'] ?? super.bizTapToChangeLogo;
+  String get bizTapToChangeLogo => _overrides['bizTapToChangeLogo'] ?? super.bizTapToChangeLogo;
 
   @override
-  String get bizTapToUploadLogo =>
-      _overrides['bizTapToUploadLogo'] ?? super.bizTapToUploadLogo;
+  String get bizTapToUploadLogo => _overrides['bizTapToUploadLogo'] ?? super.bizTapToUploadLogo;
 
   @override
-  String get biz200200px11 =>
-      _overrides['biz200200px11'] ?? super.biz200200px11;
+  String get biz200200px11 => _overrides['biz200200px11'] ?? super.biz200200px11;
 
   @override
-  String get bizStoreTimingsOptional =>
-      _overrides['bizStoreTimingsOptional'] ?? super.bizStoreTimingsOptional;
+  String get bizStoreTimingsOptional => _overrides['bizStoreTimingsOptional'] ?? super.bizStoreTimingsOptional;
 
   @override
-  String get bizOpeningTime =>
-      _overrides['bizOpeningTime'] ?? super.bizOpeningTime;
+  String get bizOpeningTime => _overrides['bizOpeningTime'] ?? super.bizOpeningTime;
 
   @override
   String get bizOpenAt => _overrides['bizOpenAt'] ?? super.bizOpenAt;
 
   @override
-  String get bizClosingTime =>
-      _overrides['bizClosingTime'] ?? super.bizClosingTime;
+  String get bizClosingTime => _overrides['bizClosingTime'] ?? super.bizClosingTime;
 
   @override
   String get bizCloseAt => _overrides['bizCloseAt'] ?? super.bizCloseAt;
 
   @override
-  String get bizAboutThisStoreDescriptionShown =>
-      _overrides['bizAboutThisStoreDescriptionShown'] ??
-      super.bizAboutThisStoreDescriptionShown;
+  String get bizAboutThisStoreDescriptionShown => _overrides['bizAboutThisStoreDescriptionShown'] ?? super.bizAboutThisStoreDescriptionShown;
 
   @override
-  String get bizSaveChanges =>
-      _overrides['bizSaveChanges'] ?? super.bizSaveChanges;
+  String get bizSaveChanges => _overrides['bizSaveChanges'] ?? super.bizSaveChanges;
 
   @override
-  String get bizCreateStore =>
-      _overrides['bizCreateStore'] ?? super.bizCreateStore;
+  String get bizCreateStore => _overrides['bizCreateStore'] ?? super.bizCreateStore;
 
   @override
-  String get bizConfirmingPayment =>
-      _overrides['bizConfirmingPayment'] ?? super.bizConfirmingPayment;
+  String get bizConfirmingPayment => _overrides['bizConfirmingPayment'] ?? super.bizConfirmingPayment;
 
   @override
-  String get bizPleaseWaitAMoment =>
-      _overrides['bizPleaseWaitAMoment'] ?? super.bizPleaseWaitAMoment;
+  String get bizPleaseWaitAMoment => _overrides['bizPleaseWaitAMoment'] ?? super.bizPleaseWaitAMoment;
 
   @override
-  String get bizSubscriptionRequestSent =>
-      _overrides['bizSubscriptionRequestSent'] ??
-      super.bizSubscriptionRequestSent;
+  String get bizSubscriptionRequestSent => _overrides['bizSubscriptionRequestSent'] ?? super.bizSubscriptionRequestSent;
 
   @override
   String get bizPlan => _overrides['bizPlan'] ?? super.bizPlan;
@@ -2897,41 +2320,31 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizTo => _overrides['bizTo'] ?? super.bizTo;
 
   @override
-  String get bizTotalPayable =>
-      _overrides['bizTotalPayable'] ?? super.bizTotalPayable;
+  String get bizTotalPayable => _overrides['bizTotalPayable'] ?? super.bizTotalPayable;
 
   @override
-  String get bizYourSubscriptionRequestHasBeen =>
-      _overrides['bizYourSubscriptionRequestHasBeen'] ??
-      super.bizYourSubscriptionRequestHasBeen;
+  String get bizYourSubscriptionRequestHasBeen => _overrides['bizYourSubscriptionRequestHasBeen'] ?? super.bizYourSubscriptionRequestHasBeen;
 
   @override
-  String get bizConfirmPayment =>
-      _overrides['bizConfirmPayment'] ?? super.bizConfirmPayment;
+  String get bizConfirmPayment => _overrides['bizConfirmPayment'] ?? super.bizConfirmPayment;
 
   @override
-  String get bizRazorpayCheckoutWillOpenAfter =>
-      _overrides['bizRazorpayCheckoutWillOpenAfter'] ??
-      super.bizRazorpayCheckoutWillOpenAfter;
+  String get bizRazorpayCheckoutWillOpenAfter => _overrides['bizRazorpayCheckoutWillOpenAfter'] ?? super.bizRazorpayCheckoutWillOpenAfter;
 
   @override
   String get bizPayNow => _overrides['bizPayNow'] ?? super.bizPayNow;
 
   @override
-  String get bizSubscribeStore =>
-      _overrides['bizSubscribeStore'] ?? super.bizSubscribeStore;
+  String get bizSubscribeStore => _overrides['bizSubscribeStore'] ?? super.bizSubscribeStore;
 
   @override
-  String get bizSelectPlan =>
-      _overrides['bizSelectPlan'] ?? super.bizSelectPlan;
+  String get bizSelectPlan => _overrides['bizSelectPlan'] ?? super.bizSelectPlan;
 
   @override
-  String get bizStartDate2 =>
-      _overrides['bizStartDate2'] ?? super.bizStartDate2;
+  String get bizStartDate2 => _overrides['bizStartDate2'] ?? super.bizStartDate2;
 
   @override
-  String get bizHaveADiscountCode =>
-      _overrides['bizHaveADiscountCode'] ?? super.bizHaveADiscountCode;
+  String get bizHaveADiscountCode => _overrides['bizHaveADiscountCode'] ?? super.bizHaveADiscountCode;
 
   @override
   String get bizEnterCode => _overrides['bizEnterCode'] ?? super.bizEnterCode;
@@ -2943,152 +2356,115 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizRemove => _overrides['bizRemove'] ?? super.bizRemove;
 
   @override
-  String get bizProceedToPay =>
-      _overrides['bizProceedToPay'] ?? super.bizProceedToPay;
+  String get bizProceedToPay => _overrides['bizProceedToPay'] ?? super.bizProceedToPay;
 
   @override
   String get bizRefresh => _overrides['bizRefresh'] ?? super.bizRefresh;
 
   @override
-  String get bizNoInvoicesYet =>
-      _overrides['bizNoInvoicesYet'] ?? super.bizNoInvoicesYet;
+  String get bizNoInvoicesYet => _overrides['bizNoInvoicesYet'] ?? super.bizNoInvoicesYet;
 
   @override
-  String get bizPullDownToRefresh =>
-      _overrides['bizPullDownToRefresh'] ?? super.bizPullDownToRefresh;
+  String get bizPullDownToRefresh => _overrides['bizPullDownToRefresh'] ?? super.bizPullDownToRefresh;
 
   @override
   String get bizShare => _overrides['bizShare'] ?? super.bizShare;
 
   @override
-  String get bizDownloadPDF =>
-      _overrides['bizDownloadPDF'] ?? super.bizDownloadPDF;
+  String get bizDownloadPDF => _overrides['bizDownloadPDF'] ?? super.bizDownloadPDF;
 
   @override
-  String get bizAccountRegistered =>
-      _overrides['bizAccountRegistered'] ?? super.bizAccountRegistered;
+  String get bizAccountRegistered => _overrides['bizAccountRegistered'] ?? super.bizAccountRegistered;
 
   @override
-  String get bizNewStoreCreated =>
-      _overrides['bizNewStoreCreated'] ?? super.bizNewStoreCreated;
+  String get bizNewStoreCreated => _overrides['bizNewStoreCreated'] ?? super.bizNewStoreCreated;
 
   @override
-  String get bizStoreProfileUpdated =>
-      _overrides['bizStoreProfileUpdated'] ?? super.bizStoreProfileUpdated;
+  String get bizStoreProfileUpdated => _overrides['bizStoreProfileUpdated'] ?? super.bizStoreProfileUpdated;
 
   @override
-  String get bizStoreApproved =>
-      _overrides['bizStoreApproved'] ?? super.bizStoreApproved;
+  String get bizStoreApproved => _overrides['bizStoreApproved'] ?? super.bizStoreApproved;
 
   @override
-  String get bizStoreRejected =>
-      _overrides['bizStoreRejected'] ?? super.bizStoreRejected;
+  String get bizStoreRejected => _overrides['bizStoreRejected'] ?? super.bizStoreRejected;
 
   @override
-  String get bizStoreSubscriptionActivated =>
-      _overrides['bizStoreSubscriptionActivated'] ??
-      super.bizStoreSubscriptionActivated;
+  String get bizStoreSubscriptionActivated => _overrides['bizStoreSubscriptionActivated'] ?? super.bizStoreSubscriptionActivated;
 
   @override
-  String get bizFreeSubscriptionActivated =>
-      _overrides['bizFreeSubscriptionActivated'] ??
-      super.bizFreeSubscriptionActivated;
+  String get bizFreeSubscriptionActivated => _overrides['bizFreeSubscriptionActivated'] ?? super.bizFreeSubscriptionActivated;
 
   @override
-  String get bizSubscriptionPaymentReceived =>
-      _overrides['bizSubscriptionPaymentReceived'] ??
-      super.bizSubscriptionPaymentReceived;
+  String get bizSubscriptionPaymentReceived => _overrides['bizSubscriptionPaymentReceived'] ?? super.bizSubscriptionPaymentReceived;
 
   @override
-  String get bizBannerSubmitted =>
-      _overrides['bizBannerSubmitted'] ?? super.bizBannerSubmitted;
+  String get bizBannerSubmitted => _overrides['bizBannerSubmitted'] ?? super.bizBannerSubmitted;
 
   @override
-  String get bizBannerApproved =>
-      _overrides['bizBannerApproved'] ?? super.bizBannerApproved;
+  String get bizBannerApproved => _overrides['bizBannerApproved'] ?? super.bizBannerApproved;
 
   @override
-  String get bizBannerRejected =>
-      _overrides['bizBannerRejected'] ?? super.bizBannerRejected;
+  String get bizBannerRejected => _overrides['bizBannerRejected'] ?? super.bizBannerRejected;
 
   @override
-  String get bizBannerPaymentReceived =>
-      _overrides['bizBannerPaymentReceived'] ?? super.bizBannerPaymentReceived;
+  String get bizBannerPaymentReceived => _overrides['bizBannerPaymentReceived'] ?? super.bizBannerPaymentReceived;
 
   @override
-  String get bizProductSubmitted =>
-      _overrides['bizProductSubmitted'] ?? super.bizProductSubmitted;
+  String get bizProductSubmitted => _overrides['bizProductSubmitted'] ?? super.bizProductSubmitted;
 
   @override
-  String get bizProductApproved =>
-      _overrides['bizProductApproved'] ?? super.bizProductApproved;
+  String get bizProductApproved => _overrides['bizProductApproved'] ?? super.bizProductApproved;
 
   @override
-  String get bizProductRejected =>
-      _overrides['bizProductRejected'] ?? super.bizProductRejected;
+  String get bizProductRejected => _overrides['bizProductRejected'] ?? super.bizProductRejected;
 
   @override
-  String get bizProductPaymentReceived =>
-      _overrides['bizProductPaymentReceived'] ??
-      super.bizProductPaymentReceived;
+  String get bizProductPaymentReceived => _overrides['bizProductPaymentReceived'] ?? super.bizProductPaymentReceived;
 
   @override
-  String get bizPaymentReceived =>
-      _overrides['bizPaymentReceived'] ?? super.bizPaymentReceived;
+  String get bizPaymentReceived => _overrides['bizPaymentReceived'] ?? super.bizPaymentReceived;
 
   @override
-  String get bizFreePlanActivated =>
-      _overrides['bizFreePlanActivated'] ?? super.bizFreePlanActivated;
+  String get bizFreePlanActivated => _overrides['bizFreePlanActivated'] ?? super.bizFreePlanActivated;
 
   @override
-  String get bizProfileUpdated =>
-      _overrides['bizProfileUpdated'] ?? super.bizProfileUpdated;
+  String get bizProfileUpdated => _overrides['bizProfileUpdated'] ?? super.bizProfileUpdated;
 
   @override
-  String get bizQRCodeRegenerated =>
-      _overrides['bizQRCodeRegenerated'] ?? super.bizQRCodeRegenerated;
+  String get bizQRCodeRegenerated => _overrides['bizQRCodeRegenerated'] ?? super.bizQRCodeRegenerated;
 
   @override
   String get bizPayment => _overrides['bizPayment'] ?? super.bizPayment;
 
   @override
-  String get bizApprovedLive2 =>
-      _overrides['bizApprovedLive2'] ?? super.bizApprovedLive2;
+  String get bizApprovedLive2 => _overrides['bizApprovedLive2'] ?? super.bizApprovedLive2;
 
   @override
   String get bizRejected2 => _overrides['bizRejected2'] ?? super.bizRejected2;
 
   @override
-  String get bizPendingApproval2 =>
-      _overrides['bizPendingApproval2'] ?? super.bizPendingApproval2;
+  String get bizPendingApproval2 => _overrides['bizPendingApproval2'] ?? super.bizPendingApproval2;
 
   @override
-  String get bizBusinessTimeline =>
-      _overrides['bizBusinessTimeline'] ?? super.bizBusinessTimeline;
+  String get bizBusinessTimeline => _overrides['bizBusinessTimeline'] ?? super.bizBusinessTimeline;
 
   @override
-  String get bizNoActivityYet =>
-      _overrides['bizNoActivityYet'] ?? super.bizNoActivityYet;
+  String get bizNoActivityYet => _overrides['bizNoActivityYet'] ?? super.bizNoActivityYet;
 
   @override
-  String get bizMerchantAccount =>
-      _overrides['bizMerchantAccount'] ?? super.bizMerchantAccount;
+  String get bizMerchantAccount => _overrides['bizMerchantAccount'] ?? super.bizMerchantAccount;
 
   @override
-  String get bizTapPhotoToChange =>
-      _overrides['bizTapPhotoToChange'] ?? super.bizTapPhotoToChange;
+  String get bizTapPhotoToChange => _overrides['bizTapPhotoToChange'] ?? super.bizTapPhotoToChange;
 
   @override
-  String get bizSwitchBetweenUserMerchantInfluencer =>
-      _overrides['bizSwitchBetweenUserMerchantInfluencer'] ??
-      super.bizSwitchBetweenUserMerchantInfluencer;
+  String get bizSwitchBetweenUserMerchantInfluencer => _overrides['bizSwitchBetweenUserMerchantInfluencer'] ?? super.bizSwitchBetweenUserMerchantInfluencer;
 
   @override
   String get bizKYCPolicy => _overrides['bizKYCPolicy'] ?? super.bizKYCPolicy;
 
   @override
-  String get bizMerchantOffers =>
-      _overrides['bizMerchantOffers'] ?? super.bizMerchantOffers;
+  String get bizMerchantOffers => _overrides['bizMerchantOffers'] ?? super.bizMerchantOffers;
 
   @override
   String get bizMyDeals => _overrides['bizMyDeals'] ?? super.bizMyDeals;
@@ -3097,119 +2473,91 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizAddDeal => _overrides['bizAddDeal'] ?? super.bizAddDeal;
 
   @override
-  String get bizYouNeedAnActiveStore =>
-      _overrides['bizYouNeedAnActiveStore'] ?? super.bizYouNeedAnActiveStore;
+  String get bizYouNeedAnActiveStore => _overrides['bizYouNeedAnActiveStore'] ?? super.bizYouNeedAnActiveStore;
 
   @override
-  String get bizNoDealsYet =>
-      _overrides['bizNoDealsYet'] ?? super.bizNoDealsYet;
+  String get bizNoDealsYet => _overrides['bizNoDealsYet'] ?? super.bizNoDealsYet;
 
   @override
-  String get bizAddDealsToAttractMore =>
-      _overrides['bizAddDealsToAttractMore'] ?? super.bizAddDealsToAttractMore;
+  String get bizAddDealsToAttractMore => _overrides['bizAddDealsToAttractMore'] ?? super.bizAddDealsToAttractMore;
 
   @override
   String get bizEditDeal => _overrides['bizEditDeal'] ?? super.bizEditDeal;
 
   @override
-  String get bizDeleteDeal =>
-      _overrides['bizDeleteDeal'] ?? super.bizDeleteDeal;
+  String get bizDeleteDeal => _overrides['bizDeleteDeal'] ?? super.bizDeleteDeal;
 
   @override
   String get bizDelete => _overrides['bizDelete'] ?? super.bizDelete;
 
   @override
-  String get bizDealTitleIsRequired =>
-      _overrides['bizDealTitleIsRequired'] ?? super.bizDealTitleIsRequired;
+  String get bizDealTitleIsRequired => _overrides['bizDealTitleIsRequired'] ?? super.bizDealTitleIsRequired;
 
   @override
-  String get bizEndDateIsRequired =>
-      _overrides['bizEndDateIsRequired'] ?? super.bizEndDateIsRequired;
+  String get bizEndDateIsRequired => _overrides['bizEndDateIsRequired'] ?? super.bizEndDateIsRequired;
 
   @override
-  String get bizPleaseAddAnImageBefore =>
-      _overrides['bizPleaseAddAnImageBefore'] ??
-      super.bizPleaseAddAnImageBefore;
+  String get bizPleaseAddAnImageBefore => _overrides['bizPleaseAddAnImageBefore'] ?? super.bizPleaseAddAnImageBefore;
 
   @override
-  String get bizDealUpdated =>
-      _overrides['bizDealUpdated'] ?? super.bizDealUpdated;
+  String get bizDealUpdated => _overrides['bizDealUpdated'] ?? super.bizDealUpdated;
 
   @override
   String get bizDealAdded => _overrides['bizDealAdded'] ?? super.bizDealAdded;
 
   @override
-  String get bizDealTitleEG20 =>
-      _overrides['bizDealTitleEG20'] ?? super.bizDealTitleEG20;
+  String get bizDealTitleEG20 => _overrides['bizDealTitleEG20'] ?? super.bizDealTitleEG20;
 
   @override
-  String get bizDescriptionOptional =>
-      _overrides['bizDescriptionOptional'] ?? super.bizDescriptionOptional;
+  String get bizDescriptionOptional => _overrides['bizDescriptionOptional'] ?? super.bizDescriptionOptional;
 
   @override
   String get bizDealImage => _overrides['bizDealImage'] ?? super.bizDealImage;
 
   @override
-  String get bizTapToReplaceImage =>
-      _overrides['bizTapToReplaceImage'] ?? super.bizTapToReplaceImage;
+  String get bizTapToReplaceImage => _overrides['bizTapToReplaceImage'] ?? super.bizTapToReplaceImage;
 
   @override
-  String get bizMax2MBRequired =>
-      _overrides['bizMax2MBRequired'] ?? super.bizMax2MBRequired;
+  String get bizMax2MBRequired => _overrides['bizMax2MBRequired'] ?? super.bizMax2MBRequired;
 
   @override
-  String get bizSelectEndDate =>
-      _overrides['bizSelectEndDate'] ?? super.bizSelectEndDate;
+  String get bizSelectEndDate => _overrides['bizSelectEndDate'] ?? super.bizSelectEndDate;
 
   @override
-  String get bizAllYourStoresProductsData =>
-      _overrides['bizAllYourStoresProductsData'] ??
-      super.bizAllYourStoresProductsData;
+  String get bizAllYourStoresProductsData => _overrides['bizAllYourStoresProductsData'] ?? super.bizAllYourStoresProductsData;
 
   @override
-  String get bizINoLongerRunMy =>
-      _overrides['bizINoLongerRunMy'] ?? super.bizINoLongerRunMy;
+  String get bizINoLongerRunMy => _overrides['bizINoLongerRunMy'] ?? super.bizINoLongerRunMy;
 
   @override
-  String get bizTheAppIsNotWorking =>
-      _overrides['bizTheAppIsNotWorking'] ?? super.bizTheAppIsNotWorking;
+  String get bizTheAppIsNotWorking => _overrides['bizTheAppIsNotWorking'] ?? super.bizTheAppIsNotWorking;
 
   @override
-  String get bizOnceYourAccountIsDeleted =>
-      _overrides['bizOnceYourAccountIsDeleted'] ??
-      super.bizOnceYourAccountIsDeleted;
+  String get bizOnceYourAccountIsDeleted => _overrides['bizOnceYourAccountIsDeleted'] ?? super.bizOnceYourAccountIsDeleted;
 
   @override
-  String get bizYourMerchantAccountWillBe =>
-      _overrides['bizYourMerchantAccountWillBe'] ??
-      super.bizYourMerchantAccountWillBe;
+  String get bizYourMerchantAccountWillBe => _overrides['bizYourMerchantAccountWillBe'] ?? super.bizYourMerchantAccountWillBe;
 
   @override
   String get bizChecking => _overrides['bizChecking'] ?? super.bizChecking;
 
   @override
-  String get bizDiscountApplied2 =>
-      _overrides['bizDiscountApplied2'] ?? super.bizDiscountApplied2;
+  String get bizDiscountApplied2 => _overrides['bizDiscountApplied2'] ?? super.bizDiscountApplied2;
 
   @override
-  String get bizChooseALaterEndDate =>
-      _overrides['bizChooseALaterEndDate'] ?? super.bizChooseALaterEndDate;
+  String get bizChooseALaterEndDate => _overrides['bizChooseALaterEndDate'] ?? super.bizChooseALaterEndDate;
 
   @override
-  String get bizRenewedSuccessfully =>
-      _overrides['bizRenewedSuccessfully'] ?? super.bizRenewedSuccessfully;
+  String get bizRenewedSuccessfully => _overrides['bizRenewedSuccessfully'] ?? super.bizRenewedSuccessfully;
 
   @override
-  String get bizRenewalSummary =>
-      _overrides['bizRenewalSummary'] ?? super.bizRenewalSummary;
+  String get bizRenewalSummary => _overrides['bizRenewalSummary'] ?? super.bizRenewalSummary;
 
   @override
-  String get bizNewEndDate =>
-      _overrides['bizNewEndDate'] ?? super.bizNewEndDate;
+  String get bizNewEndDate => _overrides['bizNewEndDate'] ?? super.bizNewEndDate;
 
   @override
-  String get bizFreeRenewal =>
-      _overrides['bizFreeRenewal'] ?? super.bizFreeRenewal;
+  String get bizFreeRenewal => _overrides['bizFreeRenewal'] ?? super.bizFreeRenewal;
 
   @override
   String get bizRenewFree => _overrides['bizRenewFree'] ?? super.bizRenewFree;
@@ -3218,37 +2566,28 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizRenewed => _overrides['bizRenewed'] ?? super.bizRenewed;
 
   @override
-  String get bizRenewProduct =>
-      _overrides['bizRenewProduct'] ?? super.bizRenewProduct;
+  String get bizRenewProduct => _overrides['bizRenewProduct'] ?? super.bizRenewProduct;
 
   @override
   String get bizNoEndDate => _overrides['bizNoEndDate'] ?? super.bizNoEndDate;
 
   @override
-  String get bizChooseHowLongTheProduct =>
-      _overrides['bizChooseHowLongTheProduct'] ??
-      super.bizChooseHowLongTheProduct;
+  String get bizChooseHowLongTheProduct => _overrides['bizChooseHowLongTheProduct'] ?? super.bizChooseHowLongTheProduct;
 
   @override
   String get bizDaysToAdd => _overrides['bizDaysToAdd'] ?? super.bizDaysToAdd;
 
   @override
-  String get bizProductAnalytics =>
-      _overrides['bizProductAnalytics'] ?? super.bizProductAnalytics;
+  String get bizProductAnalytics => _overrides['bizProductAnalytics'] ?? super.bizProductAnalytics;
 
   @override
-  String get bizCouldnTLoadAnalytics =>
-      _overrides['bizCouldnTLoadAnalytics'] ?? super.bizCouldnTLoadAnalytics;
+  String get bizCouldnTLoadAnalytics => _overrides['bizCouldnTLoadAnalytics'] ?? super.bizCouldnTLoadAnalytics;
 
   @override
-  String get bizPleaseCheckYourConnectionAnd =>
-      _overrides['bizPleaseCheckYourConnectionAnd'] ??
-      super.bizPleaseCheckYourConnectionAnd;
+  String get bizPleaseCheckYourConnectionAnd => _overrides['bizPleaseCheckYourConnectionAnd'] ?? super.bizPleaseCheckYourConnectionAnd;
 
   @override
-  String get bizPremiumListingAnalytics =>
-      _overrides['bizPremiumListingAnalytics'] ??
-      super.bizPremiumListingAnalytics;
+  String get bizPremiumListingAnalytics => _overrides['bizPremiumListingAnalytics'] ?? super.bizPremiumListingAnalytics;
 
   @override
   String get bizViews => _overrides['bizViews'] ?? super.bizViews;
@@ -3257,185 +2596,136 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizShares => _overrides['bizShares'] ?? super.bizShares;
 
   @override
-  String get bizStoreVisits =>
-      _overrides['bizStoreVisits'] ?? super.bizStoreVisits;
+  String get bizStoreVisits => _overrides['bizStoreVisits'] ?? super.bizStoreVisits;
 
   @override
   String get bizLastSeen => _overrides['bizLastSeen'] ?? super.bizLastSeen;
 
   @override
-  String get bizStoreVisitsCustomersWhoVisited =>
-      _overrides['bizStoreVisitsCustomersWhoVisited'] ??
-      super.bizStoreVisitsCustomersWhoVisited;
+  String get bizStoreVisitsCustomersWhoVisited => _overrides['bizStoreVisitsCustomersWhoVisited'] ?? super.bizStoreVisitsCustomersWhoVisited;
 
   @override
-  String get bizConversionRate =>
-      _overrides['bizConversionRate'] ?? super.bizConversionRate;
+  String get bizConversionRate => _overrides['bizConversionRate'] ?? super.bizConversionRate;
 
   @override
-  String get bizSimilarProducts =>
-      _overrides['bizSimilarProducts'] ?? super.bizSimilarProducts;
+  String get bizSimilarProducts => _overrides['bizSimilarProducts'] ?? super.bizSimilarProducts;
 
   @override
-  String get bizPaymentSuccessful =>
-      _overrides['bizPaymentSuccessful'] ?? super.bizPaymentSuccessful;
+  String get bizPaymentSuccessful => _overrides['bizPaymentSuccessful'] ?? super.bizPaymentSuccessful;
 
   @override
-  String get bizYourPurchaseIsNowPending =>
-      _overrides['bizYourPurchaseIsNowPending'] ??
-      super.bizYourPurchaseIsNowPending;
+  String get bizYourPurchaseIsNowPending => _overrides['bizYourPurchaseIsNowPending'] ?? super.bizYourPurchaseIsNowPending;
 
   @override
-  String get bizAdminWillReviewAndActivate =>
-      _overrides['bizAdminWillReviewAndActivate'] ??
-      super.bizAdminWillReviewAndActivate;
+  String get bizAdminWillReviewAndActivate => _overrides['bizAdminWillReviewAndActivate'] ?? super.bizAdminWillReviewAndActivate;
 
   @override
-  String get bizInfluencersAreComingSoon =>
-      _overrides['bizInfluencersAreComingSoon'] ??
-      super.bizInfluencersAreComingSoon;
+  String get bizInfluencersAreComingSoon => _overrides['bizInfluencersAreComingSoon'] ?? super.bizInfluencersAreComingSoon;
 
   @override
-  String get bizWeReBringingLocalCreators =>
-      _overrides['bizWeReBringingLocalCreators'] ??
-      super.bizWeReBringingLocalCreators;
+  String get bizWeReBringingLocalCreators => _overrides['bizWeReBringingLocalCreators'] ?? super.bizWeReBringingLocalCreators;
 
   @override
-  String get bizPeopleShapingTheCity =>
-      _overrides['bizPeopleShapingTheCity'] ?? super.bizPeopleShapingTheCity;
+  String get bizPeopleShapingTheCity => _overrides['bizPeopleShapingTheCity'] ?? super.bizPeopleShapingTheCity;
 
   @override
-  String get bizLocalVoices =>
-      _overrides['bizLocalVoices'] ?? super.bizLocalVoices;
+  String get bizLocalVoices => _overrides['bizLocalVoices'] ?? super.bizLocalVoices;
 
   @override
-  String get bizPleaseSelectAStarRating =>
-      _overrides['bizPleaseSelectAStarRating'] ??
-      super.bizPleaseSelectAStarRating;
+  String get bizPleaseSelectAStarRating => _overrides['bizPleaseSelectAStarRating'] ?? super.bizPleaseSelectAStarRating;
 
   @override
-  String get bizPleaseLogInToSubmit =>
-      _overrides['bizPleaseLogInToSubmit'] ?? super.bizPleaseLogInToSubmit;
+  String get bizPleaseLogInToSubmit => _overrides['bizPleaseLogInToSubmit'] ?? super.bizPleaseLogInToSubmit;
 
   @override
-  String get bizPleaseWriteAtLeastA =>
-      _overrides['bizPleaseWriteAtLeastA'] ?? super.bizPleaseWriteAtLeastA;
+  String get bizPleaseWriteAtLeastA => _overrides['bizPleaseWriteAtLeastA'] ?? super.bizPleaseWriteAtLeastA;
 
   @override
-  String get bizVERIFIEDLOCALVOICE =>
-      _overrides['bizVERIFIEDLOCALVOICE'] ?? super.bizVERIFIEDLOCALVOICE;
+  String get bizVERIFIEDLOCALVOICE => _overrides['bizVERIFIEDLOCALVOICE'] ?? super.bizVERIFIEDLOCALVOICE;
 
   @override
   String get bizRating => _overrides['bizRating'] ?? super.bizRating;
 
   @override
-  String get bizRateThisInfluencer =>
-      _overrides['bizRateThisInfluencer'] ?? super.bizRateThisInfluencer;
+  String get bizRateThisInfluencer => _overrides['bizRateThisInfluencer'] ?? super.bizRateThisInfluencer;
 
   @override
-  String get bizShareYourExperienceOptional =>
-      _overrides['bizShareYourExperienceOptional'] ??
-      super.bizShareYourExperienceOptional;
+  String get bizShareYourExperienceOptional => _overrides['bizShareYourExperienceOptional'] ?? super.bizShareYourExperienceOptional;
 
   @override
-  String get bizUpdateReview =>
-      _overrides['bizUpdateReview'] ?? super.bizUpdateReview;
+  String get bizUpdateReview => _overrides['bizUpdateReview'] ?? super.bizUpdateReview;
 
   @override
-  String get bizCreatorAccount =>
-      _overrides['bizCreatorAccount'] ?? super.bizCreatorAccount;
+  String get bizCreatorAccount => _overrides['bizCreatorAccount'] ?? super.bizCreatorAccount;
 
   @override
-  String get bizCREATORWORKSPACE =>
-      _overrides['bizCREATORWORKSPACE'] ?? super.bizCREATORWORKSPACE;
+  String get bizCREATORWORKSPACE => _overrides['bizCREATORWORKSPACE'] ?? super.bizCREATORWORKSPACE;
 
   @override
-  String get bizProfileViews =>
-      _overrides['bizProfileViews'] ?? super.bizProfileViews;
+  String get bizProfileViews => _overrides['bizProfileViews'] ?? super.bizProfileViews;
 
   @override
   String get bizSavedBy => _overrides['bizSavedBy'] ?? super.bizSavedBy;
 
   @override
-  String get bizYourProfileIsLive =>
-      _overrides['bizYourProfileIsLive'] ?? super.bizYourProfileIsLive;
+  String get bizYourProfileIsLive => _overrides['bizYourProfileIsLive'] ?? super.bizYourProfileIsLive;
 
   @override
-  String get bizYourProfileIsnTLive =>
-      _overrides['bizYourProfileIsnTLive'] ?? super.bizYourProfileIsnTLive;
+  String get bizYourProfileIsnTLive => _overrides['bizYourProfileIsnTLive'] ?? super.bizYourProfileIsnTLive;
 
   @override
-  String get bizMerchantsAndCustomersCanDiscover =>
-      _overrides['bizMerchantsAndCustomersCanDiscover'] ??
-      super.bizMerchantsAndCustomersCanDiscover;
+  String get bizMerchantsAndCustomersCanDiscover => _overrides['bizMerchantsAndCustomersCanDiscover'] ?? super.bizMerchantsAndCustomersCanDiscover;
 
   @override
-  String get bizOpenYourProfileToReview =>
-      _overrides['bizOpenYourProfileToReview'] ??
-      super.bizOpenYourProfileToReview;
+  String get bizOpenYourProfileToReview => _overrides['bizOpenYourProfileToReview'] ?? super.bizOpenYourProfileToReview;
 
   @override
-  String get bizMATCHEDFORYOU =>
-      _overrides['bizMATCHEDFORYOU'] ?? super.bizMATCHEDFORYOU;
+  String get bizMATCHEDFORYOU => _overrides['bizMATCHEDFORYOU'] ?? super.bizMATCHEDFORYOU;
 
   @override
-  String get bizCampaignOpportunities =>
-      _overrides['bizCampaignOpportunities'] ?? super.bizCampaignOpportunities;
+  String get bizCampaignOpportunities => _overrides['bizCampaignOpportunities'] ?? super.bizCampaignOpportunities;
 
   @override
-  String get bizINFLUENCERWORKSPACE =>
-      _overrides['bizINFLUENCERWORKSPACE'] ?? super.bizINFLUENCERWORKSPACE;
+  String get bizINFLUENCERWORKSPACE => _overrides['bizINFLUENCERWORKSPACE'] ?? super.bizINFLUENCERWORKSPACE;
 
   @override
-  String get bizCreateYourLocalProfile =>
-      _overrides['bizCreateYourLocalProfile'] ??
-      super.bizCreateYourLocalProfile;
+  String get bizCreateYourLocalProfile => _overrides['bizCreateYourLocalProfile'] ?? super.bizCreateYourLocalProfile;
 
   @override
-  String get bizYouLlNeedAnInfluencer =>
-      _overrides['bizYouLlNeedAnInfluencer'] ?? super.bizYouLlNeedAnInfluencer;
+  String get bizYouLlNeedAnInfluencer => _overrides['bizYouLlNeedAnInfluencer'] ?? super.bizYouLlNeedAnInfluencer;
 
   @override
-  String get bizAddInfluencerProfile =>
-      _overrides['bizAddInfluencerProfile'] ?? super.bizAddInfluencerProfile;
+  String get bizAddInfluencerProfile => _overrides['bizAddInfluencerProfile'] ?? super.bizAddInfluencerProfile;
 
   @override
   String get bizNotAdded => _overrides['bizNotAdded'] ?? super.bizNotAdded;
 
   @override
-  String get bizContinuePublishingPayNow =>
-      _overrides['bizContinuePublishingPayNow'] ??
-      super.bizContinuePublishingPayNow;
+  String get bizContinuePublishingPayNow => _overrides['bizContinuePublishingPayNow'] ?? super.bizContinuePublishingPayNow;
 
   @override
   String get bizMyProfile => _overrides['bizMyProfile'] ?? super.bizMyProfile;
 
   @override
-  String get bizBusinessDetails =>
-      _overrides['bizBusinessDetails'] ?? super.bizBusinessDetails;
+  String get bizBusinessDetails => _overrides['bizBusinessDetails'] ?? super.bizBusinessDetails;
 
   @override
-  String get bizDisplayName =>
-      _overrides['bizDisplayName'] ?? super.bizDisplayName;
+  String get bizDisplayName => _overrides['bizDisplayName'] ?? super.bizDisplayName;
 
   @override
   String get bizBio => _overrides['bizBio'] ?? super.bizBio;
 
   @override
-  String get bizSocialPages =>
-      _overrides['bizSocialPages'] ?? super.bizSocialPages;
+  String get bizSocialPages => _overrides['bizSocialPages'] ?? super.bizSocialPages;
 
   @override
-  String get bizPrimarySpecialty =>
-      _overrides['bizPrimarySpecialty'] ?? super.bizPrimarySpecialty;
+  String get bizPrimarySpecialty => _overrides['bizPrimarySpecialty'] ?? super.bizPrimarySpecialty;
 
   @override
-  String get bizNoSpecialtySelected =>
-      _overrides['bizNoSpecialtySelected'] ?? super.bizNoSpecialtySelected;
+  String get bizNoSpecialtySelected => _overrides['bizNoSpecialtySelected'] ?? super.bizNoSpecialtySelected;
 
   @override
-  String get bizAccountDetails =>
-      _overrides['bizAccountDetails'] ?? super.bizAccountDetails;
+  String get bizAccountDetails => _overrides['bizAccountDetails'] ?? super.bizAccountDetails;
 
   @override
   String get bizDisable => _overrides['bizDisable'] ?? super.bizDisable;
@@ -3444,287 +2734,205 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizEnable => _overrides['bizEnable'] ?? super.bizEnable;
 
   @override
-  String get bizHideYourProfileFromCustomers =>
-      _overrides['bizHideYourProfileFromCustomers'] ??
-      super.bizHideYourProfileFromCustomers;
+  String get bizHideYourProfileFromCustomers => _overrides['bizHideYourProfileFromCustomers'] ?? super.bizHideYourProfileFromCustomers;
 
   @override
-  String get bizMakeYourProfileVisibleAgain =>
-      _overrides['bizMakeYourProfileVisibleAgain'] ??
-      super.bizMakeYourProfileVisibleAgain;
+  String get bizMakeYourProfileVisibleAgain => _overrides['bizMakeYourProfileVisibleAgain'] ?? super.bizMakeYourProfileVisibleAgain;
 
   @override
-  String get bizSwitchToYourCustomerAccount =>
-      _overrides['bizSwitchToYourCustomerAccount'] ??
-      super.bizSwitchToYourCustomerAccount;
+  String get bizSwitchToYourCustomerAccount => _overrides['bizSwitchToYourCustomerAccount'] ?? super.bizSwitchToYourCustomerAccount;
 
   @override
-  String get bizYourProfileIsSavedAs =>
-      _overrides['bizYourProfileIsSavedAs'] ?? super.bizYourProfileIsSavedAs;
+  String get bizYourProfileIsSavedAs => _overrides['bizYourProfileIsSavedAs'] ?? super.bizYourProfileIsSavedAs;
 
   @override
-  String get bizPaymentIsBeingProcessedIf =>
-      _overrides['bizPaymentIsBeingProcessedIf'] ??
-      super.bizPaymentIsBeingProcessedIf;
+  String get bizPaymentIsBeingProcessedIf => _overrides['bizPaymentIsBeingProcessedIf'] ?? super.bizPaymentIsBeingProcessedIf;
 
   @override
-  String get bizYourLastSubscriptionPaymentAttempt =>
-      _overrides['bizYourLastSubscriptionPaymentAttempt'] ??
-      super.bizYourLastSubscriptionPaymentAttempt;
+  String get bizYourLastSubscriptionPaymentAttempt => _overrides['bizYourLastSubscriptionPaymentAttempt'] ?? super.bizYourLastSubscriptionPaymentAttempt;
 
   @override
-  String get bizYourProfileIsNotYet =>
-      _overrides['bizYourProfileIsNotYet'] ?? super.bizYourProfileIsNotYet;
+  String get bizYourProfileIsNotYet => _overrides['bizYourProfileIsNotYet'] ?? super.bizYourProfileIsNotYet;
 
   @override
-  String get bizDeleteInfluencerProfile =>
-      _overrides['bizDeleteInfluencerProfile'] ??
-      super.bizDeleteInfluencerProfile;
+  String get bizDeleteInfluencerProfile => _overrides['bizDeleteInfluencerProfile'] ?? super.bizDeleteInfluencerProfile;
 
   @override
-  String get bizAreYouSureYouWant =>
-      _overrides['bizAreYouSureYouWant'] ?? super.bizAreYouSureYouWant;
+  String get bizAreYouSureYouWant => _overrides['bizAreYouSureYouWant'] ?? super.bizAreYouSureYouWant;
 
   @override
-  String get bizIfYouCreateANew =>
-      _overrides['bizIfYouCreateANew'] ?? super.bizIfYouCreateANew;
+  String get bizIfYouCreateANew => _overrides['bizIfYouCreateANew'] ?? super.bizIfYouCreateANew;
 
   @override
-  String get bizDeleteProfile =>
-      _overrides['bizDeleteProfile'] ?? super.bizDeleteProfile;
+  String get bizDeleteProfile => _overrides['bizDeleteProfile'] ?? super.bizDeleteProfile;
 
   @override
   String get bizREVIEWS => _overrides['bizREVIEWS'] ?? super.bizREVIEWS;
 
   @override
-  String get bizCreatorReviews =>
-      _overrides['bizCreatorReviews'] ?? super.bizCreatorReviews;
+  String get bizCreatorReviews => _overrides['bizCreatorReviews'] ?? super.bizCreatorReviews;
 
   @override
-  String get bizNameIsRequired =>
-      _overrides['bizNameIsRequired'] ?? super.bizNameIsRequired;
+  String get bizNameIsRequired => _overrides['bizNameIsRequired'] ?? super.bizNameIsRequired;
 
   @override
-  String get bizPleaseSelectAState =>
-      _overrides['bizPleaseSelectAState'] ?? super.bizPleaseSelectAState;
+  String get bizPleaseSelectAState => _overrides['bizPleaseSelectAState'] ?? super.bizPleaseSelectAState;
 
   @override
-  String get bizPleaseEnterAValid10 =>
-      _overrides['bizPleaseEnterAValid10'] ?? super.bizPleaseEnterAValid10;
+  String get bizPleaseEnterAValid10 => _overrides['bizPleaseEnterAValid10'] ?? super.bizPleaseEnterAValid10;
 
   @override
-  String get bizProfileImageIsRequiredTo =>
-      _overrides['bizProfileImageIsRequiredTo'] ??
-      super.bizProfileImageIsRequiredTo;
+  String get bizProfileImageIsRequiredTo => _overrides['bizProfileImageIsRequiredTo'] ?? super.bizProfileImageIsRequiredTo;
 
   @override
-  String get bizWeCouldnTConfirmYour =>
-      _overrides['bizWeCouldnTConfirmYour'] ?? super.bizWeCouldnTConfirmYour;
+  String get bizWeCouldnTConfirmYour => _overrides['bizWeCouldnTConfirmYour'] ?? super.bizWeCouldnTConfirmYour;
 
   @override
-  String get bizCreatorIdentity =>
-      _overrides['bizCreatorIdentity'] ?? super.bizCreatorIdentity;
+  String get bizCreatorIdentity => _overrides['bizCreatorIdentity'] ?? super.bizCreatorIdentity;
 
   @override
-  String get bizEditProfile =>
-      _overrides['bizEditProfile'] ?? super.bizEditProfile;
+  String get bizEditProfile => _overrides['bizEditProfile'] ?? super.bizEditProfile;
 
   @override
-  String get bizAddProfile =>
-      _overrides['bizAddProfile'] ?? super.bizAddProfile;
+  String get bizAddProfile => _overrides['bizAddProfile'] ?? super.bizAddProfile;
 
   @override
-  String get bizRequiredToPublish =>
-      _overrides['bizRequiredToPublish'] ?? super.bizRequiredToPublish;
+  String get bizRequiredToPublish => _overrides['bizRequiredToPublish'] ?? super.bizRequiredToPublish;
 
   @override
   String get bizName => _overrides['bizName'] ?? super.bizName;
 
   @override
-  String get bizEGPriyaSharma =>
-      _overrides['bizEGPriyaSharma'] ?? super.bizEGPriyaSharma;
+  String get bizEGPriyaSharma => _overrides['bizEGPriyaSharma'] ?? super.bizEGPriyaSharma;
 
   @override
-  String get bizSharingTheBestLocalFood =>
-      _overrides['bizSharingTheBestLocalFood'] ??
-      super.bizSharingTheBestLocalFood;
+  String get bizSharingTheBestLocalFood => _overrides['bizSharingTheBestLocalFood'] ?? super.bizSharingTheBestLocalFood;
 
   @override
   String get bizState2 => _overrides['bizState2'] ?? super.bizState2;
 
   @override
-  String get bizSelectState =>
-      _overrides['bizSelectState'] ?? super.bizSelectState;
+  String get bizSelectState => _overrides['bizSelectState'] ?? super.bizSelectState;
 
   @override
   String get bizCity2 => _overrides['bizCity2'] ?? super.bizCity2;
 
   @override
-  String get bizSelectStateFirst =>
-      _overrides['bizSelectStateFirst'] ?? super.bizSelectStateFirst;
+  String get bizSelectStateFirst => _overrides['bizSelectStateFirst'] ?? super.bizSelectStateFirst;
 
   @override
-  String get bizSelectCity =>
-      _overrides['bizSelectCity'] ?? super.bizSelectCity;
+  String get bizSelectCity => _overrides['bizSelectCity'] ?? super.bizSelectCity;
 
   @override
-  String get bizPrimarySpecialtySelectOneOr =>
-      _overrides['bizPrimarySpecialtySelectOneOr'] ??
-      super.bizPrimarySpecialtySelectOneOr;
+  String get bizPrimarySpecialtySelectOneOr => _overrides['bizPrimarySpecialtySelectOneOr'] ?? super.bizPrimarySpecialtySelectOneOr;
 
   @override
-  String get bizNoCategoriesAvailable =>
-      _overrides['bizNoCategoriesAvailable'] ?? super.bizNoCategoriesAvailable;
+  String get bizNoCategoriesAvailable => _overrides['bizNoCategoriesAvailable'] ?? super.bizNoCategoriesAvailable;
 
   @override
-  String get biz10DigitMobileNumber =>
-      _overrides['biz10DigitMobileNumber'] ?? super.biz10DigitMobileNumber;
+  String get biz10DigitMobileNumber => _overrides['biz10DigitMobileNumber'] ?? super.biz10DigitMobileNumber;
 
   @override
-  String get bizSocialLinks =>
-      _overrides['bizSocialLinks'] ?? super.bizSocialLinks;
+  String get bizSocialLinks => _overrides['bizSocialLinks'] ?? super.bizSocialLinks;
 
   @override
-  String get bizInstagramURL =>
-      _overrides['bizInstagramURL'] ?? super.bizInstagramURL;
+  String get bizInstagramURL => _overrides['bizInstagramURL'] ?? super.bizInstagramURL;
 
   @override
-  String get bizYouTubeURL =>
-      _overrides['bizYouTubeURL'] ?? super.bizYouTubeURL;
+  String get bizYouTubeURL => _overrides['bizYouTubeURL'] ?? super.bizYouTubeURL;
 
   @override
-  String get bizFacebookURL =>
-      _overrides['bizFacebookURL'] ?? super.bizFacebookURL;
+  String get bizFacebookURL => _overrides['bizFacebookURL'] ?? super.bizFacebookURL;
 
   @override
-  String get bizSaveKeepAsDraft =>
-      _overrides['bizSaveKeepAsDraft'] ?? super.bizSaveKeepAsDraft;
+  String get bizSaveKeepAsDraft => _overrides['bizSaveKeepAsDraft'] ?? super.bizSaveKeepAsDraft;
 
   @override
-  String get bizSavePublish =>
-      _overrides['bizSavePublish'] ?? super.bizSavePublish;
+  String get bizSavePublish => _overrides['bizSavePublish'] ?? super.bizSavePublish;
 
   @override
-  String get bizSavePublishPayToPublish =>
-      _overrides['bizSavePublishPayToPublish'] ??
-      super.bizSavePublishPayToPublish;
+  String get bizSavePublishPayToPublish => _overrides['bizSavePublishPayToPublish'] ?? super.bizSavePublishPayToPublish;
 
   @override
-  String get bizNoSubscriptionPaymentIsCurrently =>
-      _overrides['bizNoSubscriptionPaymentIsCurrently'] ??
-      super.bizNoSubscriptionPaymentIsCurrently;
+  String get bizNoSubscriptionPaymentIsCurrently => _overrides['bizNoSubscriptionPaymentIsCurrently'] ?? super.bizNoSubscriptionPaymentIsCurrently;
 
   @override
-  String get bizSubscriptionFee =>
-      _overrides['bizSubscriptionFee'] ?? super.bizSubscriptionFee;
+  String get bizSubscriptionFee => _overrides['bizSubscriptionFee'] ?? super.bizSubscriptionFee;
 
   @override
-  String get bizDiscountCodeOptional =>
-      _overrides['bizDiscountCodeOptional'] ?? super.bizDiscountCodeOptional;
+  String get bizDiscountCodeOptional => _overrides['bizDiscountCodeOptional'] ?? super.bizDiscountCodeOptional;
 
   @override
-  String get bizAOneTimePaymentYou =>
-      _overrides['bizAOneTimePaymentYou'] ?? super.bizAOneTimePaymentYou;
+  String get bizAOneTimePaymentYou => _overrides['bizAOneTimePaymentYou'] ?? super.bizAOneTimePaymentYou;
 
   @override
-  String get bizEnterADiscountCodeFirst =>
-      _overrides['bizEnterADiscountCodeFirst'] ??
-      super.bizEnterADiscountCodeFirst;
+  String get bizEnterADiscountCodeFirst => _overrides['bizEnterADiscountCodeFirst'] ?? super.bizEnterADiscountCodeFirst;
 
   @override
-  String get bizSelectSpecialties =>
-      _overrides['bizSelectSpecialties'] ?? super.bizSelectSpecialties;
+  String get bizSelectSpecialties => _overrides['bizSelectSpecialties'] ?? super.bizSelectSpecialties;
 
   @override
-  String get bizCreateBrief =>
-      _overrides['bizCreateBrief'] ?? super.bizCreateBrief;
+  String get bizCreateBrief => _overrides['bizCreateBrief'] ?? super.bizCreateBrief;
 
   @override
-  String get bizShareWhatYouNeedAnd =>
-      _overrides['bizShareWhatYouNeedAnd'] ?? super.bizShareWhatYouNeedAnd;
+  String get bizShareWhatYouNeedAnd => _overrides['bizShareWhatYouNeedAnd'] ?? super.bizShareWhatYouNeedAnd;
 
   @override
-  String get bizInviteCreators =>
-      _overrides['bizInviteCreators'] ?? super.bizInviteCreators;
+  String get bizInviteCreators => _overrides['bizInviteCreators'] ?? super.bizInviteCreators;
 
   @override
-  String get bizLocalCreatorsInYourCity =>
-      _overrides['bizLocalCreatorsInYourCity'] ??
-      super.bizLocalCreatorsInYourCity;
+  String get bizLocalCreatorsInYourCity => _overrides['bizLocalCreatorsInYourCity'] ?? super.bizLocalCreatorsInYourCity;
 
   @override
-  String get bizConfirmMatch =>
-      _overrides['bizConfirmMatch'] ?? super.bizConfirmMatch;
+  String get bizConfirmMatch => _overrides['bizConfirmMatch'] ?? super.bizConfirmMatch;
 
   @override
-  String get bizReviewWhoAcceptedAndConnect =>
-      _overrides['bizReviewWhoAcceptedAndConnect'] ??
-      super.bizReviewWhoAcceptedAndConnect;
+  String get bizReviewWhoAcceptedAndConnect => _overrides['bizReviewWhoAcceptedAndConnect'] ?? super.bizReviewWhoAcceptedAndConnect;
 
   @override
   String get bizCreator => _overrides['bizCreator'] ?? super.bizCreator;
 
   @override
-  String get bizCollaborations =>
-      _overrides['bizCollaborations'] ?? super.bizCollaborations;
+  String get bizCollaborations => _overrides['bizCollaborations'] ?? super.bizCollaborations;
 
   @override
-  String get bizWorkWithTrustedLocalCreators =>
-      _overrides['bizWorkWithTrustedLocalCreators'] ??
-      super.bizWorkWithTrustedLocalCreators;
+  String get bizWorkWithTrustedLocalCreators => _overrides['bizWorkWithTrustedLocalCreators'] ?? super.bizWorkWithTrustedLocalCreators;
 
   @override
-  String get bizCreateOneClearCampaignBrief =>
-      _overrides['bizCreateOneClearCampaignBrief'] ??
-      super.bizCreateOneClearCampaignBrief;
+  String get bizCreateOneClearCampaignBrief => _overrides['bizCreateOneClearCampaignBrief'] ?? super.bizCreateOneClearCampaignBrief;
 
   @override
-  String get bizHowItWorks =>
-      _overrides['bizHowItWorks'] ?? super.bizHowItWorks;
+  String get bizHowItWorks => _overrides['bizHowItWorks'] ?? super.bizHowItWorks;
 
   @override
-  String get bizCreateCampaignBrief =>
-      _overrides['bizCreateCampaignBrief'] ?? super.bizCreateCampaignBrief;
+  String get bizCreateCampaignBrief => _overrides['bizCreateCampaignBrief'] ?? super.bizCreateCampaignBrief;
 
   @override
-  String get bizYourCampaigns =>
-      _overrides['bizYourCampaigns'] ?? super.bizYourCampaigns;
+  String get bizYourCampaigns => _overrides['bizYourCampaigns'] ?? super.bizYourCampaigns;
 
   @override
-  String get bizCollaborationWorkspace =>
-      _overrides['bizCollaborationWorkspace'] ??
-      super.bizCollaborationWorkspace;
+  String get bizCollaborationWorkspace => _overrides['bizCollaborationWorkspace'] ?? super.bizCollaborationWorkspace;
 
   @override
-  String get bizNoCampaignsYet =>
-      _overrides['bizNoCampaignsYet'] ?? super.bizNoCampaignsYet;
+  String get bizNoCampaignsYet => _overrides['bizNoCampaignsYet'] ?? super.bizNoCampaignsYet;
 
   @override
-  String get bizCreateYourFirstCampaignBrief =>
-      _overrides['bizCreateYourFirstCampaignBrief'] ??
-      super.bizCreateYourFirstCampaignBrief;
+  String get bizCreateYourFirstCampaignBrief => _overrides['bizCreateYourFirstCampaignBrief'] ?? super.bizCreateYourFirstCampaignBrief;
 
   @override
-  String get bizWhenShouldYouUseThis =>
-      _overrides['bizWhenShouldYouUseThis'] ?? super.bizWhenShouldYouUseThis;
+  String get bizWhenShouldYouUseThis => _overrides['bizWhenShouldYouUseThis'] ?? super.bizWhenShouldYouUseThis;
 
   @override
-  String get bizUseCollaborationsForLaunchesVisits =>
-      _overrides['bizUseCollaborationsForLaunchesVisits'] ??
-      super.bizUseCollaborationsForLaunchesVisits;
+  String get bizUseCollaborationsForLaunchesVisits => _overrides['bizUseCollaborationsForLaunchesVisits'] ?? super.bizUseCollaborationsForLaunchesVisits;
 
   @override
-  String get bizReviewProposals =>
-      _overrides['bizReviewProposals'] ?? super.bizReviewProposals;
+  String get bizReviewProposals => _overrides['bizReviewProposals'] ?? super.bizReviewProposals;
 
   @override
-  String get bizCloseCampaign =>
-      _overrides['bizCloseCampaign'] ?? super.bizCloseCampaign;
+  String get bizCloseCampaign => _overrides['bizCloseCampaign'] ?? super.bizCloseCampaign;
 
   @override
-  String get bizCreatorsWillNoLongerBe =>
-      _overrides['bizCreatorsWillNoLongerBe'] ??
-      super.bizCreatorsWillNoLongerBe;
+  String get bizCreatorsWillNoLongerBe => _overrides['bizCreatorsWillNoLongerBe'] ?? super.bizCreatorsWillNoLongerBe;
 
   @override
   String get bizKeepOpen => _overrides['bizKeepOpen'] ?? super.bizKeepOpen;
@@ -3736,170 +2944,121 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizProposals => _overrides['bizProposals'] ?? super.bizProposals;
 
   @override
-  String get bizCreatorsWhoAccepted =>
-      _overrides['bizCreatorsWhoAccepted'] ?? super.bizCreatorsWhoAccepted;
+  String get bizCreatorsWhoAccepted => _overrides['bizCreatorsWhoAccepted'] ?? super.bizCreatorsWhoAccepted;
 
   @override
-  String get bizNoProposalsYet =>
-      _overrides['bizNoProposalsYet'] ?? super.bizNoProposalsYet;
+  String get bizNoProposalsYet => _overrides['bizNoProposalsYet'] ?? super.bizNoProposalsYet;
 
   @override
-  String get bizCreatorsInYourCityWill =>
-      _overrides['bizCreatorsInYourCityWill'] ??
-      super.bizCreatorsInYourCityWill;
+  String get bizCreatorsInYourCityWill => _overrides['bizCreatorsInYourCityWill'] ?? super.bizCreatorsInYourCityWill;
 
   @override
   String get bizClosing => _overrides['bizClosing'] ?? super.bizClosing;
 
   @override
-  String get bizCloseCampaign2 =>
-      _overrides['bizCloseCampaign2'] ?? super.bizCloseCampaign2;
+  String get bizCloseCampaign2 => _overrides['bizCloseCampaign2'] ?? super.bizCloseCampaign2;
 
   @override
-  String get bizChatOnWhatsApp =>
-      _overrides['bizChatOnWhatsApp'] ?? super.bizChatOnWhatsApp;
+  String get bizChatOnWhatsApp => _overrides['bizChatOnWhatsApp'] ?? super.bizChatOnWhatsApp;
 
   @override
-  String get bizCouldnTOpenWhatsApp =>
-      _overrides['bizCouldnTOpenWhatsApp'] ?? super.bizCouldnTOpenWhatsApp;
+  String get bizCouldnTOpenWhatsApp => _overrides['bizCouldnTOpenWhatsApp'] ?? super.bizCouldnTOpenWhatsApp;
 
   @override
-  String get bizPleaseSelectAStore2 =>
-      _overrides['bizPleaseSelectAStore2'] ?? super.bizPleaseSelectAStore2;
+  String get bizPleaseSelectAStore2 => _overrides['bizPleaseSelectAStore2'] ?? super.bizPleaseSelectAStore2;
 
   @override
-  String get bizEnterACampaignTitleAt =>
-      _overrides['bizEnterACampaignTitleAt'] ?? super.bizEnterACampaignTitleAt;
+  String get bizEnterACampaignTitleAt => _overrides['bizEnterACampaignTitleAt'] ?? super.bizEnterACampaignTitleAt;
 
   @override
-  String get bizSelectACampaignObjective =>
-      _overrides['bizSelectACampaignObjective'] ??
-      super.bizSelectACampaignObjective;
+  String get bizSelectACampaignObjective => _overrides['bizSelectACampaignObjective'] ?? super.bizSelectACampaignObjective;
 
   @override
-  String get bizDescribeWhatTheCreatorShould =>
-      _overrides['bizDescribeWhatTheCreatorShould'] ??
-      super.bizDescribeWhatTheCreatorShould;
+  String get bizDescribeWhatTheCreatorShould => _overrides['bizDescribeWhatTheCreatorShould'] ?? super.bizDescribeWhatTheCreatorShould;
 
   @override
-  String get bizSelectTheContentYouNeed =>
-      _overrides['bizSelectTheContentYouNeed'] ??
-      super.bizSelectTheContentYouNeed;
+  String get bizSelectTheContentYouNeed => _overrides['bizSelectTheContentYouNeed'] ?? super.bizSelectTheContentYouNeed;
 
   @override
-  String get bizChooseAPublishByDate =>
-      _overrides['bizChooseAPublishByDate'] ?? super.bizChooseAPublishByDate;
+  String get bizChooseAPublishByDate => _overrides['bizChooseAPublishByDate'] ?? super.bizChooseAPublishByDate;
 
   @override
-  String get bizChooseAVisitDateFor =>
-      _overrides['bizChooseAVisitDateFor'] ?? super.bizChooseAVisitDateFor;
+  String get bizChooseAVisitDateFor => _overrides['bizChooseAVisitDateFor'] ?? super.bizChooseAVisitDateFor;
 
   @override
-  String get bizVisitDateCanTBe =>
-      _overrides['bizVisitDateCanTBe'] ?? super.bizVisitDateCanTBe;
+  String get bizVisitDateCanTBe => _overrides['bizVisitDateCanTBe'] ?? super.bizVisitDateCanTBe;
 
   @override
-  String get bizBriefPublishedMatchingCreatorsCan =>
-      _overrides['bizBriefPublishedMatchingCreatorsCan'] ??
-      super.bizBriefPublishedMatchingCreatorsCan;
+  String get bizBriefPublishedMatchingCreatorsCan => _overrides['bizBriefPublishedMatchingCreatorsCan'] ?? super.bizBriefPublishedMatchingCreatorsCan;
 
   @override
-  String get bizCampaignBrief =>
-      _overrides['bizCampaignBrief'] ?? super.bizCampaignBrief;
+  String get bizCampaignBrief => _overrides['bizCampaignBrief'] ?? super.bizCampaignBrief;
 
   @override
-  String get bizAddAndActivateAStore =>
-      _overrides['bizAddAndActivateAStore'] ?? super.bizAddAndActivateAStore;
+  String get bizAddAndActivateAStore => _overrides['bizAddAndActivateAStore'] ?? super.bizAddAndActivateAStore;
 
   @override
-  String get bizSelectStore2 =>
-      _overrides['bizSelectStore2'] ?? super.bizSelectStore2;
+  String get bizSelectStore2 => _overrides['bizSelectStore2'] ?? super.bizSelectStore2;
 
   @override
-  String get bizCampaignTitle =>
-      _overrides['bizCampaignTitle'] ?? super.bizCampaignTitle;
+  String get bizCampaignTitle => _overrides['bizCampaignTitle'] ?? super.bizCampaignTitle;
 
   @override
-  String get bizExampleSeasonalMenuLaunch =>
-      _overrides['bizExampleSeasonalMenuLaunch'] ??
-      super.bizExampleSeasonalMenuLaunch;
+  String get bizExampleSeasonalMenuLaunch => _overrides['bizExampleSeasonalMenuLaunch'] ?? super.bizExampleSeasonalMenuLaunch;
 
   @override
-  String get bizCampaignObjective =>
-      _overrides['bizCampaignObjective'] ?? super.bizCampaignObjective;
+  String get bizCampaignObjective => _overrides['bizCampaignObjective'] ?? super.bizCampaignObjective;
 
   @override
-  String get bizSelectObjective =>
-      _overrides['bizSelectObjective'] ?? super.bizSelectObjective;
+  String get bizSelectObjective => _overrides['bizSelectObjective'] ?? super.bizSelectObjective;
 
   @override
-  String get bizWhatShouldTheCreatorCommunicate =>
-      _overrides['bizWhatShouldTheCreatorCommunicate'] ??
-      super.bizWhatShouldTheCreatorCommunicate;
+  String get bizWhatShouldTheCreatorCommunicate => _overrides['bizWhatShouldTheCreatorCommunicate'] ?? super.bizWhatShouldTheCreatorCommunicate;
 
   @override
-  String get bizKeyMessageExperienceAndDetails =>
-      _overrides['bizKeyMessageExperienceAndDetails'] ??
-      super.bizKeyMessageExperienceAndDetails;
+  String get bizKeyMessageExperienceAndDetails => _overrides['bizKeyMessageExperienceAndDetails'] ?? super.bizKeyMessageExperienceAndDetails;
 
   @override
-  String get bizRequestedContent =>
-      _overrides['bizRequestedContent'] ?? super.bizRequestedContent;
+  String get bizRequestedContent => _overrides['bizRequestedContent'] ?? super.bizRequestedContent;
 
   @override
   String get bizVisitDate => _overrides['bizVisitDate'] ?? super.bizVisitDate;
 
   @override
-  String get bizSelectDate =>
-      _overrides['bizSelectDate'] ?? super.bizSelectDate;
+  String get bizSelectDate => _overrides['bizSelectDate'] ?? super.bizSelectDate;
 
   @override
   String get bizPublishBy => _overrides['bizPublishBy'] ?? super.bizPublishBy;
 
   @override
-  String get bizPreferredCreatorSpeciality =>
-      _overrides['bizPreferredCreatorSpeciality'] ??
-      super.bizPreferredCreatorSpeciality;
+  String get bizPreferredCreatorSpeciality => _overrides['bizPreferredCreatorSpeciality'] ?? super.bizPreferredCreatorSpeciality;
 
   @override
-  String get bizSelectSpeciality =>
-      _overrides['bizSelectSpeciality'] ?? super.bizSelectSpeciality;
+  String get bizSelectSpeciality => _overrides['bizSelectSpeciality'] ?? super.bizSelectSpeciality;
 
   @override
-  String get bizNoPaymentProcessing =>
-      _overrides['bizNoPaymentProcessing'] ?? super.bizNoPaymentProcessing;
+  String get bizNoPaymentProcessing => _overrides['bizNoPaymentProcessing'] ?? super.bizNoPaymentProcessing;
 
   @override
-  String get bizOffrOConnectsYouWithCreators =>
-      _overrides['bizOffrOConnectsYouWithCreators'] ??
-      super.bizOffrOConnectsYouWithCreators;
+  String get bizOffrOConnectsYouWithCreators => _overrides['bizOffrOConnectsYouWithCreators'] ?? super.bizOffrOConnectsYouWithCreators;
 
   @override
-  String get bizPublishing =>
-      _overrides['bizPublishing'] ?? super.bizPublishing;
+  String get bizPublishing => _overrides['bizPublishing'] ?? super.bizPublishing;
 
   @override
-  String get bizPublishBrief =>
-      _overrides['bizPublishBrief'] ?? super.bizPublishBrief;
+  String get bizPublishBrief => _overrides['bizPublishBrief'] ?? super.bizPublishBrief;
 
   @override
-  String get bizMatchedLocally =>
-      _overrides['bizMatchedLocally'] ?? super.bizMatchedLocally;
+  String get bizMatchedLocally => _overrides['bizMatchedLocally'] ?? super.bizMatchedLocally;
 
   @override
-  String get bizReviewCollaborationRequestsFromReleva =>
-      _overrides['bizReviewCollaborationRequestsFromReleva'] ??
-      super.bizReviewCollaborationRequestsFromReleva;
+  String get bizReviewCollaborationRequestsFromReleva => _overrides['bizReviewCollaborationRequestsFromReleva'] ?? super.bizReviewCollaborationRequestsFromReleva;
 
   @override
-  String get bizNoCollaborationRequestsYet =>
-      _overrides['bizNoCollaborationRequestsYet'] ??
-      super.bizNoCollaborationRequestsYet;
+  String get bizNoCollaborationRequestsYet => _overrides['bizNoCollaborationRequestsYet'] ?? super.bizNoCollaborationRequestsYet;
 
   @override
-  String get bizRequestsFromMerchantsInYour =>
-      _overrides['bizRequestsFromMerchantsInYour'] ??
-      super.bizRequestsFromMerchantsInYour;
+  String get bizRequestsFromMerchantsInYour => _overrides['bizRequestsFromMerchantsInYour'] ?? super.bizRequestsFromMerchantsInYour;
 
   @override
   String get bizAccepted => _overrides['bizAccepted'] ?? super.bizAccepted;
@@ -3908,41 +3067,31 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizDeclined => _overrides['bizDeclined'] ?? super.bizDeclined;
 
   @override
-  String get bizNewCollaborationRequest =>
-      _overrides['bizNewCollaborationRequest'] ??
-      super.bizNewCollaborationRequest;
+  String get bizNewCollaborationRequest => _overrides['bizNewCollaborationRequest'] ?? super.bizNewCollaborationRequest;
 
   @override
   String get bizViewBrief => _overrides['bizViewBrief'] ?? super.bizViewBrief;
 
   @override
-  String get bizNoCampaignRequestsYet =>
-      _overrides['bizNoCampaignRequestsYet'] ?? super.bizNoCampaignRequestsYet;
+  String get bizNoCampaignRequestsYet => _overrides['bizNoCampaignRequestsYet'] ?? super.bizNoCampaignRequestsYet;
 
   @override
-  String get bizNewBriefsFromMerchantsIn =>
-      _overrides['bizNewBriefsFromMerchantsIn'] ??
-      super.bizNewBriefsFromMerchantsIn;
+  String get bizNewBriefsFromMerchantsIn => _overrides['bizNewBriefsFromMerchantsIn'] ?? super.bizNewBriefsFromMerchantsIn;
 
   @override
-  String get bizCollaborationAccepted =>
-      _overrides['bizCollaborationAccepted'] ?? super.bizCollaborationAccepted;
+  String get bizCollaborationAccepted => _overrides['bizCollaborationAccepted'] ?? super.bizCollaborationAccepted;
 
   @override
-  String get bizRequestDeclined =>
-      _overrides['bizRequestDeclined'] ?? super.bizRequestDeclined;
+  String get bizRequestDeclined => _overrides['bizRequestDeclined'] ?? super.bizRequestDeclined;
 
   @override
-  String get bizCollaborationRequest =>
-      _overrides['bizCollaborationRequest'] ?? super.bizCollaborationRequest;
+  String get bizCollaborationRequest => _overrides['bizCollaborationRequest'] ?? super.bizCollaborationRequest;
 
   @override
   String get bizBrief => _overrides['bizBrief'] ?? super.bizBrief;
 
   @override
-  String get bizCompleteYourProfileSubscriptionTo =>
-      _overrides['bizCompleteYourProfileSubscriptionTo'] ??
-      super.bizCompleteYourProfileSubscriptionTo;
+  String get bizCompleteYourProfileSubscriptionTo => _overrides['bizCompleteYourProfileSubscriptionTo'] ?? super.bizCompleteYourProfileSubscriptionTo;
 
   @override
   String get bizObjective => _overrides['bizObjective'] ?? super.bizObjective;
@@ -3951,40 +3100,28 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get bizMessage => _overrides['bizMessage'] ?? super.bizMessage;
 
   @override
-  String get bizPreferredSpeciality =>
-      _overrides['bizPreferredSpeciality'] ?? super.bizPreferredSpeciality;
+  String get bizPreferredSpeciality => _overrides['bizPreferredSpeciality'] ?? super.bizPreferredSpeciality;
 
   @override
-  String get bizThisCollaborationIsForPromotion =>
-      _overrides['bizThisCollaborationIsForPromotion'] ??
-      super.bizThisCollaborationIsForPromotion;
+  String get bizThisCollaborationIsForPromotion => _overrides['bizThisCollaborationIsForPromotion'] ?? super.bizThisCollaborationIsForPromotion;
 
   @override
-  String get bizYouAcceptedThisCollaboration =>
-      _overrides['bizYouAcceptedThisCollaboration'] ??
-      super.bizYouAcceptedThisCollaboration;
+  String get bizYouAcceptedThisCollaboration => _overrides['bizYouAcceptedThisCollaboration'] ?? super.bizYouAcceptedThisCollaboration;
 
   @override
-  String get bizTheMerchantSContactNumber =>
-      _overrides['bizTheMerchantSContactNumber'] ??
-      super.bizTheMerchantSContactNumber;
+  String get bizTheMerchantSContactNumber => _overrides['bizTheMerchantSContactNumber'] ?? super.bizTheMerchantSContactNumber;
 
   @override
-  String get bizContactTheMerchantToPlan =>
-      _overrides['bizContactTheMerchantToPlan'] ??
-      super.bizContactTheMerchantToPlan;
+  String get bizContactTheMerchantToPlan => _overrides['bizContactTheMerchantToPlan'] ?? super.bizContactTheMerchantToPlan;
 
   @override
-  String get bizThisRequestIsNoLonger =>
-      _overrides['bizThisRequestIsNoLonger'] ?? super.bizThisRequestIsNoLonger;
+  String get bizThisRequestIsNoLonger => _overrides['bizThisRequestIsNoLonger'] ?? super.bizThisRequestIsNoLonger;
 
   @override
-  String get bizPleaseWait =>
-      _overrides['bizPleaseWait'] ?? super.bizPleaseWait;
+  String get bizPleaseWait => _overrides['bizPleaseWait'] ?? super.bizPleaseWait;
 
   @override
-  String get bizAcceptCollaboration =>
-      _overrides['bizAcceptCollaboration'] ?? super.bizAcceptCollaboration;
+  String get bizAcceptCollaboration => _overrides['bizAcceptCollaboration'] ?? super.bizAcceptCollaboration;
 
   @override
   String get bizDecline => _overrides['bizDecline'] ?? super.bizDecline;
@@ -3992,282 +3129,208 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String bizFreeSlotsUsedOf(String used, String limit) {
     final t = _overrides['bizFreeSlotsUsedOf'];
-    return t == null
-        ? super.bizFreeSlotsUsedOf(used, limit)
-        : fillRemoteTemplate(t, <String, String>{'used': used, 'limit': limit});
+    return t == null ? super.bizFreeSlotsUsedOf(used, limit) : fillRemoteTemplate(t, <String, String>{'used': used, 'limit': limit});
   }
 
   @override
   String bizWelcomeBackName(String name) {
     final t = _overrides['bizWelcomeBackName'];
-    return t == null
-        ? super.bizWelcomeBackName(name)
-        : fillRemoteTemplate(t, <String, String>{'name': name});
+    return t == null ? super.bizWelcomeBackName(name) : fillRemoteTemplate(t, <String, String>{'name': name});
   }
 
   @override
   String bizBannerSubmittedMsg(String message) {
     final t = _overrides['bizBannerSubmittedMsg'];
-    return t == null
-        ? super.bizBannerSubmittedMsg(message)
-        : fillRemoteTemplate(t, <String, String>{'message': message});
+    return t == null ? super.bizBannerSubmittedMsg(message) : fillRemoteTemplate(t, <String, String>{'message': message});
   }
 
   @override
-  String get bizBannerFallbackDeal =>
-      _overrides['bizBannerFallbackDeal'] ?? super.bizBannerFallbackDeal;
+  String get bizBannerFallbackDeal => _overrides['bizBannerFallbackDeal'] ?? super.bizBannerFallbackDeal;
 
   @override
-  String get bizBannerFallbackProduct =>
-      _overrides['bizBannerFallbackProduct'] ?? super.bizBannerFallbackProduct;
+  String get bizBannerFallbackProduct => _overrides['bizBannerFallbackProduct'] ?? super.bizBannerFallbackProduct;
 
   @override
   String bizPaymentFailedMsg(String error) {
     final t = _overrides['bizPaymentFailedMsg'];
-    return t == null
-        ? super.bizPaymentFailedMsg(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizPaymentFailedMsg(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
   String bizToggleFailed(String error) {
     final t = _overrides['bizToggleFailed'];
-    return t == null
-        ? super.bizToggleFailed(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizToggleFailed(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
   String bizFreeProductSlotsUsed(String used, String limit) {
     final t = _overrides['bizFreeProductSlotsUsed'];
-    return t == null
-        ? super.bizFreeProductSlotsUsed(used, limit)
-        : fillRemoteTemplate(t, <String, String>{'used': used, 'limit': limit});
+    return t == null ? super.bizFreeProductSlotsUsed(used, limit) : fillRemoteTemplate(t, <String, String>{'used': used, 'limit': limit});
   }
 
   @override
   String bizAdditionalProductsCharged(String price) {
     final t = _overrides['bizAdditionalProductsCharged'];
-    return t == null
-        ? super.bizAdditionalProductsCharged(price)
-        : fillRemoteTemplate(t, <String, String>{'price': price});
+    return t == null ? super.bizAdditionalProductsCharged(price) : fillRemoteTemplate(t, <String, String>{'price': price});
   }
 
   @override
   String bizDeleteProductBody(String title) {
     final t = _overrides['bizDeleteProductBody'];
-    return t == null
-        ? super.bizDeleteProductBody(title)
-        : fillRemoteTemplate(t, <String, String>{'title': title});
+    return t == null ? super.bizDeleteProductBody(title) : fillRemoteTemplate(t, <String, String>{'title': title});
   }
 
   @override
-  String get bizThisProduct =>
-      _overrides['bizThisProduct'] ?? super.bizThisProduct;
+  String get bizThisProduct => _overrides['bizThisProduct'] ?? super.bizThisProduct;
 
   @override
   String bizDeleteError(String error) {
     final t = _overrides['bizDeleteError'];
-    return t == null
-        ? super.bizDeleteError(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizDeleteError(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
   String bizCodeAppliedPct(String value) {
     final t = _overrides['bizCodeAppliedPct'];
-    return t == null
-        ? super.bizCodeAppliedPct(value)
-        : fillRemoteTemplate(t, <String, String>{'value': value});
+    return t == null ? super.bizCodeAppliedPct(value) : fillRemoteTemplate(t, <String, String>{'value': value});
   }
 
   @override
   String bizCodeAppliedAmt(String value) {
     final t = _overrides['bizCodeAppliedAmt'];
-    return t == null
-        ? super.bizCodeAppliedAmt(value)
-        : fillRemoteTemplate(t, <String, String>{'value': value});
+    return t == null ? super.bizCodeAppliedAmt(value) : fillRemoteTemplate(t, <String, String>{'value': value});
   }
 
   @override
   String bizMaxValidity(String days) {
     final t = _overrides['bizMaxValidity'];
-    return t == null
-        ? super.bizMaxValidity(days)
-        : fillRemoteTemplate(t, <String, String>{'days': days});
+    return t == null ? super.bizMaxValidity(days) : fillRemoteTemplate(t, <String, String>{'days': days});
   }
 
   @override
   String bizProductSubmittedMsg(String message) {
     final t = _overrides['bizProductSubmittedMsg'];
-    return t == null
-        ? super.bizProductSubmittedMsg(message)
-        : fillRemoteTemplate(t, <String, String>{'message': message});
+    return t == null ? super.bizProductSubmittedMsg(message) : fillRemoteTemplate(t, <String, String>{'message': message});
   }
 
   @override
   String bizPaymentErrorMsg(String error) {
     final t = _overrides['bizPaymentErrorMsg'];
-    return t == null
-        ? super.bizPaymentErrorMsg(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizPaymentErrorMsg(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
-  String get bizCouldNotOpenPayment =>
-      _overrides['bizCouldNotOpenPayment'] ?? super.bizCouldNotOpenPayment;
+  String get bizCouldNotOpenPayment => _overrides['bizCouldNotOpenPayment'] ?? super.bizCouldNotOpenPayment;
 
   @override
   String bizMaxDays(String days) {
     final t = _overrides['bizMaxDays'];
-    return t == null
-        ? super.bizMaxDays(days)
-        : fillRemoteTemplate(t, <String, String>{'days': days});
+    return t == null ? super.bizMaxDays(days) : fillRemoteTemplate(t, <String, String>{'days': days});
   }
 
   @override
   String bizFreeSlotsRemaining(String remaining, String limit) {
     final t = _overrides['bizFreeSlotsRemaining'];
-    return t == null
-        ? super.bizFreeSlotsRemaining(remaining, limit)
-        : fillRemoteTemplate(
-            t, <String, String>{'remaining': remaining, 'limit': limit});
+    return t == null ? super.bizFreeSlotsRemaining(remaining, limit) : fillRemoteTemplate(t, <String, String>{'remaining': remaining, 'limit': limit});
   }
 
   @override
   String bizFreeSlotsAllUsed(String limit, String price) {
     final t = _overrides['bizFreeSlotsAllUsed'];
-    return t == null
-        ? super.bizFreeSlotsAllUsed(limit, price)
-        : fillRemoteTemplate(
-            t, <String, String>{'limit': limit, 'price': price});
+    return t == null ? super.bizFreeSlotsAllUsed(limit, price) : fillRemoteTemplate(t, <String, String>{'limit': limit, 'price': price});
   }
 
   @override
   String bizLocationUpdatedTo(String city) {
     final t = _overrides['bizLocationUpdatedTo'];
-    return t == null
-        ? super.bizLocationUpdatedTo(city)
-        : fillRemoteTemplate(t, <String, String>{'city': city});
+    return t == null ? super.bizLocationUpdatedTo(city) : fillRemoteTemplate(t, <String, String>{'city': city});
   }
 
   @override
   String bizCouldNotGetLocation(String error) {
     final t = _overrides['bizCouldNotGetLocation'];
-    return t == null
-        ? super.bizCouldNotGetLocation(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizCouldNotGetLocation(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
-  String get bizLocationPermissionNeeded =>
-      _overrides['bizLocationPermissionNeeded'] ??
-      super.bizLocationPermissionNeeded;
+  String get bizLocationPermissionNeeded => _overrides['bizLocationPermissionNeeded'] ?? super.bizLocationPermissionNeeded;
 
   @override
-  String get bizSetStoreLocationFirst =>
-      _overrides['bizSetStoreLocationFirst'] ?? super.bizSetStoreLocationFirst;
+  String get bizSetStoreLocationFirst => _overrides['bizSetStoreLocationFirst'] ?? super.bizSetStoreLocationFirst;
 
   @override
-  String get bizStoreLocationIncomplete =>
-      _overrides['bizStoreLocationIncomplete'] ??
-      super.bizStoreLocationIncomplete;
+  String get bizStoreLocationIncomplete => _overrides['bizStoreLocationIncomplete'] ?? super.bizStoreLocationIncomplete;
 
   @override
   String bizPaymentCancelledOrFailed(String error) {
     final t = _overrides['bizPaymentCancelledOrFailed'];
-    return t == null
-        ? super.bizPaymentCancelledOrFailed(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizPaymentCancelledOrFailed(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
   String bizExternalWallet(String name) {
     final t = _overrides['bizExternalWallet'];
-    return t == null
-        ? super.bizExternalWallet(name)
-        : fillRemoteTemplate(t, <String, String>{'name': name});
+    return t == null ? super.bizExternalWallet(name) : fillRemoteTemplate(t, <String, String>{'name': name});
   }
 
   @override
   String bizDiscountAppliedPct(String value) {
     final t = _overrides['bizDiscountAppliedPct'];
-    return t == null
-        ? super.bizDiscountAppliedPct(value)
-        : fillRemoteTemplate(t, <String, String>{'value': value});
+    return t == null ? super.bizDiscountAppliedPct(value) : fillRemoteTemplate(t, <String, String>{'value': value});
   }
 
   @override
   String bizDiscountAppliedAmt(String value) {
     final t = _overrides['bizDiscountAppliedAmt'];
-    return t == null
-        ? super.bizDiscountAppliedAmt(value)
-        : fillRemoteTemplate(t, <String, String>{'value': value});
+    return t == null ? super.bizDiscountAppliedAmt(value) : fillRemoteTemplate(t, <String, String>{'value': value});
   }
 
   @override
-  String get bizSubmittedPayRep =>
-      _overrides['bizSubmittedPayRep'] ?? super.bizSubmittedPayRep;
+  String get bizSubmittedPayRep => _overrides['bizSubmittedPayRep'] ?? super.bizSubmittedPayRep;
 
   @override
   String bizEndDateExceedsStore(String date) {
     final t = _overrides['bizEndDateExceedsStore'];
-    return t == null
-        ? super.bizEndDateExceedsStore(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizEndDateExceedsStore(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizCurrentEndDate(String date) {
     final t = _overrides['bizCurrentEndDate'];
-    return t == null
-        ? super.bizCurrentEndDate(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizCurrentEndDate(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizFreeSlotAvailable(String used, String limit) {
     final t = _overrides['bizFreeSlotAvailable'];
-    return t == null
-        ? super.bizFreeSlotAvailable(used, limit)
-        : fillRemoteTemplate(t, <String, String>{'used': used, 'limit': limit});
+    return t == null ? super.bizFreeSlotAvailable(used, limit) : fillRemoteTemplate(t, <String, String>{'used': used, 'limit': limit});
   }
 
   @override
   String bizAllFreeSlotsUsedRenew(String limit, String price) {
     final t = _overrides['bizAllFreeSlotsUsedRenew'];
-    return t == null
-        ? super.bizAllFreeSlotsUsedRenew(limit, price)
-        : fillRemoteTemplate(
-            t, <String, String>{'limit': limit, 'price': price});
+    return t == null ? super.bizAllFreeSlotsUsedRenew(limit, price) : fillRemoteTemplate(t, <String, String>{'limit': limit, 'price': price});
   }
 
   @override
   String bizViewersVisitedStore(String pct) {
     final t = _overrides['bizViewersVisitedStore'];
-    return t == null
-        ? super.bizViewersVisitedStore(pct)
-        : fillRemoteTemplate(t, <String, String>{'pct': pct});
+    return t == null ? super.bizViewersVisitedStore(pct) : fillRemoteTemplate(t, <String, String>{'pct': pct});
   }
 
   @override
-  String get bizProductsExpiringOne =>
-      _overrides['bizProductsExpiringOne'] ?? super.bizProductsExpiringOne;
+  String get bizProductsExpiringOne => _overrides['bizProductsExpiringOne'] ?? super.bizProductsExpiringOne;
 
   @override
   String bizProductsExpiringMany(String n) {
     final t = _overrides['bizProductsExpiringMany'];
-    return t == null
-        ? super.bizProductsExpiringMany(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizProductsExpiringMany(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String bizMoreFromStore(String store) {
     final t = _overrides['bizMoreFromStore'];
-    return t == null
-        ? super.bizMoreFromStore(store)
-        : fillRemoteTemplate(t, <String, String>{'store': store});
+    return t == null ? super.bizMoreFromStore(store) : fillRemoteTemplate(t, <String, String>{'store': store});
   }
 
   @override
@@ -4276,221 +3339,163 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String bizPurchasePendingNamed(String store) {
     final t = _overrides['bizPurchasePendingNamed'];
-    return t == null
-        ? super.bizPurchasePendingNamed(store)
-        : fillRemoteTemplate(t, <String, String>{'store': store});
+    return t == null ? super.bizPurchasePendingNamed(store) : fillRemoteTemplate(t, <String, String>{'store': store});
   }
 
   @override
   String bizNoInfluencersInCity(String city) {
     final t = _overrides['bizNoInfluencersInCity'];
-    return t == null
-        ? super.bizNoInfluencersInCity(city)
-        : fillRemoteTemplate(t, <String, String>{'city': city});
+    return t == null ? super.bizNoInfluencersInCity(city) : fillRemoteTemplate(t, <String, String>{'city': city});
   }
 
   @override
   String bizSeeAllCount(String count) {
     final t = _overrides['bizSeeAllCount'];
-    return t == null
-        ? super.bizSeeAllCount(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.bizSeeAllCount(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
   String bizReviewsFor(String name) {
     final t = _overrides['bizReviewsFor'];
-    return t == null
-        ? super.bizReviewsFor(name)
-        : fillRemoteTemplate(t, <String, String>{'name': name});
+    return t == null ? super.bizReviewsFor(name) : fillRemoteTemplate(t, <String, String>{'name': name});
   }
 
   @override
   String bizPublishByDate(String date) {
     final t = _overrides['bizPublishByDate'];
-    return t == null
-        ? super.bizPublishByDate(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizPublishByDate(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizSeeAllRequests(String count) {
     final t = _overrides['bizSeeAllRequests'];
-    return t == null
-        ? super.bizSeeAllRequests(count)
-        : fillRemoteTemplate(t, <String, String>{'count': count});
+    return t == null ? super.bizSeeAllRequests(count) : fillRemoteTemplate(t, <String, String>{'count': count});
   }
 
   @override
-  String get bizDeclinedCanAccept =>
-      _overrides['bizDeclinedCanAccept'] ?? super.bizDeclinedCanAccept;
+  String get bizDeclinedCanAccept => _overrides['bizDeclinedCanAccept'] ?? super.bizDeclinedCanAccept;
 
   @override
-  String get bizDeclinedRequest =>
-      _overrides['bizDeclinedRequest'] ?? super.bizDeclinedRequest;
+  String get bizDeclinedRequest => _overrides['bizDeclinedRequest'] ?? super.bizDeclinedRequest;
 
   @override
-  String get errPayNoMessage =>
-      _overrides['errPayNoMessage'] ?? super.errPayNoMessage;
+  String get errPayNoMessage => _overrides['errPayNoMessage'] ?? super.errPayNoMessage;
 
   @override
-  String get errPayGeneric =>
-      _overrides['errPayGeneric'] ?? super.errPayGeneric;
+  String get errPayGeneric => _overrides['errPayGeneric'] ?? super.errPayGeneric;
 
   @override
-  String get errPayCancelled =>
-      _overrides['errPayCancelled'] ?? super.errPayCancelled;
+  String get errPayCancelled => _overrides['errPayCancelled'] ?? super.errPayCancelled;
 
   @override
-  String get errPayPending =>
-      _overrides['errPayPending'] ?? super.errPayPending;
+  String get errPayPending => _overrides['errPayPending'] ?? super.errPayPending;
 
   @override
-  String get errPayNetwork =>
-      _overrides['errPayNetwork'] ?? super.errPayNetwork;
+  String get errPayNetwork => _overrides['errPayNetwork'] ?? super.errPayNetwork;
 
   @override
   String bizStoresActiveOne(String active) {
     final t = _overrides['bizStoresActiveOne'];
-    return t == null
-        ? super.bizStoresActiveOne(active)
-        : fillRemoteTemplate(t, <String, String>{'active': active});
+    return t == null ? super.bizStoresActiveOne(active) : fillRemoteTemplate(t, <String, String>{'active': active});
   }
 
   @override
   String bizStoresActiveMany(String count, String active) {
     final t = _overrides['bizStoresActiveMany'];
-    return t == null
-        ? super.bizStoresActiveMany(count, active)
-        : fillRemoteTemplate(
-            t, <String, String>{'count': count, 'active': active});
+    return t == null ? super.bizStoresActiveMany(count, active) : fillRemoteTemplate(t, <String, String>{'count': count, 'active': active});
   }
 
   @override
   String bizNLive(String n) {
     final t = _overrides['bizNLive'];
-    return t == null
-        ? super.bizNLive(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizNLive(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String bizNPending(String n) {
     final t = _overrides['bizNPending'];
-    return t == null
-        ? super.bizNPending(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizNPending(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
-  String get bizSubmittedWord =>
-      _overrides['bizSubmittedWord'] ?? super.bizSubmittedWord;
+  String get bizSubmittedWord => _overrides['bizSubmittedWord'] ?? super.bizSubmittedWord;
 
   @override
   String bizBannersStatusOne(String status) {
     final t = _overrides['bizBannersStatusOne'];
-    return t == null
-        ? super.bizBannersStatusOne(status)
-        : fillRemoteTemplate(t, <String, String>{'status': status});
+    return t == null ? super.bizBannersStatusOne(status) : fillRemoteTemplate(t, <String, String>{'status': status});
   }
 
   @override
   String bizBannersStatusMany(String count, String status) {
     final t = _overrides['bizBannersStatusMany'];
-    return t == null
-        ? super.bizBannersStatusMany(count, status)
-        : fillRemoteTemplate(
-            t, <String, String>{'count': count, 'status': status});
+    return t == null ? super.bizBannersStatusMany(count, status) : fillRemoteTemplate(t, <String, String>{'count': count, 'status': status});
   }
 
   @override
   String bizNDays(String n) {
     final t = _overrides['bizNDays'];
-    return t == null
-        ? super.bizNDays(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizNDays(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String bizStartEndRange(String from, String end) {
     final t = _overrides['bizStartEndRange'];
-    return t == null
-        ? super.bizStartEndRange(from, end)
-        : fillRemoteTemplate(t, <String, String>{'from': from, 'end': end});
+    return t == null ? super.bizStartEndRange(from, end) : fillRemoteTemplate(t, <String, String>{'from': from, 'end': end});
   }
 
   @override
   String bizFromDateLabel(String date) {
     final t = _overrides['bizFromDateLabel'];
-    return t == null
-        ? super.bizFromDateLabel(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizFromDateLabel(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizUntilDateLabel(String date) {
     final t = _overrides['bizUntilDateLabel'];
-    return t == null
-        ? super.bizUntilDateLabel(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizUntilDateLabel(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizInvoiceColon(String no) {
     final t = _overrides['bizInvoiceColon'];
-    return t == null
-        ? super.bizInvoiceColon(no)
-        : fillRemoteTemplate(t, <String, String>{'no': no});
+    return t == null ? super.bizInvoiceColon(no) : fillRemoteTemplate(t, <String, String>{'no': no});
   }
 
   @override
   String bizPerDayPrice(String amount) {
     final t = _overrides['bizPerDayPrice'];
-    return t == null
-        ? super.bizPerDayPrice(amount)
-        : fillRemoteTemplate(t, <String, String>{'amount': amount});
+    return t == null ? super.bizPerDayPrice(amount) : fillRemoteTemplate(t, <String, String>{'amount': amount});
   }
 
   @override
   String bizGstPct(String pct) {
     final t = _overrides['bizGstPct'];
-    return t == null
-        ? super.bizGstPct(pct)
-        : fillRemoteTemplate(t, <String, String>{'pct': pct});
+    return t == null ? super.bizGstPct(pct) : fillRemoteTemplate(t, <String, String>{'pct': pct});
   }
 
   @override
   String bizPayAmount(String amount) {
     final t = _overrides['bizPayAmount'];
-    return t == null
-        ? super.bizPayAmount(amount)
-        : fillRemoteTemplate(t, <String, String>{'amount': amount});
+    return t == null ? super.bizPayAmount(amount) : fillRemoteTemplate(t, <String, String>{'amount': amount});
   }
 
   @override
   String bizPricePerDayTimesDays(String price, String days) {
     final t = _overrides['bizPricePerDayTimesDays'];
-    return t == null
-        ? super.bizPricePerDayTimesDays(price, days)
-        : fillRemoteTemplate(t, <String, String>{'price': price, 'days': days});
+    return t == null ? super.bizPricePerDayTimesDays(price, days) : fillRemoteTemplate(t, <String, String>{'price': price, 'days': days});
   }
 
   @override
   String bizDiscountTotalPct(String amount, String pct, String total) {
     final t = _overrides['bizDiscountTotalPct'];
-    return t == null
-        ? super.bizDiscountTotalPct(amount, pct, total)
-        : fillRemoteTemplate(
-            t, <String, String>{'amount': amount, 'pct': pct, 'total': total});
+    return t == null ? super.bizDiscountTotalPct(amount, pct, total) : fillRemoteTemplate(t, <String, String>{'amount': amount, 'pct': pct, 'total': total});
   }
 
   @override
   String bizDiscountTotalAmt(String amount, String total) {
     final t = _overrides['bizDiscountTotalAmt'];
-    return t == null
-        ? super.bizDiscountTotalAmt(amount, total)
-        : fillRemoteTemplate(
-            t, <String, String>{'amount': amount, 'total': total});
+    return t == null ? super.bizDiscountTotalAmt(amount, total) : fillRemoteTemplate(t, <String, String>{'amount': amount, 'total': total});
   }
 
   @override
@@ -4499,336 +3504,245 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   @override
   String bizResultMany(String n) {
     final t = _overrides['bizResultMany'];
-    return t == null
-        ? super.bizResultMany(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizResultMany(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String bizExpiredOn(String date) {
     final t = _overrides['bizExpiredOn'];
-    return t == null
-        ? super.bizExpiredOn(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizExpiredOn(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizExpiresOn(String date) {
     final t = _overrides['bizExpiresOn'];
-    return t == null
-        ? super.bizExpiresOn(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizExpiresOn(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizErrorColon(String error) {
     final t = _overrides['bizErrorColon'];
-    return t == null
-        ? super.bizErrorColon(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizErrorColon(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
   String bizDayTimesPriceOne(String days, String price) {
     final t = _overrides['bizDayTimesPriceOne'];
-    return t == null
-        ? super.bizDayTimesPriceOne(days, price)
-        : fillRemoteTemplate(t, <String, String>{'days': days, 'price': price});
+    return t == null ? super.bizDayTimesPriceOne(days, price) : fillRemoteTemplate(t, <String, String>{'days': days, 'price': price});
   }
 
   @override
   String bizDayTimesPriceMany(String days, String price) {
     final t = _overrides['bizDayTimesPriceMany'];
-    return t == null
-        ? super.bizDayTimesPriceMany(days, price)
-        : fillRemoteTemplate(t, <String, String>{'days': days, 'price': price});
+    return t == null ? super.bizDayTimesPriceMany(days, price) : fillRemoteTemplate(t, <String, String>{'days': days, 'price': price});
   }
 
   @override
   String bizFailedColon(String error) {
     final t = _overrides['bizFailedColon'];
-    return t == null
-        ? super.bizFailedColon(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.bizFailedColon(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
-  String get bizDealCountOne =>
-      _overrides['bizDealCountOne'] ?? super.bizDealCountOne;
+  String get bizDealCountOne => _overrides['bizDealCountOne'] ?? super.bizDealCountOne;
 
   @override
   String bizDealCountMany(String n) {
     final t = _overrides['bizDealCountMany'];
-    return t == null
-        ? super.bizDealCountMany(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizDealCountMany(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String bizPricePlusGst(String price, String pct, String tax) {
     final t = _overrides['bizPricePlusGst'];
-    return t == null
-        ? super.bizPricePlusGst(price, pct, tax)
-        : fillRemoteTemplate(t, <String, String>{
-            'price': price,
-            'pct': pct,
-            'tax': tax,
-          });
+    return t == null ? super.bizPricePlusGst(price, pct, tax) : fillRemoteTemplate(t, <String, String>{'price': price, 'pct': pct, 'tax': tax});
   }
 
   @override
   String bizPlanPeriodLine(String plan, String from, String end) {
     final t = _overrides['bizPlanPeriodLine'];
-    return t == null
-        ? super.bizPlanPeriodLine(plan, from, end)
-        : fillRemoteTemplate(
-            t, <String, String>{'plan': plan, 'from': from, 'end': end});
+    return t == null ? super.bizPlanPeriodLine(plan, from, end) : fillRemoteTemplate(t, <String, String>{'plan': plan, 'from': from, 'end': end});
   }
 
   @override
   String bizBaseGstLine(String base, String gst, String tax) {
     final t = _overrides['bizBaseGstLine'];
-    return t == null
-        ? super.bizBaseGstLine(base, gst, tax)
-        : fillRemoteTemplate(t, <String, String>{
-            'base': base,
-            'gst': gst,
-            'tax': tax,
-          });
+    return t == null ? super.bizBaseGstLine(base, gst, tax) : fillRemoteTemplate(t, <String, String>{'base': base, 'gst': gst, 'tax': tax});
   }
 
   @override
   String bizDiscountCodeLine(String code, String amount) {
     final t = _overrides['bizDiscountCodeLine'];
-    return t == null
-        ? super.bizDiscountCodeLine(code, amount)
-        : fillRemoteTemplate(
-            t, <String, String>{'code': code, 'amount': amount});
+    return t == null ? super.bizDiscountCodeLine(code, amount) : fillRemoteTemplate(t, <String, String>{'code': code, 'amount': amount});
   }
 
   @override
   String bizBannerTitleLine(String title) {
     final t = _overrides['bizBannerTitleLine'];
-    return t == null
-        ? super.bizBannerTitleLine(title)
-        : fillRemoteTemplate(t, <String, String>{'title': title});
+    return t == null ? super.bizBannerTitleLine(title) : fillRemoteTemplate(t, <String, String>{'title': title});
   }
 
   @override
   String bizProductTitleLine(String title) {
     final t = _overrides['bizProductTitleLine'];
-    return t == null
-        ? super.bizProductTitleLine(title)
-        : fillRemoteTemplate(t, <String, String>{'title': title});
+    return t == null ? super.bizProductTitleLine(title) : fillRemoteTemplate(t, <String, String>{'title': title});
   }
 
   @override
-  String get bizUntitledWord =>
-      _overrides['bizUntitledWord'] ?? super.bizUntitledWord;
+  String get bizUntitledWord => _overrides['bizUntitledWord'] ?? super.bizUntitledWord;
 
   @override
   String bizEndsOn(String date) {
     final t = _overrides['bizEndsOn'];
-    return t == null
-        ? super.bizEndsOn(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizEndsOn(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizDeleteDealNamed(String title) {
     final t = _overrides['bizDeleteDealNamed'];
-    return t == null
-        ? super.bizDeleteDealNamed(title)
-        : fillRemoteTemplate(t, <String, String>{'title': title});
+    return t == null ? super.bizDeleteDealNamed(title) : fillRemoteTemplate(t, <String, String>{'title': title});
   }
 
   @override
   String bizMaxDateLine(String date) {
     final t = _overrides['bizMaxDateLine'];
-    return t == null
-        ? super.bizMaxDateLine(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizMaxDateLine(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizRenewAmount(String amount) {
     final t = _overrides['bizRenewAmount'];
-    return t == null
-        ? super.bizRenewAmount(amount)
-        : fillRemoteTemplate(t, <String, String>{'amount': amount});
+    return t == null ? super.bizRenewAmount(amount) : fillRemoteTemplate(t, <String, String>{'amount': amount});
   }
 
   @override
   String bizCodeAppliedNamed(String code) {
     final t = _overrides['bizCodeAppliedNamed'];
-    return t == null
-        ? super.bizCodeAppliedNamed(code)
-        : fillRemoteTemplate(t, <String, String>{'code': code});
+    return t == null ? super.bizCodeAppliedNamed(code) : fillRemoteTemplate(t, <String, String>{'code': code});
   }
 
   @override
   String bizNActive(String n) {
     final t = _overrides['bizNActive'];
-    return t == null
-        ? super.bizNActive(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizNActive(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
   String bizVisitOn(String date) {
     final t = _overrides['bizVisitOn'];
-    return t == null
-        ? super.bizVisitOn(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizVisitOn(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizCallPhone(String phone) {
     final t = _overrides['bizCallPhone'];
-    return t == null
-        ? super.bizCallPhone(phone)
-        : fillRemoteTemplate(t, <String, String>{'phone': phone});
+    return t == null ? super.bizCallPhone(phone) : fillRemoteTemplate(t, <String, String>{'phone': phone});
   }
 
   @override
-  String get bizAllProducts =>
-      _overrides['bizAllProducts'] ?? super.bizAllProducts;
+  String get bizAllProducts => _overrides['bizAllProducts'] ?? super.bizAllProducts;
 
   @override
   String get bizAllStores => _overrides['bizAllStores'] ?? super.bizAllStores;
 
   @override
-  String get bizBannersTab =>
-      _overrides['bizBannersTab'] ?? super.bizBannersTab;
+  String get bizBannersTab => _overrides['bizBannersTab'] ?? super.bizBannersTab;
 
   @override
-  String get bizPaymentsTab =>
-      _overrides['bizPaymentsTab'] ?? super.bizPaymentsTab;
+  String get bizPaymentsTab => _overrides['bizPaymentsTab'] ?? super.bizPaymentsTab;
 
   @override
-  String get bizAdditionalProduct =>
-      _overrides['bizAdditionalProduct'] ?? super.bizAdditionalProduct;
+  String get bizAdditionalProduct => _overrides['bizAdditionalProduct'] ?? super.bizAdditionalProduct;
 
   @override
-  String get bizBillingSubscriptions =>
-      _overrides['bizBillingSubscriptions'] ?? super.bizBillingSubscriptions;
+  String get bizBillingSubscriptions => _overrides['bizBillingSubscriptions'] ?? super.bizBillingSubscriptions;
 
   @override
   String bizTillDate(String date) {
     final t = _overrides['bizTillDate'];
-    return t == null
-        ? super.bizTillDate(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizTillDate(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
   String bizExpDate(String date) {
     final t = _overrides['bizExpDate'];
-    return t == null
-        ? super.bizExpDate(date)
-        : fillRemoteTemplate(t, <String, String>{'date': date});
+    return t == null ? super.bizExpDate(date) : fillRemoteTemplate(t, <String, String>{'date': date});
   }
 
   @override
-  String get bizOneDayWord =>
-      _overrides['bizOneDayWord'] ?? super.bizOneDayWord;
+  String get bizOneDayWord => _overrides['bizOneDayWord'] ?? super.bizOneDayWord;
 
   @override
   String bizDaysCountWord(String n) {
     final t = _overrides['bizDaysCountWord'];
-    return t == null
-        ? super.bizDaysCountWord(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizDaysCountWord(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
-  String get bizProposalOne =>
-      _overrides['bizProposalOne'] ?? super.bizProposalOne;
+  String get bizProposalOne => _overrides['bizProposalOne'] ?? super.bizProposalOne;
 
   @override
   String bizProposalMany(String n) {
     final t = _overrides['bizProposalMany'];
-    return t == null
-        ? super.bizProposalMany(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.bizProposalMany(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
 
   @override
-  String get bizInfluencerSubscription =>
-      _overrides['bizInfluencerSubscription'] ??
-      super.bizInfluencerSubscription;
+  String get bizInfluencerSubscription => _overrides['bizInfluencerSubscription'] ?? super.bizInfluencerSubscription;
 
   @override
-  String get bizOffrOInfluencer =>
-      _overrides['bizOffrOInfluencer'] ?? super.bizOffrOInfluencer;
+  String get bizOffrOInfluencer => _overrides['bizOffrOInfluencer'] ?? super.bizOffrOInfluencer;
 
   @override
-  String get authEnterOtp4 =>
-      _overrides['authEnterOtp4'] ?? super.authEnterOtp4;
+  String get authEnterOtp4 => _overrides['authEnterOtp4'] ?? super.authEnterOtp4;
 
   @override
-  String get authOtpIncorrect =>
-      _overrides['authOtpIncorrect'] ?? super.authOtpIncorrect;
+  String get authOtpIncorrect => _overrides['authOtpIncorrect'] ?? super.authOtpIncorrect;
 
   @override
-  String get authOtpVerifyFailed =>
-      _overrides['authOtpVerifyFailed'] ?? super.authOtpVerifyFailed;
+  String get authOtpVerifyFailed => _overrides['authOtpVerifyFailed'] ?? super.authOtpVerifyFailed;
 
   @override
-  String get authCodeSentSms =>
-      _overrides['authCodeSentSms'] ?? super.authCodeSentSms;
+  String get authCodeSentSms => _overrides['authCodeSentSms'] ?? super.authCodeSentSms;
 
   @override
-  String get authOtpResent =>
-      _overrides['authOtpResent'] ?? super.authOtpResent;
+  String get authOtpResent => _overrides['authOtpResent'] ?? super.authOtpResent;
 
   @override
-  String get authResendFailed =>
-      _overrides['authResendFailed'] ?? super.authResendFailed;
+  String get authResendFailed => _overrides['authResendFailed'] ?? super.authResendFailed;
 
   @override
-  String get authOtpResendFailed =>
-      _overrides['authOtpResendFailed'] ?? super.authOtpResendFailed;
+  String get authOtpResendFailed => _overrides['authOtpResendFailed'] ?? super.authOtpResendFailed;
 
   @override
-  String get authSettingUpAccount =>
-      _overrides['authSettingUpAccount'] ?? super.authSettingUpAccount;
+  String get authSettingUpAccount => _overrides['authSettingUpAccount'] ?? super.authSettingUpAccount;
 
   @override
   String authPreparingDashboard(String dots) {
     final t = _overrides['authPreparingDashboard'];
-    return t == null
-        ? super.authPreparingDashboard(dots)
-        : fillRemoteTemplate(t, <String, String>{'dots': dots});
+    return t == null ? super.authPreparingDashboard(dots) : fillRemoteTemplate(t, <String, String>{'dots': dots});
   }
 
   @override
-  String get authLoadingBusinessData =>
-      _overrides['authLoadingBusinessData'] ?? super.authLoadingBusinessData;
+  String get authLoadingBusinessData => _overrides['authLoadingBusinessData'] ?? super.authLoadingBusinessData;
 
   @override
-  String get authEnterYourName =>
-      _overrides['authEnterYourName'] ?? super.authEnterYourName;
+  String get authEnterYourName => _overrides['authEnterYourName'] ?? super.authEnterYourName;
 
   @override
-  String get authAcceptTermsRequired =>
-      _overrides['authAcceptTermsRequired'] ?? super.authAcceptTermsRequired;
+  String get authAcceptTermsRequired => _overrides['authAcceptTermsRequired'] ?? super.authAcceptTermsRequired;
 
   @override
-  String get authAlreadyRegistered =>
-      _overrides['authAlreadyRegistered'] ?? super.authAlreadyRegistered;
+  String get authAlreadyRegistered => _overrides['authAlreadyRegistered'] ?? super.authAlreadyRegistered;
 
   @override
-  String get authNotRegistered =>
-      _overrides['authNotRegistered'] ?? super.authNotRegistered;
+  String get authNotRegistered => _overrides['authNotRegistered'] ?? super.authNotRegistered;
 
   @override
-  String get authOtpSendFailed =>
-      _overrides['authOtpSendFailed'] ?? super.authOtpSendFailed;
+  String get authOtpSendFailed => _overrides['authOtpSendFailed'] ?? super.authOtpSendFailed;
 
   @override
-  String get authLoginFailed =>
-      _overrides['authLoginFailed'] ?? super.authLoginFailed;
+  String get authLoginFailed => _overrides['authLoginFailed'] ?? super.authLoginFailed;
 
   @override
   String get authAgreeTo => _overrides['authAgreeTo'] ?? super.authAgreeTo;
@@ -4837,60 +3751,46 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get authAnd => _overrides['authAnd'] ?? super.authAnd;
 
   @override
-  String get authConsentWhatsApp =>
-      _overrides['authConsentWhatsApp'] ?? super.authConsentWhatsApp;
+  String get authConsentWhatsApp => _overrides['authConsentWhatsApp'] ?? super.authConsentWhatsApp;
 
   @override
-  String get authMerchantTermsTitle =>
-      _overrides['authMerchantTermsTitle'] ?? super.authMerchantTermsTitle;
+  String get authMerchantTermsTitle => _overrides['authMerchantTermsTitle'] ?? super.authMerchantTermsTitle;
 
   @override
-  String get authMerchantTermsEmpty =>
-      _overrides['authMerchantTermsEmpty'] ?? super.authMerchantTermsEmpty;
+  String get authMerchantTermsEmpty => _overrides['authMerchantTermsEmpty'] ?? super.authMerchantTermsEmpty;
 
   @override
-  String get authAgreeMerchantTerms =>
-      _overrides['authAgreeMerchantTerms'] ?? super.authAgreeMerchantTerms;
+  String get authAgreeMerchantTerms => _overrides['authAgreeMerchantTerms'] ?? super.authAgreeMerchantTerms;
 
   @override
-  String get authAcceptContinue =>
-      _overrides['authAcceptContinue'] ?? super.authAcceptContinue;
+  String get authAcceptContinue => _overrides['authAcceptContinue'] ?? super.authAcceptContinue;
 
   @override
-  String get phoneEnterNumber =>
-      _overrides['phoneEnterNumber'] ?? super.phoneEnterNumber;
+  String get phoneEnterNumber => _overrides['phoneEnterNumber'] ?? super.phoneEnterNumber;
 
   @override
-  String get phoneInvalid10 =>
-      _overrides['phoneInvalid10'] ?? super.phoneInvalid10;
+  String get phoneInvalid10 => _overrides['phoneInvalid10'] ?? super.phoneInvalid10;
 
   @override
   String phoneInvalidCountry(String country) {
     final t = _overrides['phoneInvalidCountry'];
-    return t == null
-        ? super.phoneInvalidCountry(country)
-        : fillRemoteTemplate(t, <String, String>{'country': country});
+    return t == null ? super.phoneInvalidCountry(country) : fillRemoteTemplate(t, <String, String>{'country': country});
   }
 
   @override
-  String get countryNameIN =>
-      _overrides['countryNameIN'] ?? super.countryNameIN;
+  String get countryNameIN => _overrides['countryNameIN'] ?? super.countryNameIN;
 
   @override
-  String get countryNameJO =>
-      _overrides['countryNameJO'] ?? super.countryNameJO;
+  String get countryNameJO => _overrides['countryNameJO'] ?? super.countryNameJO;
 
   @override
-  String get countryNameNP =>
-      _overrides['countryNameNP'] ?? super.countryNameNP;
+  String get countryNameNP => _overrides['countryNameNP'] ?? super.countryNameNP;
 
   @override
-  String get countryNamePH =>
-      _overrides['countryNamePH'] ?? super.countryNamePH;
+  String get countryNamePH => _overrides['countryNamePH'] ?? super.countryNamePH;
 
   @override
-  String get countryNameSA =>
-      _overrides['countryNameSA'] ?? super.countryNameSA;
+  String get countryNameSA => _overrides['countryNameSA'] ?? super.countryNameSA;
 
   @override
   String get locGateTitle => _overrides['locGateTitle'] ?? super.locGateTitle;
@@ -4899,141 +3799,108 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   String get locGateBody => _overrides['locGateBody'] ?? super.locGateBody;
 
   @override
-  String get locGateBlockedMsg =>
-      _overrides['locGateBlockedMsg'] ?? super.locGateBlockedMsg;
+  String get locGateBlockedMsg => _overrides['locGateBlockedMsg'] ?? super.locGateBlockedMsg;
 
   @override
-  String get locGateServiceOffMsg =>
-      _overrides['locGateServiceOffMsg'] ?? super.locGateServiceOffMsg;
+  String get locGateServiceOffMsg => _overrides['locGateServiceOffMsg'] ?? super.locGateServiceOffMsg;
 
   @override
-  String get locGateDeniedMsg =>
-      _overrides['locGateDeniedMsg'] ?? super.locGateDeniedMsg;
+  String get locGateDeniedMsg => _overrides['locGateDeniedMsg'] ?? super.locGateDeniedMsg;
 
   @override
-  String get locGateOpenSettings =>
-      _overrides['locGateOpenSettings'] ?? super.locGateOpenSettings;
+  String get locGateOpenSettings => _overrides['locGateOpenSettings'] ?? super.locGateOpenSettings;
 
   @override
   String get locGateAllow => _overrides['locGateAllow'] ?? super.locGateAllow;
 
   @override
-  String get locGateChooseManually =>
-      _overrides['locGateChooseManually'] ?? super.locGateChooseManually;
+  String get locGateChooseManually => _overrides['locGateChooseManually'] ?? super.locGateChooseManually;
 
   @override
-  String get locCardChecking =>
-      _overrides['locCardChecking'] ?? super.locCardChecking;
+  String get locCardChecking => _overrides['locCardChecking'] ?? super.locCardChecking;
 
   @override
-  String get locCardServicesOff =>
-      _overrides['locCardServicesOff'] ?? super.locCardServicesOff;
+  String get locCardServicesOff => _overrides['locCardServicesOff'] ?? super.locCardServicesOff;
 
   @override
-  String get locCardServicesOffSub =>
-      _overrides['locCardServicesOffSub'] ?? super.locCardServicesOffSub;
+  String get locCardServicesOffSub => _overrides['locCardServicesOffSub'] ?? super.locCardServicesOffSub;
 
   @override
-  String get locCardEnablePerm =>
-      _overrides['locCardEnablePerm'] ?? super.locCardEnablePerm;
+  String get locCardEnablePerm => _overrides['locCardEnablePerm'] ?? super.locCardEnablePerm;
 
   @override
-  String get locCardEnablePermSub =>
-      _overrides['locCardEnablePermSub'] ?? super.locCardEnablePermSub;
+  String get locCardEnablePermSub => _overrides['locCardEnablePermSub'] ?? super.locCardEnablePermSub;
 
   @override
-  String get locCardBlocked =>
-      _overrides['locCardBlocked'] ?? super.locCardBlocked;
+  String get locCardBlocked => _overrides['locCardBlocked'] ?? super.locCardBlocked;
 
   @override
-  String get locCardBlockedSub =>
-      _overrides['locCardBlockedSub'] ?? super.locCardBlockedSub;
+  String get locCardBlockedSub => _overrides['locCardBlockedSub'] ?? super.locCardBlockedSub;
 
   @override
-  String get locCardDetecting =>
-      _overrides['locCardDetecting'] ?? super.locCardDetecting;
+  String get locCardDetecting => _overrides['locCardDetecting'] ?? super.locCardDetecting;
 
   @override
   String locCardTapRetry(String error) {
     final t = _overrides['locCardTapRetry'];
-    return t == null
-        ? super.locCardTapRetry(error)
-        : fillRemoteTemplate(t, <String, String>{'error': error});
+    return t == null ? super.locCardTapRetry(error) : fillRemoteTemplate(t, <String, String>{'error': error});
   }
 
   @override
-  String get splashTagline =>
-      _overrides['splashTagline'] ?? super.splashTagline;
+  String get splashTagline => _overrides['splashTagline'] ?? super.splashTagline;
 
   @override
   String get commonBack => _overrides['commonBack'] ?? super.commonBack;
 
   @override
-  String get stateErrorTitle =>
-      _overrides['stateErrorTitle'] ?? super.stateErrorTitle;
+  String get stateErrorTitle => _overrides['stateErrorTitle'] ?? super.stateErrorTitle;
 
   @override
-  String get stateErrorMessage =>
-      _overrides['stateErrorMessage'] ?? super.stateErrorMessage;
+  String get stateErrorMessage => _overrides['stateErrorMessage'] ?? super.stateErrorMessage;
 
   @override
-  String get notifDiagTitle =>
-      _overrides['notifDiagTitle'] ?? super.notifDiagTitle;
+  String get notifDiagTitle => _overrides['notifDiagTitle'] ?? super.notifDiagTitle;
 
   @override
-  String get notifDiagRegStatusTitle =>
-      _overrides['notifDiagRegStatusTitle'] ?? super.notifDiagRegStatusTitle;
+  String get notifDiagRegStatusTitle => _overrides['notifDiagRegStatusTitle'] ?? super.notifDiagRegStatusTitle;
 
   @override
-  String get notifDiagCopy =>
-      _overrides['notifDiagCopy'] ?? super.notifDiagCopy;
+  String get notifDiagCopy => _overrides['notifDiagCopy'] ?? super.notifDiagCopy;
 
   @override
-  String get notifDiagRecheck =>
-      _overrides['notifDiagRecheck'] ?? super.notifDiagRecheck;
+  String get notifDiagRecheck => _overrides['notifDiagRecheck'] ?? super.notifDiagRecheck;
 
   @override
-  String get notifDiagTokenCopied =>
-      _overrides['notifDiagTokenCopied'] ?? super.notifDiagTokenCopied;
+  String get notifDiagTokenCopied => _overrides['notifDiagTokenCopied'] ?? super.notifDiagTokenCopied;
 
   @override
-  String get notifDiagCopiedToClipboard =>
-      _overrides['notifDiagCopiedToClipboard'] ??
-      super.notifDiagCopiedToClipboard;
+  String get notifDiagCopiedToClipboard => _overrides['notifDiagCopiedToClipboard'] ?? super.notifDiagCopiedToClipboard;
 
   @override
-  String get notifDiagClear =>
-      _overrides['notifDiagClear'] ?? super.notifDiagClear;
+  String get notifDiagClear => _overrides['notifDiagClear'] ?? super.notifDiagClear;
 
   @override
-  String get notifDiagClearLogTitle =>
-      _overrides['notifDiagClearLogTitle'] ?? super.notifDiagClearLogTitle;
+  String get notifDiagClearLogTitle => _overrides['notifDiagClearLogTitle'] ?? super.notifDiagClearLogTitle;
 
   @override
-  String get notifDiagClearLogBody =>
-      _overrides['notifDiagClearLogBody'] ?? super.notifDiagClearLogBody;
+  String get notifDiagClearLogBody => _overrides['notifDiagClearLogBody'] ?? super.notifDiagClearLogBody;
 
   @override
-  String get notifDiagEmptyTitle =>
-      _overrides['notifDiagEmptyTitle'] ?? super.notifDiagEmptyTitle;
+  String get notifDiagEmptyTitle => _overrides['notifDiagEmptyTitle'] ?? super.notifDiagEmptyTitle;
 
   @override
-  String get notifDiagEmptyHint =>
-      _overrides['notifDiagEmptyHint'] ?? super.notifDiagEmptyHint;
+  String get notifDiagEmptyHint => _overrides['notifDiagEmptyHint'] ?? super.notifDiagEmptyHint;
 
   @override
-  String get notifDiagRefresh =>
-      _overrides['notifDiagRefresh'] ?? super.notifDiagRefresh;
+  String get notifDiagRefresh => _overrides['notifDiagRefresh'] ?? super.notifDiagRefresh;
 
   @override
-  String get notifDiagChecking =>
-      _overrides['notifDiagChecking'] ?? super.notifDiagChecking;
+  String get notifDiagChecking => _overrides['notifDiagChecking'] ?? super.notifDiagChecking;
 
   @override
   String notifDiagSecondsAgo(String n) {
     final t = _overrides['notifDiagSecondsAgo'];
-    return t == null
-        ? super.notifDiagSecondsAgo(n)
-        : fillRemoteTemplate(t, <String, String>{'n': n});
+    return t == null ? super.notifDiagSecondsAgo(n) : fillRemoteTemplate(t, <String, String>{'n': n});
   }
+
 }

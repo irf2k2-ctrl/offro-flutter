@@ -419,7 +419,7 @@ abstract class AppLocalizations {
   /// Slide 3 subtitle (fallback slide)
   ///
   /// In en, this message translates to:
-  /// **'Redeem your points for Amazon & Flipkart vouchers'**
+  /// **'Redeem your points for gift vouchers'**
   String get onboardingSlide3Subtitle;
 
   /// Title of the country picker sheet
@@ -1964,11 +1964,11 @@ abstract class AppLocalizations {
   /// **'Redeem'**
   String get walletRedeem;
 
-  /// Balance card footnote; {points} is a number
+  /// Balance card footnote; {points} is a number, {amount} the voucher value with its currency (from the country reward settings)
   ///
   /// In en, this message translates to:
-  /// **'{points} pts = ₹20 voucher'**
-  String walletVoucherRate(String points);
+  /// **'{points} pts = {amount} voucher'**
+  String walletVoucherRate(String points, String amount);
 
   /// Balance card status
   ///
@@ -1991,8 +1991,20 @@ abstract class AppLocalizations {
   /// Voucher card description
   ///
   /// In en, this message translates to:
-  /// **'Promotional gift voucher · Amazon or Flipkart'**
+  /// **'Promotional Gift Voucher'**
   String get walletVoucherDesc;
+
+  /// Voucher card description when the country has voucher partners; {partners} is a list of names
+  ///
+  /// In en, this message translates to:
+  /// **'Promotional Gift Voucher · {partners}'**
+  String walletVoucherDescPartners(String partners);
+
+  /// Voucher card text when the country has no reward settings
+  ///
+  /// In en, this message translates to:
+  /// **'Gift voucher redemption isn\'t available for your country yet.'**
+  String get walletRewardsUnavailable;
 
   /// Disabled redeem button; {points} is a number
   ///
@@ -2006,11 +2018,11 @@ abstract class AppLocalizations {
   /// **'How rewards work'**
   String get walletHowTitle;
 
-  /// Rewards rule
+  /// Rewards rule; {points} is a number, {amount} the voucher value with its currency
   ///
   /// In en, this message translates to:
-  /// **'Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher.'**
-  String get walletHowLine1;
+  /// **'Redeem {points} Reward Points for a {amount} Promotional Gift Voucher.'**
+  String walletHowLine1(String points, String amount);
 
   /// Rewards rule
   ///
@@ -2581,6 +2593,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load cities. Check your connection and try again.'**
   String get locCitiesLoadFailed;
+
+  /// Empty state when the server returns no cities for the country
+  ///
+  /// In en, this message translates to:
+  /// **'No cities are available for your country yet.'**
+  String get locNoCitiesYet;
 
   /// Button
   ///

@@ -291,7 +291,7 @@
     "description": "Slide 3 title (fallback slide)",
     "x-screen": "onboarding"
   },
-  "onboardingSlide3Subtitle": "Redeem your points for Amazon & Flipkart vouchers",
+  "onboardingSlide3Subtitle": "Redeem your points for gift vouchers",
   "@onboardingSlide3Subtitle": {
     "description": "Slide 3 subtitle (fallback slide)",
     "x-screen": "onboarding",
@@ -1764,12 +1764,15 @@
     "description": "Button",
     "x-screen": "wallet"
   },
-  "walletVoucherRate": "{points} pts = ₹20 voucher",
+  "walletVoucherRate": "{points} pts = {amount} voucher",
   "@walletVoucherRate": {
-    "description": "Balance card footnote; {points} is a number",
+    "description": "Balance card footnote; {points} is a number, {amount} the voucher value with its currency (from the country reward settings)",
     "x-screen": "wallet",
     "placeholders": {
       "points": {
+        "type": "String"
+      },
+      "amount": {
         "type": "String"
       }
     }
@@ -1799,9 +1802,24 @@
       }
     }
   },
-  "walletVoucherDesc": "Promotional gift voucher · Amazon or Flipkart",
+  "walletVoucherDesc": "Promotional Gift Voucher",
   "@walletVoucherDesc": {
     "description": "Voucher card description",
+    "x-screen": "wallet"
+  },
+  "walletVoucherDescPartners": "Promotional Gift Voucher · {partners}",
+  "@walletVoucherDescPartners": {
+    "description": "Voucher card description when the country has voucher partners; {partners} is a list of names",
+    "x-screen": "wallet",
+    "placeholders": {
+      "partners": {
+        "type": "String"
+      }
+    }
+  },
+  "walletRewardsUnavailable": "Gift voucher redemption isn't available for your country yet.",
+  "@walletRewardsUnavailable": {
+    "description": "Voucher card text when the country has no reward settings",
     "x-screen": "wallet"
   },
   "walletEarnMore": "Earn {points} more points",
@@ -1819,10 +1837,18 @@
     "description": "Card title",
     "x-screen": "wallet"
   },
-  "walletHowLine1": "Redeem 200 Reward Points for a ₹20 Promotional Gift Voucher.",
+  "walletHowLine1": "Redeem {points} Reward Points for a {amount} Promotional Gift Voucher.",
   "@walletHowLine1": {
-    "description": "Rewards rule",
-    "x-screen": "wallet"
+    "description": "Rewards rule; {points} is a number, {amount} the voucher value with its currency",
+    "x-screen": "wallet",
+    "placeholders": {
+      "points": {
+        "type": "String"
+      },
+      "amount": {
+        "type": "String"
+      }
+    }
   },
   "walletHowLine2": "Gift voucher delivery: 3-5 business days.",
   "@walletHowLine2": {
@@ -2377,6 +2403,11 @@
   "locCitiesLoadFailed": "Couldn't load cities. Check your connection and try again.",
   "@locCitiesLoadFailed": {
     "description": "Error text",
+    "x-screen": "location"
+  },
+  "locNoCitiesYet": "No cities are available for your country yet.",
+  "@locNoCitiesYet": {
+    "description": "Empty state when the server returns no cities for the country",
     "x-screen": "location"
   },
   "locTryAgain": "Try again",

@@ -20,6 +20,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/models/offro_location.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/city_list_logic.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/location_store.dart';
 import 'location_access_card.dart';
@@ -51,6 +52,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
   List<SupportedCity> _supported = const []; // OffrO-active cities (/cities)
   List<SupportedCity> _cities = const [];    // cities shown in the list
   bool _citiesLoading = true;
+  bool _citiesFailed = false;   // the /cities request itself failed (offline / server error); false + no cities = the country simply has none yet
   late Future<void> _citiesFuture;
   String? _loadedCountry;     // the account country the list was loaded for (null = guest / unknown)
   bool _reloadQueued = false;
@@ -104,8 +106,9 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     // The account's registered phone country (one account = one country for Customer, Merchant and Influencer modes). null = guest.
     final country = Api.customerCountry;
     _loadedCountry = country;
-    if (mounted) setState(() => _citiesLoading = true);
-    final list = await LocationService.fetchSupportedCities(country: country, lang: _lang);
+    if (mounted) setState(() { _citiesLoading = true; _citiesFailed = false; });
+    final res = await LocationService.fetchSupportedCitiesResult(country: country, lang: _lang);
+    final list = res.cities;
     if (!mounted) return;
     if (country != Api.customerCountry) return;      // the account changed while loading: a newer load is already queued
     setState(() {
@@ -115,6 +118,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
       // Home's No-Store state handles empty cities.
       _cities = LocationService.citiesFor(country, list);
       _citiesLoading = false;
+      _citiesFailed = !res.ok;
     });
   }
 
@@ -415,6 +419,14 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         child: Center(child: CircularProgressIndicator(color: kPrimary, strokeWidth: 2.5)),
       )];
     }
+    if (_cities.isEmpty && !_citiesFailed) {
+      // The request worked and the server has no cities for this country yet: say so (no retry button, there is nothing to retry).
+      return [Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Text(context.l10n.locNoCitiesYet,
+            textAlign: TextAlign.center, style: TextStyle(color: OffroColors.textMuted, fontSize: 13.5)),
+      )];
+    }
     if (_cities.isEmpty) {
       return [Padding(
         padding: const EdgeInsets.symmetric(vertical: 24),
@@ -436,45 +448,36 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
   // Top-up for Popular Cities: part of the bundled India reference, so it is used ONLY with that reference (India / guest), never for another country.
   static const _metros = ['Mumbai', 'New Delhi', 'Bengaluru', 'Hyderabad', 'Chennai', 'Kolkata', 'Pune'];
 
-  /// OffrO-active cities first, topped up with major metros (no labels).
-  List<SupportedCity> _popular() {
-    final out = <SupportedCity>[];
-    bool has(String n) => out.any((e) => e.name.toLowerCase() == n.toLowerCase());
-    for (final c in _supported) {
-      if (out.length >= 6) break;
-      final match = _cities.where((x) => x.name.toLowerCase() == c.name.toLowerCase());
-      out.add(match.isNotEmpty ? match.first : c);
-    }
-    if (!LocationService.usesBundledIndiaReference(_loadedCountry)) return out;
-    for (final m in _metros) {
-      if (out.length >= 6) break;
-      if (has(m)) continue;
-      final match = _cities.where((x) => x.name == m);
-      if (match.isNotEmpty) out.add(match.first);
-    }
-    return out;
-  }
+  /// Admin-flagged Popular cities in their order; India keeps its legacy rule until one is flagged (see popularCities).
+  List<SupportedCity> _popular() => popularCities(
+        server: _supported,
+        shown: _cities,
+        legacyIndia: LocationService.usesBundledIndiaReference(_loadedCountry),
+        metros: _metros,
+      );
 
   List<Widget> _browseSections() {
     final status = _citiesStatus();
     if (status.isNotEmpty) return status;
     final popular = _popular();
-    final all = [..._cities]..sort((a, b) => a.labelFor(_lang).toLowerCase().compareTo(b.labelFor(_lang).toLowerCase()));
+    final all = sortCitiesForLang(_cities, _lang);
     return [
-      Text(context.l10n.locPopularCities, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
-      const SizedBox(height: 12),
-      LayoutBuilder(builder: (ctx, c) {
-        final w = (c.maxWidth - 20) / 3;
-        return Wrap(spacing: 10, runSpacing: 10, children: [
-          for (final p in popular)
-            SizedBox(width: w, child: _CityTile(
-              name: p.labelFor(_lang),
-              selected: _isCurrentCity(p.name, p.state),
-              onTap: () => _selectCity(p),
-            )),
-        ]);
-      }),
-      const SizedBox(height: 24),
+      if (popular.isNotEmpty) ...[
+        Text(context.l10n.locPopularCities, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
+        const SizedBox(height: 12),
+        LayoutBuilder(builder: (ctx, c) {
+          final w = (c.maxWidth - 20) / 3;
+          return Wrap(spacing: 10, runSpacing: 10, children: [
+            for (final p in popular)
+              SizedBox(width: w, child: _CityTile(
+                name: p.labelFor(_lang),
+                selected: _isCurrentCity(p.name, p.state),
+                onTap: () => _selectCity(p),
+              )),
+          ]);
+        }),
+        const SizedBox(height: 24),
+      ],
       Text(context.l10n.locAllCities, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: OffroColors.text)),
       const SizedBox(height: 4),
       for (final c in all) _CityRow(
@@ -491,9 +494,8 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
     if (status.isNotEmpty) return status;
     final q = _query.toLowerCase();
     // Search matches the shown (translated) name, the English name and the state; selection still uses the canonical city.
-    final cityHits = _cities.where((c) =>
-        c.labelFor(_lang).toLowerCase().contains(q) || c.name.toLowerCase().contains(q) || c.state.toLowerCase().contains(q)).toList()
-      ..sort((a, b) => a.labelFor(_lang).toLowerCase().compareTo(b.labelFor(_lang).toLowerCase()));
+    final cityHits = sortCitiesForLang(_cities.where((c) =>
+        c.labelFor(_lang).toLowerCase().contains(q) || c.name.toLowerCase().contains(q) || c.state.toLowerCase().contains(q)), _lang);
     final areaHits = <MapEntry<String, SupportedCity>>[];
     for (final c in _cities) {
       for (final a in (_areas[c.name] ?? const <String>[])) {

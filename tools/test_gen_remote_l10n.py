@@ -15,7 +15,7 @@ class GenTests(unittest.TestCase):
 
     def test_every_bundled_member_is_overridden_once(self):
         schema, cls, n = gen.build()
-        self.assertEqual(n, 1145)
+        self.assertEqual(n, 1148)
         self.assertEqual(len(re.findall(r"^  @override$", cls, re.M)), n)
         self.assertEqual(len(re.findall(r"^  '\w+': <String>\[", schema, re.M)), n)
 

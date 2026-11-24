@@ -49,7 +49,7 @@ class _OnboardingState extends State<OnboardingScreen> {
       "webp": "assets/onboarding/screen3.webp",
       "png":  "assets/onboarding/screen3.png",
       "title": "Get Gift Vouchers",
-      "subtitle": "Redeem your points for Amazon & Flipkart vouchers",
+      "subtitle": "Redeem your points for gift vouchers",
     },
   ];
 
