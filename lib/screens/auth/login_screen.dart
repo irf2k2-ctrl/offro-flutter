@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/api_service.dart';
+import '../../core/services/otp_proof.dart';
 import '../../core/services/error_mapper.dart';
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
@@ -335,6 +336,7 @@ class _OtpScreenState extends State<OtpScreen> {
     // Temporary testing arrangement, to be removed before international production launch.
     // Phase F1: honoured ONLY when this build points at the exact staging host (see staging_gate.dart).
     if (isMasterOtp(otp)) {
+      OtpProofStore.set(stagingTestProof(otp)); // server accepts it only on the verified staging service for listed numbers
       await widget.onVerified();
       return;
     }
@@ -344,6 +346,7 @@ class _OtpScreenState extends State<OtpScreen> {
       final resp = await OTPWidget.verifyOTP({'reqId': widget.reqId, 'otp': otp});
       if (otpProbeEnabled) OtpProbeStore.instance.captureResponse(resp); // probe: redacted shape only
       if (resp != null && resp['type'] == 'success') {
+        OtpProofStore.set(otpProofFromVerifyResponse(resp)); // D2: verified token for the backend to check
         await widget.onVerified();
       } else {
         final err = resp?['message']?.toString() ?? context.l10n.authOtpIncorrect;
@@ -570,8 +573,11 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
   @override
   void initState() {
     super.initState();
+    _proof = OtpProofStore.take(); // D2: the proof the OTP screen just stored; reused only if the request never reached the server
     _run();
   }
+
+  Map<String, dynamic>? _proof;
 
   Future<void> _run() async {
     if (mounted) setState(() {
@@ -582,7 +588,7 @@ class _AccountBootstrapScreenState extends State<_AccountBootstrapScreen> {
     Map<String, dynamic> d;
     try {
       // The single, unified account-login call for this entire journey.
-      d = await Api.loginAccount(widget.phone);
+      d = await Api.loginAccount(widget.phone, otpProof: _proof);
     } catch (e) {
       debugPrint('[OffrO] account bootstrap login error: $e');
       if (mounted) setState(() => _err = friendlyError(e, l10n: mounted ? context.l10n : null));

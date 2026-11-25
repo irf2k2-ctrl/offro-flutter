@@ -592,7 +592,7 @@ class MyApp extends StatelessWidget {
   static void goSwitchMode(
       String token, String name, String phone, String userId, String role) {
     if (role == 'merchant') {
-      _goMerchantViaUnified(phone: phone, name: name);
+      _goMerchantViaUnified(phone: phone, name: name, sessionToken: token);
     } else if (role == 'influencer') {
       // C4: same authenticated account/token — no separate identity to
       // fetch (unlike User/Merchant, which issue a fresh role-specific
@@ -603,7 +603,7 @@ class MyApp extends StatelessWidget {
           token: token, name: name, phone: phone, userId: userId);
     } else {
       // TASK 2 FIX: get a fresh user token so getWallet and user APIs work correctly
-      _goUserViaUnified(phone: phone, name: name, userId: userId);
+      _goUserViaUnified(phone: phone, name: name, userId: userId, sessionToken: token);
     }
   }
 
@@ -632,11 +632,12 @@ class MyApp extends StatelessWidget {
   static void _goUserViaUnified(
       {required String phone,
       required String name,
-      required String userId}) async {
+      required String userId,
+      String? sessionToken}) async {
     try {
       Api.clearCache();
       // Issue a fresh user session token
-      final resp = await Api.loginUser(phone);
+      final resp = await Api.loginUser(phone, sessionToken: sessionToken);
       final freshToken = resp['token']?.toString() ?? '';
       final freshId = resp['user_id']?.toString() ?? userId;
       final freshName = resp['name']?.toString() ?? name;
@@ -669,6 +670,7 @@ class MyApp extends StatelessWidget {
     String? merchantToken,
     required String phone,
     required String name,
+    String? sessionToken,
   }) async {
     try {
       String token = merchantToken ?? '';
@@ -681,7 +683,7 @@ class MyApp extends StatelessWidget {
 
       // No valid token or it failed → issue a fresh token via unified account-login
       if (merchantData == null) {
-        final loginResp = await Api.loginAccount(phone);
+        final loginResp = await Api.loginAccount(phone, sessionToken: sessionToken ?? merchantToken);
         token = loginResp['token']?.toString() ?? '';
         if (token.isEmpty) {
           goLogin();

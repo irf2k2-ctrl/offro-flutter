@@ -11,6 +11,7 @@ import '../l10n/locale_controller.dart';
 import '../l10n/phone/phone_country.dart';
 import '../pricing/country_money.dart';
 import 'country_query.dart';
+import 'otp_proof.dart';
 
 class Api {
   /// Legal / information documents (Terms, Privacy, Refund, KYC, About Us, Merchant Terms): the app asks for the document in the
@@ -185,12 +186,23 @@ class Api {
   }
 
   // ── User ──
-  static Future<Map<String,dynamic>> loginUser(String phone, {String? country}) =>
-      _post("/user/account-login", {"phone": phone, if (country != null) "country": country});
+  /// D2: login never sends a phone on its own. It carries the OTP proof (taken once from OtpProofStore) or, for switch-mode / session
+  /// restore, the existing session token. The server rejects anything else (401 / 426).
+  static Future<Map<String,dynamic>> _login(String path, String phone, String? country, Map<String,dynamic>? otpProof, String? sessionToken) {
+    final proof = otpProof ?? OtpProofStore.take();
+    return _post(path, {
+      "phone": phone,
+      if (country != null) "country": country,
+      if (proof != null) "otp_proof": proof,
+    }, token: proof == null ? sessionToken : null);
+  }
+
+  static Future<Map<String,dynamic>> loginUser(String phone, {String? country, Map<String,dynamic>? otpProof, String? sessionToken}) =>
+      _login("/user/account-login", phone, country, otpProof, sessionToken);
 
   /// Unified account login — checks users + merchants, returns one token + is_merchant flag
-  static Future<Map<String,dynamic>> loginAccount(String phone, {String? country}) =>
-      _post("/user/account-login", {"phone": phone, if (country != null) "country": country});
+  static Future<Map<String,dynamic>> loginAccount(String phone, {String? country, Map<String,dynamic>? otpProof, String? sessionToken}) =>
+      _login("/user/account-login", phone, country, otpProof, sessionToken);
   /// Version id of the registration checkbox wording. MUST match
   /// REGISTRATION_CONSENT_VERSION in the backend (services/wa_consent.py).
   static const String registrationConsentVersion = "reg-wa-2026-11-18";
@@ -284,11 +296,11 @@ class Api {
       rethrow;
     }
   }
-  static Future<Map<String,dynamic>> loginMerchant(String phone, {String? country}) =>
-      _post("/merchant/login", {"phone": phone, if (country != null) "country": country});
+  static Future<Map<String,dynamic>> loginMerchant(String phone, {String? country, Map<String,dynamic>? otpProof, String? sessionToken}) =>
+      _login("/merchant/login", phone, country, otpProof, sessionToken);
   /// Unified login — same OTP flow, returns merchant token via /user/merchant-login
-  static Future<Map<String,dynamic>> loginMerchantUnified(String phone, {String? country}) =>
-      _post("/merchant/login", {"phone": phone, if (country != null) "country": country});
+  static Future<Map<String,dynamic>> loginMerchantUnified(String phone, {String? country, Map<String,dynamic>? otpProof, String? sessionToken}) =>
+      _login("/merchant/login", phone, country, otpProof, sessionToken);
   static Future<Map<String,dynamic>> registerMerchant(String name, String phone, String city, String area, {String? country}) =>
       _post("/merchant/register", {"name": name, "phone": phone, "city": city, "area": area, if (country != null) "country": country});
   static Future<List> getMerchantStores(String token) async {
