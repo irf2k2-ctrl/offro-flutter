@@ -29,6 +29,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'base64_image.dart';
 import '../design/offro_tokens.dart' show OffroColors;
+import '../pricing/product_money.dart';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Link helper — the ONLY place the share link is defined. It is the same
@@ -59,6 +60,7 @@ class ProductShareData {
   final double storeRating; // 0 = not available
   final String imageSrc; // http(s) URL or data:image…; '' = none
   final String link; // generic OffrO open link
+  final ProductMoney money; // currency of the product's country (India: INR / ₹)
 
   const ProductShareData({
     required this.productId,
@@ -72,6 +74,7 @@ class ProductShareData {
     required this.storeRating,
     required this.imageSrc,
     required this.link,
+    this.money = ProductMoney.india,
   });
 
   bool get showOrig =>
@@ -149,6 +152,7 @@ class ProductShareData {
       storeRating: rating,
       imageSrc: _pickImage(p, storeObj),
       link: ProductLink.open,
+      money: ProductMoney.fromAny([p, storeObj]),
     );
   }
 
@@ -239,25 +243,11 @@ class ProductShareCard extends StatelessWidget {
 
   const ProductShareCard({super.key, required this.data, this.photo});
 
-  /// ₹ with Indian digit grouping; whole numbers without decimals.
-  static String inr(num v) {
-    final whole = v == v.roundToDouble();
-    final str = whole ? v.round().toString() : v.toStringAsFixed(2);
-    final parts = str.split('.');
-    var ip = parts[0];
-    if (ip.length > 3) {
-      final last3 = ip.substring(ip.length - 3);
-      var rest = ip.substring(0, ip.length - 3);
-      final groups = <String>[];
-      while (rest.length > 2) {
-        groups.insert(0, rest.substring(rest.length - 2));
-        rest = rest.substring(0, rest.length - 2);
-      }
-      if (rest.isNotEmpty) groups.insert(0, rest);
-      ip = '${groups.join(',')},$last3';
-    }
-    return '₹$ip${parts.length > 1 ? '.${parts[1]}' : ''}';
-  }
+  /// ₹ with Indian digit grouping; whole numbers without decimals. (India's amount: unchanged.)
+  static String inr(num v) => ProductMoney.india.grouped(v);
+
+  /// [v] in the currency of the product's country ([ProductMoney.grouped]): India = [inr].
+  static String amount(num v, ProductMoney money) => money.grouped(v);
 
   /// Offer-section text: the discount ("25% OFF"); with no percentage but an
   /// offer text, that text. Null → no offer section.
@@ -379,9 +369,9 @@ class ProductShare {
       if (d.storeName.isNotEmpty) 'Store: ${d.storeName}',
       if (d.locationLine.isNotEmpty) 'Location: ${d.locationLine}',
       if (main != null && main > 0)
-        d.showOrig ? 'Offer Price: ${ProductShareCard.inr(main)}' : 'Price: ${ProductShareCard.inr(main)}',
-      if (d.showOrig) 'Original Price: ${ProductShareCard.inr(d.origPrice!)}',
-      if (save > 0) 'Save: ${ProductShareCard.inr(save)}',
+        d.showOrig ? 'Offer Price: ${ProductShareCard.amount(main, d.money)}' : 'Price: ${ProductShareCard.amount(main, d.money)}',
+      if (d.showOrig) 'Original Price: ${ProductShareCard.amount(d.origPrice!, d.money)}',
+      if (save > 0) 'Save: ${ProductShareCard.amount(save, d.money)}',
     ];
     final title = _bold(d.name);
     return [

@@ -49,6 +49,8 @@ import 'screens/favorites/favorites_page.dart';
 import 'screens/store/store_detail_page.dart';
 import 'screens/home/popup_campaign_overlay.dart';
 import 'core/l10n/l10n.dart';
+import 'core/pricing/product_money.dart';
+import 'core/services/country_query.dart';
 import 'core/services/default_store_image.dart';
 import 'core/l10n/language_policy.dart';
 import 'core/l10n/locale_controller.dart';
@@ -5196,9 +5198,11 @@ class _AllDealsScreenState extends State<_AllDealsScreen> {
 
   Future<void> _load() async {
     try {
-      final endpoint = widget.city.isNotEmpty
-          ? "/deals/all?city=" + Uri.encodeComponent(widget.city)
-          : "/deals/all";
+      final endpoint = withCountryQuery(
+          widget.city.isNotEmpty
+              ? "/deals/all?city=" + Uri.encodeComponent(widget.city)
+              : "/deals/all",
+          Api.customerCountry);
       final dynamic raw = await Api.get(endpoint);
       final List<Map<String, dynamic>> list = (raw is List)
           ? List<Map<String, dynamic>>.from(
@@ -6733,9 +6737,11 @@ class _ExclusiveDealsSectionState extends State<_ExclusiveDealsSection> {
 
   Future<void> _load() async {
     try {
-      final endpoint = widget.city.isNotEmpty
-          ? "/deals/all?city=" + Uri.encodeComponent(widget.city)
-          : "/deals/all";
+      final endpoint = withCountryQuery(
+          widget.city.isNotEmpty
+              ? "/deals/all?city=" + Uri.encodeComponent(widget.city)
+              : "/deals/all",
+          Api.customerCountry);
       final dynamic raw = await Api.get(endpoint);
       final list = (raw is List)
           ? List<Map<String, dynamic>>.from(
@@ -7623,13 +7629,13 @@ class _DiscoverProductsSection extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.end,
               spacing: 6,
               children: [
-                Text("₹${saleP.toStringAsFixed(0)}",
+                Text(ProductMoney.from(v).whole(saleP),
                     style: OffroText.caption.copyWith(
                         fontSize: featured ? 14 : 13,
                         fontWeight: FontWeight.w600,
                         color: OffroColors.primary)),
                 if (origP != null)
-                  Text("₹${origP.toStringAsFixed(0)}",
+                  Text(ProductMoney.from(v).whole(origP),
                       style: OffroText.caption.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.w400,
@@ -10166,12 +10172,12 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             if (saleP != null)
-                              Text("₹${saleP.toStringAsFixed(0)}",
+                              Text(ProductMoney.from(p).whole(saleP),
                                   style: OffroText.headline.copyWith(
                                       fontSize: 22, letterSpacing: -0.8)),
                             if (showOrig) ...[
                               const SizedBox(width: 8),
-                              Text("₹${origP!.toStringAsFixed(0)}",
+                              Text(ProductMoney.from(p).whole(origP!),
                                   style: OffroText.caption.copyWith(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w400,
@@ -11158,14 +11164,14 @@ class _ProductDetailCardState extends State<ProductDetailCard> {
                   child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text("₹$priceRaw",
+                        Text(ProductMoney.from(product).raw(priceRaw),
                             style: OffroText.caption.copyWith(
                                 color: OffroColors.primary,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600)),
                         if (origRaw.isNotEmpty && origRaw != "0") ...[
                           const SizedBox(width: 6),
-                          Text("₹$origRaw",
+                          Text(ProductMoney.from(product).raw(origRaw),
                               style: OffroText.caption.copyWith(
                                   color: OffroColors.sage,
                                   fontSize: 11,

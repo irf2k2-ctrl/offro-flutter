@@ -2216,6 +2216,12 @@ abstract class AppLocalizations {
   /// **'₹{amount} for two'**
   String storeCostForTwo(String amount);
 
+  /// About row; {amount} is a price that already carries its currency symbol or code
+  ///
+  /// In en, this message translates to:
+  /// **'{amount} for two'**
+  String storeCostForTwoMoney(String amount);
+
   /// About row
   ///
   /// In en, this message translates to:
@@ -4099,6 +4105,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Enter a valid 10-digit mobile number (starts with 6–9)'**
   String get bizEnterAValid10Digit;
+
+  /// Merchant Add/Edit Store: GPS or Maps returned a place in another country; {country} is the account's country name
+  ///
+  /// In en, this message translates to:
+  /// **'This location is not in {country}. Your store must be in the country of your OffrO account.'**
+  String bizStoreLocationOtherCountry(String country);
+
+  /// Merchant Add/Edit Store: the city is not in the City Master list for the account's country
+  ///
+  /// In en, this message translates to:
+  /// **'Please choose your city from the suggestions.'**
+  String get bizStoreChooseCityFromList;
 
   /// Merchant/Influencer text
   ///

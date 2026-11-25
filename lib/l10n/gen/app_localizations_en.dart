@@ -1195,6 +1195,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String storeCostForTwoMoney(String amount) {
+    return '$amount for two';
+  }
+
+  @override
   String get storeDineIn => 'Dine-in available';
 
   @override
@@ -2207,6 +2212,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bizEnterAValid10Digit =>
       'Enter a valid 10-digit mobile number (starts with 6–9)';
+
+  @override
+  String bizStoreLocationOtherCountry(String country) {
+    return 'This location is not in $country. Your store must be in the country of your OffrO account.';
+  }
+
+  @override
+  String get bizStoreChooseCityFromList =>
+      'Please choose your city from the suggestions.';
 
   @override
   String get bizEditStore => 'Edit Store';

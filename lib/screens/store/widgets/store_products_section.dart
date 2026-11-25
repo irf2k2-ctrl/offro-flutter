@@ -8,6 +8,7 @@ import '../../../core/services/error_mapper.dart';
 import 'store_header.dart' show FullScreenImageViewer;
 import '../../../core/design/design.dart';
 import '../../../core/l10n/l10n.dart';
+import '../../../core/pricing/product_money.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Round 10 — shared pricing/discount resolution, used by both the card and
@@ -90,11 +91,11 @@ Widget _productGalleryOverlay(BuildContext ctx, Map<String, dynamic> p) {
           const SizedBox(width: 8),
         ],
         if (hasPrice) ...[
-          Text('₹${pricing.saleP!.toStringAsFixed(0)}',
+          Text(ProductMoney.from(p).whole(pricing.saleP!),
               style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
           if (pricing.origP != null) ...[
             const SizedBox(width: 8),
-            Text('₹${pricing.origP!.toStringAsFixed(0)}',
+            Text(ProductMoney.from(p).whole(pricing.origP!),
                 style: TextStyle(
                     color: Colors.white.withValues(alpha: .65),
                     fontSize: 14,
@@ -424,11 +425,11 @@ class _ProductCardState extends State<_ProductCard> {
                       Padding(
                         padding: const EdgeInsets.only(top: 3),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text("₹${saleP.toStringAsFixed(0)}",
+                          Text(ProductMoney.from(p).whole(saleP),
                             style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
                           if (origP != null) ...[
                             const SizedBox(width: 6),
-                            Text("₹${origP.toStringAsFixed(0)}",
+                            Text(ProductMoney.from(p).whole(origP),
                               style: TextStyle(
                                 color: Colors.white.withValues(alpha: .65), fontSize: 11.5,
                                 decoration: TextDecoration.lineThrough,
@@ -634,14 +635,14 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
           if (price.isNotEmpty) ...[
             const SizedBox(height: 12),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Text('₹$price',
+              Text(ProductMoney.from(p).raw(price),
                   style: const TextStyle(
                       color: kPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.w900)),
               if (origPrice.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                Text('₹$origPrice',
+                Text(ProductMoney.from(p).raw(origPrice),
                     style: TextStyle(
                         color: OffroColors.textMuted.withValues(alpha: .7),
                         fontSize: 16,

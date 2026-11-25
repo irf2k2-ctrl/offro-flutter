@@ -2045,6 +2045,16 @@
       }
     }
   },
+  "storeCostForTwoMoney": "{amount} for two",
+  "@storeCostForTwoMoney": {
+    "description": "About row; {amount} is a price that already carries its currency symbol or code",
+    "x-screen": "store",
+    "placeholders": {
+      "amount": {
+        "type": "String"
+      }
+    }
+  },
   "storeDineIn": "Dine-in available",
   "@storeDineIn": {
     "description": "About row",
@@ -3688,6 +3698,21 @@
   "bizEnterAValid10Digit": "Enter a valid 10-digit mobile number (starts with 6–9)",
   "@bizEnterAValid10Digit": {
     "description": "Merchant/Influencer text",
+    "x-screen": "merchant"
+  },
+  "bizStoreLocationOtherCountry": "This location is not in {country}. Your store must be in the country of your OffrO account.",
+  "@bizStoreLocationOtherCountry": {
+    "description": "Merchant Add/Edit Store: GPS or Maps returned a place in another country; {country} is the account's country name",
+    "x-screen": "merchant",
+    "placeholders": {
+      "country": {
+        "type": "String"
+      }
+    }
+  },
+  "bizStoreChooseCityFromList": "Please choose your city from the suggestions.",
+  "@bizStoreChooseCityFromList": {
+    "description": "Merchant Add/Edit Store: the city is not in the City Master list for the account's country",
     "x-screen": "merchant"
   },
   "bizEditStore": "Edit Store",

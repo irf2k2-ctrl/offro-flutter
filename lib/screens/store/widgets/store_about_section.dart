@@ -4,6 +4,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/store_hours.dart';
 import '../../../core/design/design.dart';
 import '../../../core/l10n/l10n.dart';
+import '../../../core/pricing/product_money.dart';
 
 class StoreAboutSection extends StatefulWidget {
   final Map<String, dynamic> store;
@@ -29,6 +30,7 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
     final city       = widget.store['city']?.toString()       ?? '';
     final phone      = widget.store['phone']?.toString()      ?? '';
     final costForTwo = widget.store['cost_for_two']?.toString() ?? '';
+    final money      = ProductMoney.from(widget.store);
     final dineIn     = widget.store['dine_in'] == true;
 
     final locationText = [area, city]
@@ -157,9 +159,13 @@ class _StoreAboutSectionState extends State<StoreAboutSection> {
                 // Cost for two
                 if (costForTwo.isNotEmpty)
                   _infoRow(
-                    icon: Icons.currency_rupee_rounded,
+                    icon: money.isIndia ? Icons.currency_rupee_rounded : Icons.payments_outlined,
                     isFirst: false,
-                    child: Text(context.l10n.storeCostForTwo('$costForTwo'),
+                    child: Text(
+                      // India: the existing text, unchanged. Another country: the amount carries that country's currency.
+                      money.isIndia
+                          ? context.l10n.storeCostForTwo('$costForTwo')
+                          : context.l10n.storeCostForTwoMoney(money.raw(costForTwo)),
                       style: const TextStyle(
                           color: OffroColors.text, fontSize: 13)),
                   ),

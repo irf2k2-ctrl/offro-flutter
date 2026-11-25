@@ -31,6 +31,9 @@ import '../../core/services/error_mapper.dart';
 import '../../core/models/offro_location.dart';
 import '../../core/services/location_service.dart';
 import '../../core/services/location_store.dart';
+import '../../core/services/merchant_store_logic.dart';
+import '../../core/phone/phone_country.dart' show PhoneCountry, kDefaultPhoneCountry, phoneCountryByIso;
+import '../../core/phone/phone_input.dart' show checkPhoneInput, maxPhoneInputLength, splitE164;
 import '../../core/services/prefs_service.dart';
 import '../../core/widgets/brand_logo.dart';
 import '../location/location_screen.dart';
@@ -3530,6 +3533,78 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   set _selCity(String? v) => _cityC.text = v ?? '';
   String? get _selState => _stateC.text.trim().isEmpty ? null : _stateC.text.trim();
   set _selState(String? v) => _stateC.text = v ?? '';
+
+  // ── Country (Phase 1): the ACCOUNT's, derived from the logged-in account's phone (Api.customerCountry). The merchant never chooses
+  // it and no country field is shown. India / unknown keeps the existing experience exactly; another country gets City Master
+  // suggestions, a country-aware phone rule, and a refusal of a GPS / Maps place that lies in a different country.
+  String? get _acctIso => Api.customerCountry;
+  bool get _intl => !isIndiaAccount(_acctIso);
+  PhoneCountry? get _phoneCountry => _intl ? phoneCountryByIso(_acctIso) : null;
+  List<SupportedCity> _countryCities = const [];
+  bool _citiesLoaded = false;
+
+  Future<void> _loadCountryCities() async {
+    if (!_intl) return;
+    try {
+      final res = await LocationService.fetchSupportedCitiesResult(country: _acctIso);
+      if (!mounted) return;
+      setState(() { _countryCities = res.cities; _citiesLoaded = res.ok; });
+    } catch (_) {}
+  }
+
+  /// The store phone as the field shows it: a stored +<dial><national> number of the account's country shows its national digits.
+  String _phoneForField(String stored) {
+    final pc = _phoneCountry;
+    if (pc == null) return stored;
+    final sp = splitE164(stored);
+    return (sp != null && sp.country.iso == pc.iso) ? sp.national : stored;
+  }
+
+  /// A GPS / Maps place in ANOTHER country: nothing of it is kept, and the merchant is told why.
+  void _rejectForeignLocation() {
+    final pc = phoneCountryByIso(_acctIso) ?? kDefaultPhoneCountry;
+    final msg = context.l10n.bizStoreLocationOtherCountry(localizedCountryName(context, pc));
+    setState(() {
+      _lat.clear(); _lng.clear();
+      _cityC.clear(); _stateC.clear(); _area.clear(); _addr.clear();
+      _locConfirmed = false; _mapsApplied = false;
+      _resolvedPlaceName = ''; _resolvedAddress = '';
+      _locMsg = msg; _mapsMsg = msg;
+    });
+  }
+
+  /// Another country: a geocoded city that is a City Master city of the account's country is stored under its canonical name.
+  void _snapCityToMaster() {
+    if (!_intl) return;
+    final m = matchCountryCity(_selCity, _countryCities);
+    if (m != null) {
+      _selCity = m.name;
+      if (_selState == null && m.state.isNotEmpty) _selState = m.state;
+    }
+  }
+
+  Widget _citySuggestions() {
+    if (!_intl || !_citiesLoaded || _countryCities.isEmpty) return const SizedBox.shrink();
+    final typed = _selCity;
+    if (matchCountryCity(typed, _countryCities) != null) return const SizedBox.shrink();
+    final lang = Localizations.localeOf(context).languageCode;
+    final items = suggestCountryCities(typed, _countryCities);
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(spacing: 6, runSpacing: 6, children: [
+        for (final c in items)
+          ActionChip(
+            label: Text(c.labelFor(lang), style: const TextStyle(fontSize: 12)),
+            backgroundColor: Colors.white,
+            onPressed: () => setState(() {
+              _selCity = c.name;
+              if (_selState == null && c.state.isNotEmpty) _selState = c.state;
+            }),
+          ),
+      ]),
+    );
+  }
   bool _locLoading = false; bool _locConfirmed = false;
   bool _locDenied = false; // true after a denial THIS attempt — button stays enabled, tapping again retries
   // Location-specific error, shown directly under the "Current Location"
@@ -3621,6 +3696,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     try {
       final res = await Api.reverseGeocode(lat, lng);
       if (!mounted || res.containsKey('error')) return;
+      if (otherCountryOfPlace(placeIso: res['country']?.toString(), accountIso: _acctIso) != null) { _rejectForeignLocation(); return; }
       setState(() {
         final st = res['state']?.toString() ?? '';
         final ct = res['city']?.toString() ?? '';
@@ -3642,6 +3718,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         }
         if (ar.isNotEmpty) _area.text = ar;
         if (ad.isNotEmpty) _addr.text = ad;
+        _snapCityToMaster();
       });
     } catch (_) {}
   }
@@ -3681,6 +3758,16 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         _mapsMsg = '';
         _locConfirmed = true;
       });
+      // A place in another country is refused (the resolver may not say which country: ask the geocoder, best effort).
+      var placeIso = res['country']?.toString() ?? '';
+      if (placeIso.isEmpty && _acctIso != null && _acctIso!.trim().isNotEmpty) {
+        try {
+          final geo = await Api.reverseGeocode(double.parse(res['lat'].toString()), double.parse(res['lng'].toString()));
+          placeIso = geo['country']?.toString() ?? '';
+        } catch (_) {}
+        if (!mounted) return;
+      }
+      if (otherCountryOfPlace(placeIso: placeIso, accountIso: _acctIso) != null) { _rejectForeignLocation(); return; }
       // Auto-fill address fields from resolved location
       final st = res['state']?.toString() ?? '';
       final ct = res['city']?.toString() ?? '';
@@ -3704,6 +3791,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           }
           if (ar.isNotEmpty) _area.text = ar;
           if (ad.isNotEmpty) _addr.text = ad;
+          _snapCityToMaster();
         });
       }
       // Safety net: coordinates resolved but city/state still empty →
@@ -3794,6 +3882,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           Text(addr, maxLines: 2, overflow: TextOverflow.ellipsis,
               style: OffroText.caption.copyWith(fontSize: 10, color: OffroColors.secondarySolid, height: 1.35)),
         ],
+        _citySuggestions(),
       ]),
     );
   }
@@ -3803,6 +3892,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   @override void initState() {
     super.initState();
     _loadCategories();
+    _loadCountryCities();
     if (_isEdit) {
       _populateFromStore(widget.store!);
       // Also fetch the full store detail to get image2 + state/city (list API may omit them)
@@ -3844,7 +3934,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       _selCity = null;
     }
     _area.text  = _sv(s["area"]);       _addr.text = _sv(s["address"]);
-    _phone.text = _sv(s["phone"]);      _lat.text  = _sv(s["lat"]);
+    _phone.text = _phoneForField(_sv(s["phone"]));      _lat.text  = _sv(s["lat"]);
     _lng.text   = _sv(s["lng"]);        _category  = _sv(s["category"]);
     // FIX: route to the correct field based on actual content — never let a
     // Cloudinary URL end up in the base64 variable (see _imgUrl comment above).
@@ -3907,9 +3997,24 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     if (_name.text.trim().isEmpty) { setState(()=>_msg=context.l10n.bizStoreNameRequired); return; }
     if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg=context.l10n.bizPleaseSetTheStoreLocation); return; }
     if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg=context.l10n.bizPleaseSetTheStoreLocation); return; }
+    // Another country: the city must be one of the account country's City Master cities (an edit that leaves the saved city alone is not blocked).
+    final _savedCity = _isEdit ? _sv(widget.store!["city"]).trim().toLowerCase() : '';
+    if (!(_isEdit && _selCity!.trim().toLowerCase() == _savedCity) &&
+        !storeCityAcceptable(city: _selCity, accountIso: _acctIso, cities: _countryCities, listLoaded: _citiesLoaded)) {
+      setState(()=>_msg=context.l10n.bizStoreChooseCityFromList); return;
+    }
     final _phoneVal = _phone.text.trim();
     if (_phoneVal.isEmpty) { setState(()=>_msg=context.l10n.bizMobileNumberIsRequired); return; }
-    if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg=context.l10n.bizEnterAValid10Digit); return; }
+    // India (and an unknown country): the unchanged 10-digit rule. Another country: that country's mobile rule, sent as +<dial><number>.
+    var _phoneToSend = _phoneVal;
+    final _pc = _phoneCountry;
+    if (_pc == null) {
+      if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg=context.l10n.bizEnterAValid10Digit); return; }
+    } else {
+      final _chk = checkPhoneInput(_pc, _phoneVal);
+      if (!_chk.ok) { setState(()=>_msg=localizedPhoneInputError(context, _pc, _chk)); return; }
+      _phoneToSend = _chk.e164;
+    }
 
     // COORDINATES ARE MANDATORY — a store cannot be created with only
     // State + City. "Use Current Location" and the Google Maps link
@@ -3937,7 +4042,8 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     final data = {
       "store_name":_name.text.trim(),"category":_category,
       "state":_selState??"","city":_selCity??"","area":_area.text.trim(),
-      "address":_addr.text.trim(),"phone":_phone.text.trim(),
+      "address":_addr.text.trim(),"phone":_phoneToSend,
+      if (storeCountryToSend(_acctIso).isNotEmpty) "country": storeCountryToSend(_acctIso),
       "lat":_lat.text.trim(),"lng":_lng.text.trim(),
       "about":_about.text.trim(),
       if(_openTime!=null)"open_time":_openTime!,
@@ -4111,7 +4217,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
         ]),
       ),
       const SizedBox(height:12),
-      _field(_phone,context.l10n.bizPhone,Icons.phone,type:TextInputType.phone,maxLen:10),
+      _field(_phone,context.l10n.bizPhone,Icons.phone,type:TextInputType.phone,maxLen:_phoneCountry==null?10:maxPhoneInputLength(_phoneCountry!)),
       const SizedBox(height: 16),
       // Image picker
       GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),

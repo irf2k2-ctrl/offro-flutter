@@ -10,6 +10,7 @@ import '../l10n/language_policy.dart';
 import '../l10n/locale_controller.dart';
 import '../l10n/phone/phone_country.dart';
 import '../pricing/country_money.dart';
+import 'country_query.dart';
 
 class Api {
   /// Legal / information documents (Terms, Privacy, Refund, KYC, About Us, Merchant Terms): the app asks for the document in the
@@ -420,11 +421,13 @@ class Api {
     final String? cleanCity = (city != null && city.trim().isNotEmpty && city != "Detecting...") ? city.trim() : null;
     if (cleanCity != null) p.add("city=${Uri.encodeComponent(cleanCity)}");
     if (category != null && category != "All") p.add("category=${Uri.encodeComponent(category)}");
+    final _cq = countryQueryValue(customerCountry);
+    if (_cq.isNotEmpty) p.add("country=$_cq");
     final url = "/stores?" + p.join("&");
     // FIX: category must be in cache key — without it all categories return the same cached list
     final String _catSfx = (category != null && category != 'All' && category!.isNotEmpty)
         ? ':${category!.toLowerCase()}' : '';
-    final cacheKey = "stores:${cleanCity?.toLowerCase() ?? 'all'}$_catSfx";
+    final cacheKey = "stores:${cleanCity?.toLowerCase() ?? 'all'}$_catSfx${countryCacheSuffix(customerCountry)}";
     if (kDebugMode) debugPrint("[OFFRO] fetchStores URL: $kBaseUrl$url");
     if (kDebugMode) debugPrint("[OFFRO] city param: $cleanCity | cacheKey: $cacheKey");
     if (_isCacheValid(cacheKey)) {
@@ -551,7 +554,7 @@ class Api {
     // Reads from Admin Dashboard → Products module (gift_vouchers + products collections)
     final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
-      final raw = await _get("/products-public$cityParam").timeout(const Duration(seconds: 10));
+      final raw = await _get(withCountryQuery("/products-public$cityParam", customerCountry)).timeout(const Duration(seconds: 10));
       if (raw is List) return raw;
     } catch (_) {}
     return [];
@@ -564,7 +567,7 @@ class Api {
     // visible error on the Home Screen.
     final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
-      final raw = await _get("/influencers$cityParam").timeout(const Duration(seconds: 10));
+      final raw = await _get(withCountryQuery("/influencers$cityParam", customerCountry)).timeout(const Duration(seconds: 10));
       if (raw is List) return raw;
     } catch (_) {}
     return [];
@@ -580,14 +583,14 @@ class Api {
 
   static Future<List<Map<String,dynamic>>> fetchPublicProducts({String city = ''}) async {
     // Reads from Admin Dashboard → Products module (gift_vouchers + products collections)
-    final cacheKey = "public_products_${city.trim().toLowerCase()}";
+    final cacheKey = "public_products_${city.trim().toLowerCase()}${countryCacheSuffix(customerCountry)}";
     if (_isCacheValid(cacheKey)) {
       final cached = _apiCache[cacheKey];
       if (cached is List && cached.isNotEmpty) return List<Map<String,dynamic>>.from(cached);
     }
     final cityParam = city.trim().isNotEmpty ? "?city=${Uri.encodeComponent(city.trim())}" : "";
     try {
-      final raw = await _get("/products-public$cityParam").timeout(const Duration(seconds: 10));
+      final raw = await _get(withCountryQuery("/products-public$cityParam", customerCountry)).timeout(const Duration(seconds: 10));
       List items = raw is List ? raw : [];
       if (items.isNotEmpty) {
         final result = items
@@ -603,7 +606,7 @@ class Api {
   }
 
   static Future<List> getSliders() async {
-    try { return await _get("/promo-sliders"); } catch(_) { return []; }
+    try { return await _get(withCountryQuery("/promo-sliders", customerCountry)); } catch(_) { return []; }
   }
 
   /// Path of the cities request. With no arguments it is the plain "/cities" every older build used. [country] (the signed-in account's ISO
@@ -701,7 +704,7 @@ class Api {
   static Future<List<Map<String,dynamic>>> getAdminBanners() async {
     // Reads from Admin Dashboard → Banners module (db.banners collection)
     try {
-      final raw = await _get("/admin-banners").timeout(const Duration(seconds: 15));
+      final raw = await _get(withCountryQuery("/admin-banners", customerCountry)).timeout(const Duration(seconds: 15));
       if (raw is List) return (raw as List).map((e) => Map<String,dynamic>.from(e as Map)).toList();
     } catch (e) { if (kDebugMode) debugPrint("[OFFRO] getAdminBanners error: $e"); }
     return [];

@@ -1193,6 +1193,11 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String storeCostForTwoMoney(String amount) {
+    return '$amount لشخصين';
+  }
+
+  @override
   String get storeDineIn => 'الجلوس في المكان متاح';
 
   @override
@@ -2201,6 +2206,14 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get bizEnterAValid10Digit =>
       'أدخل رقم جوال صحيحًا من 10 أرقام (يبدأ بـ 6–9)';
+
+  @override
+  String bizStoreLocationOtherCountry(String country) {
+    return 'هذا الموقع ليس في $country. يجب أن يكون متجرك في بلد حسابك على OffrO.';
+  }
+
+  @override
+  String get bizStoreChooseCityFromList => 'يرجى اختيار مدينتك من الاقتراحات.';
 
   @override
   String get bizEditStore => 'تعديل المتجر';

@@ -1225,6 +1225,12 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
   }
 
   @override
+  String storeCostForTwoMoney(String amount) {
+    final t = _overrides['storeCostForTwoMoney'];
+    return t == null ? super.storeCostForTwoMoney(amount) : fillRemoteTemplate(t, <String, String>{'amount': amount});
+  }
+
+  @override
   String get storeDineIn => _overrides['storeDineIn'] ?? super.storeDineIn;
 
   @override
@@ -2210,6 +2216,15 @@ class AppLocalizationsArRemote extends AppLocalizationsAr {
 
   @override
   String get bizEnterAValid10Digit => _overrides['bizEnterAValid10Digit'] ?? super.bizEnterAValid10Digit;
+
+  @override
+  String bizStoreLocationOtherCountry(String country) {
+    final t = _overrides['bizStoreLocationOtherCountry'];
+    return t == null ? super.bizStoreLocationOtherCountry(country) : fillRemoteTemplate(t, <String, String>{'country': country});
+  }
+
+  @override
+  String get bizStoreChooseCityFromList => _overrides['bizStoreChooseCityFromList'] ?? super.bizStoreChooseCityFromList;
 
   @override
   String get bizEditStore => _overrides['bizEditStore'] ?? super.bizEditStore;
