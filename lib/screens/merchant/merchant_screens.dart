@@ -1337,7 +1337,7 @@ class _AddBannerState extends State<AddBannerPage> {
     if (code.isEmpty) return;
     setState(() { _applyingCode = true; _discountMsg = ""; });
     try {
-      final r = await Api.validateDiscountCode(widget.token, code, scope: "BANNERS");
+      final r = await Api.validateDiscountCode(widget.token, code, scope: "BANNERS", preTax: _basePrice);
       final val = (r["value"] as num).toDouble();
       final type = (r["type"]?.toString() ?? "VALUE").toUpperCase();
       setState(() {
@@ -2622,7 +2622,7 @@ class _AddProductState extends State<AddProductPage> {
     if (code.isEmpty) { setState((){ _discountVMsg=context.l10n.bizEnterACode; _discountVOk=false; }); return; }
     setState(()=>_applyingVCode=true);
     try {
-      final res = await Api.validateDiscountCode(widget.token, code, scope: "PRODUCTS");
+      final res = await Api.validateDiscountCode(widget.token, code, scope: "PRODUCTS", preTax: _basePrice);
       final val = (res["value"] as num?)?.toDouble() ?? 0.0;
       final type = (res["type"]?.toString() ?? "VALUE").toUpperCase();
       if (mounted) setState((){
@@ -3542,13 +3542,20 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   PhoneCountry? get _phoneCountry => _intl ? phoneCountryByIso(_acctIso) : null;
   List<SupportedCity> _countryCities = const [];
   bool _citiesLoaded = false;
+  /// Validation errors by field (name | location | city | phone | coords): each is shown beside its own field, never in the bottom message.
+  final Map<String, String> _fieldErr = {};
+  void _fail(String key, String message) => setState(() { _fieldErr..clear()..[key] = message; _msg = ""; });
+  Widget _errFor(String key) => (_fieldErr[key] ?? '').isEmpty
+      ? const SizedBox.shrink()
+      : Padding(padding: const EdgeInsets.only(top: 6, left: 4),
+          child: Text(_fieldErr[key]!, key: ValueKey('store-err-$key'), style: TextStyle(color: Colors.red.shade700, fontSize: 12)));
 
   Future<void> _loadCountryCities() async {
     if (!_intl) return;
     try {
       final res = await LocationService.fetchSupportedCitiesResult(country: _acctIso);
       if (!mounted) return;
-      setState(() { _countryCities = res.cities; _citiesLoaded = res.ok; });
+      setState(() { _countryCities = res.cities; _citiesLoaded = res.ok; _snapCityToMaster(); });
     } catch (_) {}
   }
 
@@ -3882,6 +3889,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
           Text(addr, maxLines: 2, overflow: TextOverflow.ellipsis,
               style: OffroText.caption.copyWith(fontSize: 10, color: OffroColors.secondarySolid, height: 1.35)),
         ],
+        _errFor('city'),
         _citySuggestions(),
       ]),
     );
@@ -3994,25 +4002,25 @@ class _AddEditStoreState extends State<AddEditStorePage> {
   }
 
   Future<void> _save() async {
-    if (_name.text.trim().isEmpty) { setState(()=>_msg=context.l10n.bizStoreNameRequired); return; }
-    if (_selState == null || _selState!.trim().isEmpty) { setState(()=>_msg=context.l10n.bizPleaseSetTheStoreLocation); return; }
-    if (_selCity == null || _selCity!.trim().isEmpty) { setState(()=>_msg=context.l10n.bizPleaseSetTheStoreLocation); return; }
+    if (_name.text.trim().isEmpty) { _fail("name", context.l10n.bizStoreNameRequired); return; }
+    if (_selState == null || _selState!.trim().isEmpty) { _fail("location", context.l10n.bizPleaseSetTheStoreLocation); return; }
+    if (_selCity == null || _selCity!.trim().isEmpty) { _fail("city", context.l10n.bizPleaseSetTheStoreLocation); return; }
     // Another country: the city must be one of the account country's City Master cities (an edit that leaves the saved city alone is not blocked).
     final _savedCity = _isEdit ? _sv(widget.store!["city"]).trim().toLowerCase() : '';
     if (!(_isEdit && _selCity!.trim().toLowerCase() == _savedCity) &&
         !storeCityAcceptable(city: _selCity, accountIso: _acctIso, cities: _countryCities, listLoaded: _citiesLoaded)) {
-      setState(()=>_msg=context.l10n.bizStoreChooseCityFromList); return;
+      _fail("city", context.l10n.bizStoreChooseCityFromList); return;
     }
     final _phoneVal = _phone.text.trim();
-    if (_phoneVal.isEmpty) { setState(()=>_msg=context.l10n.bizMobileNumberIsRequired); return; }
+    if (_phoneVal.isEmpty) { _fail("phone", context.l10n.bizMobileNumberIsRequired); return; }
     // India (and an unknown country): the unchanged 10-digit rule. Another country: that country's mobile rule, sent as +<dial><number>.
     var _phoneToSend = _phoneVal;
     final _pc = _phoneCountry;
     if (_pc == null) {
-      if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { setState(()=>_msg=context.l10n.bizEnterAValid10Digit); return; }
+      if (!RegExp(r'^[6-9]\d{9}$').hasMatch(_phoneVal)) { _fail("phone", context.l10n.bizEnterAValid10Digit); return; }
     } else {
       final _chk = checkPhoneInput(_pc, _phoneVal);
-      if (!_chk.ok) { setState(()=>_msg=localizedPhoneInputError(context, _pc, _chk)); return; }
+      if (!_chk.ok) { _fail("phone", localizedPhoneInputError(context, _pc, _chk)); return; }
       _phoneToSend = _chk.e164;
     }
 
@@ -4026,19 +4034,17 @@ class _AddEditStoreState extends State<AddEditStorePage> {
     final hasValidCoords = latVal != null && lngVal != null &&
         latVal >= -90 && latVal <= 90 && lngVal >= -180 && lngVal <= 180;
     if (!_isEdit && !hasValidCoords) {
-      setState(() => _msg = context.l10n.bizSetStoreLocationFirst
-          );
+      _fail("coords", context.l10n.bizSetStoreLocationFirst);
       return;
     }
     if (_isEdit && (_lat.text.trim().isNotEmpty || _lng.text.trim().isNotEmpty) && !hasValidCoords) {
       // Only blocks a location left in a broken/partial state THIS session
       // — an older store's untouched (possibly empty) coordinates are left
       // alone here and are not force-fixed on an unrelated edit.
-      setState(() => _msg = context.l10n.bizStoreLocationIncomplete
-          );
+      _fail("coords", context.l10n.bizStoreLocationIncomplete);
       return;
     }
-    setState(()=>_loading=true); _msg="";
+    setState(()=>_loading=true); _msg=""; _fieldErr.clear();
     final data = {
       "store_name":_name.text.trim(),"category":_category,
       "state":_selState??"","city":_selCity??"","area":_area.text.trim(),
@@ -4072,6 +4078,7 @@ class _AddEditStoreState extends State<AddEditStorePage> {
       ),
     body: SingleChildScrollView(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       _field(_name,context.l10n.bizStoreName,Icons.store),
+      _errFor('name'),
       const SizedBox(height:12),
       DropdownButtonFormField<String>(value:_category.isEmpty?null:_category,
         items:[..._categories.map((e){final c=(e is Map?e['name']:e).toString();return DropdownMenuItem<String>(value:c,child:Text(localizedCategoryName(context,c)));})],
@@ -4211,13 +4218,16 @@ class _AddEditStoreState extends State<AddEditStorePage> {
             const SizedBox(width: 10),
             Expanded(child: _field(_lng, context.l10n.bizLongitude, Icons.gps_not_fixed, type: TextInputType.number)),
           ]),
+          _errFor('coords'),
           const SizedBox(height: 4),
           Text(context.l10n.bizAutoFilledByGPSOr,
               style: TextStyle(color: kMerchantMuted, fontSize: 11)),
         ]),
       ),
+      _errFor('location'),
       const SizedBox(height:12),
       _field(_phone,context.l10n.bizPhone,Icons.phone,type:TextInputType.phone,maxLen:_phoneCountry==null?10:maxPhoneInputLength(_phoneCountry!)),
+      _errFor('phone'),
       const SizedBox(height: 16),
       // Image picker
       GestureDetector(onTap:_pickImage,child:Container(height:150,decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(22),border:Border.all(color:kMerchantBorder,style:BorderStyle.solid)),
@@ -4463,7 +4473,10 @@ class _SubscribeState extends State<SubscribePage> {
       // BANNERS-only code entered here) right now, so the error shows next
       // to the input instead of only surfacing later when Proceed to Pay
       // calls /subscribe (which enforces scope unconditionally regardless).
-      final r = await Api.validateDiscount(code, scope: "STORE");
+      // The merchant-authenticated check (it knows the account's country) with the selected plan's price, so a code that would leave a
+      // payable amount below the minimum is refused right here and nothing proceeds.
+      final r = await Api.validateDiscountCode(widget.token, code, scope: "STORE",
+          preTax: (double.tryParse('${_selectedPlanData?["price"] ?? 0}') ?? 0));
       final val = (r["value"] as num).toDouble();
       final type = (r["type"]?.toString() ?? "VALUE").toUpperCase();
       setState((){

@@ -148,4 +148,22 @@ void main() {
       expect(r.country.iso, 'IN');
     });
   });
+
+  group('Saudi mobile numbering plan (QA issue 3)', () {
+    test('every mobile prefix 50, 53-59 is accepted and sent as +966', () {
+      for (final n in ['501234567', '531234567', '541234567', '551234567', '561234567', '571234567', '581234567', '591234567', '0501234567', '50 123 4567']) {
+        final r = checkPhoneInput(c('SA'), n);
+        expect(r.ok, isTrue, reason: n);
+        expect(r.e164, startsWith('+966'), reason: n);
+      }
+    });
+    test('numbers outside the numbering plan are rejected', () {
+      for (final n in ['521234567', '5012345', '50123456789', '401234567', '579912345']) {
+        expect(checkPhoneInput(c('SA'), n).ok, isFalse, reason: n);
+      }
+    });
+    test('India is unchanged', () {
+      expect(checkPhoneInput(c('IN'), '9876543210').e164, '+919876543210');
+    });
+  });
 }

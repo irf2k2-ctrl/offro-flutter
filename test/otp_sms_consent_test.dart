@@ -11,6 +11,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:offro_user/screens/auth/login_screen.dart';
+import 'package:sendotp_flutter_sdk/sendotp_flutter_sdk.dart';
 
 Widget host(Future<String?>? sms, {Key? key}) => MaterialApp(
       home: OtpScreen(key: key, phone: '+919999999999', reqId: 'REQ1', smsCode: sms, onVerified: () async {}),
@@ -232,7 +233,15 @@ void main() {
     // OtpScreen.dispose() calls SmsConsentOtp.cancel(); on the (test-default) Android platform that would reach the real smart_auth
     // plugin, which has no native side in a test run (PlatformException channel-error). A no-op fake replaces the native layer here, exactly
     // as the other OtpScreen tests do. Production keeps using the real plugin.
-    setUp(() => SmsConsentOtp.debugNative = _NoopNative());
+    //
+    // A valid 4-digit code is applied through _handleOtpChange, which (exactly like a typed code) calls _verify() -> the static MSG91
+    // OTPWidget.verifyOTP. That SDK throws "Widget not initialized" until initializeWidget has run (the app does this in LoginScreen). The
+    // test gives it dummy, non-secret values so the SDK is initialised; no MSG91 call can succeed from a test run, and OtpScreen's own
+    // try/catch turns the failed verification into its normal friendly message. Production code is unchanged.
+    setUp(() {
+      SmsConsentOtp.debugNative = _NoopNative();
+      OTPWidget.initializeWidget('test-widget-id', 'test-token-auth');
+    });
     tearDown(() => SmsConsentOtp.debugNative = null);
 
     testWidgets('a valid SMS code fills the four boxes', (t) async {

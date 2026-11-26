@@ -62,4 +62,27 @@ void main() {
       expect(storeCityAcceptable(city: 'Mumbai', accountIso: 'SA', cities: cities, listLoaded: false), isTrue);
     });
   });
+
+  group('geocoded names with administrative qualifiers (Saudi QA issue 2)', () {
+    test('"Riyadh Governorate" / "محافظة الرياض" resolve to the Riyadh master city', () {
+      expect(matchCountryCity('Riyadh Governorate', cities)?.name, 'Riyadh');
+      expect(matchCountryCity('محافظة الرياض', cities)?.name, 'Riyadh');
+      expect(matchCountryCity('Riyadh City', cities)?.name, 'Riyadh');
+      expect(matchCountryCity('Jeddah Governorate', cities)?.name, 'Jeddah');
+      expect(matchCountryCity('محافظة جدة', cities)?.name, 'Jeddah');
+    });
+    test('a resolved geocoded city is accepted without re-selecting it', () {
+      expect(storeCityAcceptable(city: 'Riyadh Governorate', accountIso: 'SA', cities: cities, listLoaded: true), isTrue);
+      expect(storeCityAcceptable(city: 'محافظة الرياض', accountIso: 'SA', cities: cities, listLoaded: true), isTrue);
+    });
+    test('a different city, or only a qualifier, never matches', () {
+      expect(matchCountryCity('Mumbai Governorate', cities), isNull);
+      expect(matchCountryCity('Governorate', cities), isNull);
+      expect(matchCountryCity('محافظة', cities), isNull);
+      expect(storeCityAcceptable(city: 'Dammam Region', accountIso: 'SA', cities: cities, listLoaded: true), isFalse);
+    });
+    test('India stays unrestricted', () {
+      expect(storeCityAcceptable(city: 'Ballari District', accountIso: 'IN', cities: cities, listLoaded: true), isTrue);
+    });
+  });
 }

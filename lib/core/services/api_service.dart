@@ -313,11 +313,14 @@ class Api {
     } catch (_) { return null; }
   }
 
+  /// The app language for geocoded place details: 'ar' when the app is in Arabic, otherwise 'en' (the server accepts only these two).
+  static String _geoLang() => LocaleController.instance.locale.languageCode.toLowerCase() == 'ar' ? 'ar' : 'en';
+
   static Future<Map<String,dynamic>> resolveMapsLink(String url) async {
     try {
       final encoded = Uri.encodeQueryComponent(url);
       final r = await http.get(
-        Uri.parse("$kBaseUrl/resolve-maps-link?url=$encoded"),
+        Uri.parse("$kBaseUrl/resolve-maps-link?url=$encoded&lang=${_geoLang()}"),
       ).timeout(const Duration(seconds: 15));
       final d = json.decode(r.body);
       if (d is Map) return Map<String,dynamic>.from(d);
@@ -330,7 +333,7 @@ class Api {
   static Future<Map<String,dynamic>> reverseGeocode(double lat, double lng) async {
     try {
       final r = await http.get(
-        Uri.parse("$kBaseUrl/reverse-geocode?lat=$lat&lng=$lng"),
+        Uri.parse("$kBaseUrl/reverse-geocode?lat=$lat&lng=$lng&lang=${_geoLang()}"),
       ).timeout(const Duration(seconds: 10));
       final d = json.decode(r.body);
       if (d is Map) return Map<String,dynamic>.from(d);
@@ -726,8 +729,10 @@ class Api {
       _post("/discount/validate", {"code": code, if (scope != null) "checkout_scope": scope});
 
   // Merchant-authenticated discount code validation (Item 6)
-  static Future<Map<String,dynamic>> validateDiscountCode(String token, String code, {String? scope}) =>
-      _post("/merchant/discounts/validate", {"code": code, if (scope != null) "checkout_scope": scope}, token: token);
+  /// [preTax] = the pre-discount, pre-tax amount on screen: lets the server refuse (at Apply) a code that would leave a payable amount
+  /// below the minimum for a non-India merchant. Order creation re-checks it authoritatively.
+  static Future<Map<String,dynamic>> validateDiscountCode(String token, String code, {String? scope, double? preTax}) =>
+      _post("/merchant/discounts/validate", {"code": code, if (scope != null) "checkout_scope": scope, if (preTax != null && preTax > 0) "pre_tax_amount": preTax}, token: token);
 
   // Check merchant phone registered before sending OTP (Item 8)
   static Future<bool> checkMerchantPhone(String phone, {String? country}) async {

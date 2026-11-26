@@ -32,7 +32,32 @@ String? otherCountryOfPlace({required String? placeIso, required String? account
 
 String _k(String? s) => (s ?? '').split(RegExp(r'\s+')).where((w) => w.isNotEmpty).join(' ').toLowerCase();
 
+/// Administrative words a geocoder puts around a city name ("Riyadh Governorate", "محافظة الرياض", "Jeddah City"). They are not part of the
+/// city's name, so they are dropped when comparing a geocoded name with the City Master - never when comparing two different names.
+const _cityQualifiers = <String>{
+  'governorate', 'province', 'region', 'municipality', 'city', 'district', 'emirate', 'prefecture', 'county',
+  'محافظة', 'منطقة', 'مدينة', 'بلدية', 'امارة', 'إمارة', 'امانة', 'أمانة',
+};
+
+String _arabicFold(String s) => s
+    .replaceAll(RegExp('[\u064B-\u065F\u0670\u0640]'), '')
+    .replaceAll(RegExp('[\u0623\u0625\u0622]'), '\u0627')
+    .replaceAll('\u0649', '\u064A')
+    .replaceAll('\u0629', '\u0647');
+
+/// The qualifiers in the SAME folded form the compared text is put in. Folding changes letters inside the Arabic qualifiers themselves
+/// (the final ة of "محافظة" becomes ه, the hamza on "إمارة" is dropped), so the raw list can never match folded text - both sides must be folded.
+final Set<String> _cityQualifierKeys = _cityQualifiers.map((q) => _arabicFold(q.toLowerCase())).toSet();
+
+/// A comparison key: lower-case, spacing/punctuation/diacritics normalised, qualifier words removed. Empty when nothing is left.
+String _cityKey(String? s) {
+  final words = _arabicFold(_k(s)).split(RegExp(r'[\s,،.\-]+')).where((w) => w.isNotEmpty && !_cityQualifierKeys.contains(w));
+  return words.join(' ');
+}
+
 /// The City Master city a typed / geocoded name refers to: matched by its canonical name or any translation, ignoring case and spacing.
+/// An exact (case/space-insensitive) match always wins; otherwise a geocoded name that differs only by a qualifier ("Riyadh Governorate",
+/// "محافظة الرياض") or Arabic spelling variants resolves to the same master city. A different city name never matches.
 SupportedCity? matchCountryCity(String? name, List<SupportedCity> cities) {
   final n = _k(name);
   if (n.isEmpty) return null;
@@ -40,6 +65,14 @@ SupportedCity? matchCountryCity(String? name, List<SupportedCity> cities) {
     if (_k(c.name) == n) return c;
     for (final v in c.names.values) {
       if (_k(v) == n) return c;
+    }
+  }
+  final key = _cityKey(name);
+  if (key.isEmpty) return null;
+  for (final c in cities) {
+    if (_cityKey(c.name) == key) return c;
+    for (final v in c.names.values) {
+      if (_cityKey(v) == key) return c;
     }
   }
   return null;
