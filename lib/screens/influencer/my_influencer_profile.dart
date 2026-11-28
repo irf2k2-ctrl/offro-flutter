@@ -25,6 +25,7 @@ import '../../core/widgets/brand_logo.dart' show buildImageLogo;
 import '../merchant/merchant_screens.dart' show merchantHeaderBar;
 import '../collab/collab_screens.dart' show InfluencerOpportunitiesView, CampaignOpportunitiesSection;
 import '../../core/l10n/l10n.dart';
+import '../../core/l10n/language_switch_button.dart';
 
 /// Local equivalent of the file-private `_timeAgo()` helpers already used
 /// elsewhere (lib/main.dart, notifications_page.dart) — same exact pattern,
@@ -301,6 +302,7 @@ class _InfluencerModuleScreenState extends State<InfluencerModuleScreen> {
               Row(children: [
                 buildImageLogo(height: 26),
                 const Spacer(),
+                const LanguageSwitchButton(gapAfter: false), // same switch as the customer home; only where Arabic is enabled for the country
               ]),
               const SizedBox(height: 28),
               Text(context.l10n.bizCREATORWORKSPACE, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),

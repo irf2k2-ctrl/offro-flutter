@@ -47,6 +47,7 @@ import '../collab/collab_screens.dart' show CollabWorkspacePage;
 import '../store/widgets/store_header.dart' show FullScreenImageViewer;
 import '../../core/utils/navigation.dart';
 import '../../core/l10n/l10n.dart';
+import '../../core/l10n/language_switch_button.dart';
 
 /// Figma-style page header for Merchant screens: eyebrow + headline on the
 /// cream background, flat (no elevation), optional trailing actions.
@@ -261,7 +262,11 @@ class _MerchantHomePageState extends State<MerchantHomePage> {
       color: OffroColors.mint,
       padding: EdgeInsets.fromLTRB(OffroSpacing.gutter, MediaQuery.of(context).padding.top + 20, OffroSpacing.gutter, 36),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        buildImageLogo(height: 26),
+        Row(children: [
+          buildImageLogo(height: 26),
+          const Spacer(),
+          const LanguageSwitchButton(gapAfter: false), // same switch as the customer home; only where Arabic is enabled for the country
+        ]),
         const SizedBox(height: 32),
         Text(context.l10n.bizMERCHANTWORKSPACE, style: OffroText.eyebrow.copyWith(color: OffroColors.sageStrong)),
         const SizedBox(height: 4),

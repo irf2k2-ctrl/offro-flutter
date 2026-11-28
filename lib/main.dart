@@ -53,6 +53,7 @@ import 'core/pricing/product_money.dart';
 import 'core/services/country_query.dart';
 import 'core/services/default_store_image.dart';
 import 'core/l10n/language_policy.dart';
+import 'core/l10n/language_switch_button.dart';
 import 'core/l10n/locale_controller.dart';
 import 'core/l10n/remote/remote_localizations.dart';
 import 'core/l10n/remote/remote_translation_service.dart';
@@ -6126,12 +6127,13 @@ class _HomeHeader extends StatelessWidget {
             Row(children: [
               buildImageLogo(height: 30),
               const Spacer(),
+              const LanguageSwitchButton(), // shown only where Arabic is enabled for the country (existing language policy)
               GestureDetector(
                 onTap: onBellTap,
                 child: Stack(clipBehavior: Clip.none, children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: kHeaderCircleSize,
+                    height: kHeaderCircleSize,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: OffroColors.surface,
