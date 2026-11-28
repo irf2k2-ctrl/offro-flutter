@@ -67,7 +67,7 @@ class LocationAccessCard extends StatelessWidget {
         trailing = const SizedBox(width: 18, height: 18,
             child: CircularProgressIndicator(strokeWidth: 2, color: kPrimary));
       } else if (detected != null) {
-        subtitle = '${detected!.title}\n${detected!.subtitle}';
+        subtitle = '${detected!.title}\n${localizedLocationSubtitle(context, detected!)}';
         trailing = const Icon(Icons.chevron_right_rounded, color: kPrimary);
       } else if (detectError.isNotEmpty) {
         subtitle = context.l10n.locCardTapRetry(detectError);

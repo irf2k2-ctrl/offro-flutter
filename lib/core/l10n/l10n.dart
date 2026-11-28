@@ -11,6 +11,7 @@ import 'package:flutter/widgets.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../l10n/gen/app_localizations_en.dart';
 import '../utils/store_hours.dart';
+import '../models/offro_location.dart';
 import '../phone/phone_country.dart';
 import '../phone/phone_input.dart';
 import 'category_names.dart';
@@ -292,6 +293,13 @@ String localizedBadgeRibbon(BuildContext context, String key, String fallback) {
       return fallback;
   }
 }
+
+/// The location header's second line with the location's OWN country named in the app language (nothing is appended when the
+/// country is not known). Replaces the fixed "India" the subtitle used to carry.
+String localizedLocationSubtitle(BuildContext context, OffroLocation loc) => loc.subtitleFor((iso) {
+      final c = phoneCountryByIso(iso);
+      return c == null ? '' : localizedCountryName(context, c);
+    });
 
 /// A supported country's name in the app language (the country list itself keeps the English name for logic and the server).
 String localizedCountryName(BuildContext context, PhoneCountry country) {

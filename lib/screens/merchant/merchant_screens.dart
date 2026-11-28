@@ -3197,7 +3197,8 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
   }
 
   Future<void> _ensureLocation() async {
-    final saved = await LocationStore.load(LocationMode.merchant);
+    // a location picked under another country's account is not carried over to this account
+    final saved = await LocationStore.loadForAccount(Api.customerCountry, LocationMode.merchant);
     if (!mounted) return;
     if (saved != null && saved.hasCity) {
       setState(() => _loc = saved);
@@ -3234,7 +3235,7 @@ class _MerchantHomeState extends State<MerchantHome> with WidgetsBindingObserver
       token: widget.token,
       merchantName: widget.merchant['name']?.toString() ?? '',
       locationTitle: _loc?.title ?? '',
-      locationSubtitle: _loc?.subtitle ?? '',
+      locationSubtitle: _loc == null ? '' : localizedLocationSubtitle(context, _loc!),
       onLocationTap: () => _chooseLocation(mandatory: false),
     ),
     MerchantDealsPage(token: widget.token),

@@ -28,6 +28,7 @@ import 'core/widgets/shimmer_box.dart';
 import 'core/widgets/base64_image.dart';
 import 'core/design/design.dart';
 import 'screens/legal/privacy_policy_page.dart';
+import 'core/phone/phone_country.dart' show countryIsoForPhone;
 import 'core/services/api_service.dart';
 import 'core/services/error_mapper.dart';
 import 'core/services/fav_state.dart';
@@ -452,11 +453,13 @@ class MyApp extends StatelessWidget {
     required String userId,
     String legacyCity = '',
   }) async {
-    OffroLocation? saved = await LocationStore.load(LocationMode.customer);
+    // A location PICKED under another country's account (previous login on this device) is not carried over to this account.
+    OffroLocation? saved = await LocationStore.loadForAccount(countryIsoForPhone(phone), LocationMode.customer);
     if (saved == null && legacyCity.trim().isNotEmpty) {
       saved = OffroLocation(
         city: legacyCity.trim(),
         state: LocationService.stateForCity(legacyCity),
+        country: LocationService.bundledCountryForCity(legacyCity),
         source: LocationSource.manual,
         updatedAt: DateTime.now(),
       );
@@ -2167,14 +2170,17 @@ class _HomeState extends State<HomeScreen> with WidgetsBindingObserver {
 
   OffroLocation get _effectiveLoc => (_loc != null && _loc!.sameCity(city))
       ? _loc!
-      : OffroLocation(city: city, state: LocationService.stateForCity(city));
+      : OffroLocation(
+          city: city,
+          state: LocationService.stateForCity(city),
+          country: LocationService.bundledCountryForCity(city));
   String get _locTitle =>
       city.isEmpty ? context.l10n.homeSelectLocation : _effectiveLoc.title;
-  String get _locSubtitle => city.isEmpty ? "" : _effectiveLoc.subtitle;
+  String get _locSubtitle => city.isEmpty ? "" : localizedLocationSubtitle(context, _effectiveLoc);
 
   /// Loads the saved structured location for the header (never changes `city`).
   Future<void> _loadSavedLocation() async {
-    final saved = await LocationStore.load(LocationMode.customer);
+    final saved = await LocationStore.loadForAccount(Api.customerCountry, LocationMode.customer);
     if (!mounted || saved == null) return;
     setState(() {
       _loc = saved;

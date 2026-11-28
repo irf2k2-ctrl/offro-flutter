@@ -5,6 +5,8 @@
 // persistence and future use. For a manually chosen city, locality and area
 // are empty.
 
+import '../phone/phone_country.dart';
+
 enum LocationSource { gps, manual }
 
 class OffroLocation {
@@ -12,6 +14,10 @@ class OffroLocation {
   final String area;     // area / sub-locality, e.g. "Cowl Bazaar"
   final String city;     // OffrO city used for store filtering, e.g. "Ballari"
   final String state;    // e.g. "Karnataka"
+  /// ISO country of THIS place ('IN', 'SA', ...; '' = not known). It describes the selected / GPS location, never the account's
+  /// registration country: a Saudi account physically in India has a location in 'IN'. Set from verified reverse geocoding or from the
+  /// country list the user picked the city from; never guessed.
+  final String country;
   final double? lat;     // coordinates of the selected GPS fix (null for manual)
   final double? lng;
   final LocationSource source;
@@ -22,6 +28,7 @@ class OffroLocation {
     this.area = '',
     required this.city,
     this.state = '',
+    this.country = '',
     this.lat,
     this.lng,
     this.source = LocationSource.manual,
@@ -40,13 +47,23 @@ class OffroLocation {
   /// Header subtitle.
   ///  locality set:  "Cowl Bazaar, Ballari, Karnataka"
   ///  no locality:   "Karnataka, India"   (area-only: "Ballari, Karnataka")
-  String get subtitle {
+  /// The country is the location's OWN country (see [country]) - never a fixed one. When it is not known nothing is appended.
+  String get subtitle => subtitleFor(null);
+
+  /// Like [subtitle]; [countryLabel] turns the ISO code into the name to show (e.g. in the app language). Default: the English name.
+  String subtitleFor(String Function(String iso)? countryLabel) {
     String join(List<String> parts) =>
         parts.map((p) => p.trim()).where((p) => p.isNotEmpty).join(', ');
     if (locality.trim().isNotEmpty) return join([area, city, state]);
     if (area.trim().isNotEmpty) return join([city, state]);
-    return state.trim().isNotEmpty ? '${state.trim()}, India' : 'India';
+    final iso = country.trim().toUpperCase();
+    final name = iso.isEmpty ? '' : (countryLabel != null ? countryLabel(iso) : (phoneCountryByIso(iso)?.name ?? ''));
+    return join([state, name]);
   }
+
+  OffroLocation copyWith({String? country}) => OffroLocation(
+        locality: locality, area: area, city: city, state: state, country: country ?? this.country,
+        lat: lat, lng: lng, source: source, updatedAt: updatedAt);
 
   bool sameCity(String other) =>
       city.trim().toLowerCase() == other.trim().toLowerCase();
@@ -56,6 +73,7 @@ class OffroLocation {
         'area': area,
         'city': city,
         'state': state,
+        'country': country,
         'lat': lat,
         'lng': lng,
         'source': source == LocationSource.gps ? 'gps' : 'manual',
@@ -71,6 +89,7 @@ class OffroLocation {
       area: (raw['area'] ?? '').toString(),
       city: city,
       state: (raw['state'] ?? '').toString(),
+      country: (raw['country'] ?? '').toString().trim().toUpperCase(),
       lat: (raw['lat'] as num?)?.toDouble(),
       lng: (raw['lng'] as num?)?.toDouble(),
       source: raw['source'] == 'gps' ? LocationSource.gps : LocationSource.manual,

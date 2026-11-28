@@ -106,6 +106,12 @@ class Prefs {
     await p.setString(_kCity, city);
   }
 
+  /// Forgets the saved city (used when a saved choice belongs to another country than the signed-in account).
+  static Future<void> clearCity() async {
+    final p = await SharedPreferences.getInstance();
+    await p.remove(_kCity);
+  }
+
   static Future<String> getCity() async {
     final p = await SharedPreferences.getInstance();
     return p.getString(_kCity) ?? '';

@@ -299,6 +299,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
   Future<void> _selectCity(SupportedCity c) => _select(OffroLocation(
         city: c.name,
         state: c.state,
+        country: LocationService.countryForSelection(_loadedCountry, c.name),
         source: LocationSource.manual,
         updatedAt: DateTime.now(),
       ));
@@ -307,6 +308,7 @@ class _LocationScreenState extends State<LocationScreen> with WidgetsBindingObse
         area: area,
         city: c.name,
         state: c.state,
+        country: LocationService.countryForSelection(_loadedCountry, c.name),
         source: LocationSource.manual,
         updatedAt: DateTime.now(),
       ));

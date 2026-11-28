@@ -173,6 +173,30 @@ class LocationService {
     return supported.any((s) => s.name.toLowerCase() == c);
   }
 
+  /// 'IN' when [city] is in the bundled India reference data, else '' (unknown). Used only to give the long-standing Indian locations
+  /// (saved before locations carried a country) their country; nothing outside that table is ever assumed to be Indian.
+  static String bundledCountryForCity(String city) => stateForCity(city).isNotEmpty ? bundledReferenceCountry : '';
+
+  /// The country of a city the user picked from the city list. [listCountry] is the account country the list was loaded for (the server
+  /// returns only that country's cities); for a guest / unknown account (null) the list is the bundled India reference plus server
+  /// cities, so only a city of that reference is known to be Indian and any other is left unknown.
+  static String countryForSelection(String? listCountry, String city) {
+    final c = (listCountry ?? '').trim().toUpperCase();
+    return c.isNotEmpty ? c : bundledCountryForCity(city);
+  }
+
+  /// The country of a reverse-geocoded fix: the backend's verified answer, else the device geocoder's ISO code, else '' (unknown).
+  /// Never the account's country and never a default.
+  @visibleForTesting
+  static String fixCountryOf(String? backendCountry, String? placemarkIso) {
+    final b = (backendCountry ?? '').trim();
+    return (b.isNotEmpty ? b : (placemarkIso ?? '').trim()).toUpperCase();
+  }
+
+  /// The bundled state table is India's: it may fill a missing state only for a fix in India or one whose country is not known.
+  @visibleForTesting
+  static bool bundledStateAllowedFor(String fixCountry) => fixCountry.isEmpty || fixCountry == bundledReferenceCountry;
+
   /// State for a city name, from the bundled India reference data.
   static String stateForCity(String city) {
     final c = city.trim().toLowerCase();
@@ -418,6 +442,8 @@ class LocationService {
     final bCity = _canon(s(backend['city']));
     final bArea = s(backend['area']);
     final bState = s(backend['state']);
+    // The country of THIS fix: the backend's verified reverse geocode first, then the device geocoder's ISO code. Never the account's.
+    final fixCountry = fixCountryOf(s(backend['country']), s(pm?.isoCountryCode));
 
     // City: first RECOGNISED Indian city among locality → district → backend.
     // Android's "locality" is sometimes a ward/town inside the city, so a
@@ -450,13 +476,15 @@ class LocationService {
 
     // State: geocoder's state when it describes THIS city; else the bundled data.
     var state = (agrees && bState.isNotEmpty) ? bState : (pmAgrees ? pmState : '');
-    if (state.isEmpty) state = stateForCity(city);
+    // The bundled table is India's: use it only when the fix is (or may be) in India, never to label another country's city.
+    if (state.isEmpty && bundledStateAllowedFor(fixCountry)) state = stateForCity(city);
 
     return OffroLocation(
       locality: locality,
       area: area,
       city: city,
       state: state,
+      country: fixCountry,
       lat: pos.latitude,
       lng: pos.longitude,
       source: LocationSource.gps,
